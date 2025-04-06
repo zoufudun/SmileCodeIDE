@@ -1,5 +1,20 @@
-<RCC>
+<!DOCTYPE RCC>
+<RCC version="1.0">
     <qresource prefix="/">
+        <file>icons/horizontal_split.png</file>
+        <file>icons/vertical_split.png</file>
+        <file>icons/close_split.png</file>
+        <file>icons/undo.png</file>
+        <file>icons/redo.png</file>
+        <file>icons/cut.png</file>
+        <file>icons/copy.png</file>
+        <file>icons/paste.png</file>
+        <file>icons/find.png</file>
+        <file>icons/replace.png</file>
+        <file>icons/indent.png</file>
+        <file>icons/unindent.png</file>
+        <file>icons/comment.png</file>
+        <file>icons/uncomment.png</file>
         <file>resources/styles/dark.qss</file>
         <file>resources/styles/light.qss</file>
         <file>resources/styles/atommaterial.qss</file>
@@ -20,3 +35,4 @@
         <file>resources/styles/xcodedark.qss</file>
     </qresource>
 </RCC>
+

@@ -30,5 +30,5 @@ HEADERS += \
 QMAKE_CXXFLAGS += -Wall -Wextra -Wpedantic
 
 # 资源文件
-RESOURCES += \
-    resources.qrc
+# 添加资源文件
+RESOURCES += resources.qrc

@@ -229,7 +229,21 @@ release/qrc_resources.cpp: ../STM32IDE/resources.qrc \
 		../STM32IDE/resources/styles/onedark.qss \
 		../STM32IDE/resources/styles/vue.qss \
 		../STM32IDE/resources/styles/dark.qss \
-		../STM32IDE/resources/styles/noctis.qss
+		../STM32IDE/resources/styles/noctis.qss \
+		../STM32IDE/icons/vertical_split.png \
+		../STM32IDE/icons/unindent.png \
+		../STM32IDE/icons/undo.png \
+		../STM32IDE/icons/cut.png \
+		../STM32IDE/icons/comment.png \
+		../STM32IDE/icons/redo.png \
+		../STM32IDE/icons/replace.png \
+		../STM32IDE/icons/uncomment.png \
+		../STM32IDE/icons/close_split.png \
+		../STM32IDE/icons/copy.png \
+		../STM32IDE/icons/indent.png \
+		../STM32IDE/icons/paste.png \
+		../STM32IDE/icons/horizontal_split.png \
+		../STM32IDE/icons/find.png
 	D:\Soft\Qt\5.15.2\mingw81_64\bin\rcc.exe -name resources ..\STM32IDE\resources.qrc -o release\qrc_resources.cpp
 
 compiler_moc_predefs_make_all: release/moc_predefs.h
@@ -1829,6 +1843,11 @@ release/moc_codeeditor.cpp: ../STM32IDE/codeeditor.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/Qsci/qsciabstractapis.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QSet \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QDebug \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QToolBar \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qtoolbar.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qaction.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/qicon.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qactiongroup.h \
 		release/moc_predefs.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/bin/moc.exe
 	D:\Soft\Qt\5.15.2\mingw81_64\bin\moc.exe $(DEFINES) --include E:/QtHub/vue/build-STM32IDE-Desktop_Qt_5_15_2_MinGW_64_bit-Debug/release/moc_predefs.h -ID:/Soft/Qt/5.15.2/mingw81_64/mkspecs/win32-g++ -IE:/QtHub/vue/STM32IDE -ID:/Soft/Qt/5.15.2/mingw81_64/include/Qsci -IE:/QtHub/vue/STM32IDE/QCodeEditor/include -IE:/QtHub/vue/STM32IDE/QCodeEditor/include/internal -ID:/Soft/Qt/5.15.2/mingw81_64/include -ID:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets -ID:/Soft/Qt/5.15.2/mingw81_64/include/QtGui -ID:/Soft/Qt/5.15.2/mingw81_64/include/QtANGLE -ID:/Soft/Qt/5.15.2/mingw81_64/include/QtCore -I. -ID:/Soft/Qt/Tools/mingw810_64/lib/gcc/x86_64-w64-mingw32/8.1.0/include/c++ -ID:/Soft/Qt/Tools/mingw810_64/lib/gcc/x86_64-w64-mingw32/8.1.0/include/c++/x86_64-w64-mingw32 -ID:/Soft/Qt/Tools/mingw810_64/lib/gcc/x86_64-w64-mingw32/8.1.0/include/c++/backward -ID:/Soft/Qt/Tools/mingw810_64/lib/gcc/x86_64-w64-mingw32/8.1.0/include -ID:/Soft/Qt/Tools/mingw810_64/lib/gcc/x86_64-w64-mingw32/8.1.0/include-fixed -ID:/Soft/Qt/Tools/mingw810_64/x86_64-w64-mingw32/include ..\STM32IDE\codeeditor.h -o release\moc_codeeditor.cpp
@@ -2183,6 +2202,8 @@ release/moc_mainwindow.cpp: ../STM32IDE/mainwindow.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qsplitter.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QSet \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QDebug \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QToolBar \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qtoolbar.h \
 		release/moc_predefs.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/bin/moc.exe
 	D:\Soft\Qt\5.15.2\mingw81_64\bin\moc.exe $(DEFINES) --include E:/QtHub/vue/build-STM32IDE-Desktop_Qt_5_15_2_MinGW_64_bit-Debug/release/moc_predefs.h -ID:/Soft/Qt/5.15.2/mingw81_64/mkspecs/win32-g++ -IE:/QtHub/vue/STM32IDE -ID:/Soft/Qt/5.15.2/mingw81_64/include/Qsci -IE:/QtHub/vue/STM32IDE/QCodeEditor/include -IE:/QtHub/vue/STM32IDE/QCodeEditor/include/internal -ID:/Soft/Qt/5.15.2/mingw81_64/include -ID:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets -ID:/Soft/Qt/5.15.2/mingw81_64/include/QtGui -ID:/Soft/Qt/5.15.2/mingw81_64/include/QtANGLE -ID:/Soft/Qt/5.15.2/mingw81_64/include/QtCore -I. -ID:/Soft/Qt/Tools/mingw810_64/lib/gcc/x86_64-w64-mingw32/8.1.0/include/c++ -ID:/Soft/Qt/Tools/mingw810_64/lib/gcc/x86_64-w64-mingw32/8.1.0/include/c++/x86_64-w64-mingw32 -ID:/Soft/Qt/Tools/mingw810_64/lib/gcc/x86_64-w64-mingw32/8.1.0/include/c++/backward -ID:/Soft/Qt/Tools/mingw810_64/lib/gcc/x86_64-w64-mingw32/8.1.0/include -ID:/Soft/Qt/Tools/mingw810_64/lib/gcc/x86_64-w64-mingw32/8.1.0/include-fixed -ID:/Soft/Qt/Tools/mingw810_64/x86_64-w64-mingw32/include ..\STM32IDE\mainwindow.h -o release\moc_mainwindow.cpp
@@ -4204,6 +4225,11 @@ release/codeeditor.o: ../STM32IDE/codeeditor.cpp ../STM32IDE/codeeditor.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/Qsci/qsciabstractapis.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QSet \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QDebug \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QToolBar \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qtoolbar.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qaction.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/qicon.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qactiongroup.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QVBoxLayout \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qboxlayout.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qlayout.h \
@@ -4216,7 +4242,9 @@ release/codeeditor.o: ../STM32IDE/codeeditor.cpp ../STM32IDE/codeeditor.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QMessageBox \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qmessagebox.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qdialog.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QRegExp
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QRegExp \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QAction \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/QIcon
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o release\codeeditor.o ..\STM32IDE\codeeditor.cpp
 
 release/foldableeditor.o: ../STM32IDE/foldableeditor.cpp ../STM32IDE/foldableeditor.h \
@@ -4571,6 +4599,8 @@ release/main.o: ../STM32IDE/main.cpp ../STM32IDE/mainwindow.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qsplitter.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QSet \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QDebug \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QToolBar \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qtoolbar.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QApplication \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qapplication.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qcoreapplication.h \
@@ -4806,6 +4836,8 @@ release/mainwindow.o: ../STM32IDE/mainwindow.cpp ../STM32IDE/mainwindow.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qsplitter.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QSet \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QDebug \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QToolBar \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qtoolbar.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QVBoxLayout \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QHBoxLayout \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QMessageBox \
@@ -4833,9 +4865,7 @@ release/mainwindow.o: ../STM32IDE/mainwindow.cpp ../STM32IDE/mainwindow.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qdeadlinetimer.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qelapsedtimer.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QStatusBar \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qstatusbar.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QToolBar \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qtoolbar.h
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qstatusbar.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o release\mainwindow.o ..\STM32IDE\mainwindow.cpp
 
 release/toolchaindialog.o: ../STM32IDE/toolchaindialog.cpp ../STM32IDE/toolchaindialog.h \

@@ -4,7 +4,7 @@
  * @Autor: PhodonZou
  * @Date: 2025-04-05 21:43:38
  * @LastEditors: PhodonZou
- * @LastEditTime: 2025-04-05 21:43:51
+ * @LastEditTime: 2025-04-06 23:31:55
  */
 #ifndef CODEEDITOR_H
 #define CODEEDITOR_H
@@ -16,6 +16,7 @@
 #include <Qsci/qsciapis.h>
 #include <QSet>
 #include <QDebug>
+#include <QToolBar>  // 添加工具栏头文件
 
 class CodeEditor : public QWidget
 {
@@ -67,6 +68,9 @@ private:
     // 设置自动补全
     void setupAutoCompletion(QsciScintilla* editor);
     
+    // 创建工具栏
+    void createToolBar();
+    
     // 主分割器
     QSplitter* m_mainSplitter;
     
@@ -84,6 +88,9 @@ private:
     
     // 当前文件路径
     QString m_currentFilePath;
+    
+    // 工具栏
+    QToolBar* m_toolBar;
 };
 
 #endif // CODEEDITOR_H

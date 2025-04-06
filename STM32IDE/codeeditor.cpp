@@ -4,7 +4,7 @@
  * @Autor: PhodonZou
  * @Date: 2025-04-05 21:44:22
  * @LastEditors: PhodonZou
- * @LastEditTime: 2025-04-05 21:44:35
+ * @LastEditTime: 2025-04-06 23:50:34
  */
 #include "codeeditor.h"
 #include <QVBoxLayout>
@@ -13,12 +13,19 @@
 #include <QFileInfo>
 #include <QMessageBox>
 #include <QRegExp>
+#include <QToolBar>  // 添加工具栏头文件
+#include <QAction>   // 添加动作头文件
+#include <QIcon>     // 添加图标头文件
 
 CodeEditor::CodeEditor(QWidget *parent) : QWidget(parent), m_currentEditor(nullptr), m_apiCPP(nullptr)
 {
     // 创建主布局
     QVBoxLayout* layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
+    
+    // 创建工具栏
+    createToolBar();
+    layout->addWidget(m_toolBar);
     
     // 创建主分割器
     m_mainSplitter = new QSplitter(Qt::Horizontal, this);
@@ -551,4 +558,257 @@ void CodeEditor::onEditorChanged(QsciScintilla* editor)
     if (m_editors.contains(editor)) {
         m_currentEditor = editor;
     }
+}
+
+// 添加创建工具栏的方法
+void CodeEditor::createToolBar()
+{
+    m_toolBar = new QToolBar("编辑器工具栏", this);
+    m_toolBar->setMovable(true);
+    m_toolBar->setIconSize(QSize(16, 16));
+    
+    // 创建动作
+    
+    // 水平分栏动作
+    QAction* horizontalSplitAction = new QAction(QIcon(":/icons/horizontal_split.png"), "水平分栏", this);
+    horizontalSplitAction->setToolTip("创建水平分栏");
+    connect(horizontalSplitAction, &QAction::triggered, [this]() {
+        createSplitView(Qt::Horizontal);
+    });
+    m_toolBar->addAction(horizontalSplitAction);
+    
+    // 垂直分栏动作
+    QAction* verticalSplitAction = new QAction(QIcon(":/icons/vertical_split.png"), "垂直分栏", this);
+    verticalSplitAction->setToolTip("创建垂直分栏");
+    connect(verticalSplitAction, &QAction::triggered, [this]() {
+        createSplitView(Qt::Vertical);
+    });
+    m_toolBar->addAction(verticalSplitAction);
+    
+    // 关闭分栏动作
+    QAction* closeSplitAction = new QAction(QIcon(":/icons/close_split.png"), "关闭分栏", this);
+    closeSplitAction->setToolTip("关闭当前分栏");
+    connect(closeSplitAction, &QAction::triggered, [this]() {
+        closeSplitView();
+    });
+    m_toolBar->addAction(closeSplitAction);
+    
+    m_toolBar->addSeparator();
+    
+    // 撤销动作
+    QAction* undoAction = new QAction(QIcon(":/icons/undo.png"), "撤销", this);
+    undoAction->setToolTip("撤销上一步操作");
+    connect(undoAction, &QAction::triggered, [this]() {
+        if (m_currentEditor) {
+            m_currentEditor->undo();
+        }
+    });
+    m_toolBar->addAction(undoAction);
+    
+    // 重做动作
+    QAction* redoAction = new QAction(QIcon(":/icons/redo.png"), "重做", this);
+    redoAction->setToolTip("重做上一步操作");
+    connect(redoAction, &QAction::triggered, [this]() {
+        if (m_currentEditor) {
+            m_currentEditor->redo();
+        }
+    });
+    m_toolBar->addAction(redoAction);
+    
+    m_toolBar->addSeparator();
+    
+    // 剪切动作
+    QAction* cutAction = new QAction(QIcon(":/icons/cut.png"), "剪切", this);
+    cutAction->setToolTip("剪切选中的文本");
+    connect(cutAction, &QAction::triggered, [this]() {
+        if (m_currentEditor) {
+            m_currentEditor->cut();
+        }
+    });
+    m_toolBar->addAction(cutAction);
+    
+    // 复制动作
+    QAction* copyAction = new QAction(QIcon(":/icons/copy.png"), "复制", this);
+    copyAction->setToolTip("复制选中的文本");
+    connect(copyAction, &QAction::triggered, [this]() {
+        if (m_currentEditor) {
+            m_currentEditor->copy();
+        }
+    });
+    m_toolBar->addAction(copyAction);
+    
+    // 粘贴动作
+    QAction* pasteAction = new QAction(QIcon(":/icons/paste.png"), "粘贴", this);
+    pasteAction->setToolTip("粘贴文本");
+    connect(pasteAction, &QAction::triggered, [this]() {
+        if (m_currentEditor) {
+            m_currentEditor->paste();
+        }
+    });
+    m_toolBar->addAction(pasteAction);
+    
+    m_toolBar->addSeparator();
+    
+    // 查找动作
+    QAction* findAction = new QAction(QIcon(":/icons/find.png"), "查找", this);
+    findAction->setToolTip("查找文本");
+    connect(findAction, &QAction::triggered, [this]() {
+        if (m_currentEditor) {
+            // 这里可以实现查找功能，或者调用已有的查找方法
+            // 暂时使用简单的实现
+            m_currentEditor->findFirst("", false, false, false, true);
+        }
+    });
+    m_toolBar->addAction(findAction);
+    
+    // 替换动作
+    QAction* replaceAction = new QAction(QIcon(":/icons/replace.png"), "替换", this);
+    replaceAction->setToolTip("替换文本");
+    connect(replaceAction, &QAction::triggered, [this]() {
+        if (m_currentEditor) {
+            // 这里可以实现替换功能，或者调用已有的替换方法
+            // 暂时使用简单的实现
+            // 需要更复杂的实现可以添加一个替换对话框
+        }
+    });
+    m_toolBar->addAction(replaceAction);
+    
+    m_toolBar->addSeparator();
+    
+    // 缩进动作
+    QAction* indentAction = new QAction(QIcon(":/icons/indent.png"), "增加缩进", this);
+    indentAction->setToolTip("增加选中文本的缩进");
+    connect(indentAction, &QAction::triggered, [this]() {
+        if (m_currentEditor) {
+            // QsciScintilla doesn't have an indent() method
+            // Instead, we need to manually insert spaces or tabs at the beginning of selected lines
+            int lineFrom, indexFrom, lineTo, indexTo;
+            m_currentEditor->getSelection(&lineFrom, &indexFrom, &lineTo, &indexTo);
+            
+            // If no selection, use current line
+            if (lineFrom == -1) {
+                // Fix: getCursorPosition requires two parameters
+                m_currentEditor->getCursorPosition(&lineFrom, &indexFrom);
+                lineTo = lineFrom;
+            }
+            
+            // Begin undo action
+            m_currentEditor->beginUndoAction();
+            
+            // Add indentation to each line
+            for (int line = lineFrom; line <= lineTo; ++line) {
+                m_currentEditor->insertAt("    ", line, 0); // Insert 4 spaces
+            }
+            
+            // End undo action
+            m_currentEditor->endUndoAction();
+        }
+    });
+    m_toolBar->addAction(indentAction);
+    
+    // 取消缩进动作
+    QAction* unindentAction = new QAction(QIcon(":/icons/unindent.png"), "减少缩进", this);
+    unindentAction->setToolTip("减少选中文本的缩进");
+    connect(unindentAction, &QAction::triggered, [this]() {
+        if (m_currentEditor) {
+            // QsciScintilla doesn't have an unindent() method
+            // Instead, we need to manually remove spaces or tabs from the beginning of selected lines
+            int lineFrom, indexFrom, lineTo, indexTo;
+            m_currentEditor->getSelection(&lineFrom, &indexFrom, &lineTo, &indexTo);
+            
+            // If no selection, use current line
+            if (lineFrom == -1) {
+                // Fix: getCursorPosition requires two parameters
+                m_currentEditor->getCursorPosition(&lineFrom, &indexFrom);
+                lineTo = lineFrom;
+            }
+            
+            // Begin undo action
+            m_currentEditor->beginUndoAction();
+            
+            // Remove indentation from each line
+            for (int line = lineFrom; line <= lineTo; ++line) {
+                QString lineText = m_currentEditor->text(line);
+                if (lineText.startsWith("    ")) {
+                    // Remove 4 spaces
+                    m_currentEditor->setSelection(line, 0, line, 4);
+                    m_currentEditor->removeSelectedText();
+                } else if (lineText.startsWith("\t")) {
+                    // Remove tab
+                    m_currentEditor->setSelection(line, 0, line, 1);
+                    m_currentEditor->removeSelectedText();
+                } else if (lineText.startsWith("  ")) {
+                    // Remove 2 spaces
+                    m_currentEditor->setSelection(line, 0, line, 2);
+                    m_currentEditor->removeSelectedText();
+                } else if (lineText.startsWith(" ")) {
+                    // Remove 1 space
+                    m_currentEditor->setSelection(line, 0, line, 1);
+                    m_currentEditor->removeSelectedText();
+                }
+            }
+            
+            // End undo action
+            m_currentEditor->endUndoAction();
+        }
+    });
+    m_toolBar->addAction(unindentAction);
+    
+    m_toolBar->addSeparator();
+    
+    // 注释动作
+    QAction* commentAction = new QAction(QIcon(":/icons/comment.png"), "注释", this);
+    commentAction->setToolTip("注释选中的代码");
+    connect(commentAction, &QAction::triggered, [this]() {
+        if (m_currentEditor) {
+            // 获取选中的文本范围
+            int lineFrom, indexFrom, lineTo, indexTo;
+            m_currentEditor->getSelection(&lineFrom, &indexFrom, &lineTo, &indexTo);
+            
+            // 如果没有选中文本，则使用当前行
+            if (lineFrom == -1) {
+                // Fix: getCursorPosition requires two parameters
+                m_currentEditor->getCursorPosition(&lineFrom, &indexFrom);
+                lineTo = lineFrom;
+                indexTo = indexFrom;
+            }
+            
+            // 为每一行添加注释
+            for (int line = lineFrom; line <= lineTo; ++line) {
+                m_currentEditor->insertAt("// ", line, 0);
+            }
+        }
+    });
+    m_toolBar->addAction(commentAction);
+    // 取消注释动作
+    QAction* uncommentAction = new QAction(QIcon(":/icons/uncomment.png"), "取消注释", this);
+    uncommentAction->setToolTip("取消选中代码的注释");
+    connect(uncommentAction, &QAction::triggered, [this]() {
+        if (m_currentEditor) {
+            // 获取选中的文本范围
+            int lineFrom, indexFrom, lineTo, indexTo;
+            m_currentEditor->getSelection(&lineFrom, &indexFrom, &lineTo, &indexTo);
+            
+            // 如果没有选中文本，则使用当前行
+            if (lineFrom == -1) {
+                // Fix: getCursorPosition requires two parameters
+                m_currentEditor->getCursorPosition(&lineFrom, &indexFrom);
+                lineTo = lineFrom;
+                indexTo = indexFrom;
+            }
+            
+            // 为每一行移除注释
+            for (int line = lineFrom; line <= lineTo; ++line) {
+                QString lineText = m_currentEditor->text(line);
+                if (lineText.startsWith("// ")) {
+                    m_currentEditor->setSelection(line, 0, line, 3);
+                    m_currentEditor->removeSelectedText();
+                } else if (lineText.startsWith("//")) {
+                    m_currentEditor->setSelection(line, 0, line, 2);
+                    m_currentEditor->removeSelectedText();
+                }
+            }
+        }
+    });
+    m_toolBar->addAction(uncommentAction);
 }
