@@ -1,0 +1,209 @@
+/* Night Owl Theme */
+
+/* 主窗口样式 */
+QMainWindow {
+    background-color: #011627;
+    color: #D6DEEB;
+}
+
+/* 菜单栏样式 */
+QMenuBar {
+    background-color: #011627;
+    color: #D6DEEB;
+}
+
+QMenuBar::item {
+    background-color: transparent;
+    padding: 4px 10px;
+}
+
+QMenuBar::item:selected {
+    background-color: #1D3B53;
+    color: #80CBC4;
+}
+
+/* 菜单样式 */
+QMenu {
+    background-color: #011627;
+    color: #D6DEEB;
+    border: 1px solid #1D3B53;
+}
+
+QMenu::item {
+    padding: 5px 30px 5px 20px;
+}
+
+QMenu::item:selected {
+    background-color: #1D3B53;
+    color: #80CBC4;
+}
+
+/* 工具栏样式 */
+QToolBar {
+    background-color: #011627;
+    border: none;
+    spacing: 3px;
+}
+
+QToolButton {
+    background-color: transparent;
+    border: 1px solid transparent;
+    border-radius: 2px;
+    padding: 3px;
+}
+
+QToolButton:hover {
+    background-color: #1D3B53;
+    border: 1px solid #1D3B53;
+}
+
+QToolButton:pressed {
+    background-color: #0A2233;
+}
+
+/* 状态栏样式 */
+QStatusBar {
+    background-color: #011627;
+    color: #D6DEEB;
+}
+
+/* 标签页样式 */
+QTabWidget::pane {
+    border: 1px solid #1D3B53;
+    background-color: #011627;
+}
+
+QTabBar::tab {
+    background-color: #011627;
+    color: #D6DEEB;
+    padding: 5px 10px;
+    border-top-left-radius: 3px;
+    border-top-right-radius: 3px;
+}
+
+QTabBar::tab:selected {
+    background-color: #1D3B53;
+    border-bottom: 2px solid #80CBC4;
+}
+
+QTabBar::tab:!selected {
+    background-color: #011627;
+}
+
+/* 按钮样式 */
+QPushButton {
+    background-color: #1D3B53;
+    color: #D6DEEB;
+    border: 1px solid #234D70;
+    border-radius: 3px;
+    padding: 5px 15px;
+}
+
+QPushButton:hover {
+    background-color: #234D70;
+}
+
+QPushButton:pressed {
+    background-color: #011627;
+}
+
+/* 输入框样式 */
+QLineEdit {
+    background-color: #0A2233;
+    color: #D6DEEB;
+    border: 1px solid #1D3B53;
+    border-radius: 3px;
+    padding: 3px;
+}
+
+/* 下拉框样式 */
+QComboBox {
+    background-color: #0A2233;
+    color: #D6DEEB;
+    border: 1px solid #1D3B53;
+    border-radius: 3px;
+    padding: 3px 3px 3px 7px;
+}
+
+QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 20px;
+    border-left: 1px solid #1D3B53;
+}
+
+/* 树视图样式 */
+QTreeView {
+    background-color: #011627;
+    color: #D6DEEB;
+    border: 1px solid #1D3B53;
+}
+
+QTreeView::item {
+    padding: 3px;
+}
+
+QTreeView::item:selected {
+    background-color: #1D3B53;
+    color: #80CBC4;
+}
+
+/* 文本编辑器样式 */
+QPlainTextEdit, QTextEdit {
+    background-color: #011627;
+    color: #D6DEEB;
+    border: 1px solid #1D3B53;
+    selection-background-color: #234D70;
+    selection-color: #80CBC4;
+}
+
+/* 滚动条样式 */
+QScrollBar:vertical {
+    background-color: #011627;
+    width: 12px;
+    margin: 0px;
+}
+
+QScrollBar::handle:vertical {
+    background-color: #1D3B53;
+    min-height: 20px;
+    border-radius: 6px;
+}
+
+QScrollBar::handle:vertical:hover {
+    background-color: #234D70;
+}
+
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    height: 0px;
+}
+
+QScrollBar:horizontal {
+    background-color: #011627;
+    height: 12px;
+    margin: 0px;
+}
+
+QScrollBar::handle:horizontal {
+    background-color: #1D3B53;
+    min-width: 20px;
+    border-radius: 6px;
+}
+
+QScrollBar::handle:horizontal:hover {
+    background-color: #234D70;
+}
+
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+    width: 0px;
+}
+
+/* 特殊的Night Owl主题元素 */
+QPushButton#buildButton, QPushButton#flashButton {
+    background-color: #7E57C2;
+    color: #FFFFFF;
+}
+
+QPushButton#buildButton:hover, QPushButton#flashButton:hover {
+    background-color: #9575CD;
+}

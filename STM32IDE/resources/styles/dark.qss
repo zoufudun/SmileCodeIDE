@@ -1,0 +1,75 @@
+/* 深色主题样式表 */
+QMainWindow, QDialog {
+    background-color: #2D2D30;
+    color: #FFFFFF;
+}
+
+QMenuBar {
+    background-color: #1E1E1E;
+    color: #FFFFFF;
+}
+
+QMenu {
+    background-color: #1E1E1E;
+    color: #FFFFFF;
+    border: 1px solid #3E3E40;
+}
+
+QToolBar {
+    background-color: #2D2D30;
+    border-bottom: 1px solid #3E3E40;
+}
+
+QTabWidget::pane {
+    border: 1px solid #3E3E40;
+}
+
+QTabBar::tab {
+    background-color: #2D2D30;
+    color: #FFFFFF;
+    padding: 8px 12px;
+}
+
+QTabBar::tab:selected {
+    background-color: #1E1E1E;
+    border-bottom: 2px solid #007ACC;
+}
+
+QTextEdit, QLineEdit {
+    background-color: #1E1E1E;
+    color: #FFFFFF;
+    border: 1px solid #3E3E40;
+}
+
+QPushButton {
+    background-color: #0E639C;
+    color: #FFFFFF;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 2px;
+}
+
+QPushButton:hover {
+    background-color: #1177BB;
+}
+
+QComboBox {
+    background-color: #1E1E1E;
+    color: #FFFFFF;
+    border: 1px solid #3E3E40;
+}
+
+QTreeView {
+    background-color: #1E1E1E;
+    color: #FFFFFF;
+    border: 1px solid #3E3E40;
+}
+
+QTreeView::item:selected {
+    background-color: #264F78;
+}
+
+QStatusBar {
+    background-color: #007ACC;
+    color: #FFFFFF;
+}

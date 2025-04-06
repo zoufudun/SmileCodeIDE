@@ -1,0 +1,22 @@
+<RCC>
+    <qresource prefix="/">
+        <file>resources/styles/dark.qss</file>
+        <file>resources/styles/light.qss</file>
+        <file>resources/styles/atommaterial.qss</file>
+        <file>resources/styles/atomone.qss</file>
+        <file>resources/styles/gerry.qss</file>
+        <file>resources/styles/materialicons.qss</file>
+        <file>resources/styles/onedark.qss</file>
+        <file>resources/styles/dracula.qss</file>
+        <file>resources/styles/githubdark.qss</file>
+        <file>resources/styles/materiallight.qss</file>
+        <file>resources/styles/monokaipro.qss</file>
+        <file>resources/styles/nightowl.qss</file>
+        <file>resources/styles/noctis.qss</file>
+        <file>resources/styles/nord.qss</file>
+        <file>resources/styles/onedarkpro.qss</file>
+        <file>resources/styles/solarizedlight.qss</file>
+        <file>resources/styles/vue.qss</file>
+        <file>resources/styles/xcodedark.qss</file>
+    </qresource>
+</RCC>
