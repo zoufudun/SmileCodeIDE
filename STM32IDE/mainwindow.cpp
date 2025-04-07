@@ -25,7 +25,7 @@
 #include <QCXXHighlighter>
 #include <QSyntaxStyle>
 #include <QGLSLCompleter>
-
+#include <QDockWidget>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), m_isDebugging(false)
@@ -37,6 +37,26 @@ MainWindow::MainWindow(QWidget *parent)
     createToolbars();
 
     connect(m_codeEditor, &CodeEditor::newFileRequested, this, &MainWindow::newFile);
+
+    // 创建构建系统
+    m_buildSystem = new BuildSystem(this);
+
+    // 创建输出窗口
+    m_outputWindow = new QTextEdit(this);
+    m_outputWindow->setReadOnly(true);
+
+    // 添加输出窗口到底部
+    QDockWidget *outputDock = new QDockWidget("编译输出", this);
+    outputDock->setWidget(m_outputWindow);
+    addDockWidget(Qt::BottomDockWidgetArea, outputDock);
+
+    // 连接构建系统信号
+    connect(m_buildSystem, &BuildSystem::buildOutput, this, &MainWindow::appendBuildOutput);
+    connect(m_buildSystem, &BuildSystem::buildFinished, this, &MainWindow::onBuildFinished);
+
+    // 连接编辑器信号
+    connect(m_codeEditor, &CodeEditor::buildRequested, this, &MainWindow::buildProject);
+    connect(m_codeEditor, &CodeEditor::cleanRequested, this, &MainWindow::cleanProject);
     
     m_process = new QProcess(this);
     connect(m_process, &QProcess::readyReadStandardOutput, this, &MainWindow::processOutput);
@@ -59,6 +79,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     // 确保快捷键能够正常工作
     setFocusPolicy(Qt::StrongFocus);
+
 }
 
 MainWindow::~MainWindow()
@@ -1475,45 +1496,99 @@ void MainWindow::saveProject()
     statusBar()->showMessage("项目已保存");
 }
 
+// void MainWindow::buildProject()
+// {
+//     if (m_projectPath.isEmpty()) {
+//         QMessageBox::warning(this, "错误", "没有打开的项目!");
+//         return;
+//     }
+    
+//     m_outputConsole->clear();
+//     m_outputConsole->append("开始编译项目...\n");
+    
+//     // 设置工作目录
+//     m_process->setWorkingDirectory(m_projectPath);
+    
+//     // 执行make命令
+//     QStringList arguments;
+//     executeCommand("make", arguments);
+    
+//     statusBar()->showMessage("正在编译...");
+// }
+
+// 实现构建相关的槽函数
 void MainWindow::buildProject()
 {
-    if (m_projectPath.isEmpty()) {
-        QMessageBox::warning(this, "错误", "没有打开的项目!");
-        return;
+    // 清空输出窗口
+    m_outputWindow->clear();
+    m_outputWindow->append("开始构建项目...");
+
+    // 设置项目路径
+    QString projectPath = QFileInfo(m_currentFilePath).absolutePath();
+    m_buildSystem->setProjectPath(projectPath);
+
+    // 设置输出路径
+    QString outputPath = projectPath + "/build";
+    m_buildSystem->setOutputPath(outputPath);
+
+    // 开始构建
+    if (!m_buildSystem->buildProject()) {
+        m_outputWindow->append("错误: " + m_buildSystem->lastError());
     }
-    
-    m_outputConsole->clear();
-    m_outputConsole->append("开始编译项目...\n");
-    
-    // 设置工作目录
-    m_process->setWorkingDirectory(m_projectPath);
-    
-    // 执行make命令
-    QStringList arguments;
-    executeCommand("make", arguments);
-    
-    statusBar()->showMessage("正在编译...");
 }
+
+// void MainWindow::cleanProject()
+// {
+//     if (m_projectPath.isEmpty()) {
+//         QMessageBox::warning(this, "错误", "没有打开的项目!");
+//         return;
+//     }
+    
+//     m_outputConsole->clear();
+//     m_outputConsole->append("清理项目...\n");
+    
+//     // 设置工作目录
+//     m_process->setWorkingDirectory(m_projectPath);
+    
+//     // 执行make clean命令
+//     QStringList arguments;
+//     arguments << "clean";
+//     executeCommand("make", arguments);
+    
+//     statusBar()->showMessage("正在清理...");
+// }
 
 void MainWindow::cleanProject()
 {
-    if (m_projectPath.isEmpty()) {
-        QMessageBox::warning(this, "错误", "没有打开的项目!");
-        return;
+    m_outputWindow->clear();
+    m_outputWindow->append("清理项目...");
+
+    // 设置输出路径
+    QString projectPath = QFileInfo(m_currentFilePath).absolutePath();
+    QString outputPath = projectPath + "/build";
+    m_buildSystem->setOutputPath(outputPath);
+
+    // 清理项目
+    if (m_buildSystem->cleanProject()) {
+        m_outputWindow->append("项目清理完成");
+    } else {
+        m_outputWindow->append("错误: " + m_buildSystem->lastError());
     }
-    
-    m_outputConsole->clear();
-    m_outputConsole->append("清理项目...\n");
-    
-    // 设置工作目录
-    m_process->setWorkingDirectory(m_projectPath);
-    
-    // 执行make clean命令
-    QStringList arguments;
-    arguments << "clean";
-    executeCommand("make", arguments);
-    
-    statusBar()->showMessage("正在清理...");
+}
+
+
+void MainWindow::appendBuildOutput(const QString &output)
+{
+    m_outputWindow->append(output);
+}
+
+void MainWindow::onBuildFinished(bool success)
+{
+    if (success) {
+        m_outputWindow->append("构建成功");
+    } else {
+        m_outputWindow->append("构建失败: " + m_buildSystem->lastError());
+    }
 }
 
 void MainWindow::flashProject()

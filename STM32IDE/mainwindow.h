@@ -4,7 +4,7 @@
  * @Autor: PhodonZou
  * @Date: 2025-03-26 21:02:58
  * @LastEditors: PhodonZou
- * @LastEditTime: 2025-04-01 18:11:59
+ * @LastEditTime: 2025-04-07 23:46:29
  */
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
@@ -42,7 +42,8 @@
 
 #include "codeeditor.h"
 
-
+// 添加BuildSystem头文件
+#include "buildsystem.h"
 
 
 class MainWindow : public QMainWindow
@@ -115,6 +116,8 @@ private slots:
     void newFile();
     void saveFile();
 
+    void appendBuildOutput(const QString &output);
+    void onBuildFinished(bool success);
 
 private:
     void setupUi();
@@ -248,6 +251,12 @@ private:
     QAction *m_verticalSplitAction;
     QAction *m_closeSplitAction;
 
+    // 构建系统
+    BuildSystem *m_buildSystem;
+
+    // 输出窗口
+    QTextEdit *m_outputWindow;
+
 protected:
     void keyPressEvent(QKeyEvent *event) override;
 protected:
@@ -256,5 +265,7 @@ protected:
     bool event(QEvent *event) override; // 添加这一行
 };
 
+
 #endif // MAINWINDOW_H
+
 

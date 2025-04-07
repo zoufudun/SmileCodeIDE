@@ -13,6 +13,7 @@ include(QCodeEditor/QCodeEditor.pri)
 
 # 源文件
 SOURCES += \
+    buildsystem.cpp \
     codeeditor.cpp \
     foldableeditor.cpp \
     main.cpp \
@@ -21,6 +22,7 @@ SOURCES += \
 
 # 头文件
 HEADERS += \
+    buildsystem.h \
     codeeditor.h \
     foldableeditor.h \
     mainwindow.h \

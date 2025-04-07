@@ -13,6 +13,7 @@ debug/QPythonHighlighter.o
 debug/QStyleSyntaxHighlighter.o
 debug/QSyntaxStyle.o
 debug/QXMLHighlighter.o
+debug/buildsystem.o
 debug/codeeditor.o
 debug/foldableeditor.o
 debug/main.o
@@ -33,6 +34,7 @@ debug/moc_QPythonCompleter.o
 debug/moc_QPythonHighlighter.o
 debug/moc_QSyntaxStyle.o
 debug/moc_QXMLHighlighter.o
+debug/moc_buildsystem.o
 debug/moc_codeeditor.o
 debug/moc_foldableeditor.o
 debug/moc_mainwindow.o

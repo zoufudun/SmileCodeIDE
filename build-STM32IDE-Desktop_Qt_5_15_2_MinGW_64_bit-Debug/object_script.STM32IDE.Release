@@ -13,6 +13,7 @@ release/QPythonHighlighter.o
 release/QStyleSyntaxHighlighter.o
 release/QSyntaxStyle.o
 release/QXMLHighlighter.o
+release/buildsystem.o
 release/codeeditor.o
 release/foldableeditor.o
 release/main.o
@@ -33,6 +34,7 @@ release/moc_QPythonCompleter.o
 release/moc_QPythonHighlighter.o
 release/moc_QSyntaxStyle.o
 release/moc_QXMLHighlighter.o
+release/moc_buildsystem.o
 release/moc_codeeditor.o
 release/moc_foldableeditor.o
 release/moc_mainwindow.o
