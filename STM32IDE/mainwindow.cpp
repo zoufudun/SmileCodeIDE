@@ -35,6 +35,8 @@ MainWindow::MainWindow(QWidget *parent)
     createActions();
     createMenus();
     createToolbars();
+
+    connect(m_codeEditor, &CodeEditor::newFileRequested, this, &MainWindow::newFile);
     
     m_process = new QProcess(this);
     connect(m_process, &QProcess::readyReadStandardOutput, this, &MainWindow::processOutput);
@@ -132,7 +134,36 @@ MainWindow::~MainWindow()
 //     helpMenu->addAction(findChild<QAction*>("关于"));
 // }
 
+void MainWindow::newFile()
+{
+    // 检查当前文件是否已修改，如果已修改则提示保存
+    if (isCurrentFileModified()) {
+        QMessageBox::StandardButton reply = QMessageBox::question(this,
+                                                                  "保存更改", "当前文件已修改，是否保存更改？",
+                                                                  QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel);
 
+        if (reply == QMessageBox::Yes) {
+            saveFile();
+        } else if (reply == QMessageBox::Cancel) {
+            return;
+        }
+    }
+
+    // 创建新文件
+    m_codeEditor->setText("");
+    m_currentFilePath = "";
+    setWindowTitle("STM32IDE - 新文件");
+    statusBar()->showMessage("已创建新文件", 2000);
+}
+
+bool MainWindow::isCurrentFileModified() const
+{
+    // Check if the current editor has modifications
+    if (m_codeEditor && m_codeEditor->currentEditor()) {
+        return m_codeEditor->currentEditor()->isModified();
+    }
+    return false;
+}
 void MainWindow::createMenus()
 {
     // 创建主菜单栏
@@ -1853,6 +1884,7 @@ void MainWindow::showAboutDialog()
                       "<p>作者: PhodonZou</p>"
                       "<p>这是一个基于Qt的STM32开发工具，用于编译和调试STM32项目。</p>"
                       "<p>支持ARM GCC工具链和OpenOCD调试器。</p>");
+    statusBar()->showMessage("已显示关于信息", 2000);
 }
 
 void MainWindow::setDarkTheme()
@@ -2847,6 +2879,24 @@ void MainWindow::onFileDoubleClicked(const QModelIndex &index)
 
     if (fileInfo.isFile()) {
         loadFile(filePath);
+    }
+}
+
+void MainWindow::saveFile()
+{
+    // Check if we have a current file path
+    if (m_currentFilePath.isEmpty()) {
+        // If no current file path, call saveFileAs instead
+        saveFileAs();
+        return;
+    }
+
+    // Save the file using the CodeEditor's saveFile method
+    if (m_codeEditor->saveFile(m_currentFilePath)) {
+        statusBar()->showMessage("File saved: " + m_currentFilePath, 2000);
+        setWindowTitle("STM32IDE - " + QFileInfo(m_currentFilePath).fileName());
+    } else {
+        QMessageBox::warning(this, "Save Failed", "Failed to save file: " + m_currentFilePath);
     }
 }
 

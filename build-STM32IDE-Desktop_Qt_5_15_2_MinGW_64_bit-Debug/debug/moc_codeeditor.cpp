@@ -22,8 +22,8 @@ QT_BEGIN_MOC_NAMESPACE
 QT_WARNING_PUSH
 QT_WARNING_DISABLE_DEPRECATED
 struct qt_meta_stringdata_CodeEditor_t {
-    QByteArrayData data[6];
-    char stringdata0[69];
+    QByteArrayData data[18];
+    char stringdata0[264];
 };
 #define QT_MOC_LITERAL(idx, ofs, len) \
     Q_STATIC_BYTE_ARRAY_DATA_HEADER_INITIALIZER_WITH_OFFSET(len, \
@@ -33,15 +33,33 @@ struct qt_meta_stringdata_CodeEditor_t {
 static const qt_meta_stringdata_CodeEditor_t qt_meta_stringdata_CodeEditor = {
     {
 QT_MOC_LITERAL(0, 0, 10), // "CodeEditor"
-QT_MOC_LITERAL(1, 11, 18), // "updateVariableList"
-QT_MOC_LITERAL(2, 30, 0), // ""
-QT_MOC_LITERAL(3, 31, 15), // "onEditorChanged"
-QT_MOC_LITERAL(4, 47, 14), // "QsciScintilla*"
-QT_MOC_LITERAL(5, 62, 6) // "editor"
+QT_MOC_LITERAL(1, 11, 16), // "newFileRequested"
+QT_MOC_LITERAL(2, 28, 0), // ""
+QT_MOC_LITERAL(3, 29, 17), // "openFileRequested"
+QT_MOC_LITERAL(4, 47, 17), // "saveFileRequested"
+QT_MOC_LITERAL(5, 65, 14), // "buildRequested"
+QT_MOC_LITERAL(6, 80, 14), // "cleanRequested"
+QT_MOC_LITERAL(7, 95, 14), // "debugRequested"
+QT_MOC_LITERAL(8, 110, 12), // "runRequested"
+QT_MOC_LITERAL(9, 123, 13), // "stopRequested"
+QT_MOC_LITERAL(10, 137, 22), // "serialMonitorRequested"
+QT_MOC_LITERAL(11, 160, 17), // "settingsRequested"
+QT_MOC_LITERAL(12, 178, 13), // "helpRequested"
+QT_MOC_LITERAL(13, 192, 14), // "aboutRequested"
+QT_MOC_LITERAL(14, 207, 18), // "updateVariableList"
+QT_MOC_LITERAL(15, 226, 15), // "onEditorChanged"
+QT_MOC_LITERAL(16, 242, 14), // "QsciScintilla*"
+QT_MOC_LITERAL(17, 257, 6) // "editor"
 
     },
-    "CodeEditor\0updateVariableList\0\0"
-    "onEditorChanged\0QsciScintilla*\0editor"
+    "CodeEditor\0newFileRequested\0\0"
+    "openFileRequested\0saveFileRequested\0"
+    "buildRequested\0cleanRequested\0"
+    "debugRequested\0runRequested\0stopRequested\0"
+    "serialMonitorRequested\0settingsRequested\0"
+    "helpRequested\0aboutRequested\0"
+    "updateVariableList\0onEditorChanged\0"
+    "QsciScintilla*\0editor"
 };
 #undef QT_MOC_LITERAL
 
@@ -51,20 +69,48 @@ static const uint qt_meta_data_CodeEditor[] = {
        8,       // revision
        0,       // classname
        0,    0, // classinfo
-       2,   14, // methods
+      14,   14, // methods
        0,    0, // properties
        0,    0, // enums/sets
        0,    0, // constructors
        0,       // flags
-       0,       // signalCount
+      12,       // signalCount
+
+ // signals: name, argc, parameters, tag, flags
+       1,    0,   84,    2, 0x06 /* Public */,
+       3,    0,   85,    2, 0x06 /* Public */,
+       4,    0,   86,    2, 0x06 /* Public */,
+       5,    0,   87,    2, 0x06 /* Public */,
+       6,    0,   88,    2, 0x06 /* Public */,
+       7,    0,   89,    2, 0x06 /* Public */,
+       8,    0,   90,    2, 0x06 /* Public */,
+       9,    0,   91,    2, 0x06 /* Public */,
+      10,    0,   92,    2, 0x06 /* Public */,
+      11,    0,   93,    2, 0x06 /* Public */,
+      12,    0,   94,    2, 0x06 /* Public */,
+      13,    0,   95,    2, 0x06 /* Public */,
 
  // slots: name, argc, parameters, tag, flags
-       1,    0,   24,    2, 0x0a /* Public */,
-       3,    1,   25,    2, 0x08 /* Private */,
+      14,    0,   96,    2, 0x0a /* Public */,
+      15,    1,   97,    2, 0x08 /* Private */,
+
+ // signals: parameters
+    QMetaType::Void,
+    QMetaType::Void,
+    QMetaType::Void,
+    QMetaType::Void,
+    QMetaType::Void,
+    QMetaType::Void,
+    QMetaType::Void,
+    QMetaType::Void,
+    QMetaType::Void,
+    QMetaType::Void,
+    QMetaType::Void,
+    QMetaType::Void,
 
  // slots: parameters
     QMetaType::Void,
-    QMetaType::Void, 0x80000000 | 4,    5,
+    QMetaType::Void, 0x80000000 | 16,   17,
 
        0        // eod
 };
@@ -75,20 +121,118 @@ void CodeEditor::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, 
         auto *_t = static_cast<CodeEditor *>(_o);
         Q_UNUSED(_t)
         switch (_id) {
-        case 0: _t->updateVariableList(); break;
-        case 1: _t->onEditorChanged((*reinterpret_cast< QsciScintilla*(*)>(_a[1]))); break;
+        case 0: _t->newFileRequested(); break;
+        case 1: _t->openFileRequested(); break;
+        case 2: _t->saveFileRequested(); break;
+        case 3: _t->buildRequested(); break;
+        case 4: _t->cleanRequested(); break;
+        case 5: _t->debugRequested(); break;
+        case 6: _t->runRequested(); break;
+        case 7: _t->stopRequested(); break;
+        case 8: _t->serialMonitorRequested(); break;
+        case 9: _t->settingsRequested(); break;
+        case 10: _t->helpRequested(); break;
+        case 11: _t->aboutRequested(); break;
+        case 12: _t->updateVariableList(); break;
+        case 13: _t->onEditorChanged((*reinterpret_cast< QsciScintilla*(*)>(_a[1]))); break;
         default: ;
         }
     } else if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
         switch (_id) {
         default: *reinterpret_cast<int*>(_a[0]) = -1; break;
-        case 1:
+        case 13:
             switch (*reinterpret_cast<int*>(_a[1])) {
             default: *reinterpret_cast<int*>(_a[0]) = -1; break;
             case 0:
                 *reinterpret_cast<int*>(_a[0]) = qRegisterMetaType< QsciScintilla* >(); break;
             }
             break;
+        }
+    } else if (_c == QMetaObject::IndexOfMethod) {
+        int *result = reinterpret_cast<int *>(_a[0]);
+        {
+            using _t = void (CodeEditor::*)();
+            if (*reinterpret_cast<_t *>(_a[1]) == static_cast<_t>(&CodeEditor::newFileRequested)) {
+                *result = 0;
+                return;
+            }
+        }
+        {
+            using _t = void (CodeEditor::*)();
+            if (*reinterpret_cast<_t *>(_a[1]) == static_cast<_t>(&CodeEditor::openFileRequested)) {
+                *result = 1;
+                return;
+            }
+        }
+        {
+            using _t = void (CodeEditor::*)();
+            if (*reinterpret_cast<_t *>(_a[1]) == static_cast<_t>(&CodeEditor::saveFileRequested)) {
+                *result = 2;
+                return;
+            }
+        }
+        {
+            using _t = void (CodeEditor::*)();
+            if (*reinterpret_cast<_t *>(_a[1]) == static_cast<_t>(&CodeEditor::buildRequested)) {
+                *result = 3;
+                return;
+            }
+        }
+        {
+            using _t = void (CodeEditor::*)();
+            if (*reinterpret_cast<_t *>(_a[1]) == static_cast<_t>(&CodeEditor::cleanRequested)) {
+                *result = 4;
+                return;
+            }
+        }
+        {
+            using _t = void (CodeEditor::*)();
+            if (*reinterpret_cast<_t *>(_a[1]) == static_cast<_t>(&CodeEditor::debugRequested)) {
+                *result = 5;
+                return;
+            }
+        }
+        {
+            using _t = void (CodeEditor::*)();
+            if (*reinterpret_cast<_t *>(_a[1]) == static_cast<_t>(&CodeEditor::runRequested)) {
+                *result = 6;
+                return;
+            }
+        }
+        {
+            using _t = void (CodeEditor::*)();
+            if (*reinterpret_cast<_t *>(_a[1]) == static_cast<_t>(&CodeEditor::stopRequested)) {
+                *result = 7;
+                return;
+            }
+        }
+        {
+            using _t = void (CodeEditor::*)();
+            if (*reinterpret_cast<_t *>(_a[1]) == static_cast<_t>(&CodeEditor::serialMonitorRequested)) {
+                *result = 8;
+                return;
+            }
+        }
+        {
+            using _t = void (CodeEditor::*)();
+            if (*reinterpret_cast<_t *>(_a[1]) == static_cast<_t>(&CodeEditor::settingsRequested)) {
+                *result = 9;
+                return;
+            }
+        }
+        {
+            using _t = void (CodeEditor::*)();
+            if (*reinterpret_cast<_t *>(_a[1]) == static_cast<_t>(&CodeEditor::helpRequested)) {
+                *result = 10;
+                return;
+            }
+        }
+        {
+            using _t = void (CodeEditor::*)();
+            if (*reinterpret_cast<_t *>(_a[1]) == static_cast<_t>(&CodeEditor::aboutRequested)) {
+                *result = 11;
+                return;
+            }
         }
     }
 }
@@ -122,15 +266,87 @@ int CodeEditor::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 2)
+        if (_id < 14)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 2;
+        _id -= 14;
     } else if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
-        if (_id < 2)
+        if (_id < 14)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 2;
+        _id -= 14;
     }
     return _id;
+}
+
+// SIGNAL 0
+void CodeEditor::newFileRequested()
+{
+    QMetaObject::activate(this, &staticMetaObject, 0, nullptr);
+}
+
+// SIGNAL 1
+void CodeEditor::openFileRequested()
+{
+    QMetaObject::activate(this, &staticMetaObject, 1, nullptr);
+}
+
+// SIGNAL 2
+void CodeEditor::saveFileRequested()
+{
+    QMetaObject::activate(this, &staticMetaObject, 2, nullptr);
+}
+
+// SIGNAL 3
+void CodeEditor::buildRequested()
+{
+    QMetaObject::activate(this, &staticMetaObject, 3, nullptr);
+}
+
+// SIGNAL 4
+void CodeEditor::cleanRequested()
+{
+    QMetaObject::activate(this, &staticMetaObject, 4, nullptr);
+}
+
+// SIGNAL 5
+void CodeEditor::debugRequested()
+{
+    QMetaObject::activate(this, &staticMetaObject, 5, nullptr);
+}
+
+// SIGNAL 6
+void CodeEditor::runRequested()
+{
+    QMetaObject::activate(this, &staticMetaObject, 6, nullptr);
+}
+
+// SIGNAL 7
+void CodeEditor::stopRequested()
+{
+    QMetaObject::activate(this, &staticMetaObject, 7, nullptr);
+}
+
+// SIGNAL 8
+void CodeEditor::serialMonitorRequested()
+{
+    QMetaObject::activate(this, &staticMetaObject, 8, nullptr);
+}
+
+// SIGNAL 9
+void CodeEditor::settingsRequested()
+{
+    QMetaObject::activate(this, &staticMetaObject, 9, nullptr);
+}
+
+// SIGNAL 10
+void CodeEditor::helpRequested()
+{
+    QMetaObject::activate(this, &staticMetaObject, 10, nullptr);
+}
+
+// SIGNAL 11
+void CodeEditor::aboutRequested()
+{
+    QMetaObject::activate(this, &staticMetaObject, 11, nullptr);
 }
 QT_WARNING_POP
 QT_END_MOC_NAMESPACE

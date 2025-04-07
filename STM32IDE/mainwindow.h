@@ -52,6 +52,8 @@ class MainWindow : public QMainWindow
 public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
+    //void newFile();
+    bool isCurrentFileModified() const;
 
 private slots:
     void openProject();
@@ -108,6 +110,11 @@ private slots:
     void saveCurrentFile(); // 添加保存当前文件的方法声明
     void saveFileAs(); // 添加另存为方法声明
     void executeGdbCommand(); // 添加这一行声明
+
+    // File operations
+    void newFile();
+    void saveFile();
+
 
 private:
     void setupUi();

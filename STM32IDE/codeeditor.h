@@ -4,7 +4,7 @@
  * @Autor: PhodonZou
  * @Date: 2025-04-05 21:43:38
  * @LastEditors: PhodonZou
- * @LastEditTime: 2025-04-06 23:31:55
+ * @LastEditTime: 2025-04-07 21:55:44
  */
 #ifndef CODEEDITOR_H
 #define CODEEDITOR_H
@@ -53,6 +53,8 @@ public:
     // 关闭当前分栏
     void closeSplitView();
 
+    void createNewFile();
+
 public slots:
     // 更新变量列表用于自动补全
     void updateVariableList();
@@ -91,6 +93,31 @@ private:
     
     // 工具栏
     QToolBar* m_toolBar;
+
+    // 在signals部分添加以下信号
+signals:
+    // 文件操作信号
+    void newFileRequested();
+    void openFileRequested();
+    void saveFileRequested();
+
+    // 构建操作信号
+    void buildRequested();
+    void cleanRequested();
+
+    // 调试操作信号
+    void debugRequested();
+    void runRequested();
+    void stopRequested();
+
+    // 工具操作信号
+    void serialMonitorRequested();
+    void settingsRequested();
+
+    // 帮助操作信号
+    void helpRequested();
+    void aboutRequested();
 };
 
 #endif // CODEEDITOR_H
+
