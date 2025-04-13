@@ -119,6 +119,12 @@ private slots:
     void appendBuildOutput(const QString &output);
     void onBuildFinished(bool success);
 
+    // 关闭当前工程
+    void closeProject();
+
+    // 处理工程关闭信号
+    void onProjectClosed();
+
 private:
     void setupUi();
     void createActions();
@@ -136,6 +142,9 @@ private:
     QAction *m_saveFileAction;
     QAction *m_saveFileAsAction;
     QAction *m_exitAction;
+    QAction *m_saveAction;
+    QAction *m_saveAllAction;
+    QAction *m_closeProjectAction;
 
     QAction *m_buildAction;
     QAction *m_cleanAction;
@@ -219,18 +228,8 @@ private:
     QString m_currentFilePath;
 
     // 添加代码编辑器
-    QsciScintilla* m_codeEditor2;
-
-    //FoldableEditor *m_codeEditor;
-
-    // // 代码折叠相关方法
-    // void setupCodeFolding();
-    // void updateCodeFolding(const QRect &rect, int dy);
-    // bool isFoldable(int line);
-    // void toggleFold(int line);
-
-    // // 代码折叠相关成员变量
-    // QMap<int, bool> m_foldedBlocks; // 存储已折叠的代码块 <行号, 是否折叠>
+    CodeEditor *m_codeEditor;
+    //QsciScintilla* m_codeEditor2;
 
     // 在MainWindow类的private部分添加QScintilla相关成员变量
     QsciScintilla *m_editor;           // QScintilla编辑器
@@ -244,7 +243,7 @@ private:
     //void setupAutoCompletion();
     void loadFile(const QString &filePath);
 
-    CodeEditor *m_codeEditor;
+
 
     // 分栏动作
     QAction *m_horizontalSplitAction;
@@ -256,6 +255,25 @@ private:
 
     // 输出窗口
     QTextEdit *m_outputWindow;
+
+    // 检查是否有未保存的更改
+    bool hasUnsavedChanges();
+
+    // 保存所有文件
+    void saveAllFiles();
+
+    // 关闭所有编辑器
+    void closeAllEditors();
+
+    // 清空项目树
+    void clearProjectTree();
+
+    // 更新菜单状态
+    void updateMenuState();
+
+    void updateWindowTitle();
+
+    bool saveEditorContent(QsciScintilla* editor, const QString& filePath);
 
 protected:
     void keyPressEvent(QKeyEvent *event) override;

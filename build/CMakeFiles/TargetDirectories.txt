@@ -1,0 +1,5 @@
+E:/QtHub/vue/build/CMakeFiles/QCodeEditor.dir
+E:/QtHub/vue/build/CMakeFiles/edit_cache.dir
+E:/QtHub/vue/build/CMakeFiles/rebuild_cache.dir
+E:/QtHub/vue/build/CMakeFiles/QCodeEditor_autogen_timestamp_deps.dir
+E:/QtHub/vue/build/CMakeFiles/QCodeEditor_autogen.dir

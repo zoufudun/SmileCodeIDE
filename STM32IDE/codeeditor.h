@@ -95,6 +95,9 @@ private:
     QToolBar* m_toolBar;
 
     // 在signals部分添加以下信号
+
+    void setupBraceColors(QsciScintilla* editor);
+    void highlightBraces(QsciScintilla* editor);
 signals:
     // 文件操作信号
     void newFileRequested();

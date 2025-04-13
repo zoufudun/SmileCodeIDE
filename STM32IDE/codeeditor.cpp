@@ -4,7 +4,7 @@
  * @Autor: PhodonZou
  * @Date: 2025-04-05 21:44:22
  * @LastEditors: PhodonZou
- * @LastEditTime: 2025-04-07 21:53:00
+ * @LastEditTime: 2025-04-13 10:34:04
  */
 #include "codeeditor.h"
 #include <QVBoxLayout>
@@ -18,7 +18,8 @@
 #include <QIcon>     // 添加图标头文件
 #include <QApplication> // 添加此行以使用QStyle
 #include <QStyle>        // Add this for QStyle class
-
+#include <QStack>
+#include <QPair>     // 添加QPair头文件
 CodeEditor::CodeEditor(QWidget *parent) : QWidget(parent), m_currentEditor(nullptr), m_apiCPP(nullptr)
 {
     // 创建主布局
@@ -349,6 +350,13 @@ void CodeEditor::setupEditor(QsciScintilla* editor)
 
     // 设置括号匹配
     editor->setBraceMatching(QsciScintilla::SloppyBraceMatch);
+    
+    // 设置括号匹配的样式和颜色
+    // 注意：QScintilla默认只支持一种括号匹配颜色，但我们可以通过设置不同的样式来区分
+    editor->setMatchedBraceBackgroundColor(QColor("#3B514D")); // 匹配的括号背景色
+    editor->setMatchedBraceForegroundColor(QColor("#FFD700")); // 匹配的括号前景色 - 金色
+    editor->setUnmatchedBraceBackgroundColor(QColor("#4B1515")); // 不匹配的括号背景色
+    editor->setUnmatchedBraceForegroundColor(QColor("#FF0000")); // 不匹配的括号前景色 - 红色
 
     // 设置自动换行
     editor->setWrapMode(QsciScintilla::WrapNone);
@@ -361,6 +369,133 @@ void CodeEditor::setupEditor(QsciScintilla* editor)
 
     // 设置缩进指南
     editor->setIndentationGuides(true);
+    
+    // 设置不同类型括号的颜色 (通过自定义指示器实现)
+    setupBraceColors(editor);
+}
+
+// 添加新方法：设置不同类型括号的颜色
+void CodeEditor::setupBraceColors(QsciScintilla* editor)
+{
+    // 定义不同类型的括号指示器
+    const int ROUND_BRACE_INDICATOR = 8;  // 圆括号 ()
+    const int SQUARE_BRACE_INDICATOR = 9; // 方括号 []
+    const int CURLY_BRACE_INDICATOR = 10; // 花括号 {}
+    const int ANGLE_BRACE_INDICATOR = 11; // 尖括号 <>
+    
+    // 设置圆括号指示器样式
+    editor->indicatorDefine(QsciScintilla::FullBoxIndicator, ROUND_BRACE_INDICATOR);
+    editor->setIndicatorForegroundColor(QColor("#4EC9B0"), ROUND_BRACE_INDICATOR); // 青绿色
+    editor->setIndicatorOutlineColor(QColor("#4EC9B0"), ROUND_BRACE_INDICATOR);
+    
+    // 设置方括号指示器样式
+    editor->indicatorDefine(QsciScintilla::FullBoxIndicator, SQUARE_BRACE_INDICATOR);
+    editor->setIndicatorForegroundColor(QColor("#CE9178"), SQUARE_BRACE_INDICATOR); // 橙色
+    editor->setIndicatorOutlineColor(QColor("#CE9178"), SQUARE_BRACE_INDICATOR);
+    
+    // 设置花括号指示器样式
+    editor->indicatorDefine(QsciScintilla::FullBoxIndicator, CURLY_BRACE_INDICATOR);
+    editor->setIndicatorForegroundColor(QColor("#569CD6"), CURLY_BRACE_INDICATOR); // 蓝色
+    editor->setIndicatorOutlineColor(QColor("#569CD6"), CURLY_BRACE_INDICATOR);
+    
+    // 设置尖括号指示器样式
+    editor->indicatorDefine(QsciScintilla::FullBoxIndicator, ANGLE_BRACE_INDICATOR);
+    editor->setIndicatorForegroundColor(QColor("#C586C0"), ANGLE_BRACE_INDICATOR); // 紫色
+    editor->setIndicatorOutlineColor(QColor("#C586C0"), ANGLE_BRACE_INDICATOR);
+    
+    // 连接文本变化信号，以便在文本变化时更新括号颜色
+    connect(editor, &QsciScintilla::textChanged, [this, editor]() {
+        highlightBraces(editor);
+    });
+    
+    // 初始化时高亮括号
+    highlightBraces(editor);
+}
+
+// 添加新方法：高亮不同类型的括号
+void CodeEditor::highlightBraces(QsciScintilla* editor)
+{
+    // 获取编辑器文本
+    QString text = editor->text();
+    
+    // 定义不同类型的括号指示器
+    const int ROUND_BRACE_INDICATOR = 8;  // 圆括号 ()
+    const int SQUARE_BRACE_INDICATOR = 9; // 方括号 []
+    const int CURLY_BRACE_INDICATOR = 10; // 花括号 {}
+    const int ANGLE_BRACE_INDICATOR = 11; // 尖括号 <>
+    
+    // 清除所有括号指示器
+    editor->clearIndicatorRange(0, 0, editor->lines(), 0, ROUND_BRACE_INDICATOR);
+    editor->clearIndicatorRange(0, 0, editor->lines(), 0, SQUARE_BRACE_INDICATOR);
+    editor->clearIndicatorRange(0, 0, editor->lines(), 0, CURLY_BRACE_INDICATOR);
+    editor->clearIndicatorRange(0, 0, editor->lines(), 0, ANGLE_BRACE_INDICATOR);
+    
+    // 使用栈来匹配括号对
+    QStack<QPair<int, int>> roundBraceStack;  // 圆括号栈 (行, 列)
+    QStack<QPair<int, int>> squareBraceStack; // 方括号栈
+    QStack<QPair<int, int>> curlyBraceStack;  // 花括号栈
+    QStack<QPair<int, int>> angleBraceStack;  // 尖括号栈
+    
+    // 遍历文本中的每个字符
+    for (int line = 0; line < editor->lines(); line++) {
+        QString lineText = editor->text(line);
+        
+        for (int col = 0; col < lineText.length(); col++) {
+            QChar ch = lineText.at(col);
+            
+            // 处理圆括号
+            if (ch == '(') {
+                roundBraceStack.push(qMakePair(line, col));
+            } else if (ch == ')') {
+                if (!roundBraceStack.isEmpty()) {
+                    QPair<int, int> openBrace = roundBraceStack.pop();
+                    // 高亮开括号
+                    editor->fillIndicatorRange(openBrace.first, openBrace.second, openBrace.first, openBrace.second + 1, ROUND_BRACE_INDICATOR);
+                    // 高亮闭括号
+                    editor->fillIndicatorRange(line, col, line, col + 1, ROUND_BRACE_INDICATOR);
+                }
+            }
+            
+            // 处理方括号
+            if (ch == '[') {
+                squareBraceStack.push(qMakePair(line, col));
+            } else if (ch == ']') {
+                if (!squareBraceStack.isEmpty()) {
+                    QPair<int, int> openBrace = squareBraceStack.pop();
+                    // 高亮开括号
+                    editor->fillIndicatorRange(openBrace.first, openBrace.second, openBrace.first, openBrace.second + 1, SQUARE_BRACE_INDICATOR);
+                    // 高亮闭括号
+                    editor->fillIndicatorRange(line, col, line, col + 1, SQUARE_BRACE_INDICATOR);
+                }
+            }
+            
+            // 处理花括号
+            if (ch == '{') {
+                curlyBraceStack.push(qMakePair(line, col));
+            } else if (ch == '}') {
+                if (!curlyBraceStack.isEmpty()) {
+                    QPair<int, int> openBrace = curlyBraceStack.pop();
+                    // 高亮开括号
+                    editor->fillIndicatorRange(openBrace.first, openBrace.second, openBrace.first, openBrace.second + 1, CURLY_BRACE_INDICATOR);
+                    // 高亮闭括号
+                    editor->fillIndicatorRange(line, col, line, col + 1, CURLY_BRACE_INDICATOR);
+                }
+            }
+            
+            // 处理尖括号 (注意：这里可能会与小于/大于符号混淆，实际应用中可能需要更复杂的逻辑)
+            if (ch == '<') {
+                angleBraceStack.push(qMakePair(line, col));
+            } else if (ch == '>') {
+                if (!angleBraceStack.isEmpty()) {
+                    QPair<int, int> openBrace = angleBraceStack.pop();
+                    // 高亮开括号
+                    editor->fillIndicatorRange(openBrace.first, openBrace.second, openBrace.first, openBrace.second + 1, ANGLE_BRACE_INDICATOR);
+                    // 高亮闭括号
+                    editor->fillIndicatorRange(line, col, line, col + 1, ANGLE_BRACE_INDICATOR);
+                }
+            }
+        }
+    }
 }
 
 void CodeEditor::setupAutoCompletion(QsciScintilla* editor)
