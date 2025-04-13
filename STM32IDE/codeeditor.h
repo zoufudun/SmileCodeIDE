@@ -98,6 +98,11 @@ private:
 
     void setupBraceColors(QsciScintilla* editor);
     void highlightBraces(QsciScintilla* editor);
+
+    void setupFunctionNameHighlighting(bool isDarkTheme);
+    void highlightFunctionNames(QsciScintilla* editor, int indicatorId);
+    QsciScintilla* findFirstEditor(QSplitter* splitter);
+
 signals:
     // 文件操作信号
     void newFileRequested();

@@ -28,6 +28,21 @@
 #include <QDockWidget>
 #include <QStandardItemModel>
 
+#include <QtSerialPort/QSerialPort>
+#include <QtSerialPort/QSerialPortInfo>
+#include <QDialog>
+#include <QVBoxLayout>
+#include <QHBoxLayout>
+#include <QGridLayout>
+#include <QGroupBox>
+#include <QLabel>
+#include <QComboBox>
+#include <QLineEdit>
+#include <QPushButton>
+#include <QTextEdit>
+#include <QCheckBox>
+#include <QSpinBox>
+
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), m_isDebugging(false)
 {
@@ -232,6 +247,9 @@ void MainWindow::createMenus()
     // 工具菜单全屏模式
     QMenu *toolsMenu = menuBar->addMenu("工具");
     toolsMenu->addAction(m_configureToolchainAction);
+    toolsMenu->addSeparator();
+    toolsMenu->addAction(m_serialToolAction);     // 添加串口调试助手工具按钮
+    toolsMenu->addAction(m_networkToolAction);    // 添加网络调试助手工具按钮
 
     // 视图菜单
     QMenu *viewMenu = menuBar->addMenu("视图");
@@ -301,6 +319,15 @@ void MainWindow::createToolbars()
     mainToolbar->addAction(findChild<QAction*>("单步进入"));
     mainToolbar->addAction(findChild<QAction*>("单步跳出"));
     mainToolbar->addSeparator();
+
+
+    // Tools toolbar
+    QToolBar *toolsToolbar = addToolBar("调试工具");
+    toolsToolbar->setMovable(true);
+    toolsToolbar->addAction(m_configureToolchainAction);
+    toolsToolbar->addSeparator();
+    toolsToolbar->addAction(m_serialToolAction);     // 添加串口调试助手工具按钮
+    toolsToolbar->addAction(m_networkToolAction);    // 添加网络调试助手工具按钮
 
     // Add view actions
     mainToolbar->addAction(findChild<QAction*>("全屏模式"));
@@ -2568,18 +2595,22 @@ void MainWindow::createActions()
 {
     // File menu actions
     m_openProjectAction = new QAction("打开项目", this);
+    m_openProjectAction->setObjectName("打开项目");
     m_openProjectAction->setShortcut(QKeySequence::Open);
     connect(m_openProjectAction, &QAction::triggered, this, &MainWindow::openProject);
 
     m_newProjectAction = new QAction("新建项目", this);
+    m_newProjectAction->setObjectName("新建项目");
     m_newProjectAction->setShortcut(QKeySequence::New);
     connect(m_newProjectAction, &QAction::triggered, this, &MainWindow::newProject);
 
     m_saveProjectAction = new QAction("保存项目", this);
+    m_saveProjectAction->setObjectName("保存项目");
     m_saveProjectAction->setShortcut(QKeySequence::Save);
     connect(m_saveProjectAction, &QAction::triggered, this, &MainWindow::saveProject);
 
     m_closeProjectAction = new QAction("关闭项目", this);
+    m_closeProjectAction->setObjectName("关闭项目");
     m_closeProjectAction->setShortcut(QKeySequence("Ctrl+W"));
     connect(m_closeProjectAction, &QAction::triggered, this, &MainWindow::closeProject);
 
@@ -2642,7 +2673,23 @@ void MainWindow::createActions()
 
     // Tools menu actions
     m_configureToolchainAction = new QAction("配置工具链", this);
+    m_configureToolchainAction->setIcon(QIcon(":/icons/ToosSetting.png"));  // 需要添加相应图标
+    m_configureToolchainAction->setStatusTip("配置编译和调试工具链");
+    m_configureToolchainAction->setToolTip("配置编译和调试工具链");
     connect(m_configureToolchainAction, &QAction::triggered, this, &MainWindow::configureToolchain);
+
+    // 添加串口调试助手动作
+    m_serialToolAction = new QAction("串口调试助手", this);
+    m_serialToolAction->setIcon(QIcon(":/icons/serialport.png"));  // 需要添加相应图标
+    m_serialToolAction->setStatusTip("打开串口调试助手");
+    connect(m_serialToolAction, &QAction::triggered, this, &MainWindow::openSerialTool);
+
+    // 添加网络调试助手动作
+    m_networkToolAction = new QAction("网络调试助手", this);
+    m_networkToolAction->setIcon(QIcon(":/icons/network_tool.png"));  // 需要添加相应图标
+    m_networkToolAction->setStatusTip("打开网络调试助手");
+    m_networkToolAction->setToolTip("打开网络调试助手");
+    connect(m_networkToolAction, &QAction::triggered, this, &MainWindow::openNetworkTool);
 
     // View menu actions
     // m_fullScreenAction = new QAction("全屏模式", this);
@@ -3659,3 +3706,219 @@ void MainWindow::clearProjectTree()
 //         }
 //     }
 // }
+
+
+
+// 添加在MainWindow类的实现部分末尾
+
+// 打开串口调试助手
+void MainWindow::openSerialTool()
+{
+    // 创建串口调试助手窗口
+    QDialog *serialToolDialog = new QDialog(this);
+    serialToolDialog->setWindowTitle("串口调试助手");
+    serialToolDialog->setMinimumSize(600, 400);
+
+    // 创建布局
+    QVBoxLayout *mainLayout = new QVBoxLayout(serialToolDialog);
+
+    // 创建串口设置区域
+    QGroupBox *settingsGroup = new QGroupBox("串口设置");
+    QGridLayout *settingsLayout = new QGridLayout(settingsGroup);
+
+    // 添加串口选择
+    QLabel *portLabel = new QLabel("串口:");
+    QComboBox *portComboBox = new QComboBox();
+
+    // 获取可用串口列表
+    foreach(const QSerialPortInfo &info, QSerialPortInfo::availablePorts()) {
+        portComboBox->addItem(info.portName());
+    }
+
+    // 添加波特率选择
+    QLabel *baudLabel = new QLabel("波特率:");
+    QComboBox *baudComboBox = new QComboBox();
+    QList<qint32> baudRates = QSerialPortInfo::standardBaudRates();
+    foreach(qint32 rate, baudRates) {
+        baudComboBox->addItem(QString::number(rate));
+    }
+    baudComboBox->setCurrentText("115200");
+
+    // 添加数据位选择
+    QLabel *dataBitsLabel = new QLabel("数据位:");
+    QComboBox *dataBitsComboBox = new QComboBox();
+    dataBitsComboBox->addItem("5");
+    dataBitsComboBox->addItem("6");
+    dataBitsComboBox->addItem("7");
+    dataBitsComboBox->addItem("8");
+    dataBitsComboBox->setCurrentText("8");
+
+    // 添加停止位选择
+    QLabel *stopBitsLabel = new QLabel("停止位:");
+    QComboBox *stopBitsComboBox = new QComboBox();
+    stopBitsComboBox->addItem("1");
+    stopBitsComboBox->addItem("1.5");
+    stopBitsComboBox->addItem("2");
+    stopBitsComboBox->setCurrentText("1");
+
+    // 添加校验位选择
+    QLabel *parityLabel = new QLabel("校验位:");
+    QComboBox *parityComboBox = new QComboBox();
+    parityComboBox->addItem("无");
+    parityComboBox->addItem("奇校验");
+    parityComboBox->addItem("偶校验");
+    parityComboBox->addItem("空校验");
+    parityComboBox->addItem("标记校验");
+
+    // 添加打开/关闭按钮
+    QPushButton *openButton = new QPushButton("打开串口");
+
+    // 将控件添加到设置布局
+    settingsLayout->addWidget(portLabel, 0, 0);
+    settingsLayout->addWidget(portComboBox, 0, 1);
+    settingsLayout->addWidget(baudLabel, 1, 0);
+    settingsLayout->addWidget(baudComboBox, 1, 1);
+    settingsLayout->addWidget(dataBitsLabel, 2, 0);
+    settingsLayout->addWidget(dataBitsComboBox, 2, 1);
+    settingsLayout->addWidget(stopBitsLabel, 3, 0);
+    settingsLayout->addWidget(stopBitsComboBox, 3, 1);
+    settingsLayout->addWidget(parityLabel, 4, 0);
+    settingsLayout->addWidget(parityComboBox, 4, 1);
+    settingsLayout->addWidget(openButton, 5, 0, 1, 2);
+
+    // 创建数据显示区域
+    QGroupBox *dataGroup = new QGroupBox("数据显示");
+    QVBoxLayout *dataLayout = new QVBoxLayout(dataGroup);
+
+    QTextEdit *receiveTextEdit = new QTextEdit();
+    receiveTextEdit->setReadOnly(true);
+
+    // 创建发送区域
+    QGroupBox *sendGroup = new QGroupBox("数据发送");
+    QVBoxLayout *sendLayout = new QVBoxLayout(sendGroup);
+
+    QTextEdit *sendTextEdit = new QTextEdit();
+    QPushButton *sendButton = new QPushButton("发送");
+
+    QHBoxLayout *sendOptionsLayout = new QHBoxLayout();
+    QCheckBox *hexDisplayCheckBox = new QCheckBox("HEX显示");
+    QCheckBox *hexSendCheckBox = new QCheckBox("HEX发送");
+    QCheckBox *autoSendCheckBox = new QCheckBox("自动发送");
+    QLabel *intervalLabel = new QLabel("间隔(ms):");
+    QSpinBox *intervalSpinBox = new QSpinBox();
+    intervalSpinBox->setRange(100, 10000);
+    intervalSpinBox->setValue(1000);
+    intervalSpinBox->setSingleStep(100);
+
+    sendOptionsLayout->addWidget(hexDisplayCheckBox);
+    sendOptionsLayout->addWidget(hexSendCheckBox);
+    sendOptionsLayout->addWidget(autoSendCheckBox);
+    sendOptionsLayout->addWidget(intervalLabel);
+    sendOptionsLayout->addWidget(intervalSpinBox);
+    sendOptionsLayout->addStretch();
+
+    sendLayout->addWidget(sendTextEdit);
+    sendLayout->addLayout(sendOptionsLayout);
+    sendLayout->addWidget(sendButton);
+
+    dataLayout->addWidget(receiveTextEdit);
+
+    // 将所有组添加到主布局
+    mainLayout->addWidget(settingsGroup);
+    mainLayout->addWidget(dataGroup);
+    mainLayout->addWidget(sendGroup);
+
+    // 显示对话框
+    serialToolDialog->setAttribute(Qt::WA_DeleteOnClose);
+    serialToolDialog->show();
+}
+
+// 打开网络调试助手
+void MainWindow::openNetworkTool()
+{
+    // 创建网络调试助手窗口
+    QDialog *networkToolDialog = new QDialog(this);
+    networkToolDialog->setWindowTitle("网络调试助手");
+    networkToolDialog->setMinimumSize(600, 400);
+
+    // 创建布局
+    QVBoxLayout *mainLayout = new QVBoxLayout(networkToolDialog);
+
+    // 创建网络设置区域
+    QGroupBox *settingsGroup = new QGroupBox("网络设置");
+    QGridLayout *settingsLayout = new QGridLayout(settingsGroup);
+
+    // 添加协议选择
+    QLabel *protocolLabel = new QLabel("协议类型:");
+    QComboBox *protocolComboBox = new QComboBox();
+    protocolComboBox->addItem("TCP客户端");
+    protocolComboBox->addItem("TCP服务器");
+    protocolComboBox->addItem("UDP");
+
+    // 添加IP地址和端口
+    QLabel *ipLabel = new QLabel("IP地址:");
+    QLineEdit *ipLineEdit = new QLineEdit("127.0.0.1");
+
+    QLabel *portLabel = new QLabel("端口:");
+    QSpinBox *portSpinBox = new QSpinBox();
+    portSpinBox->setRange(1, 65535);
+    portSpinBox->setValue(8080);
+
+    // 添加连接/断开按钮
+    QPushButton *connectButton = new QPushButton("连接");
+
+    // 将控件添加到设置布局
+    settingsLayout->addWidget(protocolLabel, 0, 0);
+    settingsLayout->addWidget(protocolComboBox, 0, 1);
+    settingsLayout->addWidget(ipLabel, 1, 0);
+    settingsLayout->addWidget(ipLineEdit, 1, 1);
+    settingsLayout->addWidget(portLabel, 2, 0);
+    settingsLayout->addWidget(portSpinBox, 2, 1);
+    settingsLayout->addWidget(connectButton, 3, 0, 1, 2);
+
+    // 创建数据显示区域
+    QGroupBox *dataGroup = new QGroupBox("数据显示");
+    QVBoxLayout *dataLayout = new QVBoxLayout(dataGroup);
+
+    QTextEdit *receiveTextEdit = new QTextEdit();
+    receiveTextEdit->setReadOnly(true);
+
+    // 创建发送区域
+    QGroupBox *sendGroup = new QGroupBox("数据发送");
+    QVBoxLayout *sendLayout = new QVBoxLayout(sendGroup);
+
+    QTextEdit *sendTextEdit = new QTextEdit();
+    QPushButton *sendButton = new QPushButton("发送");
+
+    QHBoxLayout *sendOptionsLayout = new QHBoxLayout();
+    QCheckBox *hexDisplayCheckBox = new QCheckBox("HEX显示");
+    QCheckBox *hexSendCheckBox = new QCheckBox("HEX发送");
+    QCheckBox *autoSendCheckBox = new QCheckBox("自动发送");
+    QLabel *intervalLabel = new QLabel("间隔(ms):");
+    QSpinBox *intervalSpinBox = new QSpinBox();
+    intervalSpinBox->setRange(100, 10000);
+    intervalSpinBox->setValue(1000);
+    intervalSpinBox->setSingleStep(100);
+
+    sendOptionsLayout->addWidget(hexDisplayCheckBox);
+    sendOptionsLayout->addWidget(hexSendCheckBox);
+    sendOptionsLayout->addWidget(autoSendCheckBox);
+    sendOptionsLayout->addWidget(intervalLabel);
+    sendOptionsLayout->addWidget(intervalSpinBox);
+    sendOptionsLayout->addStretch();
+
+    sendLayout->addWidget(sendTextEdit);
+    sendLayout->addLayout(sendOptionsLayout);
+    sendLayout->addWidget(sendButton);
+
+    dataLayout->addWidget(receiveTextEdit);
+
+    // 将所有组添加到主布局
+    mainLayout->addWidget(settingsGroup);
+    mainLayout->addWidget(dataGroup);
+    mainLayout->addWidget(sendGroup);
+
+    // 显示对话框
+    networkToolDialog->setAttribute(Qt::WA_DeleteOnClose);
+    networkToolDialog->show();
+}

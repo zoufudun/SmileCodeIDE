@@ -24,7 +24,7 @@
 #include <QKeyEvent>
 // 在其他包含之后添加
 #include "toolchaindialog.h"
-#include "foldableeditor.h"
+//#include "foldableeditor.h"
 
 // 添加QCodeEditor头文件
 #include <QCodeEditor>
@@ -124,6 +124,9 @@ private slots:
 
     // 处理工程关闭信号
     void onProjectClosed();
+
+    void openSerialTool();          // 打开串口调试助手
+    void openNetworkTool();         // 打开网络调试助手
 
 private:
     void setupUi();
@@ -274,6 +277,9 @@ private:
     void updateWindowTitle();
 
     bool saveEditorContent(QsciScintilla* editor, const QString& filePath);
+
+    QAction *m_serialToolAction;    // 串口调试助手动作
+    QAction *m_networkToolAction;   // 网络调试助手动作
 
 protected:
     void keyPressEvent(QKeyEvent *event) override;

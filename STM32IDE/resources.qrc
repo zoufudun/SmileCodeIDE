@@ -1,5 +1,4 @@
-<!DOCTYPE RCC>
-<RCC version="1.0">
+<RCC>
     <qresource prefix="/">
         <file>icons/horizontal_split.png</file>
         <file>icons/vertical_split.png</file>
@@ -33,6 +32,8 @@
         <file>resources/styles/solarizedlight.qss</file>
         <file>resources/styles/vue.qss</file>
         <file>resources/styles/xcodedark.qss</file>
+        <file>icons/network_tool.png</file>
+        <file>icons/serialport.png</file>
+        <file>icons/ToosSetting.png</file>
     </qresource>
 </RCC>
-

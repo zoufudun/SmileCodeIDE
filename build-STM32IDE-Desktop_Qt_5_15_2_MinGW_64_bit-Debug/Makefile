@@ -277,6 +277,7 @@ Makefile: ../STM32IDE/STM32IDE.pro D:/Soft/Qt/5.15.2/mingw81_64/mkspecs/win32-g+
 		D:/Soft/Qt/5.15.2/mingw81_64/lib/qscintilla2_qt5.prl \
 		D:/Soft/Qt/5.15.2/mingw81_64/lib/Qt5Widgets.prl \
 		D:/Soft/Qt/5.15.2/mingw81_64/lib/Qt5Gui.prl \
+		D:/Soft/Qt/5.15.2/mingw81_64/lib/Qt5SerialPort.prl \
 		D:/Soft/Qt/5.15.2/mingw81_64/lib/Qt5Core.prl \
 		D:/Soft/Qt/5.15.2/mingw81_64/lib/qtmain.prl \
 		D:/Soft/Qt/5.15.2/mingw81_64/mkspecs/features/build_pass.prf \
@@ -489,6 +490,7 @@ D:/Soft/Qt/5.15.2/mingw81_64/mkspecs/features/lex.prf:
 D:/Soft/Qt/5.15.2/mingw81_64/lib/qscintilla2_qt5.prl:
 D:/Soft/Qt/5.15.2/mingw81_64/lib/Qt5Widgets.prl:
 D:/Soft/Qt/5.15.2/mingw81_64/lib/Qt5Gui.prl:
+D:/Soft/Qt/5.15.2/mingw81_64/lib/Qt5SerialPort.prl:
 D:/Soft/Qt/5.15.2/mingw81_64/lib/Qt5Core.prl:
 D:/Soft/Qt/5.15.2/mingw81_64/lib/qtmain.prl:
 D:/Soft/Qt/5.15.2/mingw81_64/mkspecs/features/build_pass.prf:
