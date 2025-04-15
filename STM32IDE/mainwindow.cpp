@@ -302,6 +302,7 @@ void MainWindow::createToolbars()
     mainToolbar->addAction(findChild<QAction*>("新建项目"));
     mainToolbar->addAction(findChild<QAction*>("打开项目"));
     mainToolbar->addAction(findChild<QAction*>("保存项目"));
+    mainToolbar->addAction(findChild<QAction*>("关闭项目"));
     mainToolbar->addAction(findChild<QAction*>("保存文件"));
     mainToolbar->addSeparator();
 
@@ -2596,21 +2597,33 @@ void MainWindow::createActions()
     // File menu actions
     m_openProjectAction = new QAction("打开项目", this);
     m_openProjectAction->setObjectName("打开项目");
+    m_openProjectAction->setIcon(QIcon(":/icons/folder-open-outline.png"));  // 需要添加相应图标
+    m_openProjectAction->setStatusTip("打开项目");
+    m_openProjectAction->setToolTip("打开项目");
     m_openProjectAction->setShortcut(QKeySequence::Open);
     connect(m_openProjectAction, &QAction::triggered, this, &MainWindow::openProject);
 
     m_newProjectAction = new QAction("新建项目", this);
     m_newProjectAction->setObjectName("新建项目");
+    m_newProjectAction->setIcon(QIcon(":/icons/folder-plus.png"));  // 需要添加相应图标
+    m_newProjectAction->setStatusTip("新建项目");
+    m_newProjectAction->setToolTip("新建项目");
     m_newProjectAction->setShortcut(QKeySequence::New);
     connect(m_newProjectAction, &QAction::triggered, this, &MainWindow::newProject);
 
     m_saveProjectAction = new QAction("保存项目", this);
     m_saveProjectAction->setObjectName("保存项目");
+    m_saveProjectAction->setIcon(QIcon(":/icons/content-save-check.png"));  // 需要添加相应图标
+    m_saveProjectAction->setStatusTip("保存项目");
+    m_saveProjectAction->setToolTip("保存项目");
     m_saveProjectAction->setShortcut(QKeySequence::Save);
     connect(m_saveProjectAction, &QAction::triggered, this, &MainWindow::saveProject);
 
     m_closeProjectAction = new QAction("关闭项目", this);
     m_closeProjectAction->setObjectName("关闭项目");
+    m_closeProjectAction->setIcon(QIcon(":/icons/close-box.png"));  // 需要添加相应图标
+    m_closeProjectAction->setStatusTip("关闭项目");
+    m_closeProjectAction->setToolTip("关闭项目");
     m_closeProjectAction->setShortcut(QKeySequence("Ctrl+W"));
     connect(m_closeProjectAction, &QAction::triggered, this, &MainWindow::closeProject);
 
@@ -3458,19 +3471,19 @@ void MainWindow::closeProject()
     }
     qDebug() << "closeProject method called";
     // 检查是否有未保存的文件
-    if (hasUnsavedChanges()) {
-        QMessageBox::StandardButton reply = QMessageBox::question(this,
-                                                                  "关闭工程",
-                                                                  "有未保存的更改，是否保存？",
-                                                                  QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel);
+    // if (hasUnsavedChanges()) {
+    //     QMessageBox::StandardButton reply = QMessageBox::question(this,
+    //                                                               "关闭工程",
+    //                                                               "有未保存的更改，是否保存？",
+    //                                                               QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel);
 
-        if (reply == QMessageBox::Cancel) {
-            qDebug() << "User canceled project closing";
-            return;
-        } else if (reply == QMessageBox::Yes) {
-            saveAllFiles();
-        }
-    }
+    //     if (reply == QMessageBox::Cancel) {
+    //         qDebug() << "User canceled project closing";
+    //         return;
+    //     } else if (reply == QMessageBox::Yes) {
+    //         saveAllFiles();
+    //     }
+    // }
     try {
         //关闭所有打开的编辑器标签页，但不关闭主编辑器
         if (m_tabWidget) {

@@ -16,6 +16,7 @@ include(QCodeEditor/QCodeEditor.pri)
 SOURCES += \
     buildsystem.cpp \
     codeeditor.cpp \
+    editorwidget.cpp \
     foldableeditor.cpp \
     main.cpp \
     mainwindow.cpp \
@@ -25,6 +26,7 @@ SOURCES += \
 HEADERS += \
     buildsystem.h \
     codeeditor.h \
+    editorwidget.h \
     foldableeditor.h \
     mainwindow.h \
     toolchaindialog.h

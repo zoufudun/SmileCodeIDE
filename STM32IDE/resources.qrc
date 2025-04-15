@@ -35,5 +35,9 @@
         <file>icons/network_tool.png</file>
         <file>icons/serialport.png</file>
         <file>icons/ToosSetting.png</file>
+        <file>icons/close-box.png</file>
+        <file>icons/content-save-check.png</file>
+        <file>icons/folder-open-outline.png</file>
+        <file>icons/folder-plus.png</file>
     </qresource>
 </RCC>

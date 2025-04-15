@@ -9,6 +9,7 @@
 #include "editorwidget.h"
 #include <QApplication>
 #include <QStyle>
+#include <QSplitter>
 
 EditorWidget::EditorWidget(QWidget *parent)
     : QWidget(parent)
