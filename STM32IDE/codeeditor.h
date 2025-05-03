@@ -17,6 +17,8 @@
 #include <QSet>
 #include <QDebug>
 #include <QToolBar>  // 添加工具栏头文件
+#include <QListWidget>  // 添加列表控件头文件
+#include <QDockWidget>  // 添加停靠窗口头文件
 
 class CodeEditor : public QWidget
 {
@@ -93,7 +95,29 @@ private:
     
     // 工具栏
     QToolBar* m_toolBar;
-
+    
+    // 函数列表控件
+    QListWidget* m_functionList;
+    
+    // 存储函数信息的结构体
+    struct FunctionInfo {
+        QString name;       // 函数名
+        int line;          // 行号
+        QString signature; // 函数签名
+    };
+    
+    // 函数信息列表
+    QList<FunctionInfo> m_functions;
+    
+    // 解析代码中的函数
+    void parseFunctions(const QString& code);
+    
+    // 更新函数列表
+    void updateFunctionList();
+    
+    // 创建函数列表控件
+    void createFunctionList();
+    
     // 在signals部分添加以下信号
 
     void setupBraceColors(QsciScintilla* editor);

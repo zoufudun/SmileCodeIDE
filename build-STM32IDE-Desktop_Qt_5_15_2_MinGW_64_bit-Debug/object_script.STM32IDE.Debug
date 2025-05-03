@@ -15,8 +15,6 @@ debug/QSyntaxStyle.o
 debug/QXMLHighlighter.o
 debug/buildsystem.o
 debug/codeeditor.o
-debug/editorwidget.o
-debug/foldableeditor.o
 debug/main.o
 debug/mainwindow.o
 debug/toolchaindialog.o
@@ -37,7 +35,5 @@ debug/moc_QSyntaxStyle.o
 debug/moc_QXMLHighlighter.o
 debug/moc_buildsystem.o
 debug/moc_codeeditor.o
-debug/moc_editorwidget.o
-debug/moc_foldableeditor.o
 debug/moc_mainwindow.o
 debug/moc_toolchaindialog.o
