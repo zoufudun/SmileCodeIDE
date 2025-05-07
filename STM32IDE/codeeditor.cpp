@@ -3,8 +3,8 @@
  * @Version: 1.0
  * @Autor: PhodonZou
  * @Date: 2025-04-05 21:44:22
- * @LastEditors: PhodonZou
- * @LastEditTime: 2025-04-29 22:57:05
+ * @LastEditors: Phudon phudoncou@outlook.com
+ * @LastEditTime: 2025-05-03 18:40:43
  */
 #include "codeeditor.h"
 #include <QVBoxLayout>
@@ -1400,7 +1400,106 @@ void CodeEditor::createFunctionList()
     // 连接信号和槽 - 使用Qt::UniqueConnection避免重复连接
     //connect(m_functionList, &QListWidget::currentRowChanged, this, &CodeEditor::jumpToFunction, Qt::UniqueConnection);
 
-    // 连接函数列表项点击信号 - 修改此处的连接方式
+    // // 连接函数列表项点击信号 - 修改此处的连接方式
+    // connect(m_functionList, &QListWidget::itemClicked, this, [this](QListWidgetItem* item) {
+    //     if (!m_currentEditor || !item) {
+    //         return;
+    //     }
+
+    //     // 获取存储的行号
+    //     int line = item->data(Qt::UserRole).toInt();
+
+    //     // 确保行号有效
+    //     if (line >= 0 && line < m_currentEditor->lines()) {
+    //         // 跳转到对应行并设置光标位置
+    //         m_currentEditor->setCursorPosition(line, 0);
+
+    //         // 确保目标行可见
+    //         m_currentEditor->SendScintilla(QsciScintilla::SCI_ENSUREVISIBLE, line);
+
+    //         // 滚动到目标行
+    //         m_currentEditor->SendScintilla(QsciScintilla::SCI_GOTOLINE, line);
+
+    //         // 设置焦点到编辑器
+    //         m_currentEditor->setFocus();
+
+    //         // 高亮显示当前行
+    //         m_currentEditor->SendScintilla(QsciScintilla::SCI_SETFOCUS, true);
+    //         m_currentEditor->SendScintilla(QsciScintilla::SCI_SETEMPTYSELECTION, 0);
+    //         // 使用高级API设置选择区域，避免使用有歧义的低级API
+    //         int lineLength = m_currentEditor->lineLength(line);
+    //         if (lineLength > 0) {
+    //             m_currentEditor->setSelection(line, 0, line, lineLength - 1);
+    //         }
+    //     }
+    // });
+
+    // // 连接函数列表项点击信号 - 使用更精确的跳转方法
+    // connect(m_functionList, &QListWidget::itemClicked, this, [this](QListWidgetItem* item) {
+    //     if (!m_currentEditor || !item) {
+    //         return;
+    //     }
+
+    //     // 获取存储的行号
+    //     int line = item->data(Qt::UserRole).toInt();
+
+    //     // 确保行号有效
+    //     if (line >= 0 && line < m_currentEditor->lines()) {
+    //         // 获取行文本以寻找函数名位置
+    //         QString lineText = m_currentEditor->text(line);
+    //         QString funcName = item->text();
+    //         // 提取函数名（去除可能的返回类型信息）
+    //         if (funcName.contains("(")) {
+    //             funcName = funcName.left(funcName.indexOf("(")).trimmed();
+    //         }
+            
+    //         // 处理可能包含的空格和特殊字符
+    //         funcName = funcName.trimmed();
+            
+    //         // 使用QRegularExpression发现函数名，当文本中包含中文时更可靠
+    //         QRegularExpression funcRegEx(QString("\\b%1\\b").arg(QRegularExpression::escape(funcName)));
+    //         QRegularExpressionMatch regMatch = funcRegEx.match(lineText);
+            
+    //         // 在行中查找函数名位置
+    //         int funcPos = -1;
+    //         if (regMatch.hasMatch()) {
+    //             funcPos = regMatch.capturedStart();
+    //         } else {
+    //             // 如果正则表达式匹配失败，尝试普通字符串查找
+    //             funcPos = lineText.indexOf(funcName);
+    //         }
+    //         int columnPos = (funcPos >= 0) ? funcPos : 0;
+
+    //         // 使用更精确的定位方法
+    //         m_currentEditor->setCursorPosition(line, columnPos);
+
+    //         // 确保目标行可见并居中显示
+    //         m_currentEditor->ensureLineVisible(line);
+
+    //         // 将光标行居中显示在编辑器中
+    //         int firstLine = m_currentEditor->firstVisibleLine();
+    //         int visibleLines = m_currentEditor->SendScintilla(QsciScintilla::SCI_LINESONSCREEN);
+    //         int targetLine = line - visibleLines / 2;
+    //         if (targetLine >= 0) {
+    //             m_currentEditor->SendScintilla(QsciScintilla::SCI_SETFIRSTVISIBLELINE, targetLine);
+    //         }
+
+    //         // 设置焦点到编辑器
+    //         m_currentEditor->setFocus();
+
+    //         // 高亮显示函数名
+    //         if (funcPos >= 0) {
+    //             m_currentEditor->setSelection(line, funcPos, line, funcPos + funcName.length());
+    //         } else {
+    //             // 如果找不到精确位置，就选择整行
+    //             int lineLength = m_currentEditor->lineLength(line);
+    //             if (lineLength > 0) {
+    //                 m_currentEditor->setSelection(line, 0, line, lineLength - 1);
+    //             }
+    //         }
+    //     }
+    // });
+    // 连接函数列表项点击信号 - 针对大量中文注释的改进版
     connect(m_functionList, &QListWidget::itemClicked, this, [this](QListWidgetItem* item) {
         if (!m_currentEditor || !item) {
             return;
@@ -1411,25 +1510,94 @@ void CodeEditor::createFunctionList()
 
         // 确保行号有效
         if (line >= 0 && line < m_currentEditor->lines()) {
-            // 跳转到对应行并设置光标位置
-            m_currentEditor->setCursorPosition(line, 0);
+            // 1. 获取函数名，去除可能的返回类型信息
+            QString displayName = item->text();
+            QString funcName = displayName;
 
-            // 确保目标行可见
-            m_currentEditor->SendScintilla(QsciScintilla::SCI_ENSUREVISIBLE, line);
+            if (funcName.contains("(")) {
+                funcName = funcName.left(funcName.indexOf("(")).trimmed();
+            }
 
-            // 滚动到目标行
-            m_currentEditor->SendScintilla(QsciScintilla::SCI_GOTOLINE, line);
+            // 2. 获取目标行及其前后几行
+            QString lineText = m_currentEditor->text(line);
+            QStringList surroundingLines;
+
+            // 收集前后2行，避免多行函数声明问题
+            for (int i = -2; i <= 2; i++) {
+                int checkLine = line + i;
+                if (checkLine >= 0 && checkLine < m_currentEditor->lines()) {
+                    surroundingLines.append(m_currentEditor->text(checkLine));
+                }
+            }
+
+            // 3. 在目标行中查找函数名的最佳位置
+            int columnPos = 0;
+            bool found = false;
+
+            // 先在目标行尝试查找完整函数定义模式
+            QRegularExpression funcDefRegEx(QString("\\b%1\\s*\\(").arg(QRegularExpression::escape(funcName)));
+            QRegularExpressionMatch defMatch = funcDefRegEx.match(lineText);
+
+            if (defMatch.hasMatch()) {
+                // 找到函数定义
+                columnPos = defMatch.capturedStart();
+                found = true;
+            } else {
+                // 如果在目标行没找到，扩展到周围几行搜索
+                for (int i = 0; i < surroundingLines.size() && !found; i++) {
+                    defMatch = funcDefRegEx.match(surroundingLines[i]);
+                    if (defMatch.hasMatch()) {
+                        // 找到匹配，更新行号和列位置
+                        line = line - 2 + i;
+                        columnPos = defMatch.capturedStart();
+                        found = true;
+                    }
+                }
+
+                // 如果还是找不到，回到目标行，尝试简单的单词匹配
+                if (!found) {
+                    QRegularExpression wordRegEx(QString("\\b%1\\b").arg(QRegularExpression::escape(funcName)));
+                    QRegularExpressionMatch wordMatch = wordRegEx.match(lineText);
+
+                    if (wordMatch.hasMatch()) {
+                        columnPos = wordMatch.capturedStart();
+                        found = true;
+                    } else {
+                        // 最后尝试简单的字符串包含
+                        int pos = lineText.indexOf(funcName);
+                        if (pos >= 0) {
+                            columnPos = pos;
+                            found = true;
+                        }
+                    }
+                }
+            }
+
+            // 4. 跳转到找到的位置
+            m_currentEditor->setCursorPosition(line, columnPos);
+
+            // 5. 确保目标行可见并居中显示
+            m_currentEditor->ensureLineVisible(line);
+
+            // 将光标行居中显示在编辑器中
+            int visibleLines = m_currentEditor->SendScintilla(QsciScintilla::SCI_LINESONSCREEN);
+            int targetLine = line - visibleLines / 2;
+            if (targetLine >= 0) {
+                m_currentEditor->SendScintilla(QsciScintilla::SCI_SETFIRSTVISIBLELINE, targetLine);
+            }
 
             // 设置焦点到编辑器
             m_currentEditor->setFocus();
 
-            // 高亮显示当前行
-            m_currentEditor->SendScintilla(QsciScintilla::SCI_SETFOCUS, true);
-            m_currentEditor->SendScintilla(QsciScintilla::SCI_SETEMPTYSELECTION, 0);
-            // 使用高级API设置选择区域，避免使用有歧义的低级API
-            int lineLength = m_currentEditor->lineLength(line);
-            if (lineLength > 0) {
-                m_currentEditor->setSelection(line, 0, line, lineLength - 1);
+            // 6. 根据找到的位置高亮显示函数名
+            if (found) {
+                m_currentEditor->setSelection(line, columnPos, line, columnPos + funcName.length());
+            } else {
+                // 如果找不到精确位置，就选择整行
+                int lineLength = m_currentEditor->lineLength(line);
+                if (lineLength > 0) {
+                    m_currentEditor->setSelection(line, 0, line, lineLength - 1);
+                }
             }
         }
     });
@@ -2367,9 +2535,11 @@ void CodeEditor::updateFunctionList()
     // 使用增强的正则表达式匹配函数定义
     // 1. 匹配C/C++函数定义，包括类成员函数和更多复杂情况
     // 修改正则表达式，确保匹配的是函数定义而不是函数调用
-    QRegularExpression functionRegex(
-        R"((\b(?:(?:\w+::)*\w+|void|int|char|float|double|bool|unsigned|long|short|auto|const|static|inline|virtual|extern|\w+_t)(?:<[^>]+>)?(?:\s*\*+|\s+&+|\s+)?)(\b(?:\w+::)?\w+)\s*\(([^;{]*)\)\s*(?:const\s*)?(?:override\s*)?(?:final\s*)?(?:noexcept\s*)?(?:=\s*0\s*)?(?:=\s*default\s*)?(?:=\s*delete\s*)?\s*(?:->\s*[^;{]*\s*)?\{)");
+    // QRegularExpression functionRegex(
+    //     R"((\b(?:(?:\w+::)*\w+|void|int|char|float|double|bool|unsigned|long|short|auto|const|static|inline|virtual|extern|\w+_t)(?:<[^>]+>)?(?:\s*\*+|\s+&+|\s+)?)(\b(?:\w+::)?\w+)\s*\(([^;{]*)\)\s*(?:const\s*)?(?:override\s*)?(?:final\s*)?(?:noexcept\s*)?(?:=\s*0\s*)?(?:=\s*default\s*)?(?:=\s*delete\s*)?\s*(?:->\s*[^;{]*\s*)?\{)");
 
+    QRegularExpression functionRegex(
+        R"((\b(?:(?:\w+::)*\w+|void|int|char|float|double|bool|unsigned|long|short|auto|const|static|inline|virtual|extern|\w+_t|struct\s+\w+)(?:<[^>]+>)?(?:\s*\*+|\s+&*|\s+)?)(\b(?:\w+::)?\w+)\s*\(([^;{]*)\)\s*(?:(?:const|override|final|noexcept|=\s*0|=\s*default|=\s*delete)\s*)*(?:->\s*[^;{]*\s*)?\s*(?:\{|;))");
     // 设置模式选项以提高匹配精度
     functionRegex.setPatternOptions(
         QRegularExpression::DotMatchesEverythingOption |
@@ -2420,14 +2590,19 @@ void CodeEditor::updateFunctionList()
         int matchEnd = match.capturedEnd();
         
         // 检查前面的内容和后面的括号以确定这是函数定义而非调用
-        bool isActualFunctionDefinition = !returnType.isEmpty() && 
-            matchEnd < filteredText.length() && 
+        bool isActualFunctionDefinition = !returnType.isEmpty() &&
+            matchEnd < filteredText.length() &&
             filteredText.at(matchEnd-1) == '{';
-            
-        if (!isActualFunctionDefinition) {
-            continue;  // 跳过函数调用，只保留函数定义
-        }
 
+        // C语言函数定义检测
+        bool isCFunctionDefinition =
+            !returnType.isEmpty() &&
+            (matchEnd < filteredText.length() && filteredText.at(matchEnd-1) == '{' ||
+             (m_currentFilePath.endsWith(".c") && parameters.contains(",")));
+
+        if (!(isActualFunctionDefinition || isCFunctionDefinition)) {
+            continue;  // 跳过非函数定义
+        }
         // 获取函数在文本中的位置
         int startPos = match.capturedStart(0);
 
@@ -2444,9 +2619,23 @@ void CodeEditor::updateFunctionList()
             continue; // 跳过注释中的伪匹配
         }
 
-        // 计算行号
+        // // 计算行号
+        // int line = 0, index = 0;
+        // m_currentEditor->lineIndexFromPosition(startPos, &line, &index);
+        // 将过滤后文本位置映射回原始文本
+        int originalPos = startPos;
+        for (int i = 0, filteredPos = 0; i < text.length() && filteredPos <= startPos; i++) {
+            if (!isComment[i]) {
+                if (filteredPos == startPos) {
+                    originalPos = i;
+                    break;
+                }
+                filteredPos++;
+            }
+        }
+        // 使用原始位置计算行号
         int line = 0, index = 0;
-        m_currentEditor->lineIndexFromPosition(startPos, &line, &index);
+        m_currentEditor->lineIndexFromPosition(originalPos, &line, &index);
 
         // 生成显示名称
         QString displayName = functionName;
@@ -2531,6 +2720,8 @@ void CodeEditor::updateFunctionList()
 
         lineStart += line.length() + 1; // +1 for newline
     }
+
+
 
     // 按函数名排序并添加到列表
     QStringList functionNames = functionLineMap.keys();
