@@ -3,8 +3,8 @@
  * @Version: 1.0
  * @Autor: PhodonZou
  * @Date: 2025-04-05 21:44:22
- * @LastEditors: Phudon phudoncou@outlook.com
- * @LastEditTime: 2025-05-03 18:40:43
+ * @LastEditors: PhodonZou
+ * @LastEditTime: 2025-06-03 10:28:35
  */
 #include "codeeditor.h"
 #include <QVBoxLayout>
@@ -1400,204 +1400,41 @@ void CodeEditor::createFunctionList()
     // 连接信号和槽 - 使用Qt::UniqueConnection避免重复连接
     //connect(m_functionList, &QListWidget::currentRowChanged, this, &CodeEditor::jumpToFunction, Qt::UniqueConnection);
 
-    // // 连接函数列表项点击信号 - 修改此处的连接方式
-    // connect(m_functionList, &QListWidget::itemClicked, this, [this](QListWidgetItem* item) {
-    //     if (!m_currentEditor || !item) {
-    //         return;
-    //     }
-
-    //     // 获取存储的行号
-    //     int line = item->data(Qt::UserRole).toInt();
-
-    //     // 确保行号有效
-    //     if (line >= 0 && line < m_currentEditor->lines()) {
-    //         // 跳转到对应行并设置光标位置
-    //         m_currentEditor->setCursorPosition(line, 0);
-
-    //         // 确保目标行可见
-    //         m_currentEditor->SendScintilla(QsciScintilla::SCI_ENSUREVISIBLE, line);
-
-    //         // 滚动到目标行
-    //         m_currentEditor->SendScintilla(QsciScintilla::SCI_GOTOLINE, line);
-
-    //         // 设置焦点到编辑器
-    //         m_currentEditor->setFocus();
-
-    //         // 高亮显示当前行
-    //         m_currentEditor->SendScintilla(QsciScintilla::SCI_SETFOCUS, true);
-    //         m_currentEditor->SendScintilla(QsciScintilla::SCI_SETEMPTYSELECTION, 0);
-    //         // 使用高级API设置选择区域，避免使用有歧义的低级API
-    //         int lineLength = m_currentEditor->lineLength(line);
-    //         if (lineLength > 0) {
-    //             m_currentEditor->setSelection(line, 0, line, lineLength - 1);
-    //         }
-    //     }
-    // });
-
-    // // 连接函数列表项点击信号 - 使用更精确的跳转方法
-    // connect(m_functionList, &QListWidget::itemClicked, this, [this](QListWidgetItem* item) {
-    //     if (!m_currentEditor || !item) {
-    //         return;
-    //     }
-
-    //     // 获取存储的行号
-    //     int line = item->data(Qt::UserRole).toInt();
-
-    //     // 确保行号有效
-    //     if (line >= 0 && line < m_currentEditor->lines()) {
-    //         // 获取行文本以寻找函数名位置
-    //         QString lineText = m_currentEditor->text(line);
-    //         QString funcName = item->text();
-    //         // 提取函数名（去除可能的返回类型信息）
-    //         if (funcName.contains("(")) {
-    //             funcName = funcName.left(funcName.indexOf("(")).trimmed();
-    //         }
-            
-    //         // 处理可能包含的空格和特殊字符
-    //         funcName = funcName.trimmed();
-            
-    //         // 使用QRegularExpression发现函数名，当文本中包含中文时更可靠
-    //         QRegularExpression funcRegEx(QString("\\b%1\\b").arg(QRegularExpression::escape(funcName)));
-    //         QRegularExpressionMatch regMatch = funcRegEx.match(lineText);
-            
-    //         // 在行中查找函数名位置
-    //         int funcPos = -1;
-    //         if (regMatch.hasMatch()) {
-    //             funcPos = regMatch.capturedStart();
-    //         } else {
-    //             // 如果正则表达式匹配失败，尝试普通字符串查找
-    //             funcPos = lineText.indexOf(funcName);
-    //         }
-    //         int columnPos = (funcPos >= 0) ? funcPos : 0;
-
-    //         // 使用更精确的定位方法
-    //         m_currentEditor->setCursorPosition(line, columnPos);
-
-    //         // 确保目标行可见并居中显示
-    //         m_currentEditor->ensureLineVisible(line);
-
-    //         // 将光标行居中显示在编辑器中
-    //         int firstLine = m_currentEditor->firstVisibleLine();
-    //         int visibleLines = m_currentEditor->SendScintilla(QsciScintilla::SCI_LINESONSCREEN);
-    //         int targetLine = line - visibleLines / 2;
-    //         if (targetLine >= 0) {
-    //             m_currentEditor->SendScintilla(QsciScintilla::SCI_SETFIRSTVISIBLELINE, targetLine);
-    //         }
-
-    //         // 设置焦点到编辑器
-    //         m_currentEditor->setFocus();
-
-    //         // 高亮显示函数名
-    //         if (funcPos >= 0) {
-    //             m_currentEditor->setSelection(line, funcPos, line, funcPos + funcName.length());
-    //         } else {
-    //             // 如果找不到精确位置，就选择整行
-    //             int lineLength = m_currentEditor->lineLength(line);
-    //             if (lineLength > 0) {
-    //                 m_currentEditor->setSelection(line, 0, line, lineLength - 1);
-    //             }
-    //         }
-    //     }
-    // });
-    // 连接函数列表项点击信号 - 针对大量中文注释的改进版
+    // 连接函数列表项点击信号 - 简化跳转逻辑
     connect(m_functionList, &QListWidget::itemClicked, this, [this](QListWidgetItem* item) {
         if (!m_currentEditor || !item) {
             return;
         }
-
+        
         // 获取存储的行号
         int line = item->data(Qt::UserRole).toInt();
-
+        
         // 确保行号有效
         if (line >= 0 && line < m_currentEditor->lines()) {
-            // 1. 获取函数名，去除可能的返回类型信息
-            QString displayName = item->text();
-            QString funcName = displayName;
-
-            if (funcName.contains("(")) {
-                funcName = funcName.left(funcName.indexOf("(")).trimmed();
-            }
-
-            // 2. 获取目标行及其前后几行
-            QString lineText = m_currentEditor->text(line);
-            QStringList surroundingLines;
-
-            // 收集前后2行，避免多行函数声明问题
-            for (int i = -2; i <= 2; i++) {
-                int checkLine = line + i;
-                if (checkLine >= 0 && checkLine < m_currentEditor->lines()) {
-                    surroundingLines.append(m_currentEditor->text(checkLine));
-                }
-            }
-
-            // 3. 在目标行中查找函数名的最佳位置
-            int columnPos = 0;
-            bool found = false;
-
-            // 先在目标行尝试查找完整函数定义模式
-            QRegularExpression funcDefRegEx(QString("\\b%1\\s*\\(").arg(QRegularExpression::escape(funcName)));
-            QRegularExpressionMatch defMatch = funcDefRegEx.match(lineText);
-
-            if (defMatch.hasMatch()) {
-                // 找到函数定义
-                columnPos = defMatch.capturedStart();
-                found = true;
-            } else {
-                // 如果在目标行没找到，扩展到周围几行搜索
-                for (int i = 0; i < surroundingLines.size() && !found; i++) {
-                    defMatch = funcDefRegEx.match(surroundingLines[i]);
-                    if (defMatch.hasMatch()) {
-                        // 找到匹配，更新行号和列位置
-                        line = line - 2 + i;
-                        columnPos = defMatch.capturedStart();
-                        found = true;
-                    }
-                }
-
-                // 如果还是找不到，回到目标行，尝试简单的单词匹配
-                if (!found) {
-                    QRegularExpression wordRegEx(QString("\\b%1\\b").arg(QRegularExpression::escape(funcName)));
-                    QRegularExpressionMatch wordMatch = wordRegEx.match(lineText);
-
-                    if (wordMatch.hasMatch()) {
-                        columnPos = wordMatch.capturedStart();
-                        found = true;
-                    } else {
-                        // 最后尝试简单的字符串包含
-                        int pos = lineText.indexOf(funcName);
-                        if (pos >= 0) {
-                            columnPos = pos;
-                            found = true;
-                        }
-                    }
-                }
-            }
-
-            // 4. 跳转到找到的位置
-            m_currentEditor->setCursorPosition(line, columnPos);
-
-            // 5. 确保目标行可见并居中显示
+            // 直接跳转到指定行的开始位置
+            m_currentEditor->setCursorPosition(line, 0);
+            
+            // 确保目标行可见
             m_currentEditor->ensureLineVisible(line);
-
-            // 将光标行居中显示在编辑器中
+            
+            // 将目标行居中显示
             int visibleLines = m_currentEditor->SendScintilla(QsciScintilla::SCI_LINESONSCREEN);
-            int targetLine = line - visibleLines / 2;
-            if (targetLine >= 0) {
-                m_currentEditor->SendScintilla(QsciScintilla::SCI_SETFIRSTVISIBLELINE, targetLine);
-            }
-
+            int targetLine = qMax(0, line - visibleLines / 2);
+            m_currentEditor->SendScintilla(QsciScintilla::SCI_SETFIRSTVISIBLELINE, targetLine);
+            
+            // 高亮显示当前行
+            m_currentEditor->setCaretLineVisible(true);
+            m_currentEditor->setCaretLineBackgroundColor(QColor(255, 255, 0, 100)); // 淡黄色背景
+            
             // 设置焦点到编辑器
             m_currentEditor->setFocus();
-
-            // 6. 根据找到的位置高亮显示函数名
-            if (found) {
-                m_currentEditor->setSelection(line, columnPos, line, columnPos + funcName.length());
-            } else {
-                // 如果找不到精确位置，就选择整行
-                int lineLength = m_currentEditor->lineLength(line);
-                if (lineLength > 0) {
-                    m_currentEditor->setSelection(line, 0, line, lineLength - 1);
-                }
+            
+            // 可选：选择整行以便用户看到跳转位置
+            QString lineText = m_currentEditor->text(line);
+            int lineLength = lineText.length();
+            if (lineLength > 0) {
+                // 选择从行首到行尾（不包括换行符）
+                m_currentEditor->setSelection(line, 0, line, lineLength);
             }
         }
     });
@@ -1705,455 +1542,7 @@ void CodeEditor::parseFunctions(const QString& code)
 }
 
 
-
-
-// void CodeEditor::updateFunctionList()
-// {
-//     if (!m_currentEditor || !m_functionList) {
-//         return;
-//     }
-
-//     // 清空函数列表
-//     m_functionList->clear();
-
-//     // 获取编辑器文本
-//     QString text = m_currentEditor->text();
-
-//     // 预处理文本 - 移除注释和处理多行声明
-//     QString filteredText = text;
-//     // 移除单行/多行注释
-//     filteredText.remove(QRegularExpression(R"(//[^\n]*|/\*.*?\*/)",
-//                                            QRegularExpression::DotMatchesEverythingOption | QRegularExpression::MultilineOption));
-//     // 合并多行声明
-//     filteredText.replace(QRegularExpression(R"(\\\s*\n)"), " ");
-
-//     // 使用增强的正则表达式匹配函数声明
-//     QRegularExpression functionRegex(
-//         R"((\b(?:\w+::)*\s*)?((?:const\s+)?(?:virtual\s+)?(?:static\s+)?(?:inline\s+)?\w+(?:<[^>]+>)?(?:\s*\*+|\s+&+|\s+)?)(\b\w+)\s*\([^;{]*\))");
-
-//     QRegularExpressionMatchIterator matches = functionRegex.globalMatch(filteredText);
-
-//     // 存储函数名和行号的映射
-//     QMap<QString, int> functionLineMap;
-
-//     while (matches.hasNext()) {
-//         QRegularExpressionMatch match = matches.next();
-
-//         // 获取函数名和完整声明
-//         QString returnType = match.captured(2).trimmed();
-//         QString functionName = match.captured(3).trimmed();
-//         QString fullDeclaration = match.captured(0).trimmed();
-
-//         // 跳过预处理器宏和关键字
-//         if (functionName.isEmpty() ||
-//             functionName == "if" ||
-//             functionName == "for" ||
-//             functionName == "while" ||
-//             functionName == "switch" ||
-//             functionName == "catch") {
-//             continue;
-//         }
-
-//         // 获取函数在文本中的位置
-//         int startPos = match.capturedStart(0);
-
-//         // 计算行号 - 确保使用正确的方法计算行号
-//         int line = 0, index = 0;
-//         m_currentEditor->lineIndexFromPosition(startPos, &line, &index);
-
-//         // 存储函数名和行号
-//         QString displayName = functionName;
-//         if (!returnType.isEmpty()) {
-//             displayName = functionName + " (" + returnType + ")";
-//         }
-
-//         // 将行号存储到映射中
-//         functionLineMap[displayName] = line;
-//     }
-
-//     // 按函数名排序并添加到列表
-//     QStringList functionNames = functionLineMap.keys();
-//     functionNames.sort();
-
-//     for (const QString& functionName : functionNames) {
-//         QListWidgetItem* item = new QListWidgetItem(functionName);
-//         // 确保正确存储行号数据
-//         item->setData(Qt::UserRole, functionLineMap[functionName]);
-//         m_functionList->addItem(item);
-//     }
-// }
-
-
-
-// void CodeEditor::updateFunctionList()
-// {
-//     if (!m_currentEditor || !m_functionList) {
-//         return;
-//     }
-
-//     // 清空函数列表
-//     m_functionList->clear();
-
-//     // 获取编辑器文本
-//     QString text = m_currentEditor->text();
-
-//     // 预处理文本 - 移除注释和处理多行声明
-//     QString filteredText = text;
-//     // 移除单行/多行注释
-//     filteredText.remove(QRegularExpression(R"(//[^\n]*|/\*.*?\*/)",
-//                                            QRegularExpression::DotMatchesEverythingOption | QRegularExpression::MultilineOption));
-//     // 合并多行声明
-//     filteredText.replace(QRegularExpression(R"(\\\s*\n)"), " ");
-
-
-//     // 使用增强的正则表达式匹配函数声明
-//     QRegularExpression functionRegex(
-//         R"((\b(?:\w+::)*\s*)?((?:const\s+)?(?:virtual\s+)?(?:static\s+)?(?:inline\s+)?\w+(?:<[^>]+>)?(?:\s*\*+|\s+&+|\s+)?)(\b\w+)\s*\([^;{]*\))");
-
-//     // 存储函数名和行号的映射
-//     QMap<QString, int> functionLineMap;
-
-//     // 获取原始文本的行
-//     QStringList lines = text.split('\n');
-
-//     // 对每一行进行匹配，确保行号正确
-//     for (int lineNum = 0; lineNum < lines.size(); lineNum++) {
-//         QString line = lines[lineNum];
-
-//         QRegularExpressionMatch match = functionRegex.match(line);
-//         if (match.hasMatch()) {
-//             // 获取函数名和返回类型
-//             QString returnType = match.captured(2).trimmed();
-//             QString functionName = match.captured(3).trimmed();
-
-//             // 跳过预处理器宏和关键字
-//             if (functionName.isEmpty() ||
-//                 functionName == "if" ||
-//                 functionName == "for" ||
-//                 functionName == "while" ||
-//                 functionName == "switch" ||
-//                 functionName == "catch") {
-//                 continue;
-//             }
-
-//             // 存储函数名和行号
-//             QString displayName = functionName;
-//             if (!returnType.isEmpty()) {
-//                 displayName = functionName + " (" + returnType + ")";
-//             }
-
-//             // 将行号存储到映射中
-//             functionLineMap[displayName] = lineNum;
-//         }
-//     }
-
-//     // 如果逐行匹配没有找到足够的函数，尝试全文匹配
-//     if (functionLineMap.isEmpty()) {
-//         QRegularExpressionMatchIterator matches = functionRegex.globalMatch(filteredText);
-
-//         while (matches.hasNext()) {
-//             QRegularExpressionMatch match = matches.next();
-
-//             // 获取函数名和完整声明
-//             QString returnType = match.captured(2).trimmed();
-//             QString functionName = match.captured(3).trimmed();
-
-//             // 跳过预处理器宏和关键字
-//             if (functionName.isEmpty() ||
-//                 functionName == "if" ||
-//                 functionName == "for" ||
-//                 functionName == "while" ||
-//                 functionName == "switch" ||
-//                 functionName == "catch") {
-//                 continue;
-//             }
-
-//             // 获取函数在文本中的位置
-//             int startPos = match.capturedStart(0);
-
-//             // 计算行号
-//             int line = 0, index = 0;
-//             m_currentEditor->lineIndexFromPosition(startPos, &line, &index);
-
-//             // 存储函数名和行号
-//             QString displayName = functionName;
-//             if (!returnType.isEmpty()) {
-//                 displayName = functionName + " (" + returnType + ")";
-//             }
-
-//             // 将行号存储到映射中
-//             functionLineMap[displayName] = line;
-//         }
-//     }
-
-//     // 按函数名排序并添加到列表
-//     QStringList functionNames = functionLineMap.keys();
-//     functionNames.sort();
-
-//     for (const QString& functionName : functionNames) {
-//         QListWidgetItem* item = new QListWidgetItem(functionName);
-//         // 确保正确存储行号数据
-//         item->setData(Qt::UserRole, functionLineMap[functionName]);
-//         m_functionList->addItem(item);
-//     }
-// }
-
-// void CodeEditor::updateFunctionList()
-// {
-//     if (!m_currentEditor || !m_functionList) {
-//         return;
-//     }
-
-//     // 清空函数列表
-//     m_functionList->clear();
-
-//     // 获取编辑器文本
-//     QString text = m_currentEditor->text();
-
-//     // 预处理文本 - 移除注释和处理多行声明
-//     QString filteredText = text;
-//     // 移除单行注释
-//     filteredText.replace(QRegularExpression("//.*$", QRegularExpression::MultilineOption), "");
-
-//     // 移除多行注释
-//     filteredText.replace(QRegularExpression("/\\*.*?\\*/",
-//                                             QRegularExpression::DotMatchesEverythingOption | QRegularExpression::MultilineOption), "");
-
-//     // 合并多行声明
-//     filteredText.replace(QRegularExpression("\\\\\\s*\\n"), " ");
-
-//     // 移除字符串字面量，避免误识别
-//     filteredText.replace(QRegularExpression("\".*?\"",
-//                                             QRegularExpression::DotMatchesEverythingOption), "\"\"");
-
-//     // 使用更精确的正则表达式匹配函数声明
-//     // 匹配C/C++函数定义，包括返回类型、函数名和参数列表，后面跟着花括号
-//     // QRegularExpression functionRegex(
-//     //     R"((\b(?:\w+::)*\s*)?((?:const\s+)?(?:virtual\s+)?(?:static\s+)?(?:inline\s+)?\w+(?:<[^>]+>)?(?:\s*\*+|\s+&+|\s+)?)(\b\w+)\s*\([^;{]*\)\s*(?:override\s*)?(?:final\s*)?(?:noexcept\s*)?(?:=\s*0\s*)?(?:=\s*default\s*)?(?:=\s*delete\s*)?\s*\{)");
-//     //使用增强的正则表达式匹配函数声明
-//     QRegularExpression functionRegex(
-//         R"((\b(?:\w+::)*\s*)?((?:const\s+)?(?:virtual\s+)?(?:static\s+)?(?:inline\s+)?\w+(?:<[^>]+>)?(?:\s*\*+|\s+&+|\s+)?)(\b\w+)\s*\([^;{]*\))");
-
-//     // 存储函数名和行号的映射
-//     QMap<QString, int> functionLineMap;
-
-//     // 获取原始文本的行
-//     QStringList lines = text.split('\n');
-
-//     // 对每一行进行匹配，确保行号正确
-//     for (int lineNum = 0; lineNum < lines.size(); lineNum++) {
-//         QString line = lines[lineNum];
-
-//         QRegularExpressionMatch match = functionRegex.match(line);
-//         if (match.hasMatch()) {
-//             // 获取函数名和返回类型
-//             QString returnType = match.captured(2).trimmed();
-//             QString functionName = match.captured(3).trimmed();
-
-//             // 跳过预处理器宏和关键字
-//             if (functionName.isEmpty() ||
-//                 functionName == "if" ||
-//                 functionName == "for" ||
-//                 functionName == "while" ||
-//                 functionName == "switch" ||
-//                 functionName == "catch") {
-//                 continue;
-//             }
-
-//             // 存储函数名和行号
-//             QString displayName = functionName;
-//             if (!returnType.isEmpty()) {
-//                 displayName = functionName + " (" + returnType + ")";
-//             }
-
-//             // 将行号存储到映射中
-//             functionLineMap[displayName] = lineNum;
-//         }
-//     }
-
-//     // 如果逐行匹配没有找到足够的函数，尝试全文匹配
-//     if (functionLineMap.isEmpty()) {
-//         QRegularExpressionMatchIterator matches = functionRegex.globalMatch(filteredText);
-
-//         while (matches.hasNext()) {
-//             QRegularExpressionMatch match = matches.next();
-
-//             // 获取函数名和完整声明
-//             QString returnType = match.captured(2).trimmed();
-//             QString functionName = match.captured(3).trimmed();
-
-//             // 跳过预处理器宏和关键字
-//             if (functionName.isEmpty() ||
-//                 functionName == "if" ||
-//                 functionName == "for" ||
-//                 functionName == "while" ||
-//                 functionName == "switch" ||
-//                 functionName == "catch") {
-//                 continue;
-//             }
-
-//             // 获取函数在文本中的位置
-//             int startPos = match.capturedStart(0);
-
-//             // 计算行号
-//             int line = 0, index = 0;
-//             m_currentEditor->lineIndexFromPosition(startPos, &line, &index);
-
-//             // 存储函数名和行号
-//             QString displayName = functionName;
-//             if (!returnType.isEmpty()) {
-//                 displayName = functionName + " (" + returnType + ")";
-//             }
-
-//             // 将行号存储到映射中
-//             functionLineMap[displayName] = line;
-//         }
-//     }
-
-//     // 按函数名排序并添加到列表
-//     QStringList functionNames = functionLineMap.keys();
-//     functionNames.sort();
-
-//     for (const QString& functionName : functionNames) {
-//         QListWidgetItem* item = new QListWidgetItem(functionName);
-//         // 确保正确存储行号数据
-//         item->setData(Qt::UserRole, functionLineMap[functionName]);
-//         m_functionList->addItem(item);
-//     }
-// }
-
-// void CodeEditor::updateFunctionList()
-// {
-//     if (!m_currentEditor || !m_functionList) {
-//         return;
-//     }
-
-//     // 清空函数列表
-//     m_functionList->clear();
-
-//     // 获取编辑器文本
-//     QString text = m_currentEditor->text();
-
-//     // 预处理文本 - 更精确地移除注释和处理多行声明
-//     QString filteredText = text;
-
-//     // 移除单行注释 - 使用更精确的正则表达式
-//     filteredText.replace(QRegularExpression("//.*$", QRegularExpression::MultilineOption), "");
-
-//     // 移除多行注释 - 使用非贪婪匹配
-//     filteredText.replace(QRegularExpression("/\\*.*?\\*/",
-//                                             QRegularExpression::DotMatchesEverythingOption | QRegularExpression::MultilineOption), "");
-
-//     // 合并多行声明
-//     filteredText.replace(QRegularExpression("\\\\\\s*\\n"), " ");
-
-//     // 移除字符串字面量，避免误识别
-//     filteredText.replace(QRegularExpression("\".*?\"",
-//                                             QRegularExpression::DotMatchesEverythingOption), "\"\"");
-//     filteredText.replace(QRegularExpression("'.*?'"), "''");
-
-//     // 存储函数名和行号的映射
-//     QMap<QString, int> functionLineMap;
-
-//     // 使用更精确的正则表达式匹配函数声明
-//     // 匹配C/C++函数定义，包括返回类型、函数名和参数列表，后面跟着花括号
-//     QRegularExpression functionRegex(
-//         R"((\b(?:\w+::)*\s*)?((?:const\s+)?(?:virtual\s+)?(?:static\s+)?(?:inline\s+)?\w+(?:<[^>]+>)?(?:\s*\*+|\s+&+|\s+)?)(\b\w+)\s*\([^;{]*\)\s*(?:const\s*)?(?:override\s*)?(?:final\s*)?(?:noexcept\s*)?(?:=\s*0\s*)?(?:=\s*default\s*)?(?:=\s*delete\s*)?\s*\{)");
-
-//     // 对预处理后的文本进行全局匹配
-//     QRegularExpressionMatchIterator matches = functionRegex.globalMatch(filteredText);
-
-//     while (matches.hasNext()) {
-//         QRegularExpressionMatch match = matches.next();
-
-//         // 获取函数名和返回类型
-//         QString returnType = match.captured(2).trimmed();
-//         QString functionName = match.captured(3).trimmed();
-
-//         // 跳过预处理器宏和关键字
-//         if (functionName.isEmpty() ||
-//             functionName == "if" ||
-//             functionName == "for" ||
-//             functionName == "while" ||
-//             functionName == "switch" ||
-//             functionName == "catch" ||
-//             functionName == "else" ||
-//             functionName == "try" ||
-//             functionName == "do") {
-//             continue;
-//         }
-
-//         // 获取函数在原始文本中的位置
-//         int startPos = match.capturedStart(0);
-//         QString matchedText = match.captured(0);
-
-//         // 在原始文本中查找对应的位置
-//         int originalPos = -1;
-//         int searchPos = 0;
-
-//         // 查找在原始文本中的实际位置，避免因为注释移除导致的位置偏移
-//         while (searchPos < text.length()) {
-//             int pos = text.indexOf(matchedText, searchPos);
-//             if (pos == -1) break;
-
-//             // 检查这个位置是否在注释中
-//             bool inComment = false;
-//             int lineStart = text.lastIndexOf('\n', pos);
-//             if (lineStart == -1) lineStart = 0;
-
-//             // 检查单行注释
-//             int commentPos = text.indexOf("//", lineStart);
-//             if (commentPos != -1 && commentPos < pos && text.indexOf('\n', commentPos) > pos) {
-//                 inComment = true;
-//             }
-
-//             // 检查多行注释
-//             int multiCommentStart = text.lastIndexOf("/*", pos);
-//             int multiCommentEnd = text.lastIndexOf("*/", pos);
-//             if (multiCommentStart != -1 && (multiCommentEnd == -1 || multiCommentEnd < multiCommentStart)) {
-//                 inComment = true;
-//             }
-
-//             if (!inComment) {
-//                 originalPos = pos;
-//                 break;
-//             }
-
-//             searchPos = pos + 1;
-//         }
-
-//         // 如果找不到对应的位置或者在注释中，则跳过
-//         if (originalPos == -1) {
-//             continue;
-//         }
-
-//         // 计算行号
-//         int line = 0, index = 0;
-//         m_currentEditor->lineIndexFromPosition(originalPos, &line, &index);
-
-//         // 存储函数名和行号
-//         QString displayName = functionName;
-//         if (!returnType.isEmpty()) {
-//             displayName = functionName + " (" + returnType + ")";
-//         }
-
-//         // 将行号存储到映射中
-//         functionLineMap[displayName] = line;
-//     }
-
-//     // 按函数名排序并添加到列表
-//     QStringList functionNames = functionLineMap.keys();
-//     functionNames.sort();
-
-//     for (const QString& functionName : functionNames) {
-//         QListWidgetItem* item = new QListWidgetItem(functionName);
-//         // 存储行号数据
-//         item->setData(Qt::UserRole, functionLineMap[functionName]);
-//         m_functionList->addItem(item);
-//     }
-// }
-
-//20250502
+//20250503
 // void CodeEditor::updateFunctionList()
 // {
 //     if (!m_currentEditor || !m_functionList) {
@@ -2169,84 +1558,95 @@ void CodeEditor::parseFunctions(const QString& code)
 //     // 创建一个与原文本等长的标记数组，用于标记哪些字符是注释
 //     QVector<bool> isComment(text.length(), false);
 
-//     // 第一步：标记所有注释
-//     bool inMultiLineComment = false;
-//     bool inString = false;
-//     bool inCharLiteral = false;
-//     bool escapeNext = false;
+//     // 第一步：标记所有注释，优化识别逻辑
+//     enum State {
+//         CODE,            // 正常代码
+//         SLASH_SEEN,      // 刚看到斜杠，可能是注释开始
+//         LINE_COMMENT,    // 单行注释内
+//         BLOCK_COMMENT,   // 块注释内
+//         BLOCK_STAR_SEEN, // 在块注释内看到星号，可能是注释结束
+//         STRING_LITERAL,  // 字符串内
+//         CHAR_LITERAL,    // 字符字面量内
+//         ESCAPE_IN_STRING,// 字符串中的转义序列
+//         ESCAPE_IN_CHAR   // 字符中的转义序列
+//     };
+
+//     State state = CODE;
 
 //     for (int i = 0; i < text.length(); i++) {
-//         // 处理转义字符
-//         if (escapeNext) {
-//             escapeNext = false;
-//             continue;
-//         }
-
-//         // 当前字符
 //         QChar c = text.at(i);
 
-//         // 如果在字符串中
-//         if (inString) {
-//             if (c == '\\') {
-//                 escapeNext = true;
+//         switch (state) {
+//         case CODE:
+//             if (c == '/') {
+//                 state = SLASH_SEEN;
 //             } else if (c == '"') {
-//                 inString = false;
-//             }
-//             continue;
-//         }
-
-//         // 如果在字符字面量中
-//         if (inCharLiteral) {
-//             if (c == '\\') {
-//                 escapeNext = true;
+//                 state = STRING_LITERAL;
 //             } else if (c == '\'') {
-//                 inCharLiteral = false;
+//                 state = CHAR_LITERAL;
 //             }
-//             continue;
-//         }
+//             break;
 
-//         // 如果在多行注释中
-//         if (inMultiLineComment) {
+//         case SLASH_SEEN:
+//             if (c == '/') {
+//                 state = LINE_COMMENT;
+//                 isComment[i-1] = true; // 标记之前的斜杠
+//                 isComment[i] = true;   // 标记当前斜杠
+//             } else if (c == '*') {
+//                 state = BLOCK_COMMENT;
+//                 isComment[i-1] = true; // 标记之前的斜杠
+//                 isComment[i] = true;   // 标记当前星号
+//             } else {
+//                 state = CODE; // 不是注释，只是普通的斜杠
+//             }
+//             break;
+
+//         case LINE_COMMENT:
 //             isComment[i] = true;
-//             if (i > 0 && c == '/' && text.at(i-1) == '*') {
-//                 inMultiLineComment = false;
+//             if (c == '\n') {
+//                 state = CODE; // 行注释在换行时结束
 //             }
-//             continue;
-//         }
+//             break;
 
-//         // 检查是否开始字符串
-//         if (c == '"') {
-//             inString = true;
-//             continue;
-//         }
-
-//         // 检查是否开始字符字面量
-//         if (c == '\'') {
-//             inCharLiteral = true;
-//             continue;
-//         }
-
-//         // 检查是否开始单行注释
-//         if (c == '/' && i + 1 < text.length() && text.at(i+1) == '/') {
-//             // 标记从这里到行尾的所有字符为注释
-//             int lineEnd = text.indexOf('\n', i);
-//             if (lineEnd == -1) lineEnd = text.length();
-
-//             for (int j = i; j < lineEnd; j++) {
-//                 isComment[j] = true;
-//             }
-
-//             i = lineEnd - 1; // 跳到行尾
-//             continue;
-//         }
-
-//         // 检查是否开始多行注释
-//         if (c == '/' && i + 1 < text.length() && text.at(i+1) == '*') {
-//             inMultiLineComment = true;
+//         case BLOCK_COMMENT:
 //             isComment[i] = true;
-//             isComment[i+1] = true;
-//             i++; // 跳过 '*'
-//             continue;
+//             if (c == '*') {
+//                 state = BLOCK_STAR_SEEN;
+//             }
+//             break;
+
+//         case BLOCK_STAR_SEEN:
+//             isComment[i] = true;
+//             if (c == '/') {
+//                 state = CODE; // 块注释结束
+//             } else if (c != '*') {
+//                 state = BLOCK_COMMENT; // 不是注释结束，回到块注释状态
+//             }
+//             break;
+
+//         case STRING_LITERAL:
+//             if (c == '\\') {
+//                 state = ESCAPE_IN_STRING;
+//             } else if (c == '"') {
+//                 state = CODE; // 字符串结束
+//             }
+//             break;
+
+//         case CHAR_LITERAL:
+//             if (c == '\\') {
+//                 state = ESCAPE_IN_CHAR;
+//             } else if (c == '\'') {
+//                 state = CODE; // 字符字面量结束
+//             }
+//             break;
+
+//         case ESCAPE_IN_STRING:
+//             state = STRING_LITERAL; // 返回到字符串状态
+//             break;
+
+//         case ESCAPE_IN_CHAR:
+//             state = CHAR_LITERAL;   // 返回到字符字面量状态
+//             break;
 //         }
 //     }
 
@@ -2260,22 +1660,41 @@ void CodeEditor::parseFunctions(const QString& code)
 //         }
 //     }
 
-//     // 合并多行声明
+//     // 合并多行声明 (处理行连接符 \)
 //     filteredText.replace(QRegularExpression("\\\\\\s*\\n"), " ");
 
 //     // 存储函数名和行号的映射
 //     QMap<QString, int> functionLineMap;
 
-//     // 1. 匹配C/C++函数定义，包括类成员函数
+//     // 使用增强的正则表达式匹配函数定义
+//     // 1. 匹配C/C++函数定义，包括类成员函数和更多复杂情况
+//     // 修改正则表达式，确保匹配的是函数定义而不是函数调用
+//     // QRegularExpression functionRegex(
+//     //     R"((\b(?:(?:\w+::)*\w+|void|int|char|float|double|bool|unsigned|long|short|auto|const|static|inline|virtual|extern|\w+_t)(?:<[^>]+>)?(?:\s*\*+|\s+&+|\s+)?)(\b(?:\w+::)?\w+)\s*\(([^;{]*)\)\s*(?:const\s*)?(?:override\s*)?(?:final\s*)?(?:noexcept\s*)?(?:=\s*0\s*)?(?:=\s*default\s*)?(?:=\s*delete\s*)?\s*(?:->\s*[^;{]*\s*)?\{)");
+
 //     QRegularExpression functionRegex(
-//         R"((\b(?:(?:\w+::)*\w+|void|int|char|float|double|bool|unsigned|long|short|auto|const|static|inline|virtual)(?:<[^>]+>)?(?:\s*\*+|\s+&+|\s+)?)(\b(?:\w+::)?\w+)\s*\([^;{]*\)\s*(?:const\s*)?(?:override\s*)?(?:final\s*)?(?:noexcept\s*)?(?:=\s*0\s*)?(?:=\s*default\s*)?(?:=\s*delete\s*)?\s*\{)");
+//         R"((\b(?:(?:\w+::)*\w+|void|int|char|float|double|bool|unsigned|long|short|auto|const|static|inline|virtual|extern|\w+_t|struct\s+\w+)(?:<[^>]+>)?(?:\s*\*+|\s+&*|\s+)?)(\b(?:\w+::)?\w+)\s*\(([^;{]*)\)\s*(?:(?:const|override|final|noexcept|=\s*0|=\s*default|=\s*delete)\s*)*(?:->\s*[^;{]*\s*)?\s*(?:\{|;))");
+//     // 设置模式选项以提高匹配精度
+//     functionRegex.setPatternOptions(
+//         QRegularExpression::DotMatchesEverythingOption |
+//         QRegularExpression::MultilineOption
+//         );
 
-//     // 2. 匹配宏定义
-//     QRegularExpression macroRegex(R"(^\s*#define\s+(\w+)(?:\(.*\))?)");
+//     // 2. 匹配宏定义，增加对带参数宏的支持
+//     QRegularExpression macroRegex(R"(^\s*#define\s+(\w+)(?:\([^)]*\))?)");
 
-//     // 3. 匹配类定义
+//     // 3. 匹配类定义，支持多继承
 //     QRegularExpression classRegex(
-//         R"((?:class|struct|enum)\s+(\w+)(?:\s*:\s*(?:public|protected|private)\s+\w+(?:\s*,\s*(?:public|protected|private)\s+\w+)*)?\s*\{)");
+//         R"((?:class|struct|enum|union)\s+(\w+)(?:\s*:\s*(?:public|protected|private)\s+\w+(?:\s*,\s*(?:public|protected|private)?\s*\w+)*)?\s*\{)");
+
+//     // 常见的C/C++关键字列表，用于过滤误判
+//     static const QSet<QString> keywords = {
+//         "if", "for", "while", "switch", "return", "else", "do", "case",
+//         "break", "continue", "goto", "sizeof", "typedef", "volatile",
+//         "register", "extern", "static", "auto", "const", "struct", "union",
+//         "enum", "class", "template", "typename", "namespace", "using",
+//         "try", "catch", "throw", "new", "delete"
+//     };
 
 //     // 对预处理后的文本进行全局匹配函数和类
 //     QRegularExpressionMatchIterator functionMatches = functionRegex.globalMatch(filteredText);
@@ -2285,44 +1704,82 @@ void CodeEditor::parseFunctions(const QString& code)
 //         // 获取函数名和返回类型
 //         QString returnType = match.captured(1).trimmed();
 //         QString functionName = match.captured(2).trimmed();
+//         QString parameters = match.captured(3).trimmed();
 
-//         // 跳过预处理器宏和关键字
-//         if (functionName.isEmpty() ||
-//             functionName == "if" ||
-//             functionName == "for" ||
-//             functionName == "while" ||
-//             functionName == "switch" ||
-//             functionName == "catch" ||
-//             functionName == "else" ||
-//             functionName == "try" ||
-//             functionName == "do") {
+//         // 跳过关键字误匹配
+//         if (functionName.isEmpty() || keywords.contains(functionName)) {
 //             continue;
 //         }
 
+//         // 排除宏定义中的函数形式代码
+//         if (functionName.startsWith("#") || returnType.startsWith("#")) {
+//             continue;
+//         }
+        
+//         // 过滤掉函数定义中的函数调用
+//         // 检查该匹配是否为一个完整的函数定义而不是函数调用
+//         // 函数定义应该有返回类型，且后跟大括号
+//         // 函数调用通常不会有前置的返回类型声明
+//         int matchStart = match.capturedStart();
+//         int matchEnd = match.capturedEnd();
+        
+//         // 检查前面的内容和后面的括号以确定这是函数定义而非调用
+//         bool isActualFunctionDefinition = !returnType.isEmpty() &&
+//             matchEnd < filteredText.length() &&
+//             filteredText.at(matchEnd-1) == '{';
+
+//         // C语言函数定义检测
+//         bool isCFunctionDefinition =
+//             !returnType.isEmpty() &&
+//             (matchEnd < filteredText.length() && filteredText.at(matchEnd-1) == '{' ||
+//              (m_currentFilePath.endsWith(".c") && parameters.contains(",")));
+
+//         if (!(isActualFunctionDefinition || isCFunctionDefinition)) {
+//             continue;  // 跳过非函数定义
+//         }
 //         // 获取函数在文本中的位置
 //         int startPos = match.capturedStart(0);
 
-//         // 检查这个位置是否在注释中
+//         // 确保匹配位置不在注释中
 //         bool posInComment = false;
-//         for (int i = startPos; i < startPos + match.capturedLength(0); i++) {
-//             if (i < isComment.size() && isComment[i]) {
+//         for (int i = startPos; i < startPos + 10 && i < isComment.size(); i++) {
+//             if (isComment[i]) {
 //                 posInComment = true;
 //                 break;
 //             }
 //         }
 
 //         if (posInComment) {
-//             continue; // 跳过注释中的函数
+//             continue; // 跳过注释中的伪匹配
 //         }
 
-//         // 计算行号
+//         // // 计算行号
+//         // int line = 0, index = 0;
+//         // m_currentEditor->lineIndexFromPosition(startPos, &line, &index);
+//         // 将过滤后文本位置映射回原始文本
+//         int originalPos = startPos;
+//         for (int i = 0, filteredPos = 0; i < text.length() && filteredPos <= startPos; i++) {
+//             if (!isComment[i]) {
+//                 if (filteredPos == startPos) {
+//                     originalPos = i;
+//                     break;
+//                 }
+//                 filteredPos++;
+//             }
+//         }
+//         // 使用原始位置计算行号
 //         int line = 0, index = 0;
-//         m_currentEditor->lineIndexFromPosition(startPos, &line, &index);
+//         m_currentEditor->lineIndexFromPosition(originalPos, &line, &index);
 
-//         // 存储函数名和行号
+//         // 生成显示名称
 //         QString displayName = functionName;
 //         if (!returnType.isEmpty()) {
-//             displayName = functionName + " (" + returnType + ")";
+//             // 美化显示，简化冗长的返回类型
+//             QString simplifiedReturnType = returnType;
+//             if (simplifiedReturnType.length() > 30) {
+//                 simplifiedReturnType = simplifiedReturnType.left(27) + "...";
+//             }
+//             displayName = functionName + " (" + simplifiedReturnType + ")";
 //         }
 
 //         // 将行号存储到映射中
@@ -2336,14 +1793,15 @@ void CodeEditor::parseFunctions(const QString& code)
 
 //         // 获取类名
 //         QString className = match.captured(1).trimmed();
+//         if (className.isEmpty()) continue;
 
 //         // 获取类在文本中的位置
 //         int startPos = match.capturedStart(0);
 
-//         // 检查这个位置是否在注释中
+//         // 确保匹配位置不在注释中
 //         bool posInComment = false;
-//         for (int i = startPos; i < startPos + match.capturedLength(0); i++) {
-//             if (i < isComment.size() && isComment[i]) {
+//         for (int i = startPos; i < startPos + match.capturedLength(0) && i < isComment.size(); i++) {
+//             if (isComment[i]) {
 //                 posInComment = true;
 //                 break;
 //             }
@@ -2366,24 +1824,22 @@ void CodeEditor::parseFunctions(const QString& code)
 
 //     // 匹配宏定义
 //     QStringList lines = text.split('\n');
+//     int lineStart = 0;
+
 //     for (int lineNum = 0; lineNum < lines.size(); lineNum++) {
 //         QString line = lines[lineNum];
 
-//         // 检查该行是否全部是注释
-//         bool lineIsComment = true;
-//         int lineStart = 0;
-//         for (int i = 0; i < lineNum; i++) {
-//             lineStart += lines[i].length() + 1; // +1 for newline
-//         }
-
-//         for (int i = 0; i < line.length(); i++) {
+//         // 跳过完全是注释的行
+//         bool lineHasCode = false;
+//         for (int i = 0; i < line.length() && lineStart + i < isComment.size(); i++) {
 //             if (!isComment[lineStart + i]) {
-//                 lineIsComment = false;
+//                 lineHasCode = true;
 //                 break;
 //             }
 //         }
 
-//         if (lineIsComment) {
+//         if (!lineHasCode) {
+//             lineStart += line.length() + 1; // +1 for newline
 //             continue;
 //         }
 
@@ -2391,13 +1847,19 @@ void CodeEditor::parseFunctions(const QString& code)
 //         QRegularExpressionMatch macroMatch = macroRegex.match(line);
 //         if (macroMatch.hasMatch()) {
 //             QString macroName = macroMatch.captured(1);
-//             functionLineMap["#define " + macroName] = lineNum;
+//             if (!macroName.isEmpty()) {
+//                 functionLineMap["#define " + macroName] = lineNum;
+//             }
 //         }
+
+//         lineStart += line.length() + 1; // +1 for newline
 //     }
+
+
 
 //     // 按函数名排序并添加到列表
 //     QStringList functionNames = functionLineMap.keys();
-//     functionNames.sort();
+//     functionNames.sort(Qt::CaseInsensitive); // 大小写不敏感排序
 
 //     for (const QString& functionName : functionNames) {
 //         QListWidgetItem* item = new QListWidgetItem(functionName);
@@ -2408,7 +1870,6 @@ void CodeEditor::parseFunctions(const QString& code)
 // }
 
 
-//20250503
 void CodeEditor::updateFunctionList()
 {
     if (!m_currentEditor || !m_functionList) {
@@ -2420,411 +1881,124 @@ void CodeEditor::updateFunctionList()
 
     // 获取编辑器文本
     QString text = m_currentEditor->text();
-
-    // 创建一个与原文本等长的标记数组，用于标记哪些字符是注释
-    QVector<bool> isComment(text.length(), false);
-
-    // 第一步：标记所有注释，优化识别逻辑
-    enum State {
-        CODE,            // 正常代码
-        SLASH_SEEN,      // 刚看到斜杠，可能是注释开始
-        LINE_COMMENT,    // 单行注释内
-        BLOCK_COMMENT,   // 块注释内
-        BLOCK_STAR_SEEN, // 在块注释内看到星号，可能是注释结束
-        STRING_LITERAL,  // 字符串内
-        CHAR_LITERAL,    // 字符字面量内
-        ESCAPE_IN_STRING,// 字符串中的转义序列
-        ESCAPE_IN_CHAR   // 字符中的转义序列
-    };
-
-    State state = CODE;
-
-    for (int i = 0; i < text.length(); i++) {
-        QChar c = text.at(i);
-
-        switch (state) {
-        case CODE:
-            if (c == '/') {
-                state = SLASH_SEEN;
-            } else if (c == '"') {
-                state = STRING_LITERAL;
-            } else if (c == '\'') {
-                state = CHAR_LITERAL;
-            }
-            break;
-
-        case SLASH_SEEN:
-            if (c == '/') {
-                state = LINE_COMMENT;
-                isComment[i-1] = true; // 标记之前的斜杠
-                isComment[i] = true;   // 标记当前斜杠
-            } else if (c == '*') {
-                state = BLOCK_COMMENT;
-                isComment[i-1] = true; // 标记之前的斜杠
-                isComment[i] = true;   // 标记当前星号
-            } else {
-                state = CODE; // 不是注释，只是普通的斜杠
-            }
-            break;
-
-        case LINE_COMMENT:
-            isComment[i] = true;
-            if (c == '\n') {
-                state = CODE; // 行注释在换行时结束
-            }
-            break;
-
-        case BLOCK_COMMENT:
-            isComment[i] = true;
-            if (c == '*') {
-                state = BLOCK_STAR_SEEN;
-            }
-            break;
-
-        case BLOCK_STAR_SEEN:
-            isComment[i] = true;
-            if (c == '/') {
-                state = CODE; // 块注释结束
-            } else if (c != '*') {
-                state = BLOCK_COMMENT; // 不是注释结束，回到块注释状态
-            }
-            break;
-
-        case STRING_LITERAL:
-            if (c == '\\') {
-                state = ESCAPE_IN_STRING;
-            } else if (c == '"') {
-                state = CODE; // 字符串结束
-            }
-            break;
-
-        case CHAR_LITERAL:
-            if (c == '\\') {
-                state = ESCAPE_IN_CHAR;
-            } else if (c == '\'') {
-                state = CODE; // 字符字面量结束
-            }
-            break;
-
-        case ESCAPE_IN_STRING:
-            state = STRING_LITERAL; // 返回到字符串状态
-            break;
-
-        case ESCAPE_IN_CHAR:
-            state = CHAR_LITERAL;   // 返回到字符字面量状态
-            break;
-        }
-    }
-
-    // 第二步：创建过滤后的文本，保留非注释部分
-    QString filteredText;
-    for (int i = 0; i < text.length(); i++) {
-        if (!isComment[i]) {
-            filteredText.append(text.at(i));
-        } else {
-            filteredText.append(' '); // 用空格替换注释，保持字符位置
-        }
-    }
-
-    // 合并多行声明 (处理行连接符 \)
-    filteredText.replace(QRegularExpression("\\\\\\s*\\n"), " ");
+    QStringList lines = text.split('\n');
 
     // 存储函数名和行号的映射
     QMap<QString, int> functionLineMap;
 
-    // 使用增强的正则表达式匹配函数定义
-    // 1. 匹配C/C++函数定义，包括类成员函数和更多复杂情况
-    // 修改正则表达式，确保匹配的是函数定义而不是函数调用
-    // QRegularExpression functionRegex(
-    //     R"((\b(?:(?:\w+::)*\w+|void|int|char|float|double|bool|unsigned|long|short|auto|const|static|inline|virtual|extern|\w+_t)(?:<[^>]+>)?(?:\s*\*+|\s+&+|\s+)?)(\b(?:\w+::)?\w+)\s*\(([^;{]*)\)\s*(?:const\s*)?(?:override\s*)?(?:final\s*)?(?:noexcept\s*)?(?:=\s*0\s*)?(?:=\s*default\s*)?(?:=\s*delete\s*)?\s*(?:->\s*[^;{]*\s*)?\{)");
-
+    // 更宽松的函数识别正则表达式 - 不要求同行包含大括号
     QRegularExpression functionRegex(
-        R"((\b(?:(?:\w+::)*\w+|void|int|char|float|double|bool|unsigned|long|short|auto|const|static|inline|virtual|extern|\w+_t|struct\s+\w+)(?:<[^>]+>)?(?:\s*\*+|\s+&*|\s+)?)(\b(?:\w+::)?\w+)\s*\(([^;{]*)\)\s*(?:(?:const|override|final|noexcept|=\s*0|=\s*default|=\s*delete)\s*)*(?:->\s*[^;{]*\s*)?\s*(?:\{|;))");
-    // 设置模式选项以提高匹配精度
-    functionRegex.setPatternOptions(
-        QRegularExpression::DotMatchesEverythingOption |
-        QRegularExpression::MultilineOption
+        R"(^\s*(?:(?:static|inline|virtual|extern|const)\s+)*(?:\w+(?:\s*\*+|\s*&+)?\s+)+([A-Za-z_]\w*)\s*\([^;]*\)\s*(?:const\s*)?(?:override\s*)?(?:final\s*)?(?:noexcept\s*)?)"
         );
 
-    // 2. 匹配宏定义，增加对带参数宏的支持
-    QRegularExpression macroRegex(R"(^\s*#define\s+(\w+)(?:\([^)]*\))?)");
+    // 简单的C函数识别正则表达式
+    QRegularExpression cFunctionRegex(
+        R"(^\s*([A-Za-z_]\w*)\s*\([^;]*\)\s*$)"
+        );
 
-    // 3. 匹配类定义，支持多继承
+    // 类定义正则表达式
     QRegularExpression classRegex(
-        R"((?:class|struct|enum|union)\s+(\w+)(?:\s*:\s*(?:public|protected|private)\s+\w+(?:\s*,\s*(?:public|protected|private)?\s*\w+)*)?\s*\{)");
+        R"(^\s*(?:class|struct|enum)\s+(\w+)(?:\s*:[^{]*)?)"
+        );
 
-    // 常见的C/C++关键字列表，用于过滤误判
-    static const QSet<QString> keywords = {
-        "if", "for", "while", "switch", "return", "else", "do", "case",
+    // 宏定义正则表达式
+    QRegularExpression macroRegex(
+        R"(^\s*#define\s+(\w+)(?:\([^)]*\))?)"
+        );
+
+    // 关键字过滤列表
+    QSet<QString> keywords = {
+        "if", "for", "while", "switch", "catch", "return", "else", "do",
         "break", "continue", "goto", "sizeof", "typedef", "volatile",
         "register", "extern", "static", "auto", "const", "struct", "union",
         "enum", "class", "template", "typename", "namespace", "using",
-        "try", "catch", "throw", "new", "delete"
+        "try", "throw", "new", "delete", "case", "default"
     };
 
-    // 对预处理后的文本进行全局匹配函数和类
-    QRegularExpressionMatchIterator functionMatches = functionRegex.globalMatch(filteredText);
-    while (functionMatches.hasNext()) {
-        QRegularExpressionMatch match = functionMatches.next();
-
-        // 获取函数名和返回类型
-        QString returnType = match.captured(1).trimmed();
-        QString functionName = match.captured(2).trimmed();
-        QString parameters = match.captured(3).trimmed();
-
-        // 跳过关键字误匹配
-        if (functionName.isEmpty() || keywords.contains(functionName)) {
-            continue;
-        }
-
-        // 排除宏定义中的函数形式代码
-        if (functionName.startsWith("#") || returnType.startsWith("#")) {
-            continue;
-        }
-        
-        // 过滤掉函数定义中的函数调用
-        // 检查该匹配是否为一个完整的函数定义而不是函数调用
-        // 函数定义应该有返回类型，且后跟大括号
-        // 函数调用通常不会有前置的返回类型声明
-        int matchStart = match.capturedStart();
-        int matchEnd = match.capturedEnd();
-        
-        // 检查前面的内容和后面的括号以确定这是函数定义而非调用
-        bool isActualFunctionDefinition = !returnType.isEmpty() &&
-            matchEnd < filteredText.length() &&
-            filteredText.at(matchEnd-1) == '{';
-
-        // C语言函数定义检测
-        bool isCFunctionDefinition =
-            !returnType.isEmpty() &&
-            (matchEnd < filteredText.length() && filteredText.at(matchEnd-1) == '{' ||
-             (m_currentFilePath.endsWith(".c") && parameters.contains(",")));
-
-        if (!(isActualFunctionDefinition || isCFunctionDefinition)) {
-            continue;  // 跳过非函数定义
-        }
-        // 获取函数在文本中的位置
-        int startPos = match.capturedStart(0);
-
-        // 确保匹配位置不在注释中
-        bool posInComment = false;
-        for (int i = startPos; i < startPos + 10 && i < isComment.size(); i++) {
-            if (isComment[i]) {
-                posInComment = true;
-                break;
-            }
-        }
-
-        if (posInComment) {
-            continue; // 跳过注释中的伪匹配
-        }
-
-        // // 计算行号
-        // int line = 0, index = 0;
-        // m_currentEditor->lineIndexFromPosition(startPos, &line, &index);
-        // 将过滤后文本位置映射回原始文本
-        int originalPos = startPos;
-        for (int i = 0, filteredPos = 0; i < text.length() && filteredPos <= startPos; i++) {
-            if (!isComment[i]) {
-                if (filteredPos == startPos) {
-                    originalPos = i;
-                    break;
-                }
-                filteredPos++;
-            }
-        }
-        // 使用原始位置计算行号
-        int line = 0, index = 0;
-        m_currentEditor->lineIndexFromPosition(originalPos, &line, &index);
-
-        // 生成显示名称
-        QString displayName = functionName;
-        if (!returnType.isEmpty()) {
-            // 美化显示，简化冗长的返回类型
-            QString simplifiedReturnType = returnType;
-            if (simplifiedReturnType.length() > 30) {
-                simplifiedReturnType = simplifiedReturnType.left(27) + "...";
-            }
-            displayName = functionName + " (" + simplifiedReturnType + ")";
-        }
-
-        // 将行号存储到映射中
-        functionLineMap[displayName] = line;
-    }
-
-    // 匹配类定义
-    QRegularExpressionMatchIterator classMatches = classRegex.globalMatch(filteredText);
-    while (classMatches.hasNext()) {
-        QRegularExpressionMatch match = classMatches.next();
-
-        // 获取类名
-        QString className = match.captured(1).trimmed();
-        if (className.isEmpty()) continue;
-
-        // 获取类在文本中的位置
-        int startPos = match.capturedStart(0);
-
-        // 确保匹配位置不在注释中
-        bool posInComment = false;
-        for (int i = startPos; i < startPos + match.capturedLength(0) && i < isComment.size(); i++) {
-            if (isComment[i]) {
-                posInComment = true;
-                break;
-            }
-        }
-
-        if (posInComment) {
-            continue; // 跳过注释中的类定义
-        }
-
-        // 计算行号
-        int line = 0, index = 0;
-        m_currentEditor->lineIndexFromPosition(startPos, &line, &index);
-
-        // 存储类名和行号
-        QString displayName = "class " + className;
-
-        // 将行号存储到映射中
-        functionLineMap[displayName] = line;
-    }
-
-    // 匹配宏定义
-    QStringList lines = text.split('\n');
-    int lineStart = 0;
-
+    // 逐行分析
     for (int lineNum = 0; lineNum < lines.size(); lineNum++) {
         QString line = lines[lineNum];
+        QString trimmedLine = line.trimmed();
 
-        // 跳过完全是注释的行
-        bool lineHasCode = false;
-        for (int i = 0; i < line.length() && lineStart + i < isComment.size(); i++) {
-            if (!isComment[lineStart + i]) {
-                lineHasCode = true;
-                break;
+        // 跳过空行和注释行
+        if (trimmedLine.isEmpty() || trimmedLine.startsWith("//") || trimmedLine.startsWith("/*")) {
+            continue;
+        }
+
+        // 跳过多行注释块
+        if (trimmedLine.contains("/*") && !trimmedLine.contains("*/")) {
+            while (lineNum < lines.size() - 1) {
+                lineNum++;
+                if (lines[lineNum].contains("*/")) {
+                    break;
+                }
+            }
+            continue;
+        }
+
+        // 跳过预处理指令（除了#define）
+        if (trimmedLine.startsWith("#") && !trimmedLine.startsWith("#define")) {
+            continue;
+        }
+
+        // 匹配C++函数定义
+        QRegularExpressionMatch funcMatch = functionRegex.match(line);
+        if (funcMatch.hasMatch()) {
+            QString functionName = funcMatch.captured(1);
+
+            // 过滤关键字
+            if (!keywords.contains(functionName)) {
+                // 使用isValidFunctionDefinition函数进行验证
+                if (isValidFunctionDefinition(line, lineNum, lines)) {
+                    functionLineMap[functionName] = lineNum;
+                }
+            }
+        }
+        // 匹配简单的C函数定义
+        else {
+            QRegularExpressionMatch cFuncMatch = cFunctionRegex.match(line);
+            if (cFuncMatch.hasMatch()) {
+                QString functionName = cFuncMatch.captured(1);
+
+                // 过滤关键字
+                if (!keywords.contains(functionName)) {
+                    // 使用isValidFunctionDefinition函数进行验证
+                    if (isValidFunctionDefinition(line, lineNum, lines)) {
+                        functionLineMap[functionName] = lineNum;
+                    }
+                }
             }
         }
 
-        if (!lineHasCode) {
-            lineStart += line.length() + 1; // +1 for newline
-            continue;
+        // 匹配类定义
+        QRegularExpressionMatch classMatch = classRegex.match(line);
+        if (classMatch.hasMatch()) {
+            QString className = classMatch.captured(1);
+            if (!keywords.contains(className)) {
+                functionLineMap["class " + className] = lineNum;
+            }
         }
 
         // 匹配宏定义
         QRegularExpressionMatch macroMatch = macroRegex.match(line);
         if (macroMatch.hasMatch()) {
             QString macroName = macroMatch.captured(1);
-            if (!macroName.isEmpty()) {
+            if (!keywords.contains(macroName)) {
                 functionLineMap["#define " + macroName] = lineNum;
             }
         }
-
-        lineStart += line.length() + 1; // +1 for newline
     }
-
-
 
     // 按函数名排序并添加到列表
     QStringList functionNames = functionLineMap.keys();
-    functionNames.sort(Qt::CaseInsensitive); // 大小写不敏感排序
+    functionNames.sort(Qt::CaseInsensitive);
 
     for (const QString& functionName : functionNames) {
         QListWidgetItem* item = new QListWidgetItem(functionName);
-        // 存储行号数据
         item->setData(Qt::UserRole, functionLineMap[functionName]);
         m_functionList->addItem(item);
     }
 }
-// void CodeEditor::updateFunctionList()
-// {
-//     if (!m_currentEditor || !m_functionList) {
-//         return;
-//     }
-
-//     // 清空函数列表
-//     m_functionList->clear();
-
-//     // 获取编辑器文本
-//     QString text = m_currentEditor->text();
-
-//     // 预处理文本 - 移除注释和处理多行声明
-//     QString filteredText = text;
-
-//     // 移除单行注释
-//     filteredText.replace(QRegularExpression("//.*$", QRegularExpression::MultilineOption), "");
-
-//     // 移除多行注释
-//     filteredText.replace(QRegularExpression("/\\*.*?\\*/",
-//                                             QRegularExpression::DotMatchesEverythingOption | QRegularExpression::MultilineOption), "");
-
-//     // 合并多行声明
-//     filteredText.replace(QRegularExpression("\\\\\\s*\\n"), " ");
-
-//     // 移除字符串字面量，避免误识别
-//     filteredText.replace(QRegularExpression("\".*?\"",
-//                                             QRegularExpression::DotMatchesEverythingOption), "\"\"");
-
-//     // 存储函数名和行号的映射
-//     QMap<QString, int> functionLineMap;
-
-//     // 获取原始文本的行
-//     QStringList lines = text.split('\n');
-
-//     // 使用更精确的正则表达式匹配函数声明
-//     // 匹配C/C++函数定义，包括返回类型、函数名和参数列表，后面跟着花括号
-//     QRegularExpression functionRegex(
-//         R"((\b(?:\w+::)*\s*)?((?:const\s+)?(?:virtual\s+)?(?:static\s+)?(?:inline\s+)?\w+(?:<[^>]+>)?(?:\s*\*+|\s+&+|\s+)?)(\b\w+)\s*\([^;{]*\)\s*(?:const\s*)?(?:override\s*)?(?:final\s*)?(?:noexcept\s*)?(?:=\s*0\s*)?(?:=\s*default\s*)?(?:=\s*delete\s*)?\s*\{)");
-
-//     // 对预处理后的文本进行全局匹配
-//     QRegularExpressionMatchIterator matches = functionRegex.globalMatch(filteredText);
-
-//     while (matches.hasNext()) {
-//         QRegularExpressionMatch match = matches.next();
-
-//         // 获取函数名和返回类型
-//         QString returnType = match.captured(2).trimmed();
-//         QString functionName = match.captured(3).trimmed();
-
-//         // 跳过预处理器宏和关键字
-//         if (functionName.isEmpty() ||
-//             functionName == "if" ||
-//             functionName == "for" ||
-//             functionName == "while" ||
-//             functionName == "switch" ||
-//             functionName == "catch" ||
-//             functionName == "else" ||
-//             functionName == "try" ||
-//             functionName == "do") {
-//             continue;
-//         }
-
-//         // 获取函数在文本中的位置
-//         int startPos = match.capturedStart(0);
-
-//         // 计算行号 - 使用正确的方法计算行号
-//         int line = 0, index = 0;
-//         m_currentEditor->lineIndexFromPosition(startPos, &line, &index);
-
-//         // 存储函数名和行号
-//         QString displayName = functionName;
-//         if (!returnType.isEmpty()) {
-//             displayName = functionName + " (" + returnType + ")";
-//         }
-
-//         // 将行号存储到映射中
-//         functionLineMap[displayName] = line;
-//     }
-
-//     // 按函数名排序并添加到列表
-//     QStringList functionNames = functionLineMap.keys();
-//     functionNames.sort();
-
-//     for (const QString& functionName : functionNames) {
-//         QListWidgetItem* item = new QListWidgetItem(functionName);
-//         // 确保正确存储行号数据
-//         item->setData(Qt::UserRole, functionLineMap[functionName]);
-//         m_functionList->addItem(item);
-//     }
-// }
 
 
 void CodeEditor::updateVariableList()
@@ -3428,4 +2602,50 @@ void CodeEditor::createNewFile()
 
     // 发出信号通知主窗口
     emit newFileRequested();
+}
+
+// 辅助函数：检查是否为有效的函数定义
+bool CodeEditor::isValidFunctionDefinition(const QString& line, int lineNum, const QStringList& allLines) {
+    QString trimmed = line.trimmed();
+    
+    // 排除预处理指令（除了函数式宏）
+    if (trimmed.startsWith("#") && !trimmed.startsWith("#define")) {
+        return false;
+    }
+    
+    // 排除明显的控制结构
+    if (trimmed.startsWith("if") || trimmed.startsWith("for") || 
+        trimmed.startsWith("while") || trimmed.startsWith("switch") ||
+        trimmed.startsWith("else") || trimmed.startsWith("do")) {
+        return false;
+    }
+    
+    // 排除变量声明（包含分号但不包含括号的行）
+    if (trimmed.endsWith(";") && !trimmed.contains("(")) {
+        return false;
+    }
+    
+    // 排除函数声明（以分号结尾）
+    if (trimmed.endsWith(";")) {
+        return false;
+    }
+    
+    // 检查是否有函数体（大括号）
+    if (line.contains("{")) {
+        return true;
+    }
+    
+    // 检查接下来的几行是否有开括号
+    for (int i = 1; i <= 3 && (lineNum + i) < allLines.size(); i++) {
+        QString nextLine = allLines[lineNum + i].trimmed();
+        if (nextLine.startsWith("{")) {
+            return true;
+        }
+        // 如果遇到其他内容，停止搜索
+        if (!nextLine.isEmpty() && !nextLine.startsWith("//")) {
+            break;
+        }
+    }
+    
+    return false;
 }

@@ -22,8 +22,8 @@ QT_BEGIN_MOC_NAMESPACE
 QT_WARNING_PUSH
 QT_WARNING_DISABLE_DEPRECATED
 struct qt_meta_stringdata_CodeEditor_t {
-    QByteArrayData data[18];
-    char stringdata0[264];
+    QByteArrayData data[22];
+    char stringdata0[312];
 };
 #define QT_MOC_LITERAL(idx, ofs, len) \
     Q_STATIC_BYTE_ARRAY_DATA_HEADER_INITIALIZER_WITH_OFFSET(len, \
@@ -47,9 +47,13 @@ QT_MOC_LITERAL(11, 160, 17), // "settingsRequested"
 QT_MOC_LITERAL(12, 178, 13), // "helpRequested"
 QT_MOC_LITERAL(13, 192, 14), // "aboutRequested"
 QT_MOC_LITERAL(14, 207, 18), // "updateVariableList"
-QT_MOC_LITERAL(15, 226, 15), // "onEditorChanged"
-QT_MOC_LITERAL(16, 242, 14), // "QsciScintilla*"
-QT_MOC_LITERAL(17, 257, 6) // "editor"
+QT_MOC_LITERAL(15, 226, 25), // "isValidFunctionDefinition"
+QT_MOC_LITERAL(16, 252, 4), // "line"
+QT_MOC_LITERAL(17, 257, 7), // "lineNum"
+QT_MOC_LITERAL(18, 265, 8), // "allLines"
+QT_MOC_LITERAL(19, 274, 15), // "onEditorChanged"
+QT_MOC_LITERAL(20, 290, 14), // "QsciScintilla*"
+QT_MOC_LITERAL(21, 305, 6) // "editor"
 
     },
     "CodeEditor\0newFileRequested\0\0"
@@ -58,7 +62,8 @@ QT_MOC_LITERAL(17, 257, 6) // "editor"
     "debugRequested\0runRequested\0stopRequested\0"
     "serialMonitorRequested\0settingsRequested\0"
     "helpRequested\0aboutRequested\0"
-    "updateVariableList\0onEditorChanged\0"
+    "updateVariableList\0isValidFunctionDefinition\0"
+    "line\0lineNum\0allLines\0onEditorChanged\0"
     "QsciScintilla*\0editor"
 };
 #undef QT_MOC_LITERAL
@@ -69,7 +74,7 @@ static const uint qt_meta_data_CodeEditor[] = {
        8,       // revision
        0,       // classname
        0,    0, // classinfo
-      14,   14, // methods
+      15,   14, // methods
        0,    0, // properties
        0,    0, // enums/sets
        0,    0, // constructors
@@ -77,22 +82,23 @@ static const uint qt_meta_data_CodeEditor[] = {
       12,       // signalCount
 
  // signals: name, argc, parameters, tag, flags
-       1,    0,   84,    2, 0x06 /* Public */,
-       3,    0,   85,    2, 0x06 /* Public */,
-       4,    0,   86,    2, 0x06 /* Public */,
-       5,    0,   87,    2, 0x06 /* Public */,
-       6,    0,   88,    2, 0x06 /* Public */,
-       7,    0,   89,    2, 0x06 /* Public */,
-       8,    0,   90,    2, 0x06 /* Public */,
-       9,    0,   91,    2, 0x06 /* Public */,
-      10,    0,   92,    2, 0x06 /* Public */,
-      11,    0,   93,    2, 0x06 /* Public */,
-      12,    0,   94,    2, 0x06 /* Public */,
-      13,    0,   95,    2, 0x06 /* Public */,
+       1,    0,   89,    2, 0x06 /* Public */,
+       3,    0,   90,    2, 0x06 /* Public */,
+       4,    0,   91,    2, 0x06 /* Public */,
+       5,    0,   92,    2, 0x06 /* Public */,
+       6,    0,   93,    2, 0x06 /* Public */,
+       7,    0,   94,    2, 0x06 /* Public */,
+       8,    0,   95,    2, 0x06 /* Public */,
+       9,    0,   96,    2, 0x06 /* Public */,
+      10,    0,   97,    2, 0x06 /* Public */,
+      11,    0,   98,    2, 0x06 /* Public */,
+      12,    0,   99,    2, 0x06 /* Public */,
+      13,    0,  100,    2, 0x06 /* Public */,
 
  // slots: name, argc, parameters, tag, flags
-      14,    0,   96,    2, 0x0a /* Public */,
-      15,    1,   97,    2, 0x08 /* Private */,
+      14,    0,  101,    2, 0x0a /* Public */,
+      15,    3,  102,    2, 0x0a /* Public */,
+      19,    1,  109,    2, 0x08 /* Private */,
 
  // signals: parameters
     QMetaType::Void,
@@ -110,7 +116,8 @@ static const uint qt_meta_data_CodeEditor[] = {
 
  // slots: parameters
     QMetaType::Void,
-    QMetaType::Void, 0x80000000 | 16,   17,
+    QMetaType::Bool, QMetaType::QString, QMetaType::Int, QMetaType::QStringList,   16,   17,   18,
+    QMetaType::Void, 0x80000000 | 20,   21,
 
        0        // eod
 };
@@ -134,13 +141,15 @@ void CodeEditor::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, 
         case 10: _t->helpRequested(); break;
         case 11: _t->aboutRequested(); break;
         case 12: _t->updateVariableList(); break;
-        case 13: _t->onEditorChanged((*reinterpret_cast< QsciScintilla*(*)>(_a[1]))); break;
+        case 13: { bool _r = _t->isValidFunctionDefinition((*reinterpret_cast< const QString(*)>(_a[1])),(*reinterpret_cast< int(*)>(_a[2])),(*reinterpret_cast< const QStringList(*)>(_a[3])));
+            if (_a[0]) *reinterpret_cast< bool*>(_a[0]) = std::move(_r); }  break;
+        case 14: _t->onEditorChanged((*reinterpret_cast< QsciScintilla*(*)>(_a[1]))); break;
         default: ;
         }
     } else if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
         switch (_id) {
         default: *reinterpret_cast<int*>(_a[0]) = -1; break;
-        case 13:
+        case 14:
             switch (*reinterpret_cast<int*>(_a[1])) {
             default: *reinterpret_cast<int*>(_a[0]) = -1; break;
             case 0:
@@ -266,13 +275,13 @@ int CodeEditor::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 14)
+        if (_id < 15)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 14;
+        _id -= 15;
     } else if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
-        if (_id < 14)
+        if (_id < 15)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 14;
+        _id -= 15;
     }
     return _id;
 }
