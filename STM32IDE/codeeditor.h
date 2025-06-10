@@ -67,6 +67,7 @@ public slots:
     // 更新变量列表用于自动补全
     void updateVariableList();
     bool isValidFunctionDefinition(const QString& line, int lineNum, const QStringList& allLines);
+    bool isLikelyConstructor(const QString& functionName, const QString& line);
 
 private slots:
     // 当前编辑器变更

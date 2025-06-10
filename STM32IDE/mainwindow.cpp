@@ -21,10 +21,10 @@
 #include <QInputDialog>
 #include <QDir>
 
-#include <QCodeEditor>
-#include <QCXXHighlighter>
-#include <QSyntaxStyle>
-#include <QGLSLCompleter>
+// #include <QCodeEditor>
+// #include <QCXXHighlighter>
+// #include <QSyntaxStyle>
+// #include <QGLSLCompleter>
 #include <QDockWidget>
 #include <QStandardItemModel>
 

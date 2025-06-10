@@ -4,7 +4,7 @@
  * @Autor: PhodonZou
  * @Date: 2025-04-05 21:44:22
  * @LastEditors: PhodonZou
- * @LastEditTime: 2025-06-03 10:28:35
+ * @LastEditTime: 2025-06-12 18:48:18
  */
 #include "codeeditor.h"
 #include <QVBoxLayout>
@@ -36,7 +36,7 @@ CodeEditor::CodeEditor(QWidget *parent) : QWidget(parent), m_currentEditor(nullp
     // 创建主分割器
     m_mainSplitter = new QSplitter(Qt::Horizontal, this);
     layout->addWidget(m_mainSplitter);
-    
+
     // 创建函数列表控件 - 移到主分割器创建之后
     createFunctionList();
 
@@ -61,7 +61,7 @@ CodeEditor::CodeEditor(QWidget *parent) : QWidget(parent), m_currentEditor(nullp
     // 连接信号和槽
     connect(editor, &QsciScintilla::textChanged, this, &CodeEditor::updateVariableList);
     connect(editor, &QsciScintilla::textChanged, this, &CodeEditor::updateFunctionList);
-    
+
     // 初始化函数列表
     updateFunctionList();
 
@@ -123,7 +123,7 @@ bool CodeEditor::openFile(const QString &filePath)
 
         // 解析文件中的变量并更新自动补全
         updateVariableList();
-        
+
         // 更新函数列表
         updateFunctionList();
 
@@ -249,7 +249,7 @@ void CodeEditor::applyTheme(const QString &themeName)
             editor->setSelectionBackgroundColor(QColor("#264F78"));
             editor->setSelectionForegroundColor(QColor("#FFFFFF"));
         }
-        
+
         // 设置函数列表深色主题样式
         if (m_functionList) {
             m_functionList->setStyleSheet(
@@ -270,7 +270,7 @@ void CodeEditor::applyTheme(const QString &themeName)
                 "    background-color: #2D2D30;"
                 "}"
             );
-            
+
             // 设置函数列表标题标签样式
             if (m_functionList->parentWidget() && m_functionList->parentWidget()->layout()) {
                 QLayoutItem* item = m_functionList->parentWidget()->layout()->itemAt(0);
@@ -335,7 +335,7 @@ void CodeEditor::applyTheme(const QString &themeName)
             editor->setSelectionBackgroundColor(QColor("#ADD6FF"));
             editor->setSelectionForegroundColor(QColor("#000000"));
         }
-        
+
         // 设置函数列表浅色主题样式
         if (m_functionList) {
             m_functionList->setStyleSheet(
@@ -356,7 +356,7 @@ void CodeEditor::applyTheme(const QString &themeName)
                 "    background-color: #F9F9F9;"
                 "}"
             );
-            
+
             // 设置函数列表标题标签样式
             if (m_functionList->parentWidget() && m_functionList->parentWidget()->layout()) {
                 QLayoutItem* item = m_functionList->parentWidget()->layout()->itemAt(0);
@@ -1044,7 +1044,7 @@ void CodeEditor::setupEditor(QsciScintilla* editor)
 
     // 设置缩进指南
     editor->setIndentationGuides(true);
-    
+
     // 设置不同类型括号的颜色 (通过自定义指示器实现)
     setupBraceColors(editor);
 
@@ -1066,32 +1066,32 @@ void CodeEditor::setupEditor(QsciScintilla* editor)
 //     const int SQUARE_BRACE_INDICATOR = 9; // 方括号 []
 //     const int CURLY_BRACE_INDICATOR = 10; // 花括号 {}
 //     const int ANGLE_BRACE_INDICATOR = 11; // 尖括号 <>
-    
+
 //     // 设置圆括号指示器样式
 //     editor->indicatorDefine(QsciScintilla::FullBoxIndicator, ROUND_BRACE_INDICATOR);
 //     editor->setIndicatorForegroundColor(QColor("#4EC9B0"), ROUND_BRACE_INDICATOR); // 青绿色
 //     editor->setIndicatorOutlineColor(QColor("#4EC9B0"), ROUND_BRACE_INDICATOR);
-    
+
 //     // 设置方括号指示器样式
 //     editor->indicatorDefine(QsciScintilla::FullBoxIndicator, SQUARE_BRACE_INDICATOR);
 //     editor->setIndicatorForegroundColor(QColor("#CE9178"), SQUARE_BRACE_INDICATOR); // 橙色
 //     editor->setIndicatorOutlineColor(QColor("#CE9178"), SQUARE_BRACE_INDICATOR);
-    
+
 //     // 设置花括号指示器样式
 //     editor->indicatorDefine(QsciScintilla::FullBoxIndicator, CURLY_BRACE_INDICATOR);
 //     editor->setIndicatorForegroundColor(QColor("#569CD6"), CURLY_BRACE_INDICATOR); // 蓝色
 //     editor->setIndicatorOutlineColor(QColor("#569CD6"), CURLY_BRACE_INDICATOR);
-    
+
 //     // 设置尖括号指示器样式
 //     editor->indicatorDefine(QsciScintilla::FullBoxIndicator, ANGLE_BRACE_INDICATOR);
 //     editor->setIndicatorForegroundColor(QColor("#C586C0"), ANGLE_BRACE_INDICATOR); // 紫色
 //     editor->setIndicatorOutlineColor(QColor("#C586C0"), ANGLE_BRACE_INDICATOR);
-    
+
 //     // 连接文本变化信号，以便在文本变化时更新括号颜色
 //     connect(editor, &QsciScintilla::textChanged, [this, editor]() {
 //         highlightBraces(editor);
 //     });
-    
+
 //     // 初始化时高亮括号
 //     highlightBraces(editor);
 // }
@@ -1158,20 +1158,20 @@ void CodeEditor::setupBraceColors(QsciScintilla* editor)
 {
     // 1. 禁用词法分析器对运算符(包括括号)的默认处理
     m_lexerCPP->setColor(QColor(0,0,0,0), QsciLexerCPP::Operator);
-    
+
     // 2. 使用非常高的指示器ID值(避免与其他指示器冲突)
-    const int ROUND_BRACE_INDICATOR = 40; 
+    const int ROUND_BRACE_INDICATOR = 40;
     const int SQUARE_BRACE_INDICATOR = 41;
     const int CURLY_BRACE_INDICATOR = 42;
-    
+
     // 3. 使用更明显的样式并修复类型转换问题
     editor->SendScintilla(QsciScintilla::SCI_INDICSETSTYLE, ROUND_BRACE_INDICATOR, QsciScintilla::INDIC_COMPOSITIONTHICK);
     editor->SendScintilla(QsciScintilla::SCI_INDICSETFORE, ROUND_BRACE_INDICATOR, 0x0000FF); // 红色
     editor->SendScintilla(QsciScintilla::SCI_INDICSETALPHA, ROUND_BRACE_INDICATOR, 255);
     editor->SendScintilla(QsciScintilla::SCI_INDICSETUNDER, ROUND_BRACE_INDICATOR, static_cast<long>(false));
-    
+
     // 为方括号和花括号做同样处理...
-    
+
     // 4. 统一信号连接方式，使用SCN_UPDATEUI
     disconnect(editor, &QsciScintilla::SCN_STYLENEEDED, nullptr, nullptr);
     disconnect(editor, &QsciScintilla::SCN_UPDATEUI, nullptr, nullptr);
@@ -1441,30 +1441,30 @@ void CodeEditor::createFunctionList()
         if (!m_currentEditor || !item) {
             return;
         }
-        
+
         // 获取存储的行号
         int line = item->data(Qt::UserRole).toInt();
-        
+
         // 确保行号有效
         if (line >= 0 && line < m_currentEditor->lines()) {
             // 直接跳转到指定行的开始位置
             m_currentEditor->setCursorPosition(line, 0);
-            
+
             // 确保目标行可见
             m_currentEditor->ensureLineVisible(line);
-            
+
             // 将目标行居中显示
             int visibleLines = m_currentEditor->SendScintilla(QsciScintilla::SCI_LINESONSCREEN);
             int targetLine = qMax(0, line - visibleLines / 2);
             m_currentEditor->SendScintilla(QsciScintilla::SCI_SETFIRSTVISIBLELINE, targetLine);
-            
+
             // 高亮显示当前行
             m_currentEditor->setCaretLineVisible(true);
             m_currentEditor->setCaretLineBackgroundColor(QColor(255, 255, 0, 100)); // 淡黄色背景
-            
+
             // 设置焦点到编辑器
             m_currentEditor->setFocus();
-            
+
             // 可选：选择整行以便用户看到跳转位置
             QString lineText = m_currentEditor->text(line);
             int lineLength = lineText.length();
@@ -1482,12 +1482,12 @@ void CodeEditor::parseFunctions(const QString& code)
     try {
         // 清空函数列表
         m_functions.clear();
-        
+
         if (code.isEmpty()) {
             qDebug() << "解析函数: 代码为空";
             return; // 避免处理空代码
         }
-        
+
         // // 使用正则表达式匹配函数定义
         // QRegularExpression functionRegex(R"((\b\w+(?:\s+\w+)*\s+)(\w+)\s*\())");
 
@@ -1495,7 +1495,7 @@ void CodeEditor::parseFunctions(const QString& code)
         // 增强正则表达式并添加预处理
     QString filteredText = currentEditor()->text();
     // 移除单行/多行注释
-    filteredText.remove(QRegularExpression(R"(//[^\n]*|/\*.*?\*/)", 
+    filteredText.remove(QRegularExpression(R"(//[^\n]*|/\*.*?\*/)",
         QRegularExpression::DotMatchesEverythingOption | QRegularExpression::MultilineOption));
     // 合并多行声明
     filteredText.replace(QRegularExpression(R"(\\\s*\n)"), " ");
@@ -1510,7 +1510,7 @@ void CodeEditor::parseFunctions(const QString& code)
             qDebug() << "解析函数: 正则表达式无效: " << functionRegex.errorString();
             return;
         }
-        
+
         // 常见的C/C++关键字列表
         static const QSet<QString> keywords = {
             "if", "for", "while", "switch", "return", "else", "do", "case",
@@ -1519,37 +1519,37 @@ void CodeEditor::parseFunctions(const QString& code)
             "enum", "class", "template", "typename", "namespace", "using",
             "try", "catch", "throw", "new", "delete"
         };
-        
+
         // 遍历代码行
         QStringList lines = code.split('\n');
         int lineCount = lines.size();
-        
+
         for (int i = 0; i < lineCount; i++) {
             QString line = lines[i].trimmed();
-            
+
             if (line.isEmpty() || line.startsWith("//") || line.startsWith("/*") || line.contains("*/")) {
                 continue; // 跳过空行和注释行
             }
-            
+
             // 匹配函数定义
             QRegularExpressionMatch match = functionRegex.match(line);
             if (match.hasMatch()) {
                 // 获取函数名
                 QString functionName = match.captured(2);
-                
+
                 // 跳过关键字和空函数名
                 if (functionName.isEmpty() || keywords.contains(functionName)) {
                     continue;
                 }
-                
+
                 // 创建函数信息对象
                 FunctionInfo function;
                 function.name = functionName;
                 function.line = i;
-                
+
                 // 获取完整的函数签名（可能跨越多行）
                 QString signature = line;
-                
+
                 // 如果当前行没有分号或大括号，可能是多行函数声明
                 if (!line.contains(";") && !line.contains("{")) {
                     // 向下查找几行，直到找到分号或大括号
@@ -1561,14 +1561,14 @@ void CodeEditor::parseFunctions(const QString& code)
                         }
                     }
                 }
-                
+
                 function.signature = signature.trimmed();
-                
+
                 // 添加到函数列表
                 m_functions.append(function);
             }
         }
-        
+
         qDebug() << "解析函数: 找到" << m_functions.size() << "个函数";
     } catch (const std::exception& e) {
         qDebug() << "解析函数时发生异常: " << e.what();
@@ -1599,14 +1599,14 @@ void CodeEditor::updateFunctionList()
         R"(^\s*(?:(?:static|inline|virtual|extern|const|explicit|friend|template\s*<[^>]*>)\s+)*(?:[\w:]+(?:\s*[*&]+)?\s+)+([A-Za-z_]\w*(?:::\w+)*)\s*\([^;]*\)\s*(?:const\s*)?(?:override\s*)?(?:final\s*)?(?:noexcept\s*)?(?:->\s*[\w:]+\s*)?)"
         );
 
-    // 构造函数识别正则表达式
+    // 构造函数识别正则表达式 - 改进版本
     QRegularExpression constructorRegex(
-        R"(^\s*(?:explicit\s+)?([A-Za-z_]\w*)\s*\([^;]*\)\s*(?::\s*[^{]*)?)"
+        R"(^\s*(?:explicit\s+)?([A-Za-z_]\w*)\s*\([^;]*\)\s*(?::\s*[^{;]*)?\s*(?:\{|$))"
         );
 
-    // 析构函数识别正则表达式
+    // 析构函数识别正则表达式 - 改进版本
     QRegularExpression destructorRegex(
-        R"(^\s*(?:virtual\s+)?~([A-Za-z_]\w*)\s*\(\s*\))"
+        R"(^\s*(?:virtual\s+)?~([A-Za-z_]\w*)\s*\(\s*\)\s*(?:override\s*)?(?:final\s*)?(?:noexcept\s*)?)"
         );
 
     // 类定义正则表达式
@@ -1618,6 +1618,10 @@ void CodeEditor::updateFunctionList()
     QRegularExpression macroRegex(
         R"(^\s*#define\s+(\w+)(?:\([^)]*\))?)"
         );
+
+
+    // 存储已识别的类名，用于构造函数识别
+    QSet<QString> classNames;
 
     // 关键字过滤列表
     QSet<QString> keywords = {
@@ -1654,25 +1658,42 @@ void CodeEditor::updateFunctionList()
             continue;
         }
 
-        // 匹配析构函数
+        // 1. 识别类定义
+        QRegularExpressionMatch classMatch = classRegex.match(line);
+        if (classMatch.hasMatch()) {
+            QString className = classMatch.captured(1);
+            if (!keywords.contains(className)) {
+                functionLineMap["📦 class " + className] = lineNum;
+                classNames.insert(className);  // 记录类名
+            }
+            continue;
+        }
+
+        // 首先匹配析构函数
         QRegularExpressionMatch destructorMatch = destructorRegex.match(line);
         if (destructorMatch.hasMatch()) {
-            QString functionName = "~" + destructorMatch.captured(1);
-            if (isValidFunctionDefinition(line, lineNum, lines)) {
-                functionLineMap[functionName] = lineNum;
+            QString className = destructorMatch.captured(1);
+            QString functionName = "~" + className;
+            if (!keywords.contains(className) && isValidFunctionDefinition(line, lineNum, lines)) {
+                functionLineMap["🔧 " + functionName] = lineNum;  // 添加析构函数图标
             }
         }
-        // 匹配构造函数
+        // 然后匹配构造函数 - 需要更精确的识别
         else {
             QRegularExpressionMatch constructorMatch = constructorRegex.match(line);
             if (constructorMatch.hasMatch()) {
                 QString functionName = constructorMatch.captured(1);
-                // 检查是否为构造函数（函数名与类名相同的情况需要特殊处理）
-                if (!keywords.contains(functionName) && isValidFunctionDefinition(line, lineNum, lines)) {
-                    functionLineMap[functionName + "()"] = lineNum;
+                // 检查是否为构造函数：
+                // 1. 不是关键字
+                // 2. 是有效的函数定义
+                // 3. 函数名首字母大写（通常构造函数遵循类名规范）
+                if (!keywords.contains(functionName) &&
+                    isValidFunctionDefinition(line, lineNum, lines) &&
+                    isLikelyConstructor(functionName, line)) {
+                    functionLineMap["🏗️ " + functionName + "()"] = lineNum;  // 添加构造函数图标
                 }
             }
-            // 匹配普通C++函数定义
+            // 最后匹配普通C++函数定义
             else {
                 QRegularExpressionMatch funcMatch = functionRegex.match(line);
                 if (funcMatch.hasMatch()) {
@@ -1684,32 +1705,40 @@ void CodeEditor::updateFunctionList()
                         pureFunctionName = functionName.split("::").last();
                     }
 
-                    // 过滤关键字
-                    if (!keywords.contains(pureFunctionName)) {
-                        // 使用改进的函数验证
-                        if (isValidFunctionDefinition(line, lineNum, lines)) {
-                            functionLineMap[functionName] = lineNum;
+                    // 过滤关键字和已识别的构造函数
+                    if (!keywords.contains(functionName) &&
+                        !classNames.contains(functionName) &&
+                        isValidFunctionDefinition(line, lineNum, lines)) {
+
+                        // 检查是否为main函数
+                        if (functionName == "main") {
+                            functionLineMap["🚀 " + functionName + "()"] = lineNum;
+                        } else {
+                            functionLineMap["⚙️ " + functionName + "()"] = lineNum;
                         }
                     }
+                    continue;
                 }
             }
         }
 
-        // 匹配类定义
-        QRegularExpressionMatch classMatch = classRegex.match(line);
-        if (classMatch.hasMatch()) {
-            QString className = classMatch.captured(1);
-            if (!keywords.contains(className)) {
-                functionLineMap["class " + className] = lineNum;
-            }
-        }
+        // // 匹配类定义
+        // QRegularExpressionMatch classMatch = classRegex.match(line);
+        // if (classMatch.hasMatch()) {
+        //     QString className = classMatch.captured(1);
+        //     if (!keywords.contains(className)) {
+        //         functionLineMap["📦 class " + className] = lineNum;  // 添加类图标
+        //     }
+        // }
+
+
 
         // 匹配宏定义
         QRegularExpressionMatch macroMatch = macroRegex.match(line);
         if (macroMatch.hasMatch()) {
             QString macroName = macroMatch.captured(1);
             if (!keywords.contains(macroName)) {
-                functionLineMap["#define " + macroName] = lineNum;
+                functionLineMap["🔧 #define " + macroName] = lineNum;  // 添加宏图标
             }
         }
     }
@@ -1889,7 +1918,7 @@ void CodeEditor::onEditorChanged(QsciScintilla* editor)
         qDebug() << "编辑器切换失败: 编辑器指针为空";
         return;
     }
-    
+
     try {
         if (m_editors.contains(editor)) {
             m_currentEditor = editor;
@@ -2335,6 +2364,44 @@ void CodeEditor::createNewFile()
 }
 
 
+
+// 添加辅助函数来判断是否为构造函数
+bool CodeEditor::isLikelyConstructor(const QString& functionName, const QString& line) {
+    // 构造函数通常满足以下条件：
+    // 1. 函数名首字母大写（类名规范）
+    // 2. 不包含返回类型
+    // 3. 可能包含初始化列表
+
+    if (functionName.isEmpty()) {
+        return false;
+    }
+
+    // 检查首字母是否大写
+    if (!functionName[0].isUpper()) {
+        return false;
+    }
+
+    // 检查行中是否没有明显的返回类型
+    QString trimmed = line.trimmed();
+
+    // 如果行以常见的返回类型开始，则不太可能是构造函数
+    QStringList returnTypes = {"int", "void", "char", "float", "double", "bool",
+                              "uint8_t", "uint16_t", "uint32_t", "int8_t", "int16_t", "int32_t",
+                              "std::", "const", "static", "inline", "virtual"};
+
+    for (const QString& type : returnTypes) {
+        if (trimmed.startsWith(type + " ")) {
+            return false;
+        }
+    }
+
+    // 如果包含初始化列表（冒号），更可能是构造函数
+    if (line.contains(":") && !line.contains("?")) {  // 排除三元运算符
+        return true;
+    }
+
+    return true;  // 默认认为可能是构造函数
+}
 
 bool CodeEditor::isValidFunctionDefinition(const QString& line, int lineNum, const QStringList& allLines) {
     QString trimmed = line.trimmed();

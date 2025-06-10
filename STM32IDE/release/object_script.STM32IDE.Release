@@ -1,0 +1,10 @@
+release/buildsystem.o
+release/codeeditor.o
+release/main.o
+release/mainwindow.o
+release/toolchaindialog.o
+release/qrc_resources.o
+release/moc_buildsystem.o
+release/moc_codeeditor.o
+release/moc_mainwindow.o
+release/moc_toolchaindialog.o

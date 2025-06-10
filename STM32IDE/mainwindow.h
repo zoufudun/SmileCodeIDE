@@ -27,10 +27,10 @@
 //#include "foldableeditor.h"
 
 // 添加QCodeEditor头文件
-#include <QCodeEditor>
-#include <QCXXHighlighter>
-#include <QSyntaxStyle>
-#include <QGLSLCompleter>
+// #include <QCodeEditor>
+// #include <QCXXHighlighter>
+// #include <QSyntaxStyle>
+// #include <QGLSLCompleter>
 
 
 // 在头文件开始处添加QScintilla相关头文件
