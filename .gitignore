@@ -1,1 +1,6 @@
 .qodo
+*Debug
+build
+*.bat
+.cache
+.vscode
