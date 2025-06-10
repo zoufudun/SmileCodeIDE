@@ -4,3 +4,4 @@ build
 *.bat
 .cache
 .vscode
+*/QCodeEditor
