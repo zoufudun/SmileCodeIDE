@@ -23,7 +23,7 @@
 #include <QRegularExpression> // Add this line to include
 #include <QLabel>    // 添加标签头文件
 #include <QTimer>    // 添加定时器头文件
-CodeEditor::CodeEditor(QWidget *parent) : QWidget(parent), m_currentEditor(nullptr), m_apiCPP(nullptr), m_functionList(nullptr)
+CodeEditor::CodeEditor(QWidget *parent) : QWidget(parent), m_currentEditor(nullptr), m_apiCPP(nullptr), m_functionList(nullptr),m_isDarkTheme(false)  // Add this initialization
 {
     // 创建主布局
     QVBoxLayout* layout = new QVBoxLayout(this);
@@ -403,74 +403,6 @@ void CodeEditor::applyTheme(const QString &themeName)
 }
 
 
-// // 添加新方法：设置函数名高亮
-// void CodeEditor::setupFunctionNameHighlighting(bool isDarkTheme)
-// {
-//     // 为每个编辑器设置函数名高亮
-//     for (QsciScintilla* editor : m_editors) {
-//         // 使用自定义指示器来高亮函数名
-//         const int FUNCTION_INDICATOR = 20;
-
-//         // 设置指示器样式为文本前景色
-//         editor->SendScintilla(QsciScintilla::SCI_INDICSETSTYLE, FUNCTION_INDICATOR, QsciScintilla::INDIC_TEXTFORE);
-
-//         // 根据主题设置颜色
-//         if (isDarkTheme) {
-//             // 深色主题 - 橙黄色
-//             editor->SendScintilla(QsciScintilla::SCI_INDICSETFORE, FUNCTION_INDICATOR, 0xAACDDC); // 注意：颜色格式为BGR
-//         } else {
-//             // 浅色主题 - 暗金色
-//             editor->SendScintilla(QsciScintilla::SCI_INDICSETFORE, FUNCTION_INDICATOR, 0x0B8686); // 注意：颜色格式为BGR
-//         }
-
-//         // 设置指示器透明度
-//         editor->SendScintilla(QsciScintilla::SCI_INDICSETALPHA, FUNCTION_INDICATOR, 255);
-
-//         // 连接文本变化信号，以便在文本变化时更新函数名高亮
-//         disconnect(editor, &QsciScintilla::textChanged, nullptr, nullptr); // 断开之前的连接
-//         connect(editor, &QsciScintilla::textChanged, [this, editor]() {
-//             highlightFunctionNames(editor, FUNCTION_INDICATOR);
-//         });
-
-//         // 初始化时高亮函数名
-//         highlightFunctionNames(editor, FUNCTION_INDICATOR);
-//     }
-// }
-
-// // 添加新方法：高亮函数名
-// void CodeEditor::highlightFunctionNames(QsciScintilla* editor, int indicatorId)
-// {
-//     // 清除现有的函数名高亮
-//     editor->clearIndicatorRange(0, 0, editor->lines(), editor->text().length(), indicatorId);
-
-//     // 获取编辑器文本
-//     QString text = editor->text();
-
-//     // 使用正则表达式匹配函数名
-//     // 匹配模式：返回类型 + 函数名 + 参数列表
-//     QRegularExpression functionRegex(R"((\w+(?:\s+\w+)*\s+)(\w+)\s*\()");
-//     QRegularExpressionMatchIterator matches = functionRegex.globalMatch(filteredText); // 使用预处理后的文本
-
-//     while (matches.hasNext()) {
-//         QRegularExpressionMatch match = matches.next();
-
-//         // 获取函数名的捕获组
-//         QString functionName = match.captured(2);
-
-//         // 获取函数名在文本中的位置
-//         int startPos = match.capturedStart(2);
-//         int endPos = startPos + functionName.length();
-
-//         // 将位置转换为行和列
-//         int startLine = 0, startCol = 0, endLine = 0, endCol = 0;
-//         editor->lineIndexFromPosition(startPos, &startLine, &startCol);
-//         editor->lineIndexFromPosition(endPos, &endLine, &endCol);
-
-//         // 高亮函数名
-//         editor->fillIndicatorRange(startLine, startCol, endLine, endCol, indicatorId);
-//     }
-// }
-
 // 添加新方法：设置函数名高亮
 void CodeEditor::setupFunctionNameHighlighting(bool isDarkTheme)
 {
@@ -518,49 +450,150 @@ void CodeEditor::highlightFunctionNames(QsciScintilla* editor, int indicatorId)
 
     // 获取编辑器文本
     QString text = editor->text();
+    qDebug() << "Text length:" << text.length();
+    QStringList lines = text.split('\n');
 
-    // 使用更精确的正则表达式匹配函数名
-    // 匹配模式：返回类型 + 函数名 + 参数列表
-    // 增强正则表达式并添加预处理
-    QString filteredText = text;
-    // 移除单行/多行注释
-    filteredText.remove(QRegularExpression(R"(//[^\n]*|/\*.*?\*/)", 
-        QRegularExpression::DotMatchesEverythingOption | QRegularExpression::MultilineOption));
-    // 合并多行声明
-    filteredText.replace(QRegularExpression(R"(\\\s*\n)"), " ");
+    // 简化的函数名识别正则表达式
+    QRegularExpression functionNameRegex(
+        R"(\b([A-Za-z_]\w*)\s*\()"
+        );
 
-    // 支持：模板函数、命名空间、多参数类型
-    QRegularExpression functionRegex(
-        R"((\b(?:\w+::)+)?\s*((?:\w+<.*?>)|\w+)\s+([*&]*\s*)?(\w+)\s*\([^{]*))");
-    functionRegex.setPatternOptions(QRegularExpression::DotMatchesEverythingOption);
-    functionRegex.setPatternOptions(QRegularExpression::DotMatchesEverythingOption);
-    QRegularExpressionMatchIterator matches = functionRegex.globalMatch(filteredText); // 使用预处理后的文本
+    // 关键字过滤列表
+    QSet<QString> keywords = {
+        "if", "for", "while", "switch", "catch", "return", "else", "do",
+        "break", "continue", "goto", "sizeof", "typedef", "volatile",
+        "register", "extern", "static", "auto", "const", "struct", "union",
+        "enum", "class", "template", "typename", "namespace", "using",
+        "try", "throw", "new", "delete", "case", "default", "public",
+        "private", "protected", "virtual", "inline", "explicit", "friend",
+        "printf", "scanf", "malloc", "free", "strlen", "strcpy", "strcmp"
+    };
 
-    while (matches.hasNext()) {
-        QRegularExpressionMatch match = matches.next();
+    // 逐行处理
+    for (int lineNum = 0; lineNum < lines.size(); lineNum++) {
+        QString line = lines[lineNum];
+        QString trimmedLine = line.trimmed();
 
-        // 获取函数名的捕获组
-        QString functionName = match.captured(2);
-
-        // 跳过关键字
-        if (functionName == "if" || functionName == "for" || functionName == "while" ||
-            functionName == "switch" || functionName == "return" || functionName == "else") {
+        // 跳过注释行
+        if (trimmedLine.startsWith("//") || trimmedLine.startsWith("/*") || trimmedLine.startsWith("*")) {
             continue;
         }
 
-        // 获取函数名在文本中的位置
-        int startPos = match.capturedStart(2);
-        int endPos = startPos + functionName.length();
+        // 跳过预处理指令
+        if (trimmedLine.startsWith("#")) {
+            continue;
+        }
 
-        // 将位置转换为行和列
-        int startLine = 0, startCol = 0, endLine = 0, endCol = 0;
-        editor->lineIndexFromPosition(startPos, &startLine, &startCol);
-        editor->lineIndexFromPosition(endPos, &endLine, &endCol);
+        // 查找函数调用和定义
+        QRegularExpressionMatchIterator matches = functionNameRegex.globalMatch(line);
+        while (matches.hasNext()) {
+            QRegularExpressionMatch match = matches.next();
+            QString functionName = match.captured(1);
 
-        // 高亮函数名
-        editor->fillIndicatorRange(startLine, startCol, endLine, endCol, indicatorId);
+            // 过滤关键字和常见的C库函数
+            if (keywords.contains(functionName)) {
+                continue;
+            }
+
+            // 检查是否为函数定义或调用
+            int startPos = match.capturedStart(1);
+            int endPos = match.capturedEnd(1);
+
+            // 计算在整个文档中的位置
+            int globalStartPos = 0;
+            for (int i = 0; i < lineNum; i++) {
+                globalStartPos += lines[i].length() + 1; // +1 for newline
+            }
+            globalStartPos += startPos;
+            int globalEndPos = globalStartPos + functionName.length();
+
+            // 将位置转换为行和列
+            int startLine = 0, startCol = 0, endLine = 0, endCol = 0;
+            editor->lineIndexFromPosition(globalStartPos, &startLine, &startCol);
+            editor->lineIndexFromPosition(globalEndPos, &endLine, &endCol);
+
+            // 高亮函数名
+            editor->fillIndicatorRange(startLine, startCol, endLine, endCol, indicatorId);
+        }
     }
 }
+
+// 在setupFunctionHighlight函数中添加防抖机制
+void CodeEditor::setupFunctionHighlight(QsciScintilla* editor)
+{
+    if (!editor) return;
+
+    const int FUNCTION_INDICATOR = 20;
+
+    // // 设置指示器样式
+    // editor->SendScintilla(QsciScintilla::SCI_INDICSETSTYLE, FUNCTION_INDICATOR, QsciScintilla::INDIC_TEXTFORE);
+
+    // if (m_isDarkTheme) {
+    //     editor->SendScintilla(QsciScintilla::SCI_INDICSETFORE, FUNCTION_INDICATOR, 0xAA78DC); // 橙色 #DCDCAA
+    // } else {
+    //     editor->SendScintilla(QsciScintilla::SCI_INDICSETFORE, FUNCTION_INDICATOR, 0x0B6DB8); // 暗金色 #B86D0B
+    // }
+
+    // editor->SendScintilla(QsciScintilla::SCI_INDICSETALPHA, FUNCTION_INDICATOR, 255);
+    // editor->SendScintilla(QsciScintilla::SCI_INDICSETUNDER, FUNCTION_INDICATOR, false);
+    // editor->SendScintilla(QsciScintilla::SCI_INDICSETOUTLINEALPHA, FUNCTION_INDICATOR, 255);
+
+    // 设置指示器样式和颜色
+    editor->indicatorDefine(QsciScintilla::FullBoxIndicator, FUNCTION_INDICATOR);
+
+    // 使用更明显的颜色进行测试
+    if (m_isDarkTheme) {
+        editor->setIndicatorForegroundColor(QColor("#FFD700"), FUNCTION_INDICATOR); // 金色，更明显
+    } else {
+        editor->setIndicatorForegroundColor(QColor("#FF0000"), FUNCTION_INDICATOR); // 红色，更明显
+    }
+
+    // 设置透明度和下划线
+    editor->setIndicatorOutlineColor(QColor("#FFD700"), FUNCTION_INDICATOR);
+    editor->SendScintilla(QsciScintilla::SCI_INDICSETALPHA, FUNCTION_INDICATOR, 100);
+    editor->SendScintilla(QsciScintilla::SCI_INDICSETUNDER, FUNCTION_INDICATOR, true);
+
+    // 添加调试输出
+    qDebug() << "Setting up function highlight for editor with theme:" << (m_isDarkTheme ? "dark" : "light");
+
+    // 创建防抖定时器
+    static QTimer* highlightTimer = new QTimer();
+    highlightTimer->setSingleShot(true);
+    highlightTimer->setInterval(500); // 500ms延迟
+
+    // 断开之前的连接
+    disconnect(editor, &QsciScintilla::textChanged, nullptr, nullptr);
+    disconnect(highlightTimer, &QTimer::timeout, nullptr, nullptr);
+
+    // 连接文本变化信号到防抖定时器
+    connect(editor, &QsciScintilla::textChanged, [highlightTimer]() {
+        highlightTimer->start();
+    });
+
+
+
+    // 在定时器连接之前添加调试
+    connect(highlightTimer, &QTimer::timeout, [this, editor]() {
+        qDebug() << "Highlighting functions...";
+        highlightFunctionNames(editor, FUNCTION_INDICATOR);
+        updateFunctionList();
+    });
+
+    // 立即调用一次以测试
+    qDebug() << "Initial function highlighting...";
+    highlightFunctionNames(editor, FUNCTION_INDICATOR);
+
+    // // 连接定时器超时信号到高亮函数
+    // connect(highlightTimer, &QTimer::timeout, [this, editor]() {
+    //     highlightFunctionNames(editor, FUNCTION_INDICATOR);
+    //     updateFunctionList(); // 同时更新函数列表
+    // });
+
+    // // 初始化时高亮函数名
+    // highlightFunctionNames(editor, FUNCTION_INDICATOR);
+}
+
+
 void CodeEditor::createSplitView(Qt::Orientation orientation)
 {
     // if (!m_currentEditor) {
@@ -1020,6 +1053,9 @@ void CodeEditor::setupEditor(QsciScintilla* editor)
         // 在样式需要更新后调用
         highlightBraces(editor);
     });
+
+    // 添加函数名高亮设置
+    setupFunctionHighlight(editor);
 }
 
 // 添加新方法：设置不同类型括号的颜色
@@ -1687,6 +1723,11 @@ void CodeEditor::updateFunctionList()
         item->setData(Qt::UserRole, functionLineMap[functionName]);
         m_functionList->addItem(item);
     }
+    // 同时更新函数名高亮
+    if (m_currentEditor) {
+        highlightFunctionNames(m_currentEditor, FUNCTION_INDICATOR);
+    }
+
 }
 
 

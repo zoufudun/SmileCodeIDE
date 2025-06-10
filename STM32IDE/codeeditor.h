@@ -20,6 +20,9 @@
 #include <QListWidget>  // 添加列表控件头文件
 #include <QDockWidget>  // 添加停靠窗口头文件
 
+// Constants
+static const int FUNCTION_INDICATOR = 20;
+
 class CodeEditor : public QWidget
 {
     Q_OBJECT
@@ -56,6 +59,9 @@ public:
     void closeSplitView();
 
     void createNewFile();
+    void setupFunctionHighlight(QsciScintilla* editor);
+    void setDarkTheme(bool isDark) { m_isDarkTheme = isDark; }
+    bool isDarkTheme() const { return m_isDarkTheme; }
 
 public slots:
     // 更新变量列表用于自动补全
@@ -109,6 +115,9 @@ private:
     
     // 函数信息列表
     QList<FunctionInfo> m_functions;
+
+    // 主题相关
+    bool m_isDarkTheme;
     
     // 解析代码中的函数
     void parseFunctions(const QString& code);
