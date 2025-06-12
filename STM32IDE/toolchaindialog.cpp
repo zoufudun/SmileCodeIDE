@@ -5,8 +5,7 @@
 #include <QGroupBox>
 #include <QDialogButtonBox>
 
-ToolchainDialog::ToolchainDialog(QWidget *parent, QSettings *settings)
-    : QDialog(parent), m_settings(settings)
+ToolchainDialog::ToolchainDialog(QWidget *parent, QSettings *settings): QDialog(parent), m_settings(settings)
 {
     setWindowTitle("配置工具链");
     setMinimumWidth(600);

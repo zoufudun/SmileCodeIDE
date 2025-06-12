@@ -1594,19 +1594,70 @@ void CodeEditor::updateFunctionList()
     // 存储函数名和行号的映射
     QMap<QString, int> functionLineMap;
 
-    // 改进的C++函数识别正则表达式
+    // 改进的多行函数识别
+    // 先预处理，将跨行的函数定义合并为单行
+    QStringList processedLines;
+    QList<int> originalLineNumbers;
+
+    for (int i = 0; i < lines.size(); i++) {
+        QString line = lines[i];
+        QString trimmed = line.trimmed();
+
+        // 跳过空行和注释
+        if (trimmed.isEmpty() || trimmed.startsWith("//") || trimmed.startsWith("/*")) {
+            processedLines.append(line);
+            originalLineNumbers.append(i);
+            continue;
+        }
+
+        // 检查是否是函数定义的开始（包含函数名和左括号）
+        if (trimmed.contains("(") && !trimmed.contains(";") &&
+            !trimmed.startsWith("#") && !trimmed.startsWith("if") &&
+            !trimmed.startsWith("for") && !trimmed.startsWith("while") &&
+            !trimmed.startsWith("switch")) {
+
+            QString multiLineFunction = line;
+            int startLineNum = i;
+
+            // 如果当前行没有右括号，继续合并后续行
+            if (!line.contains(")")) {
+                for (int j = i + 1; j < lines.size(); j++) {
+                    QString nextLine = lines[j];
+                    multiLineFunction += " " + nextLine.trimmed();
+
+                    if (nextLine.contains(")")) {
+                        i = j; // 更新外层循环的索引
+                        break;
+                    }
+
+                    // 防止无限循环，最多合并10行
+                    if (j - i > 10) {
+                        break;
+                    }
+                }
+            }
+
+            processedLines.append(multiLineFunction);
+            originalLineNumbers.append(startLineNum);
+        } else {
+            processedLines.append(line);
+            originalLineNumbers.append(i);
+        }
+    }
+
+    //改进的C++函数识别正则表达式
     QRegularExpression functionRegex(
         R"(^\s*(?:(?:static|inline|virtual|extern|const|explicit|friend|template\s*<[^>]*>)\s+)*(?:[\w:]+(?:\s*[*&]+)?\s+)+([A-Za-z_]\w*(?:::\w+)*)\s*\([^;]*\)\s*(?:const\s*)?(?:override\s*)?(?:final\s*)?(?:noexcept\s*)?(?:->\s*[\w:]+\s*)?)"
         );
 
-    // 构造函数识别正则表达式 - 改进版本
+    // 构造函数识别正则表达式 - 支持类前缀
     QRegularExpression constructorRegex(
-        R"(^\s*(?:explicit\s+)?([A-Za-z_]\w*)\s*\([^;]*\)\s*(?::\s*[^{;]*)?\s*(?:\{|$))"
+        R"(^\s*(?:explicit\s+)?(?:([A-Za-z_]\w*)::)?([A-Za-z_]\w*)\s*\([^;]*\)\s*(?::\s*[^{;]*)?\s*(?:\{|$))"
         );
 
-    // 析构函数识别正则表达式 - 改进版本
+    // 析构函数识别正则表达式 - 支持类前缀
     QRegularExpression destructorRegex(
-        R"(^\s*(?:virtual\s+)?~([A-Za-z_]\w*)\s*\(\s*\)\s*(?:override\s*)?(?:final\s*)?(?:noexcept\s*)?)"
+        R"(^\s*(?:virtual\s+)?(?:([A-Za-z_]\w*)::)?~([A-Za-z_]\w*)\s*\(\s*\)\s*(?:override\s*)?(?:final\s*)?(?:noexcept\s*)?)"
         );
 
     // 类定义正则表达式
@@ -1669,28 +1720,40 @@ void CodeEditor::updateFunctionList()
             continue;
         }
 
-        // 首先匹配析构函数
+        // 匹配析构函数
         QRegularExpressionMatch destructorMatch = destructorRegex.match(line);
         if (destructorMatch.hasMatch()) {
-            QString className = destructorMatch.captured(1);
-            QString functionName = "~" + className;
+            QString classPrefix = destructorMatch.captured(1);  // 类前缀
+            QString className = destructorMatch.captured(2);    // 类名
+
             if (!keywords.contains(className) && isValidFunctionDefinition(line, lineNum, lines)) {
-                functionLineMap["🔧 " + functionName] = lineNum;  // 添加析构函数图标
+                QString displayName;
+                if (!classPrefix.isEmpty()) {
+                    displayName = classPrefix + "::~" + className + "()";
+                } else {
+                    displayName = "~" + className + "()";
+                }
+                functionLineMap["🔧 " + displayName] = lineNum;
             }
         }
-        // 然后匹配构造函数 - 需要更精确的识别
+        // 匹配构造函数
         else {
             QRegularExpressionMatch constructorMatch = constructorRegex.match(line);
             if (constructorMatch.hasMatch()) {
-                QString functionName = constructorMatch.captured(1);
-                // 检查是否为构造函数：
-                // 1. 不是关键字
-                // 2. 是有效的函数定义
-                // 3. 函数名首字母大写（通常构造函数遵循类名规范）
+                QString classPrefix = constructorMatch.captured(1);  // 类前缀
+                QString functionName = constructorMatch.captured(2); // 函数名
+
                 if (!keywords.contains(functionName) &&
                     isValidFunctionDefinition(line, lineNum, lines) &&
                     isLikelyConstructor(functionName, line)) {
-                    functionLineMap["🏗️ " + functionName + "()"] = lineNum;  // 添加构造函数图标
+
+                    QString displayName;
+                    if (!classPrefix.isEmpty()) {
+                        displayName = classPrefix + "::" + functionName + "()";
+                    } else {
+                        displayName = functionName + "()";
+                    }
+                    functionLineMap["🏗️ " + displayName] = lineNum;
                 }
             }
             // 最后匹配普通C++函数定义
@@ -1714,7 +1777,10 @@ void CodeEditor::updateFunctionList()
                         if (functionName == "main") {
                             functionLineMap["🚀 " + functionName + "()"] = lineNum;
                         } else {
-                            functionLineMap["⚙️ " + functionName + "()"] = lineNum;
+                            //functionLineMap["⚙️" + functionName + "()"] = lineNum;
+                            // functionLineMap["🟥" + functionName + "()"] = lineNum;
+                            functionLineMap["⚡" + functionName + "()"] = lineNum;
+
                         }
                     }
                     continue;
