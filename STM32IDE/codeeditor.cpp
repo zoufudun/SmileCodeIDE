@@ -1578,6 +1578,339 @@ void CodeEditor::parseFunctions(const QString& code)
 }
 
 
+// void CodeEditor::updateFunctionList()//该版本需要保留，解决了跨行函数问题
+// {
+//     if (!m_currentEditor || !m_functionList) {
+//         return;
+//     }
+
+//     // 清空函数列表
+//     m_functionList->clear();
+
+//     // 获取编辑器文本
+//     QString text = m_currentEditor->text();
+//     QStringList lines = text.split('\n');
+
+//     // 存储函数名和行号的映射
+//     QMap<QString, int> functionLineMap;
+
+//     // 改进的多行函数识别
+//     // 先预处理，将跨行的函数定义合并为单行
+//     QStringList processedLines;
+//     QList<int> originalLineNumbers;
+
+//     for (int i = 0; i < lines.size(); i++) {
+//         QString line = lines[i];
+//         QString trimmed = line.trimmed();
+
+//         // 跳过空行和注释
+//         if (trimmed.isEmpty() || trimmed.startsWith("//") || trimmed.startsWith("/*")) {
+//             processedLines.append(line);
+//             originalLineNumbers.append(i);
+//             continue;
+//         }
+//         // 检查是否是函数定义的开始（包含函数名和左括号）
+//         if (trimmed.contains("(") && !trimmed.contains(";") &&
+//             !trimmed.startsWith("#") && !trimmed.startsWith("if") &&
+//             !trimmed.startsWith("for") && !trimmed.startsWith("while") &&
+//             !trimmed.startsWith("switch")) {
+
+//             QString multiLineFunction = line;
+//             int startLineNum = i;
+//             bool foundClosingParen = line.contains(")");
+//             bool foundOpenBrace = line.contains("{");
+//             bool isComplete = false;
+
+//             // 第一步：如果当前行没有右括号，继续合并后续行直到找到右括号
+//             if (!foundClosingParen) {
+//                 for (int j = i + 1; j < lines.size(); j++) {
+//                     QString nextLine = lines[j];
+//                     multiLineFunction += " " + nextLine.trimmed();
+
+//                     if (nextLine.contains(")")) {
+//                         foundClosingParen = true;
+//                         if (nextLine.contains("{")) {
+//                             foundOpenBrace = true;
+//                         }
+//                         i = j; // 更新外层循环的索引
+//                         break;
+//                     }
+
+//                     // 防止无限循环，最多合并15行
+//                     if (j - i > 15) {
+//                         break;
+//                     }
+//                 }
+//             }
+
+//             // 第二步：如果找到了右括号但还没找到开括号，继续搜索
+//             if (foundClosingParen && !foundOpenBrace) {
+//                 // 继续搜索函数修饰符和函数体
+//                 for (int j = i + 1; j < lines.size(); j++) {
+//                     QString nextLine = lines[j].trimmed();
+
+//                     // 跳过空行
+//                     if (nextLine.isEmpty()) {
+//                         continue;
+//                     }
+
+//                     // 合并这一行
+//                     multiLineFunction += " " + nextLine;
+
+//                     // 检查各种可能的情况
+//                     if (nextLine.startsWith(":")) {
+//                         // 构造函数初始化列表
+//                         continue;
+//                     }
+//                     else if (nextLine.contains("{")) {
+//                         // 找到函数体开始
+//                         i = j;
+//                         foundOpenBrace = true;
+//                         isComplete = true;
+//                         break;
+//                     }
+//                     else if (nextLine.contains(";")) {
+//                         // 函数声明，不是定义
+//                         isComplete = false;
+//                         break;
+//                     }
+//                     else if (nextLine.startsWith("const") ||
+//                              nextLine.startsWith("override") ||
+//                              nextLine.startsWith("final") ||
+//                              nextLine.startsWith("noexcept") ||
+//                              nextLine.startsWith("->")) {
+//                         // 函数修饰符，继续合并
+//                         continue;
+//                     }
+//                     else {
+//                         // 其他情况，可能是多行初始化列表或其他内容
+//                         continue;
+//                     }
+
+//                     // 防止无限循环
+//                     if (j - i > 10) {
+//                         break;
+//                     }
+//                 }
+//             } else if (foundClosingParen && foundOpenBrace) {
+//                 // 单行函数定义
+//                 isComplete = true;
+//             }
+
+//             // 只有完整的函数定义才添加到处理列表
+//             if (foundClosingParen && (foundOpenBrace || isComplete)) {
+//                 processedLines.append(multiLineFunction);
+//                 originalLineNumbers.append(startLineNum);
+//             } else {
+//                 // 不完整的函数定义，按原样处理
+//                 processedLines.append(line);
+//                 originalLineNumbers.append(i);
+//             }
+//         } else {
+//             processedLines.append(line);
+//             originalLineNumbers.append(i);
+//         }
+//     }
+
+//     //改进的C++函数识别正则表达式
+//     QRegularExpression functionRegex(
+//         R"(^\s*(?:(?:static|inline|virtual|extern|const|explicit|friend|template\s*<[^>]*>)\s+)*(?:[\w:]+(?:\s*[*&]+)?\s+)+([A-Za-z_]\w*(?:::\w+)*)\s*\([^;]*\)\s*(?:const\s*)?(?:override\s*)?(?:final\s*)?(?:noexcept\s*)?(?:->\s*[\w:]+\s*)?)"
+//         );
+
+//     // 构造函数识别正则表达式 - 支持类前缀
+//     QRegularExpression constructorRegex(
+//         R"(^\s*(?:explicit\s+)?(?:([A-Za-z_]\w*)::)?([A-Za-z_]\w*)\s*\([^;]*\)\s*(?::\s*[^{;]*)?\s*(?:\{|$))"
+//         );
+
+//     // 析构函数识别正则表达式 - 支持类前缀
+//     QRegularExpression destructorRegex(
+//         R"(^\s*(?:virtual\s+)?(?:([A-Za-z_]\w*)::)?~([A-Za-z_]\w*)\s*\(\s*\)\s*(?:override\s*)?(?:final\s*)?(?:noexcept\s*)?)"
+//         );
+
+//     // 类定义正则表达式
+//     QRegularExpression classRegex(
+//         R"(^\s*(?:class|struct|enum)\s+(\w+)(?:\s*:[^{]*)?)"
+//         );
+
+//     // 宏定义正则表达式
+//     QRegularExpression macroRegex(
+//         R"(^\s*#define\s+(\w+)(?:\([^)]*\))?)"
+//         );
+
+
+//     // 存储已识别的类名，用于构造函数识别
+//     QSet<QString> classNames;
+
+//     // 关键字过滤列表
+//     QSet<QString> keywords = {
+//         "if", "for", "while", "switch", "catch", "return", "else", "do",
+//         "break", "continue", "goto", "sizeof", "typedef", "volatile",
+//         "register", "extern", "static", "auto", "const", "struct", "union",
+//         "enum", "class", "template", "typename", "namespace", "using",
+//         "try", "throw", "new", "delete", "case", "default"
+//     };
+
+//     // // 逐行分析
+//     // for (int lineNum = 0; lineNum < lines.size(); lineNum++) {
+//     //     QString line = lines[lineNum];
+//     //     QString trimmedLine = line.trimmed();
+
+//     //     // 跳过空行和注释行
+//     //     if (trimmedLine.isEmpty() || trimmedLine.startsWith("//") || trimmedLine.startsWith("/*")) {
+//     //         continue;
+//     //     }
+
+//     //     // 跳过多行注释块
+//     //     if (trimmedLine.contains("/*") && !trimmedLine.contains("*/")) {
+//     //         while (lineNum < lines.size() - 1) {
+//     //             lineNum++;
+//     //             if (lines[lineNum].contains("*/")) {
+//     //                 break;
+//     //             }
+//     //         }
+//     //         continue;
+//     //     }
+
+//     //     // 跳过预处理指令（除了#define）
+//     //     if (trimmedLine.startsWith("#") && !trimmedLine.startsWith("#define")) {
+//     //         continue;
+//     //     }
+
+//     // 逐行分析处理后的行
+//     for (int lineNum = 0; lineNum < processedLines.size(); lineNum++) {
+//         QString line = processedLines[lineNum];
+//         QString trimmedLine = line.trimmed();
+//         int originalLineNum = originalLineNumbers[lineNum];
+
+//         // 跳过空行和注释行
+//         if (trimmedLine.isEmpty() || trimmedLine.startsWith("//") || trimmedLine.startsWith("/*")) {
+//             continue;
+//         }
+
+//         // 跳过多行注释块
+//         if (trimmedLine.contains("/*") && !trimmedLine.contains("*/")) {
+//             while (lineNum < processedLines.size() - 1) {
+//                 lineNum++;
+//                 if (processedLines[lineNum].contains("*/")) {
+//                     break;
+//                 }
+//             }
+//             continue;
+//         }
+
+//         // 跳过预处理指令（除了#define）
+//         if (trimmedLine.startsWith("#") && !trimmedLine.startsWith("#define")) {
+//             continue;
+//         }
+
+
+
+//         // 1. 识别类定义
+//         QRegularExpressionMatch classMatch = classRegex.match(line);
+//         if (classMatch.hasMatch()) {
+//             QString className = classMatch.captured(1);
+//             if (!keywords.contains(className)) {
+//                 functionLineMap["📦🏗️ class " + className] = originalLineNum;
+//                 classNames.insert(className);  // 记录类名
+//             }
+//             continue;
+//         }
+
+//         // 首先匹配析构函数
+//         QRegularExpressionMatch destructorMatch = destructorRegex.match(line);
+//         if (destructorMatch.hasMatch()) {
+//             QString classPrefix = destructorMatch.captured(1);  // 类前缀
+//             QString className = destructorMatch.captured(2);    // 类名
+
+//             if (!keywords.contains(className) && isValidFunctionDefinition(line, lineNum, processedLines)) {
+//                 QString displayName;
+//                 if (!classPrefix.isEmpty()) {
+//                     displayName = classPrefix + "::~" + className + "()";
+//                 } else {
+//                     displayName = "~" + className + "()";
+//                 }
+//                 functionLineMap["🔧💥 " + displayName] = originalLineNum;
+//             }
+//         }
+//         // 然后匹配构造函数
+//         else {
+//             QRegularExpressionMatch constructorMatch = constructorRegex.match(line);
+//             if (constructorMatch.hasMatch()) {
+//                 QString classPrefix = constructorMatch.captured(1);  // 类前缀
+//                 QString functionName = constructorMatch.captured(2); // 函数名
+
+//                 if (!keywords.contains(functionName) &&
+//                     isValidFunctionDefinition(line, lineNum, processedLines) &&
+//                     isLikelyConstructor(functionName, line)) {
+
+//                     QString displayName;
+//                     if (!classPrefix.isEmpty()) {
+//                         displayName = classPrefix + "::" + functionName + "()";
+//                     } else {
+//                         displayName = functionName + "()";
+//                     }
+//                     functionLineMap["🏗️🔨 " + displayName] = originalLineNum;
+//                 }
+//             }
+//             // 最后匹配普通C++函数定义
+//             else {
+//                 QRegularExpressionMatch funcMatch = functionRegex.match(line);
+//                 if (funcMatch.hasMatch()) {
+//                     QString functionName = funcMatch.captured(1);
+
+//                     // 移除命名空间前缀以获取纯函数名
+//                     QString pureFunctionName = functionName;
+//                     if (functionName.contains("::")) {
+//                         pureFunctionName = functionName.split("::").last();
+//                     }
+
+//                     // 过滤关键字和已识别的构造函数
+//                     if (!keywords.contains(functionName) &&
+//                         !classNames.contains(functionName) &&
+//                         isValidFunctionDefinition(line, lineNum, processedLines)) {
+
+//                         // 检查是否为main函数
+//                         if (functionName == "main") {
+//                             //functionLineMap["🚀🎯 " + functionName + "()"] = originalLineNum;
+//                             functionLineMap["ⓜ  " + functionName + "()"] = originalLineNum;
+
+//                         } else {
+//                             //functionLineMap["⚡⚙️ " + functionName + "()"] = originalLineNum;
+//                             functionLineMap["ƒ  " + functionName + "()"] = originalLineNum;
+//                         }
+//                     }
+//                     continue;
+//                 }
+//             }
+//         }
+
+//         // 匹配宏定义
+//         QRegularExpressionMatch macroMatch = macroRegex.match(line);
+//         if (macroMatch.hasMatch()) {
+//             QString macroName = macroMatch.captured(1);
+//             if (!keywords.contains(macroName)) {
+//                 functionLineMap["🔧📝 #define " + macroName] = originalLineNum;
+//             }
+//         }
+//     }
+
+//     // 按函数名排序并添加到列表
+//     QStringList functionNames = functionLineMap.keys();
+//     functionNames.sort(Qt::CaseInsensitive);
+
+//     for (const QString& functionName : functionNames) {
+//         QListWidgetItem* item = new QListWidgetItem(functionName);
+//         item->setData(Qt::UserRole, functionLineMap[functionName]);
+//         m_functionList->addItem(item);
+//     }
+
+//     // 同时更新函数名高亮
+//     if (m_currentEditor) {
+//         highlightFunctionNames(m_currentEditor, FUNCTION_INDICATOR);
+//     }
+
+// }
+
 void CodeEditor::updateFunctionList()
 {
     if (!m_currentEditor || !m_functionList) {
@@ -1609,6 +1942,7 @@ void CodeEditor::updateFunctionList()
             originalLineNumbers.append(i);
             continue;
         }
+
         // 检查是否是函数定义的开始（包含函数名和左括号）
         if (trimmed.contains("(") && !trimmed.contains(";") &&
             !trimmed.startsWith("#") && !trimmed.startsWith("if") &&
@@ -1617,95 +1951,27 @@ void CodeEditor::updateFunctionList()
 
             QString multiLineFunction = line;
             int startLineNum = i;
-            bool foundClosingParen = line.contains(")");
-            bool foundOpenBrace = line.contains("{");
-            bool isComplete = false;
 
-            // 第一步：如果当前行没有右括号，继续合并后续行直到找到右括号
-            if (!foundClosingParen) {
+            // 如果当前行没有右括号，继续合并后续行
+            if (!line.contains(")")) {
                 for (int j = i + 1; j < lines.size(); j++) {
                     QString nextLine = lines[j];
                     multiLineFunction += " " + nextLine.trimmed();
 
                     if (nextLine.contains(")")) {
-                        foundClosingParen = true;
-                        if (nextLine.contains("{")) {
-                            foundOpenBrace = true;
-                        }
                         i = j; // 更新外层循环的索引
                         break;
                     }
 
-                    // 防止无限循环，最多合并15行
-                    if (j - i > 15) {
-                        break;
-                    }
-                }
-            }
-
-            // 第二步：如果找到了右括号但还没找到开括号，继续搜索
-            if (foundClosingParen && !foundOpenBrace) {
-                // 继续搜索函数修饰符和函数体
-                for (int j = i + 1; j < lines.size(); j++) {
-                    QString nextLine = lines[j].trimmed();
-
-                    // 跳过空行
-                    if (nextLine.isEmpty()) {
-                        continue;
-                    }
-
-                    // 合并这一行
-                    multiLineFunction += " " + nextLine;
-
-                    // 检查各种可能的情况
-                    if (nextLine.startsWith(":")) {
-                        // 构造函数初始化列表
-                        continue;
-                    }
-                    else if (nextLine.contains("{")) {
-                        // 找到函数体开始
-                        i = j;
-                        foundOpenBrace = true;
-                        isComplete = true;
-                        break;
-                    }
-                    else if (nextLine.contains(";")) {
-                        // 函数声明，不是定义
-                        isComplete = false;
-                        break;
-                    }
-                    else if (nextLine.startsWith("const") ||
-                             nextLine.startsWith("override") ||
-                             nextLine.startsWith("final") ||
-                             nextLine.startsWith("noexcept") ||
-                             nextLine.startsWith("->")) {
-                        // 函数修饰符，继续合并
-                        continue;
-                    }
-                    else {
-                        // 其他情况，可能是多行初始化列表或其他内容
-                        continue;
-                    }
-
-                    // 防止无限循环
+                    // 防止无限循环，最多合并10行
                     if (j - i > 10) {
                         break;
                     }
                 }
-            } else if (foundClosingParen && foundOpenBrace) {
-                // 单行函数定义
-                isComplete = true;
             }
 
-            // 只有完整的函数定义才添加到处理列表
-            if (foundClosingParen && (foundOpenBrace || isComplete)) {
-                processedLines.append(multiLineFunction);
-                originalLineNumbers.append(startLineNum);
-            } else {
-                // 不完整的函数定义，按原样处理
-                processedLines.append(line);
-                originalLineNumbers.append(i);
-            }
+            processedLines.append(multiLineFunction);
+            originalLineNumbers.append(startLineNum);
         } else {
             processedLines.append(line);
             originalLineNumbers.append(i);
@@ -1750,37 +2016,10 @@ void CodeEditor::updateFunctionList()
         "try", "throw", "new", "delete", "case", "default"
     };
 
-    // // 逐行分析
-    // for (int lineNum = 0; lineNum < lines.size(); lineNum++) {
-    //     QString line = lines[lineNum];
-    //     QString trimmedLine = line.trimmed();
-
-    //     // 跳过空行和注释行
-    //     if (trimmedLine.isEmpty() || trimmedLine.startsWith("//") || trimmedLine.startsWith("/*")) {
-    //         continue;
-    //     }
-
-    //     // 跳过多行注释块
-    //     if (trimmedLine.contains("/*") && !trimmedLine.contains("*/")) {
-    //         while (lineNum < lines.size() - 1) {
-    //             lineNum++;
-    //             if (lines[lineNum].contains("*/")) {
-    //                 break;
-    //             }
-    //         }
-    //         continue;
-    //     }
-
-    //     // 跳过预处理指令（除了#define）
-    //     if (trimmedLine.startsWith("#") && !trimmedLine.startsWith("#define")) {
-    //         continue;
-    //     }
-
-    // 逐行分析处理后的行
-    for (int lineNum = 0; lineNum < processedLines.size(); lineNum++) {
-        QString line = processedLines[lineNum];
+    // 逐行分析
+    for (int lineNum = 0; lineNum < lines.size(); lineNum++) {
+        QString line = lines[lineNum];
         QString trimmedLine = line.trimmed();
-        int originalLineNum = originalLineNumbers[lineNum];
 
         // 跳过空行和注释行
         if (trimmedLine.isEmpty() || trimmedLine.startsWith("//") || trimmedLine.startsWith("/*")) {
@@ -1789,9 +2028,9 @@ void CodeEditor::updateFunctionList()
 
         // 跳过多行注释块
         if (trimmedLine.contains("/*") && !trimmedLine.contains("*/")) {
-            while (lineNum < processedLines.size() - 1) {
+            while (lineNum < lines.size() - 1) {
                 lineNum++;
-                if (processedLines[lineNum].contains("*/")) {
+                if (lines[lineNum].contains("*/")) {
                     break;
                 }
             }
@@ -1803,36 +2042,34 @@ void CodeEditor::updateFunctionList()
             continue;
         }
 
-
-
         // 1. 识别类定义
         QRegularExpressionMatch classMatch = classRegex.match(line);
         if (classMatch.hasMatch()) {
             QString className = classMatch.captured(1);
             if (!keywords.contains(className)) {
-                functionLineMap["📦🏗️ class " + className] = originalLineNum;
+                functionLineMap["📦 class " + className] = lineNum;
                 classNames.insert(className);  // 记录类名
             }
             continue;
         }
 
-        // 首先匹配析构函数
+        // 匹配析构函数
         QRegularExpressionMatch destructorMatch = destructorRegex.match(line);
         if (destructorMatch.hasMatch()) {
             QString classPrefix = destructorMatch.captured(1);  // 类前缀
             QString className = destructorMatch.captured(2);    // 类名
 
-            if (!keywords.contains(className) && isValidFunctionDefinition(line, lineNum, processedLines)) {
+            if (!keywords.contains(className) && isValidFunctionDefinition(line, lineNum, lines)) {
                 QString displayName;
                 if (!classPrefix.isEmpty()) {
                     displayName = classPrefix + "::~" + className + "()";
                 } else {
                     displayName = "~" + className + "()";
                 }
-                functionLineMap["🔧💥 " + displayName] = originalLineNum;
+                functionLineMap["🔧 " + displayName] = lineNum;
             }
         }
-        // 然后匹配构造函数
+        // 匹配构造函数
         else {
             QRegularExpressionMatch constructorMatch = constructorRegex.match(line);
             if (constructorMatch.hasMatch()) {
@@ -1840,7 +2077,7 @@ void CodeEditor::updateFunctionList()
                 QString functionName = constructorMatch.captured(2); // 函数名
 
                 if (!keywords.contains(functionName) &&
-                    isValidFunctionDefinition(line, lineNum, processedLines) &&
+                    isValidFunctionDefinition(line, lineNum, lines) &&
                     isLikelyConstructor(functionName, line)) {
 
                     QString displayName;
@@ -1849,7 +2086,7 @@ void CodeEditor::updateFunctionList()
                     } else {
                         displayName = functionName + "()";
                     }
-                    functionLineMap["🏗️🔨 " + displayName] = originalLineNum;
+                    functionLineMap["🏗️ " + displayName] = lineNum;
                 }
             }
             // 最后匹配普通C++函数定义
@@ -1867,16 +2104,16 @@ void CodeEditor::updateFunctionList()
                     // 过滤关键字和已识别的构造函数
                     if (!keywords.contains(functionName) &&
                         !classNames.contains(functionName) &&
-                        isValidFunctionDefinition(line, lineNum, processedLines)) {
+                        isValidFunctionDefinition(line, lineNum, lines)) {
 
                         // 检查是否为main函数
                         if (functionName == "main") {
-                            //functionLineMap["🚀🎯 " + functionName + "()"] = originalLineNum;
-                            functionLineMap["ⓜ  " + functionName + "()"] = originalLineNum;
-
+                            functionLineMap["🚀 " + functionName + "()"] = lineNum;
                         } else {
-                            //functionLineMap["⚡⚙️ " + functionName + "()"] = originalLineNum;
-                            functionLineMap["ƒ  " + functionName + "()"] = originalLineNum;
+                            //functionLineMap["⚙️" + functionName + "()"] = lineNum;
+                            // functionLineMap["🟥" + functionName + "()"] = lineNum;
+                            functionLineMap["⚡" + functionName + "()"] = lineNum;
+
                         }
                     }
                     continue;
@@ -1889,7 +2126,7 @@ void CodeEditor::updateFunctionList()
         if (macroMatch.hasMatch()) {
             QString macroName = macroMatch.captured(1);
             if (!keywords.contains(macroName)) {
-                functionLineMap["🔧📝 #define " + macroName] = originalLineNum;
+                functionLineMap["🔧 #define " + macroName] = lineNum;  // 添加宏图标
             }
         }
     }
@@ -1903,13 +2140,14 @@ void CodeEditor::updateFunctionList()
         item->setData(Qt::UserRole, functionLineMap[functionName]);
         m_functionList->addItem(item);
     }
-
     // 同时更新函数名高亮
     if (m_currentEditor) {
         highlightFunctionNames(m_currentEditor, FUNCTION_INDICATOR);
     }
 
 }
+
+
 
 
 void CodeEditor::updateVariableList()
