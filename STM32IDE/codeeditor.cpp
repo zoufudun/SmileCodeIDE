@@ -4,7 +4,7 @@
  * @Autor: PhodonZou
  * @Date: 2025-04-05 21:44:22
  * @LastEditors: PhodonZou
- * @LastEditTime: 2025-06-12 18:48:18
+ * @LastEditTime: 2025-06-13 16:16:50
  */
 #include "codeeditor.h"
 #include <QVBoxLayout>
@@ -1810,7 +1810,7 @@ void CodeEditor::updateFunctionList()
         if (classMatch.hasMatch()) {
             QString className = classMatch.captured(1);
             if (!keywords.contains(className)) {
-                functionLineMap["📦 class " + className] = originalLineNum;
+                functionLineMap["📦🏗️ class " + className] = originalLineNum;
                 classNames.insert(className);  // 记录类名
             }
             continue;
@@ -1829,7 +1829,7 @@ void CodeEditor::updateFunctionList()
                 } else {
                     displayName = "~" + className + "()";
                 }
-                functionLineMap["🔧 " + displayName] = originalLineNum;
+                functionLineMap["🔧💥 " + displayName] = originalLineNum;
             }
         }
         // 然后匹配构造函数
@@ -1849,7 +1849,7 @@ void CodeEditor::updateFunctionList()
                     } else {
                         displayName = functionName + "()";
                     }
-                    functionLineMap["🏗️ " + displayName] = originalLineNum;
+                    functionLineMap["🏗️🔨 " + displayName] = originalLineNum;
                 }
             }
             // 最后匹配普通C++函数定义
@@ -1871,9 +1871,12 @@ void CodeEditor::updateFunctionList()
 
                         // 检查是否为main函数
                         if (functionName == "main") {
-                            functionLineMap["🚀 " + functionName + "()"] = originalLineNum;
+                            //functionLineMap["🚀🎯 " + functionName + "()"] = originalLineNum;
+                            functionLineMap["ⓜ  " + functionName + "()"] = originalLineNum;
+
                         } else {
-                            functionLineMap["⚡ " + functionName + "()"] = originalLineNum;
+                            //functionLineMap["⚡⚙️ " + functionName + "()"] = originalLineNum;
+                            functionLineMap["ƒ  " + functionName + "()"] = originalLineNum;
                         }
                     }
                     continue;
@@ -1886,7 +1889,7 @@ void CodeEditor::updateFunctionList()
         if (macroMatch.hasMatch()) {
             QString macroName = macroMatch.captured(1);
             if (!keywords.contains(macroName)) {
-                functionLineMap["🔧 #define " + macroName] = originalLineNum;
+                functionLineMap["🔧📝 #define " + macroName] = originalLineNum;
             }
         }
     }
@@ -2552,6 +2555,55 @@ bool CodeEditor::isLikelyConstructor(const QString& functionName, const QString&
     return true;  // 默认认为可能是构造函数
 }
 
+// bool CodeEditor::isValidFunctionDefinition(const QString& line, int lineNum, const QStringList& allLines) {
+//     QString trimmed = line.trimmed();
+
+//     // 排除预处理指令（除了函数式宏）
+//     if (trimmed.startsWith("#") && !trimmed.startsWith("#define")) {
+//         return false;
+//     }
+
+//     // 排除明显的控制结构
+//     if (trimmed.startsWith("if") || trimmed.startsWith("for") ||
+//         trimmed.startsWith("while") || trimmed.startsWith("switch") ||
+//         trimmed.startsWith("else") || trimmed.startsWith("do")) {
+//         return false;
+//     }
+
+//     // 排除变量声明（包含分号但不包含括号的行）
+//     if (trimmed.endsWith(";") && !trimmed.contains("(")) {
+//         return false;
+//     }
+
+//     // 排除函数声明（以分号结尾）
+//     if (trimmed.endsWith(";")) {
+//         return false;
+//     }
+
+//     // 检查是否有函数体（大括号）
+//     if (line.contains("{")) {
+//         return true;
+//     }
+
+//     // 检查接下来的更多行是否有开括号（扩展搜索范围）
+//     for (int i = 1; i <= 10 && (lineNum + i) < allLines.size(); i++) {
+//         QString nextLine = allLines[lineNum + i].trimmed();
+//         if (nextLine.startsWith("{")) {
+//             return true;
+//         }
+//         // 如果遇到其他函数定义或类定义，停止搜索
+//         if (nextLine.contains("(") && nextLine.contains(")") && !nextLine.startsWith("//")) {
+//             break;
+//         }
+//         // 如果遇到分号，可能是函数声明，停止搜索
+//         if (nextLine.endsWith(";")) {
+//             break;
+//         }
+//     }
+
+//     return false;
+// }
+
 bool CodeEditor::isValidFunctionDefinition(const QString& line, int lineNum, const QStringList& allLines) {
     QString trimmed = line.trimmed();
 
@@ -2582,19 +2634,38 @@ bool CodeEditor::isValidFunctionDefinition(const QString& line, int lineNum, con
         return true;
     }
 
-    // 检查接下来的更多行是否有开括号（扩展搜索范围）
-    for (int i = 1; i <= 10 && (lineNum + i) < allLines.size(); i++) {
+    // 扩展搜索范围到20行，并改进搜索逻辑
+    for (int i = 1; i <= 20 && (lineNum + i) < allLines.size(); i++) {
         QString nextLine = allLines[lineNum + i].trimmed();
+
+        // 跳过空行和注释
+        if (nextLine.isEmpty() || nextLine.startsWith("//") || nextLine.startsWith("/*")) {
+            continue;
+        }
+
         if (nextLine.startsWith("{")) {
             return true;
         }
-        // 如果遇到其他函数定义或类定义，停止搜索
-        if (nextLine.contains("(") && nextLine.contains(")") && !nextLine.startsWith("//")) {
+
+        // 如果遇到明显的新函数定义，停止搜索
+        if (nextLine.contains("{") && (nextLine.contains("class") || nextLine.contains("struct"))) {
             break;
         }
-        // 如果遇到分号，可能是函数声明，停止搜索
-        if (nextLine.endsWith(";")) {
+
+        // 如果遇到分号且不是在括号内，可能是函数声明
+        if (nextLine.endsWith(";") && !nextLine.contains("(")) {
             break;
+        }
+
+        // 如果遇到另一个函数定义的开始（包含返回类型和函数名模式）
+        if (i > 5 && nextLine.contains("(") && nextLine.contains(")") &&
+            !nextLine.startsWith("if") && !nextLine.startsWith("for") &&
+            !nextLine.startsWith("while") && !nextLine.startsWith("switch")) {
+            // 检查是否像函数定义
+            QRegularExpression funcPattern(R"(\b\w+\s*\([^)]*\))");
+            if (funcPattern.match(nextLine).hasMatch()) {
+                break;
+            }
         }
     }
 
