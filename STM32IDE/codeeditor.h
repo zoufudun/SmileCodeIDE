@@ -22,6 +22,13 @@
 
 // Constants
 static const int FUNCTION_INDICATOR = 20;
+// Rainbow Brackets Indicators (21-26)
+static const int RAINBOW_LEVEL_1 = 21;
+static const int RAINBOW_LEVEL_2 = 22;
+static const int RAINBOW_LEVEL_3 = 23;
+static const int RAINBOW_LEVEL_4 = 24;
+static const int RAINBOW_LEVEL_5 = 25;
+static const int RAINBOW_LEVEL_6 = 26;
 
 class CodeEditor : public QWidget
 {
@@ -137,6 +144,9 @@ private:
     void setupFunctionNameHighlighting(bool isDarkTheme);
     void highlightFunctionNames(QsciScintilla* editor, int indicatorId);
     QsciScintilla* findFirstEditor(QSplitter* splitter);
+
+    void setupRainbowBrackets(QsciScintilla* editor);
+    void highlightRainbowBrackets(QsciScintilla* editor);
 
 signals:
     // 文件操作信号
