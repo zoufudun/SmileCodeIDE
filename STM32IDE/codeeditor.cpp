@@ -27,7 +27,6 @@
 #include <QVBoxLayout>
 #include <vector> // Add this for std::vector
 
-
 CodeEditor::CodeEditor(QWidget *parent)
     : QWidget(parent), m_currentEditor(nullptr), m_apiCPP(nullptr),
       m_functionList(nullptr), m_isDarkTheme(false) // Add this initialization
@@ -447,8 +446,67 @@ void CodeEditor::applyTheme(const QString &themeName) {
   // 可以添加更多主题...
 }
 
-// 修改高亮函数名的方法
-// 修改高亮函数名的方法
+void CodeEditor::setupFunctionNameHighlighting(bool isDarkTheme) {
+  // 为每个编辑器设置函数名高亮
+  for (QsciScintilla *editor : m_editors) {
+    if (!editor)
+      continue;
+
+    const int FUNCTION_INDICATOR = 20;
+    const int CLASS_INDICATOR = 27;
+
+    // 设置指示器样式为文本前景色
+    editor->SendScintilla(QsciScintilla::SCI_INDICSETSTYLE, FUNCTION_INDICATOR,
+                          QsciScintilla::INDIC_TEXTFORE);
+    editor->SendScintilla(QsciScintilla::SCI_INDICSETSTYLE, CLASS_INDICATOR,
+                          QsciScintilla::INDIC_TEXTFORE);
+
+    // 根据主题设置颜色
+    if (isDarkTheme) {
+      // 深色主题
+      editor->SendScintilla(QsciScintilla::SCI_INDICSETFORE, FUNCTION_INDICATOR,
+                            0xAADCDC); // 橙色 #DCDCAA
+      editor->SendScintilla(QsciScintilla::SCI_INDICSETFORE, CLASS_INDICATOR,
+                            0xB0C94E); // 青绿色 #4EC9B0
+    } else {
+      // 浅色主题
+      editor->SendScintilla(QsciScintilla::SCI_INDICSETFORE, FUNCTION_INDICATOR,
+                            0x008CFF); // 深橙色
+      editor->SendScintilla(QsciScintilla::SCI_INDICSETFORE, CLASS_INDICATOR,
+                            0x997F26); // 深青色
+    }
+
+    // 设置指示器透明度和优先级
+    editor->SendScintilla(QsciScintilla::SCI_INDICSETALPHA, FUNCTION_INDICATOR,
+                          255);
+    editor->SendScintilla(QsciScintilla::SCI_INDICSETUNDER, FUNCTION_INDICATOR,
+                          false);
+    editor->SendScintilla(QsciScintilla::SCI_INDICSETOUTLINEALPHA,
+                          FUNCTION_INDICATOR, 255);
+
+    editor->SendScintilla(QsciScintilla::SCI_INDICSETALPHA, CLASS_INDICATOR,
+                          255);
+    editor->SendScintilla(QsciScintilla::SCI_INDICSETUNDER, CLASS_INDICATOR,
+                          false);
+    editor->SendScintilla(QsciScintilla::SCI_INDICSETOUTLINEALPHA,
+                          CLASS_INDICATOR, 255);
+
+    // 连接信号(如果尚未连接)
+    // 注意：这里为了简单起见，可能会重复连接。
+    // 理想情况下应该检查是否连接，或者在setupEditor中只连接一次。
+    // 断开所有 textChanged 信号可能会破坏 CodeEditor 的其他功能
+    connect(editor, &QsciScintilla::textChanged, [this, editor]() {
+      QTimer::singleShot(200, [this, editor]() {
+        if (editor)
+          highlightFunctionNames(editor, 20);
+      });
+    });
+
+    // 立即更新
+    highlightFunctionNames(editor, FUNCTION_INDICATOR);
+  }
+}
+
 void CodeEditor::highlightFunctionNames(QsciScintilla *editor,
                                         int indicatorId) {
   if (!editor)
@@ -459,8 +517,13 @@ void CodeEditor::highlightFunctionNames(QsciScintilla *editor,
   int docLen = editor->SendScintilla(QsciScintilla::SCI_GETTEXTLENGTH);
   editor->clearIndicatorRange(0, 0, editor->lines(), docLen, indicatorId);
 
-  // 简化的函数名识别正则表达式
-  QRegularExpression functionNameRegex(R"(\b([A-Za-z_]\w*)\s*\()");
+  // Ensure document is styled to allow correct style checking
+  editor->SendScintilla(QsciScintilla::SCI_COLOURISE, 0, -1);
+
+  // 改进的正则表达式：支持 scoped names (Class::Func)
+  // 匹配: (可能的前缀::)函数名 ( ...
+  QRegularExpression functionNameRegex(
+      R"(\b((?:[A-Za-z_]\w*::)*[A-Za-z_]\w*)\s*\()");
 
   // 关键字过滤列表
   QSet<QString> keywords = {
@@ -485,7 +548,14 @@ void CodeEditor::highlightFunctionNames(QsciScintilla *editor,
       QRegularExpressionMatch match = matches.next();
       QString functionName = match.captured(1);
 
-      if (keywords.contains(functionName)) {
+      // 提取纯函数名部分用于关键字检查 (test::func -> func)
+      QString baseName = functionName;
+      int lastColon = functionName.lastIndexOf("::");
+      if (lastColon != -1) {
+        baseName = functionName.mid(lastColon + 2);
+      }
+
+      if (keywords.contains(baseName)) {
         continue;
       }
 
@@ -497,13 +567,12 @@ void CodeEditor::highlightFunctionNames(QsciScintilla *editor,
           editor->SendScintilla(QsciScintilla::SCI_POSITIONFROMLINE, i);
 
       // 计算匹配项相对于行首的字节偏移量
-      // 注意：必须处理UTF-8转换，因为Scintilla使用字节位置
       QByteArray prefix = lineText.left(charStart).toUtf8();
       int byteOffset = prefix.length();
-
-      int startPos = lineStartPos + byteOffset;
+      int startPos = lineStartPos + byteOffset; // 这是字节位置
 
       // 检查样式，确保不是在注释或字符串中
+      // 注意：使用SCI_GETSTYLEAT需要字节位置
       int style =
           editor->SendScintilla(QsciScintilla::SCI_GETSTYLEAT, startPos);
       bool isCommentOrString = (style == QsciLexerCPP::Comment ||
@@ -516,69 +585,42 @@ void CodeEditor::highlightFunctionNames(QsciScintilla *editor,
         continue;
       }
 
-      // 计算高亮长度（字节数）
-      QByteArray nameBytes = functionName.toUtf8();
-      int byteLength = nameBytes.length();
+      // 分离类名和函数名进行分别高亮
+      if (lastColon != -1) {
+        // 有类名限定符 (Class::Func)
 
-      // 应用高亮
-      editor->SendScintilla(QsciScintilla::SCI_SETINDICATORCURRENT,
-                            indicatorId);
-      editor->SendScintilla(QsciScintilla::SCI_INDICATORFILLRANGE, startPos,
-                            byteLength);
+        // 1. 高亮类名部分 (Class::) - 使用新的CLASS_INDICATOR (27)
+        int classPartLen = lastColon + 2; // Include "::"
+        // Convert char length to byte length
+        QByteArray classPartBytes = functionName.left(classPartLen).toUtf8();
+        int classByteLen = classPartBytes.length();
+
+        editor->SendScintilla(QsciScintilla::SCI_SETINDICATORCURRENT,
+                              27); // CLASS_INDICATOR
+        editor->SendScintilla(QsciScintilla::SCI_INDICATORFILLRANGE, startPos,
+                              classByteLen);
+
+        // 2. 高亮函数名部分 (Func)
+        int funcStartPos = startPos + classByteLen;
+        QByteArray funcPartBytes = baseName.toUtf8();
+        int funcByteLen = funcPartBytes.length();
+
+        editor->SendScintilla(QsciScintilla::SCI_SETINDICATORCURRENT,
+                              indicatorId); // FUNCTION_INDICATOR
+        editor->SendScintilla(QsciScintilla::SCI_INDICATORFILLRANGE,
+                              funcStartPos, funcByteLen);
+
+      } else {
+        // 普通函数名 (Func)
+        QByteArray funcBytes = functionName.toUtf8();
+        int funcLen = funcBytes.length();
+
+        editor->SendScintilla(QsciScintilla::SCI_SETINDICATORCURRENT,
+                              indicatorId);
+        editor->SendScintilla(QsciScintilla::SCI_INDICATORFILLRANGE, startPos,
+                              funcLen);
+      }
     }
-  }
-}
-
-// 在setupFunctionHighlight函数中添加防抖机制
-void CodeEditor::setupFunctionNameHighlighting(bool isDarkTheme) {
-  // 为每个编辑器设置函数名高亮
-  for (QsciScintilla *editor : m_editors) {
-    if (!editor)
-      continue;
-
-    // Use the constant defined in header
-    // const int FUNCTION_INDICATOR = 20;
-
-    // 设置指示器样式和颜色
-    // 使用文本前景色而不是FullBoxIndicator，以避免显示矩形
-    editor->SendScintilla(QsciScintilla::SCI_INDICSETSTYLE, FUNCTION_INDICATOR,
-                          QsciScintilla::INDIC_TEXTFORE);
-
-    // 使用更明显的颜色
-    if (isDarkTheme) {
-      editor->SendScintilla(
-          QsciScintilla::SCI_INDICSETFORE, FUNCTION_INDICATOR,
-          0xFFD700); // 金色 #00D7FF (BGR) -> 0x00D7FF? No, SCI uses 0xBBGGRR
-                     // #FFD700 -> R=FF, G=D7, B=00. value = 0x00D7FF
-    } else {
-      editor->SendScintilla(
-          QsciScintilla::SCI_INDICSETFORE, FUNCTION_INDICATOR,
-          0x008CFF); // 深橙色 #FF8C00 -> R=FF, G=8C, B=00. value = 0x008CFF
-    }
-
-    // 设置透明度和下划线
-    editor->SendScintilla(QsciScintilla::SCI_INDICSETALPHA, FUNCTION_INDICATOR,
-                          255); // 不透明
-    editor->SendScintilla(QsciScintilla::SCI_INDICSETUNDER, FUNCTION_INDICATOR,
-                          false); // 不在文字下方
-
-    // 断开之前的特定连接比较困难，这里我们假设每次主题切换都重新设置是可以的，只要不重复连接信号
-    editor->disconnect(SIGNAL(textChanged()));
-    // 重建连接
-    connect(editor, &QsciScintilla::textChanged, this,
-            &CodeEditor::updateVariableList);
-    connect(editor, &QsciScintilla::textChanged, this,
-            &CodeEditor::updateFunctionList);
-
-    connect(editor, &QsciScintilla::textChanged, [this, editor]() {
-      QTimer::singleShot(500, [this, editor]() {
-        if (editor)
-          highlightFunctionNames(editor, FUNCTION_INDICATOR);
-      });
-    });
-
-    // 立即更新
-    highlightFunctionNames(editor, FUNCTION_INDICATOR);
   }
 }
 
@@ -701,7 +743,8 @@ void CodeEditor::createSplitView(Qt::Orientation orientation) {
 
 //     // 获取当前编辑器的父分割器
 //     QSplitter* parentSplitter =
-//     qobject_cast<QSplitter*>(m_currentEditor->parent()); if (!parentSplitter
+//     qobject_cast<QSplitter*>(m_currentEditor->parent()); if
+//     (!parentSplitter
 //     || parentSplitter == m_mainSplitter) {
 //         return;
 //     }
@@ -721,8 +764,9 @@ void CodeEditor::createSplitView(Qt::Orientation orientation) {
 //     }
 
 //     // 获取父分割器的父部件
-//     QWidget* grandParent =  qobject_cast<QWidget*>(parentSplitter->parent());
-//     QSplitter* grandParentSplitter = qobject_cast<QSplitter*>(grandParent);
+//     QWidget* grandParent =
+//     qobject_cast<QWidget*>(parentSplitter->parent()); QSplitter*
+//     grandParentSplitter = qobject_cast<QSplitter*>(grandParent);
 
 //     // 获取父分割器在其父分割器中的索引
 //     int index = -1;
@@ -778,7 +822,8 @@ void CodeEditor::createSplitView(Qt::Orientation orientation) {
 
 //     // 获取当前编辑器的父分割器
 //     QSplitter* parentSplitter =
-//     qobject_cast<QSplitter*>(m_currentEditor->parent()); if (!parentSplitter
+//     qobject_cast<QSplitter*>(m_currentEditor->parent()); if
+//     (!parentSplitter
 //     || parentSplitter == m_mainSplitter) {
 //         return;
 //     }
@@ -798,8 +843,9 @@ void CodeEditor::createSplitView(Qt::Orientation orientation) {
 //     }
 
 //     // 获取父分割器的父部件 - 修复类型转换问题
-//     QWidget* grandParent = qobject_cast<QWidget*>(parentSplitter->parent());
-//     QSplitter* grandParentSplitter = nullptr;
+//     QWidget* grandParent =
+//     qobject_cast<QWidget*>(parentSplitter->parent()); QSplitter*
+//     grandParentSplitter = nullptr;
 
 //     // 检查父分割器的父部件是否是分割器或主分割器
 //     if (grandParent == m_mainSplitter) {
@@ -1006,11 +1052,13 @@ void CodeEditor::setupEditor(QsciScintilla *editor) {
   // 设置不同括号对的颜色
   // // 圆括号 ()
   // editor->setMatchedBraceForegroundColor(QColor("#FF0000"));  // 红色
-  // editor->setMatchedBraceBackgroundColor(QColor("#FFE4E1"));  // 浅红色背景
+  // editor->setMatchedBraceBackgroundColor(QColor("#FFE4E1"));  //
+  // 浅红色背景
 
   // // 方括号 []
   // editor->setUnmatchedBraceForegroundColor(QColor("#0000FF"));  // 蓝色
-  // editor->setUnmatchedBraceBackgroundColor(QColor("#E6E6FA"));  // 浅蓝色背景
+  // editor->setUnmatchedBraceBackgroundColor(QColor("#E6E6FA"));  //
+  // 浅蓝色背景
 
   // 大括号 {}
   editor->setCaretForegroundColor(QColor("#008000"));   // 绿色
@@ -1088,13 +1136,13 @@ void CodeEditor::setupRainbowBrackets(QsciScintilla *editor) {
     editor->SendScintilla(QsciScintilla::SCI_INDICSETUNDER, indicator, false);
   }
 
-  // Connect to textChanged with debounce to avoid heavy processing on every
-  // keystroke
+  // Connect to textChanged with debounce to avoid heavy processing on
+  // every keystroke
   editor->disconnect(
       SIGNAL(textChanged())); // Careful, this might disconnect others
-  // Better: use a specific connection or rely on the single valid connection.
-  // In `setupEditor` we already have connections.
-  // Let's add a connection specifically for brackets if not present.
+  // Better: use a specific connection or rely on the single valid
+  // connection. In `setupEditor` we already have connections. Let's add a
+  // connection specifically for brackets if not present.
 
   // Note: We are using a unified updateBracketHighlighting now.
   connect(editor, &QsciScintilla::textChanged, [this, editor]() {
@@ -1107,7 +1155,8 @@ void CodeEditor::setupRainbowBrackets(QsciScintilla *editor) {
   updateBracketHighlighting(editor);
 }
 
-// Remove duplication: empty implementation for old method if it exists or reuse
+// Remove duplication: empty implementation for old method if it exists or
+// reuse
 
 // 添加新方法：设置不同类型括号的颜色
 // void CodeEditor::setupBraceColors(QsciScintilla* editor)
@@ -1545,31 +1594,10 @@ void CodeEditor::parseFunctions(const QString &code) {
     m_functions.clear();
 
     if (code.isEmpty()) {
-      qDebug() << "解析函数: 代码为空";
-      return; // 避免处理空代码
-    }
-
-    // 预处理：移除注释
-    QString filteredText = code;
-    filteredText.remove(
-        QRegularExpression(R"(//[^\n]*|/\*.*?\*/)",
-                           QRegularExpression::DotMatchesEverythingOption |
-                               QRegularExpression::MultilineOption));
-    // 合并多行声明
-    filteredText.replace(QRegularExpression(R"(\\\s*\n)"), " ");
-
-    // 支持：模板函数、命名空间、多参数类型
-    QRegularExpression functionRegex(
-        R"((\b(?:\w+::)+)?\s*((?:\w+<.*?>)|\w+)\s+([*&]*\s*)?(\w+)\s*\([^{]*))");
-    functionRegex.setPatternOptions(
-        QRegularExpression::DotMatchesEverythingOption);
-
-    if (!functionRegex.isValid()) {
-      qDebug() << "解析函数: 正则表达式无效: " << functionRegex.errorString();
       return;
     }
 
-    // 常见的C/C++关键字列表
+    // 常见的C/C++关键字列表（用于过滤）
     static const QSet<QString> keywords = {
         "if",       "for",       "while",    "switch",   "return", "else",
         "do",       "case",      "break",    "continue", "goto",   "sizeof",
@@ -1578,63 +1606,73 @@ void CodeEditor::parseFunctions(const QString &code) {
         "typename", "namespace", "using",    "try",      "catch",  "throw",
         "new",      "delete"};
 
-    // 遍历代码行 (使用原始代码以便获取正确的行号)
-    QStringList lines = code.split('\n');
-    int lineCount = lines.size();
+    // 1. 普通函数正则
+    // 匹配: [返回类型] [类名::]函数名(参数) [修饰符] {
+    // 注意：支持多行匹配
+    // 改进: 使用非贪婪匹配允许 * 紧贴函数名
+    QRegularExpression functionRegex(
+        R"((?:^|\n)\s*(?:template\s*<[^>]*>\s*)?(?:(?:static|virtual|inline|explicit|friend|constexpr)\s+)*(?:[\w<>:.*&]+\s*)*?(\w+(?:::\w+)*)\s*\([^)]*\)\s*(?:const|override|final|noexcept|try|\s)*\{)");
 
-    // 同时也对每一行进行简单的正则匹配，或者在filteredText中查找并映射回行号
-    // 为了简单且保持行号准确，我们还是逐行处理，但使用更强的正则
+    // 2. 构造/析构函数正则
+    // 匹配: [类名::][~]类名(参数) [初始化列表] {
+    QRegularExpression ctorDtorRegex(
+        R"((?:^|\n)\s*(?:explicit\s+)?(\w+(?:::\w+)*)\s*\([^)]*\)\s*(?::\s*[^{]+)?\s*\{)");
 
-    // 注意：上面的filteredText逻辑在逐行处理中较难直接应用，除非我们解析整个文本的偏移量
-    // 这里我们仅在单行或临近几行中匹配
+    // 3. 析构函数 (带~)
+    QRegularExpression dtorRegex(
+        R"((?:^|\n)\s*(?:virtual\s+)?((?:\w+::)?~\w+)\s*\([^)]*\)\s*(?:override|final|noexcept|\s)*\{)");
 
-    for (int i = 0; i < lineCount; i++) {
-      QString line = lines[i].trimmed();
+    // 辅助函数：添加匹配项
+    auto addMatch = [&](const QRegularExpressionMatch &match, int capGroup) {
+      QString funcName = match.captured(capGroup);
+      if (keywords.contains(funcName) || funcName.isEmpty())
+        return;
 
-      if (line.isEmpty() || line.startsWith("//") || line.startsWith("/*") ||
-          line.contains("*/")) {
-        continue; // 跳过空行和注释行
+      // 获取行号
+      int index = match.capturedStart();
+      // 简单的行号计算（性能可能一般，但对于普通文件足够）
+      int line = code.left(index).count('\n');
+
+      FunctionInfo info;
+      info.name = funcName; // 仅显示函数名，后续可以扩展显示完整签名
+      info.line = line;
+
+      // 简单的去重（如果同一行已经有了）
+      for (const auto &f : m_functions) {
+        if (f.line == line && f.name == funcName)
+          return;
       }
 
-      // 匹配函数定义
-      QRegularExpressionMatch match = functionRegex.match(line);
-      if (match.hasMatch()) {
-        // 获取函数名 (索引 4: (\w+)\s*\()
-        QString functionName = match.captured(4);
-        if (functionName.isEmpty())
-          functionName = match.captured(2); // Fallback
+      m_functions.append(info);
+    };
 
-        // 跳过关键字和空函数名
-        if (functionName.isEmpty() || keywords.contains(functionName)) {
-          continue;
-        }
-
-        // 创建函数信息对象
-        FunctionInfo function;
-        function.name = functionName;
-        function.line = i;
-
-        // 获取完整的函数签名（可能跨越多行）
-        QString signature = line;
-
-        // 如果当前行没有分号或大括号，可能是多行函数声明
-        if (!line.contains(";") && !line.contains("{")) {
-          // 向下查找几行，直到找到分号或大括号
-          for (int j = i + 1; j < qMin(i + 10, lineCount); j++) {
-            QString nextLine = lines[j].trimmed();
-            signature += " " + nextLine;
-            if (nextLine.contains(";") || nextLine.contains("{")) {
-              break;
-            }
-          }
-        }
-
-        function.signature = signature.trimmed();
-
-        // 添加到函数列表
-        m_functions.append(function);
-      }
+    // 执行匹配 - 普通函数
+    QRegularExpressionMatchIterator i = functionRegex.globalMatch(code);
+    while (i.hasNext()) {
+      addMatch(i.next(), 1);
     }
+
+    // 执行匹配 - 构造函数
+    // 注意：构造函数正则可能会误判普通函数调用，需要小心，但在函数外层的
+    // { 前面通常是定义
+    i = ctorDtorRegex.globalMatch(code);
+    while (i.hasNext()) {
+      // 排除看起来像函数调用的 (如果有返回类型，会被functionRegex捕获)
+      // 这里主要捕获没有返回类型的
+      addMatch(i.next(), 1);
+    }
+
+    // 执行匹配 - 析构函数
+    i = dtorRegex.globalMatch(code);
+    while (i.hasNext()) {
+      addMatch(i.next(), 1);
+    }
+
+    // 排序（按行号）
+    std::sort(m_functions.begin(), m_functions.end(),
+              [](const FunctionInfo &a, const FunctionInfo &b) {
+                return a.line < b.line;
+              });
 
     qDebug() << "解析函数: 找到" << m_functions.size() << "个函数";
   } catch (const std::exception &e) {
@@ -1644,7 +1682,8 @@ void CodeEditor::parseFunctions(const QString &code) {
   }
 }
 
-// void CodeEditor::updateFunctionList()//该版本需要保留，解决了跨行函数问题
+// void
+// CodeEditor::updateFunctionList()//该版本需要保留，解决了跨行函数问题
 // {
 //     if (!m_currentEditor || !m_functionList) {
 //         return;
@@ -1679,8 +1718,8 @@ void CodeEditor::parseFunctions(const QString &code) {
 //         // 检查是否是函数定义的开始（包含函数名和左括号）
 //         if (trimmed.contains("(") && !trimmed.contains(";") &&
 //             !trimmed.startsWith("#") && !trimmed.startsWith("if") &&
-//             !trimmed.startsWith("for") && !trimmed.startsWith("while") &&
-//             !trimmed.startsWith("switch")) {
+//             !trimmed.startsWith("for") && !trimmed.startsWith("while")
+//             && !trimmed.startsWith("switch")) {
 
 //             QString multiLineFunction = line;
 //             int startLineNum = i;
@@ -1688,7 +1727,8 @@ void CodeEditor::parseFunctions(const QString &code) {
 //             bool foundOpenBrace = line.contains("{");
 //             bool isComplete = false;
 
-//             // 第一步：如果当前行没有右括号，继续合并后续行直到找到右括号
+//             //
+//             第一步：如果当前行没有右括号，继续合并后续行直到找到右括号
 //             if (!foundClosingParen) {
 //                 for (int j = i + 1; j < lines.size(); j++) {
 //                     QString nextLine = lines[j];
@@ -1809,11 +1849,12 @@ void CodeEditor::parseFunctions(const QString &code) {
 
 //     // 关键字过滤列表
 //     QSet<QString> keywords = {
-//         "if", "for", "while", "switch", "catch", "return", "else", "do",
-//         "break", "continue", "goto", "sizeof", "typedef", "volatile",
-//         "register", "extern", "static", "auto", "const", "struct", "union",
-//         "enum", "class", "template", "typename", "namespace", "using",
-//         "try", "throw", "new", "delete", "case", "default"
+//         "if", "for", "while", "switch", "catch", "return", "else",
+//         "do", "break", "continue", "goto", "sizeof", "typedef",
+//         "volatile", "register", "extern", "static", "auto", "const",
+//         "struct", "union", "enum", "class", "template", "typename",
+//         "namespace", "using", "try", "throw", "new", "delete", "case",
+//         "default"
 //     };
 
 //     // // 逐行分析
@@ -1828,7 +1869,8 @@ void CodeEditor::parseFunctions(const QString &code) {
 //     //     }
 
 //     //     // 跳过多行注释块
-//     //     if (trimmedLine.contains("/*") && !trimmedLine.contains("*/")) {
+//     //     if (trimmedLine.contains("/*") &&
+//     !trimmedLine.contains("*/")) {
 //     //         while (lineNum < lines.size() - 1) {
 //     //             lineNum++;
 //     //             if (lines[lineNum].contains("*/")) {
@@ -1857,7 +1899,8 @@ void CodeEditor::parseFunctions(const QString &code) {
 //         }
 
 //         // 跳过多行注释块
-//         if (trimmedLine.contains("/*") && !trimmedLine.contains("*/")) {
+//         if (trimmedLine.contains("/*") && !trimmedLine.contains("*/"))
+//         {
 //             while (lineNum < processedLines.size() - 1) {
 //                 lineNum++;
 //                 if (processedLines[lineNum].contains("*/")) {
@@ -1878,8 +1921,9 @@ void CodeEditor::parseFunctions(const QString &code) {
 //         if (classMatch.hasMatch()) {
 //             QString className = classMatch.captured(1);
 //             if (!keywords.contains(className)) {
-//                 functionLineMap["📦🏗️ class " + className] = originalLineNum;
-//                 classNames.insert(className);  // 记录类名
+//                 functionLineMap["📦🏗️ class " + className] =
+//                 originalLineNum; classNames.insert(className);  //
+//                 记录类名
 //             }
 //             continue;
 //         }
@@ -1887,40 +1931,48 @@ void CodeEditor::parseFunctions(const QString &code) {
 //         // 首先匹配析构函数
 //         QRegularExpressionMatch destructorMatch =
 //         destructorRegex.match(line); if (destructorMatch.hasMatch()) {
-//             QString classPrefix = destructorMatch.captured(1);  // 类前缀
-//             QString className = destructorMatch.captured(2);    // 类名
+//             QString classPrefix = destructorMatch.captured(1);  //
+//             类前缀 QString className = destructorMatch.captured(2); //
+//             类名
 
 //             if (!keywords.contains(className) &&
 //             isValidFunctionDefinition(line, lineNum, processedLines)) {
 //                 QString displayName;
 //                 if (!classPrefix.isEmpty()) {
-//                     displayName = classPrefix + "::~" + className + "()";
+//                     displayName = classPrefix + "::~" + className +
+//                     "()";
 //                 } else {
 //                     displayName = "~" + className + "()";
 //                 }
-//                 functionLineMap["🔧💥 " + displayName] = originalLineNum;
+//                 functionLineMap["🔧💥 " + displayName] =
+//                 originalLineNum;
 //             }
 //         }
 //         // 然后匹配构造函数
 //         else {
 //             QRegularExpressionMatch constructorMatch =
-//             constructorRegex.match(line); if (constructorMatch.hasMatch()) {
+//             constructorRegex.match(line); if
+//             (constructorMatch.hasMatch()) {
 //                 QString classPrefix = constructorMatch.captured(1);  //
-//                 类前缀 QString functionName = constructorMatch.captured(2);
+//                 类前缀 QString functionName =
+//                 constructorMatch.captured(2);
 //                 // 函数名
 
 //                 if (!keywords.contains(functionName) &&
-//                     isValidFunctionDefinition(line, lineNum, processedLines)
+//                     isValidFunctionDefinition(line, lineNum,
+//                     processedLines)
 //                     && isLikelyConstructor(functionName, line)) {
 
 //                     QString displayName;
 //                     if (!classPrefix.isEmpty()) {
-//                         displayName = classPrefix + "::" + functionName +
+//                         displayName = classPrefix + "::" + functionName
+//                         +
 //                         "()";
 //                     } else {
 //                         displayName = functionName + "()";
 //                     }
-//                     functionLineMap["🏗️🔨 " + displayName] = originalLineNum;
+//                     functionLineMap["🏗️🔨 " + displayName] =
+//                     originalLineNum;
 //                 }
 //             }
 //             // 最后匹配普通C++函数定义
@@ -1932,7 +1984,8 @@ void CodeEditor::parseFunctions(const QString &code) {
 //                     // 移除命名空间前缀以获取纯函数名
 //                     QString pureFunctionName = functionName;
 //                     if (functionName.contains("::")) {
-//                         pureFunctionName = functionName.split("::").last();
+//                         pureFunctionName =
+//                         functionName.split("::").last();
 //                     }
 
 //                     // 过滤关键字和已识别的构造函数
@@ -1943,14 +1996,14 @@ void CodeEditor::parseFunctions(const QString &code) {
 
 //                         // 检查是否为main函数
 //                         if (functionName == "main") {
-//                             //functionLineMap["🚀🎯 " + functionName + "()"]
-//                             = originalLineNum; functionLineMap["ⓜ  " +
-//                             functionName + "()"] = originalLineNum;
+//                             //functionLineMap["🚀🎯 " + functionName +
+//                             "()"] = originalLineNum; functionLineMap["ⓜ
+//                             " + functionName + "()"] = originalLineNum;
 
 //                         } else {
-//                             //functionLineMap["⚡⚙️ " + functionName + "()"] =
-//                             originalLineNum; functionLineMap["ƒ  " +
-//                             functionName + "()"] = originalLineNum;
+//                             //functionLineMap["⚡⚙️ " + functionName +
+//                             "()"] = originalLineNum; functionLineMap["ƒ
+//                             " + functionName + "()"] = originalLineNum;
 //                         }
 //                     }
 //                     continue;
@@ -2326,10 +2379,11 @@ void CodeEditor::updateVariableList() {
     }
 
     // 使用正则表达式查找变量定义 - 改进的正则表达式
-    QRegExp varRegex(
-        "\\b(int|char|float|double|uint8_t|uint16_t|uint32_t|int8_t|int16_t|"
-        "int32_t|bool|void|unsigned|long|short|signed|struct|enum|union)\\s+(["
-        "a-zA-Z_][a-zA-Z0-9_]*)\\s*[;\\[=,)]");
+    QRegExp varRegex("\\b(int|char|float|double|uint8_t|uint16_t|uint32_"
+                     "t|int8_t|int16_t|"
+                     "int32_t|bool|void|unsigned|long|short|signed|"
+                     "struct|enum|union)\\s+(["
+                     "a-zA-Z_][a-zA-Z0-9_]*)\\s*[;\\[=,)]");
 
     int pos = 0;
     QSet<QString> variables; // 使用集合避免重复
@@ -2612,8 +2666,8 @@ void CodeEditor::createToolBar() {
   connect(indentAction, &QAction::triggered, [this]() {
     if (m_currentEditor) {
       // QsciScintilla doesn't have an indent() method
-      // Instead, we need to manually insert spaces or tabs at the beginning of
-      // selected lines
+      // Instead, we need to manually insert spaces or tabs at the
+      // beginning of selected lines
       int lineFrom, indexFrom, lineTo, indexTo;
       m_currentEditor->getSelection(&lineFrom, &indexFrom, &lineTo, &indexTo);
 
@@ -2645,8 +2699,8 @@ void CodeEditor::createToolBar() {
   connect(unindentAction, &QAction::triggered, [this]() {
     if (m_currentEditor) {
       // QsciScintilla doesn't have an unindent() method
-      // Instead, we need to manually remove spaces or tabs from the beginning
-      // of selected lines
+      // Instead, we need to manually remove spaces or tabs from the
+      // beginning of selected lines
       int lineFrom, indexFrom, lineTo, indexTo;
       m_currentEditor->getSelection(&lineFrom, &indexFrom, &lineTo, &indexTo);
 
@@ -2928,8 +2982,8 @@ bool CodeEditor::isLikelyConstructor(const QString &functionName,
   return true; // 默认认为可能是构造函数
 }
 
-// bool CodeEditor::isValidFunctionDefinition(const QString& line, int lineNum,
-// const QStringList& allLines) {
+// bool CodeEditor::isValidFunctionDefinition(const QString& line, int
+// lineNum, const QStringList& allLines) {
 //     QString trimmed = line.trimmed();
 
 //     // 排除预处理指令（除了函数式宏）

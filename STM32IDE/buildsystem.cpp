@@ -216,7 +216,7 @@ bool BuildSystem::generateMakefile()
     return true;
 }
 
-// 修改buildProject方法以支持STM32工程
+
 bool BuildSystem::buildProject()
 {
     if (m_projectPath.isEmpty()) {
