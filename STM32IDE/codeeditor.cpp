@@ -60,6 +60,19 @@ CodeEditor::CodeEditor(QWidget *parent)
   // 设置自动补全
   setupAutoCompletion(editor);
 
+  // 设置初始分割器比例 (1:6)
+  // 注意：此时两个组件都已添加到分割器中
+  m_mainSplitter->setStretchFactor(0, 1);
+  m_mainSplitter->setStretchFactor(1, 6);
+  m_mainSplitter->setCollapsible(0, false); // 禁止折叠函数列表
+  m_mainSplitter->setCollapsible(1, false);
+
+  // 设置初始大小 (假设总宽度1000)
+  QList<int> sizes;
+  sizes << 200 << 1200;
+  m_mainSplitter->setSizes(sizes);
+  setupAutoCompletion(editor);
+
   // 设置示例代码
   editor->setText(
       "// STM32 代码编辑器\n#include <stdint.h>\n\nint main(void) {\n    // "
@@ -115,7 +128,7 @@ bool CodeEditor::openFile(const QString &filePath) {
     if (m_currentEditor) {
       m_currentEditor->setText(content);
       // Trigger highlighting manually after loading file
-      highlightRainbowBrackets(m_currentEditor);
+      updateBracketHighlighting(m_currentEditor);
       highlightFunctionNames(m_currentEditor, 20); // 20 is FUNCTION_INDICATOR
     }
 
@@ -420,61 +433,17 @@ void CodeEditor::applyTheme(const QString &themeName) {
   // 可以添加更多主题...
 }
 
-// 添加新方法：设置函数名高亮
-void CodeEditor::setupFunctionNameHighlighting(bool isDarkTheme) {
-  // 为每个编辑器设置函数名高亮
-  for (QsciScintilla *editor : m_editors) {
-    // 使用自定义指示器来高亮函数名
-    const int FUNCTION_INDICATOR = 20;
-
-    // 设置指示器样式为文本前景色
-    editor->SendScintilla(QsciScintilla::SCI_INDICSETSTYLE, FUNCTION_INDICATOR,
-                          QsciScintilla::INDIC_TEXTFORE);
-
-    // 根据主题设置颜色 - 修改为更明显的橙色
-    if (isDarkTheme) {
-      // 深色主题 - 明亮的橙色 (注意：颜色格式为BGR)
-      editor->SendScintilla(QsciScintilla::SCI_INDICSETFORE, FUNCTION_INDICATOR,
-                            0xAA78DC); // 橙色 #DCDCAA
-    } else {
-      // 浅色主题 - 暗金色
-      editor->SendScintilla(QsciScintilla::SCI_INDICSETFORE, FUNCTION_INDICATOR,
-                            0x0B6DB8); // 暗金色 #B86D0B
-    }
-
-    // 设置指示器透明度和优先级
-    editor->SendScintilla(QsciScintilla::SCI_INDICSETALPHA, FUNCTION_INDICATOR,
-                          255);
-    editor->SendScintilla(QsciScintilla::SCI_INDICSETUNDER, FUNCTION_INDICATOR,
-                          false); // 不在文本下方显示
-    editor->SendScintilla(QsciScintilla::SCI_INDICSETOUTLINEALPHA,
-                          FUNCTION_INDICATOR, 255); // 设置轮廓透明度
-
-    // 断开之前的连接并重新连接
-    // Do not disconnect all signals, just add ours
-    // disconnect(editor, &QsciScintilla::textChanged, nullptr, nullptr);
-    connect(editor, &QsciScintilla::textChanged, [this, editor]() {
-      // 确保在文本变化后立即高亮函数名
-      QTimer::singleShot(
-          0, [this, editor]() { highlightFunctionNames(editor, 20); });
-    });
-
-    // Initial highlight
-    highlightFunctionNames(editor, FUNCTION_INDICATOR);
-  }
-}
-
+// 修改高亮函数名的方法
 // 修改高亮函数名的方法
 void CodeEditor::highlightFunctionNames(QsciScintilla *editor,
                                         int indicatorId) {
-  // 清除现有的函数名高亮
-  editor->clearIndicatorRange(0, 0, editor->lines(), editor->text().length(),
-                              indicatorId);
+  if (!editor)
+    return;
 
-  // 获取编辑器文本
-  QString text = editor->text();
-  qDebug() << "Text length:" << text.length();
-  QStringList lines = text.split('\n');
+  // 清除现有的函数名高亮
+  // Use SCI_GETTEXTLENGTH for accurate length
+  int docLen = editor->SendScintilla(QsciScintilla::SCI_GETTEXTLENGTH);
+  editor->clearIndicatorRange(0, 0, editor->lines(), docLen, indicatorId);
 
   // 简化的函数名识别正则表达式
   QRegularExpression functionNameRegex(R"(\b([A-Za-z_]\w*)\s*\()");
@@ -490,138 +459,113 @@ void CodeEditor::highlightFunctionNames(QsciScintilla *editor,
       "virtual",  "inline",    "explicit", "friend",   "printf",  "scanf",
       "malloc",   "free",      "strlen",   "strcpy",   "strcmp"};
 
-  // 逐行处理
-  for (int lineNum = 0; lineNum < lines.size(); lineNum++) {
-    QString line = lines[lineNum];
-    QString trimmedLine = line.trimmed();
+  int lineCount = editor->lines();
+  for (int i = 0; i < lineCount; ++i) {
+    // 获取当前行的文本
+    QString lineText = editor->text(i);
 
-    // 跳过注释行
-    if (trimmedLine.startsWith("//") || trimmedLine.startsWith("/*") ||
-        trimmedLine.startsWith("*")) {
-      continue;
-    }
-
-    // 跳过预处理指令
-    if (trimmedLine.startsWith("#")) {
-      continue;
-    }
-
-    // 查找函数调用和定义
+    // 查找匹配
     QRegularExpressionMatchIterator matches =
-        functionNameRegex.globalMatch(line);
+        functionNameRegex.globalMatch(lineText);
     while (matches.hasNext()) {
       QRegularExpressionMatch match = matches.next();
       QString functionName = match.captured(1);
 
-      // 过滤关键字和常见的C库函数
       if (keywords.contains(functionName)) {
         continue;
       }
 
-      // 检查是否为函数定义或调用
-      int startPos = match.capturedStart(1);
-      int endPos = match.capturedEnd(1);
+      // 获取匹配在QString中的位置（字符索引）
+      int charStart = match.capturedStart(1);
 
-      // 计算在整个文档中的位置
-      int globalStartPos = 0;
-      for (int i = 0; i < lineNum; i++) {
-        globalStartPos += lines[i].length() + 1; // +1 for newline
+      // 获取当前行在文档中的起始字节位置
+      long lineStartPos =
+          editor->SendScintilla(QsciScintilla::SCI_POSITIONFROMLINE, i);
+
+      // 计算匹配项相对于行首的字节偏移量
+      // 注意：必须处理UTF-8转换，因为Scintilla使用字节位置
+      QByteArray prefix = lineText.left(charStart).toUtf8();
+      int byteOffset = prefix.length();
+
+      int startPos = lineStartPos + byteOffset;
+
+      // 检查样式，确保不是在注释或字符串中
+      int style =
+          editor->SendScintilla(QsciScintilla::SCI_GETSTYLEAT, startPos);
+      bool isCommentOrString = (style == QsciLexerCPP::Comment ||
+                                style == QsciLexerCPP::CommentLine ||
+                                style == QsciLexerCPP::CommentDoc ||
+                                style == QsciLexerCPP::DoubleQuotedString ||
+                                style == QsciLexerCPP::SingleQuotedString);
+
+      if (isCommentOrString) {
+        continue;
       }
-      globalStartPos += startPos;
-      int globalEndPos = globalStartPos + functionName.length();
 
-      // 将位置转换为行和列
-      int startLine = 0, startCol = 0, endLine = 0, endCol = 0;
-      editor->lineIndexFromPosition(globalStartPos, &startLine, &startCol);
-      editor->lineIndexFromPosition(globalEndPos, &endLine, &endCol);
+      // 计算高亮长度（字节数）
+      QByteArray nameBytes = functionName.toUtf8();
+      int byteLength = nameBytes.length();
 
-      // 高亮函数名
-      editor->fillIndicatorRange(startLine, startCol, endLine, endCol,
-                                 indicatorId);
+      // 应用高亮
+      editor->SendScintilla(QsciScintilla::SCI_SETINDICATORCURRENT,
+                            indicatorId);
+      editor->SendScintilla(QsciScintilla::SCI_INDICATORFILLRANGE, startPos,
+                            byteLength);
     }
   }
 }
 
 // 在setupFunctionHighlight函数中添加防抖机制
-void CodeEditor::setupFunctionHighlight(QsciScintilla *editor) {
-  if (!editor)
-    return;
+void CodeEditor::setupFunctionNameHighlighting(bool isDarkTheme) {
+  // 为每个编辑器设置函数名高亮
+  for (QsciScintilla *editor : m_editors) {
+    if (!editor)
+      continue;
 
-  const int FUNCTION_INDICATOR = 20;
+    // Use the constant defined in header
+    // const int FUNCTION_INDICATOR = 20;
 
-  // // 设置指示器样式
-  // editor->SendScintilla(QsciScintilla::SCI_INDICSETSTYLE, FUNCTION_INDICATOR,
-  // QsciScintilla::INDIC_TEXTFORE);
+    // 设置指示器样式和颜色
+    // 使用文本前景色而不是FullBoxIndicator，以避免显示矩形
+    editor->SendScintilla(QsciScintilla::SCI_INDICSETSTYLE, FUNCTION_INDICATOR,
+                          QsciScintilla::INDIC_TEXTFORE);
 
-  // if (m_isDarkTheme) {
-  //     editor->SendScintilla(QsciScintilla::SCI_INDICSETFORE,
-  //     FUNCTION_INDICATOR, 0xAA78DC); // 橙色 #DCDCAA
-  // } else {
-  //     editor->SendScintilla(QsciScintilla::SCI_INDICSETFORE,
-  //     FUNCTION_INDICATOR, 0x0B6DB8); // 暗金色 #B86D0B
-  // }
+    // 使用更明显的颜色
+    if (isDarkTheme) {
+      editor->SendScintilla(
+          QsciScintilla::SCI_INDICSETFORE, FUNCTION_INDICATOR,
+          0xFFD700); // 金色 #00D7FF (BGR) -> 0x00D7FF? No, SCI uses 0xBBGGRR
+                     // #FFD700 -> R=FF, G=D7, B=00. value = 0x00D7FF
+    } else {
+      editor->SendScintilla(
+          QsciScintilla::SCI_INDICSETFORE, FUNCTION_INDICATOR,
+          0x008CFF); // 深橙色 #FF8C00 -> R=FF, G=8C, B=00. value = 0x008CFF
+    }
 
-  // editor->SendScintilla(QsciScintilla::SCI_INDICSETALPHA, FUNCTION_INDICATOR,
-  // 255); editor->SendScintilla(QsciScintilla::SCI_INDICSETUNDER,
-  // FUNCTION_INDICATOR, false);
-  // editor->SendScintilla(QsciScintilla::SCI_INDICSETOUTLINEALPHA,
-  // FUNCTION_INDICATOR, 255);
+    // 设置透明度和下划线
+    editor->SendScintilla(QsciScintilla::SCI_INDICSETALPHA, FUNCTION_INDICATOR,
+                          255); // 不透明
+    editor->SendScintilla(QsciScintilla::SCI_INDICSETUNDER, FUNCTION_INDICATOR,
+                          false); // 不在文字下方
 
-  // 设置指示器样式和颜色
-  editor->indicatorDefine(QsciScintilla::FullBoxIndicator, FUNCTION_INDICATOR);
+    // 断开之前的特定连接比较困难，这里我们假设每次主题切换都重新设置是可以的，只要不重复连接信号
+    editor->disconnect(SIGNAL(textChanged()));
+    // 重建连接
+    connect(editor, &QsciScintilla::textChanged, this,
+            &CodeEditor::updateVariableList);
+    connect(editor, &QsciScintilla::textChanged, this,
+            &CodeEditor::updateFunctionList);
 
-  // 使用更明显的颜色进行测试
-  if (m_isDarkTheme) {
-    editor->setIndicatorForegroundColor(QColor("#FFD700"),
-                                        FUNCTION_INDICATOR); // 金色，更明显
-  } else {
-    editor->setIndicatorForegroundColor(QColor("#FF0000"),
-                                        FUNCTION_INDICATOR); // 红色，更明显
-  }
+    connect(editor, &QsciScintilla::textChanged, [this, editor]() {
+      QTimer::singleShot(500, [this, editor]() {
+        if (editor)
+          highlightFunctionNames(editor, FUNCTION_INDICATOR);
+      });
+    });
 
-  // 设置透明度和下划线
-  editor->setIndicatorOutlineColor(QColor("#FFD700"), FUNCTION_INDICATOR);
-  editor->SendScintilla(QsciScintilla::SCI_INDICSETALPHA, FUNCTION_INDICATOR,
-                        100);
-  editor->SendScintilla(QsciScintilla::SCI_INDICSETUNDER, FUNCTION_INDICATOR,
-                        true);
-
-  // 添加调试输出
-  qDebug() << "Setting up function highlight for editor with theme:"
-           << (m_isDarkTheme ? "dark" : "light");
-
-  // 创建防抖定时器
-  static QTimer *highlightTimer = new QTimer();
-  highlightTimer->setSingleShot(true);
-  highlightTimer->setInterval(500); // 500ms延迟
-
-  // 断开之前的连接
-  disconnect(editor, &QsciScintilla::textChanged, nullptr, nullptr);
-  disconnect(highlightTimer, &QTimer::timeout, nullptr, nullptr);
-
-  // 连接文本变化信号到防抖定时器
-  connect(editor, &QsciScintilla::textChanged,
-          [highlightTimer]() { highlightTimer->start(); });
-
-  // 在定时器连接之前添加调试
-  connect(highlightTimer, &QTimer::timeout, [this, editor]() {
-    qDebug() << "Highlighting functions...";
+    // 立即更新
     highlightFunctionNames(editor, FUNCTION_INDICATOR);
-    updateFunctionList();
-  });
-
-  // 立即调用一次以测试
-  qDebug() << "Initial function highlighting...";
-  highlightFunctionNames(editor, FUNCTION_INDICATOR);
-
-  // // 连接定时器超时信号到高亮函数
-  // connect(highlightTimer, &QTimer::timeout, [this, editor]() {
-  //     highlightFunctionNames(editor, FUNCTION_INDICATOR);
-  //     updateFunctionList(); // 同时更新函数列表
-  // });
-
-  // // 初始化时高亮函数名
-  // highlightFunctionNames(editor, FUNCTION_INDICATOR);
+  }
 }
 
 void CodeEditor::createSplitView(Qt::Orientation orientation) {
@@ -1080,20 +1024,76 @@ void CodeEditor::setupEditor(QsciScintilla *editor) {
   // 设置缩进指南
   editor->setIndentationGuides(true);
 
-  // 设置不同类型括号的颜色 (通过自定义指示器实现)
-  setupBraceColors(editor);
-
   // 在setupEditor中确保highlightBraces在适当的时间点调用
   connect(editor, &QsciScintilla::SCN_STYLENEEDED,
           [this, editor](int position) {
             // 在样式需要更新后调用
-            highlightBraces(editor);
+            updateBracketHighlighting(editor);
           });
 
   // 添加函数名高亮设置
-  setupFunctionHighlight(editor);
+  setupFunctionNameHighlighting(m_isDarkTheme);
+
+  // 初始化Rainbow Brackets
   setupRainbowBrackets(editor);
 }
+
+void CodeEditor::setupRainbowBrackets(QsciScintilla *editor) {
+  // Define unique indicators for varying nesting levels
+  // Use indicators 21-26 (RAINBOW_LEVEL_1 to RAINBOW_LEVEL_6)
+
+  QList<QColor> colors;
+  if (m_isDarkTheme) {
+    // Dark Theme Colors (Vibrant)
+    colors << QColor("#FFD700")  // Level 1: Gold
+           << QColor("#DA70D6")  // Level 2: Orchid
+           << QColor("#179FFF")  // Level 3: SkyBlue
+           << QColor("#FFB6C1")  // Level 4: LightPink
+           << QColor("#00FFFF")  // Level 5: Cyan
+           << QColor("#7CFC00"); // Level 6: LawnGreen
+  } else {
+    // Light Theme Colors (Darker for contrast)
+    colors << QColor("#CC9900")  // Level 1
+           << QColor("#800080")  // Level 2
+           << QColor("#0000FF")  // Level 3
+           << QColor("#C71585")  // Level 4
+           << QColor("#008080")  // Level 5
+           << QColor("#228B22"); // Level 6
+  }
+
+  for (int i = 0; i < 6; ++i) {
+    int indicator = RAINBOW_LEVEL_1 + i;
+    editor->indicatorDefine(QsciScintilla::PlainIndicator,
+                            indicator); // Simple text coloring
+    editor->SendScintilla(QsciScintilla::SCI_INDICSETSTYLE, indicator,
+                          QsciScintilla::INDIC_TEXTFORE);
+    editor->SendScintilla(QsciScintilla::SCI_INDICSETFORE, indicator,
+                          (colors[i].blue() << 16) | (colors[i].green() << 8) |
+                              colors[i].red());
+    editor->SendScintilla(QsciScintilla::SCI_INDICSETALPHA, indicator, 255);
+    editor->SendScintilla(QsciScintilla::SCI_INDICSETUNDER, indicator, false);
+  }
+
+  // Connect to textChanged with debounce to avoid heavy processing on every
+  // keystroke
+  editor->disconnect(
+      SIGNAL(textChanged())); // Careful, this might disconnect others
+  // Better: use a specific connection or rely on the single valid connection.
+  // In `setupEditor` we already have connections.
+  // Let's add a connection specifically for brackets if not present.
+
+  // Note: We are using a unified updateBracketHighlighting now.
+  connect(editor, &QsciScintilla::textChanged, [this, editor]() {
+    // Debounce?
+    // For now, simple direct call or short timer
+    updateBracketHighlighting(editor);
+  });
+
+  // Initial update
+  updateBracketHighlighting(editor);
+}
+
+// Remove duplication: empty implementation for old method if it exists or reuse
 
 // 添加新方法：设置不同类型括号的颜色
 // void CodeEditor::setupBraceColors(QsciScintilla* editor)
@@ -1220,189 +1220,90 @@ void CodeEditor::setupEditor(QsciScintilla *editor) {
 // }
 
 // 1. 修复编译问题 - 更新setupBraceColors方法
-void CodeEditor::setupBraceColors(QsciScintilla *editor) {
-  // 1. 禁用词法分析器对运算符(包括括号)的默认处理
-  m_lexerCPP->setColor(QColor(0, 0, 0, 0), QsciLexerCPP::Operator);
 
-  // 2. 使用非常高的指示器ID值(避免与其他指示器冲突)
-  const int ROUND_BRACE_INDICATOR = 40;
-  const int SQUARE_BRACE_INDICATOR = 41;
-  const int CURLY_BRACE_INDICATOR = 42;
+void CodeEditor::updateBracketHighlighting(QsciScintilla *editor) {
+  if (!editor)
+    return;
 
-  // 3. 使用更明显的样式并修复类型转换问题
-  editor->SendScintilla(QsciScintilla::SCI_INDICSETSTYLE, ROUND_BRACE_INDICATOR,
-                        QsciScintilla::INDIC_COMPOSITIONTHICK);
-  editor->SendScintilla(QsciScintilla::SCI_INDICSETFORE, ROUND_BRACE_INDICATOR,
-                        0x0000FF); // 红色
-  editor->SendScintilla(QsciScintilla::SCI_INDICSETALPHA, ROUND_BRACE_INDICATOR,
-                        255);
-  editor->SendScintilla(QsciScintilla::SCI_INDICSETUNDER, ROUND_BRACE_INDICATOR,
-                        static_cast<long>(false));
+  // 清除所有括号相关的指示器
+  int len = editor->length();
+  // 清除普通括号指示器
+  // editor->clearIndicatorRange(0, 0, editor->lines(), len,
+  // ROUND_BRACE_INDICATOR);
 
-  // 为方括号和花括号做同样处理...
-
-  // 4. 统一信号连接方式，使用SCN_UPDATEUI
-  disconnect(editor, &QsciScintilla::SCN_STYLENEEDED, nullptr, nullptr);
-  disconnect(editor, &QsciScintilla::SCN_UPDATEUI, nullptr, nullptr);
-  connect(editor, &QsciScintilla::SCN_UPDATEUI,
-          [this, editor](int) { highlightBraces(editor); });
-
-  // 初始显示
-  QTimer::singleShot(100, [this, editor]() { highlightBraces(editor); });
-}
-
-void CodeEditor::highlightBraces(QsciScintilla *editor) {
-  // 获取编辑器文本
-  QString text = editor->text();
-
-  // 定义不同类型的括号指示器基础值
-  const int ROUND_BRACE_INDICATOR = 30; // 更高的值
-  const int SQUARE_BRACE_INDICATOR = 31;
-  const int CURLY_BRACE_INDICATOR = 32;
-  const int ANGLE_BRACE_INDICATOR = 11; // 尖括号 <>
-
-  // 清除所有括号指示器
-  editor->clearIndicatorRange(0, 0, editor->lines(), editor->text().length(),
-                              ROUND_BRACE_INDICATOR);
-  editor->clearIndicatorRange(0, 0, editor->lines(), editor->text().length(),
-                              SQUARE_BRACE_INDICATOR);
-  editor->clearIndicatorRange(0, 0, editor->lines(), editor->text().length(),
-                              CURLY_BRACE_INDICATOR);
-  editor->clearIndicatorRange(0, 0, editor->lines(), editor->text().length(),
-                              ANGLE_BRACE_INDICATOR);
-
-  // 清除所有花括号指示器 (12-20) - 确保完全清除
-  for (int i = 0; i < 8; i++) {
-    int indicatorId = CURLY_BRACE_INDICATOR + i;
-    editor->clearIndicatorRange(0, 0, editor->lines(), editor->text().length(),
-                                indicatorId);
+  // 清除Rainbow Brackets指示器
+  for (int i = 0; i < 6; ++i) {
+    editor->clearIndicatorRange(0, 0, editor->lines(), len,
+                                RAINBOW_LEVEL_1 + i);
   }
 
-  // 使用栈来匹配括号对
-  QStack<QPair<int, int>> roundBraceStack;  // 圆括号栈 (行, 列)
-  QStack<QPair<int, int>> squareBraceStack; // 方括号栈
-  QStack<QPair<int, int>> curlyBraceStack;  // 花括号栈
-  QStack<QPair<int, int>> angleBraceStack;  // 尖括号栈
+  // 获取文本长度
+  int length = editor->SendScintilla(QsciScintilla::SCI_GETTEXTLENGTH);
+  if (length <= 0)
+    return;
 
-  // 为嵌套的花括号准备不同的颜色 - 使用更鲜明的颜色
-  QList<QColor> curlyBraceColors;
-  curlyBraceColors << QColor("#569CD6")  // 蓝色
-                   << QColor("#4EC9B0")  // 青绿色
-                   << QColor("#CE9178")  // 橙色
-                   << QColor("#C586C0")  // 紫色
-                   << QColor("#DCDCAA")  // 黄色
-                   << QColor("#9CDCFE")  // 浅蓝色
-                   << QColor("#D16969")  // 红色
-                   << QColor("#6A9955"); // 绿色
+  // 获取文本内容 (byte buffer)
+  std::vector<char> buffer(length + 1);
+  editor->SendScintilla(QsciScintilla::SCI_GETTEXT, length + 1, buffer.data());
 
-  // 为每个嵌套级别预先设置指示器样式和颜色 - 确保每个指示器都有独特的样式
-  for (int i = 0; i < curlyBraceColors.size(); i++) {
-    int indicatorId = CURLY_BRACE_INDICATOR + i;
-    QColor color = curlyBraceColors[i];
+  // 使用栈来跟踪括号嵌套
+  QStack<int> bracketStack;
 
-    // 设置指示器样式为文本前景色 - 使用更明显的样式
-    editor->SendScintilla(QsciScintilla::SCI_INDICSETSTYLE, indicatorId,
-                          QsciScintilla::INDIC_FULLBOX);
-    editor->SendScintilla(QsciScintilla::SCI_INDICSETFORE, indicatorId,
-                          (color.red() << 16) | (color.green() << 8) |
-                              color.blue());
-    editor->SendScintilla(QsciScintilla::SCI_INDICSETALPHA, indicatorId, 255);
-    editor->SendScintilla(QsciScintilla::SCI_INDICSETUNDER, indicatorId, true);
-  }
+  // 遍历文本
+  for (int i = 0; i < length; ++i) {
+    char c = buffer[i];
 
-  // 记录每对花括号的嵌套级别和对应的指示器ID
-  QMap<QPair<int, int>, int> bracePairToIndicator;
-  int currentCurlyLevel = 0;
+    bool isOpener = (c == '(' || c == '[' || c == '{');
+    bool isCloser = (c == ')' || c == ']' || c == '}');
 
-  // 遍历文本中的每个字符
-  for (int line = 0; line < editor->lines(); line++) {
-    QString lineText = editor->text(line);
+    if (!isOpener && !isCloser)
+      continue;
 
-    for (int col = 0; col < lineText.length(); col++) {
-      QChar ch = lineText.at(col);
+    // 检查样式，跳过注释和字符串
+    int style = editor->SendScintilla(QsciScintilla::SCI_GETSTYLEAT, i);
+    bool isCommentOrString =
+        (style == QsciLexerCPP::Comment || style == QsciLexerCPP::CommentLine ||
+         style == QsciLexerCPP::CommentDoc ||
+         style == QsciLexerCPP::DoubleQuotedString ||
+         style == QsciLexerCPP::SingleQuotedString);
 
-      // 处理圆括号
-      if (ch == '(') {
-        roundBraceStack.push(qMakePair(line, col));
-      } else if (ch == ')') {
-        if (!roundBraceStack.isEmpty()) {
-          QPair<int, int> openBrace = roundBraceStack.pop();
-          // 高亮开括号
-          editor->fillIndicatorRange(openBrace.first, openBrace.second,
-                                     openBrace.first, openBrace.second + 1,
-                                     ROUND_BRACE_INDICATOR);
-          // 高亮闭括号
-          editor->fillIndicatorRange(line, col, line, col + 1,
-                                     ROUND_BRACE_INDICATOR);
-        }
+    if (isCommentOrString)
+      continue;
+
+    int depth = bracketStack.size();
+    int colorLevel = depth % 6;
+    int indicator = RAINBOW_LEVEL_1 + colorLevel;
+
+    if (isOpener) {
+      // 高亮左括号
+      editor->SendScintilla(QsciScintilla::SCI_SETINDICATORCURRENT, indicator);
+      editor->SendScintilla(QsciScintilla::SCI_INDICATORFILLRANGE, i, 1);
+
+      // 压入栈 (存储括号类型，用于匹配)
+      bracketStack.push(c);
+    } else if (isCloser) {
+      if (bracketStack.isEmpty()) {
+        // 不匹配的右括号，忽略或标记错误
+        continue;
       }
 
-      // 处理方括号
-      if (ch == '[') {
-        squareBraceStack.push(qMakePair(line, col));
-      } else if (ch == ']') {
-        if (!squareBraceStack.isEmpty()) {
-          QPair<int, int> openBrace = squareBraceStack.pop();
-          // 高亮开括号
-          editor->fillIndicatorRange(openBrace.first, openBrace.second,
-                                     openBrace.first, openBrace.second + 1,
-                                     SQUARE_BRACE_INDICATOR);
-          // 高亮闭括号
-          editor->fillIndicatorRange(line, col, line, col + 1,
-                                     SQUARE_BRACE_INDICATOR);
-        }
-      }
+      char lastOpener = bracketStack.pop();
+      bool isMatch = (lastOpener == '(' && c == ')') ||
+                     (lastOpener == '[' && c == ']') ||
+                     (lastOpener == '{' && c == '}');
 
-      // 处理花括号 - 特别处理嵌套级别
-      if (ch == '{') {
-        // 保存当前位置
-        QPair<int, int> bracePair = qMakePair(line, col);
+      if (isMatch) {
+        // 使用弹出后的深度计算颜色（与对应的左括号一致）
+        depth = bracketStack.size();
+        colorLevel = depth % 6;
+        indicator = RAINBOW_LEVEL_1 + colorLevel;
 
-        // 计算当前嵌套级别对应的指示器ID
-        int level = currentCurlyLevel % curlyBraceColors.size();
-        int indicatorId = CURLY_BRACE_INDICATOR + level;
-
-        // 记录这对花括号使用的指示器ID
-        bracePairToIndicator[bracePair] = indicatorId;
-
-        // 将当前位置压入栈
-        curlyBraceStack.push(bracePair);
-
-        // 高亮开括号
-        editor->fillIndicatorRange(line, col, line, col + 1, indicatorId);
-
-        // 增加嵌套级别
-        currentCurlyLevel++;
-      } else if (ch == '}') {
-        if (!curlyBraceStack.isEmpty()) {
-          // 获取对应的开括号位置
-          QPair<int, int> openBrace = curlyBraceStack.pop();
-
-          // 获取这对花括号使用的指示器ID
-          int indicatorId = bracePairToIndicator[openBrace];
-
-          // 高亮闭括号 - 使用与开括号相同的指示器
-          editor->fillIndicatorRange(line, col, line, col + 1, indicatorId);
-
-          // 减少嵌套级别
-          currentCurlyLevel--;
-        }
-      }
-
-      // 处理尖括号
-      if (ch == '<') {
-        angleBraceStack.push(qMakePair(line, col));
-      } else if (ch == '>') {
-        if (!angleBraceStack.isEmpty()) {
-          QPair<int, int> openBrace = angleBraceStack.pop();
-          // 高亮开括号
-          editor->fillIndicatorRange(openBrace.first, openBrace.second,
-                                     openBrace.first, openBrace.second + 1,
-                                     ANGLE_BRACE_INDICATOR);
-          // 高亮闭括号
-          editor->fillIndicatorRange(line, col, line, col + 1,
-                                     ANGLE_BRACE_INDICATOR);
-        }
+        // 高亮右括号
+        editor->SendScintilla(QsciScintilla::SCI_SETINDICATORCURRENT,
+                              indicator);
+        editor->SendScintilla(QsciScintilla::SCI_INDICATORFILLRANGE, i, 1);
+      } else {
+        // 括号不匹配，可以做特殊处理，这里暂时忽略
       }
     }
   }
@@ -1570,9 +1471,11 @@ void CodeEditor::createFunctionList() {
   // 将函数列表容器添加到主分割器
   m_mainSplitter->addWidget(functionListContainer);
 
-  // 设置分割器比例
-  m_mainSplitter->setStretchFactor(0, 3); // 编辑器占3份
-  m_mainSplitter->setStretchFactor(1, 1); // 函数列表占1份
+  // 确保列表不会太宽
+  if (m_functionList) {
+    m_functionList->setMaximumWidth(400);
+    m_functionList->setMinimumWidth(150);
+  }
   // 连接信号和槽 - 使用Qt::UniqueConnection避免重复连接
   // connect(m_functionList, &QListWidget::currentRowChanged, this,
   // &CodeEditor::jumpToFunction, Qt::UniqueConnection);
@@ -3131,151 +3034,4 @@ bool CodeEditor::isValidFunctionDefinition(const QString &line, int lineNum,
   }
 
   return false;
-}
-
-void CodeEditor::setupRainbowBrackets(QsciScintilla *editor) {
-  // Define unique indicators for varying nesting levels
-  // Use indicators 21-26
-
-  QList<QColor> colors;
-  if (m_isDarkTheme) {
-    // Dark Theme Colors (Vibrant)
-    colors << QColor("#FFD700")  // Level 1: Gold
-           << QColor("#DA70D6")  // Level 2: Orchid
-           << QColor("#179FFF")  // Level 3: SkyBlue
-           << QColor("#FFB6C1")  // Level 4: LightPink
-           << QColor("#00FFFF")  // Level 5: Cyan
-           << QColor("#7CFC00"); // Level 6: LawnGreen
-  } else {
-    // Light Theme Colors (Darker for contrast)
-    colors << QColor("#CC9900")  // Level 1
-           << QColor("#800080")  // Level 2
-           << QColor("#0000FF")  // Level 3
-           << QColor("#C71585")  // Level 4
-           << QColor("#008080")  // Level 5
-           << QColor("#228B22"); // Level 6
-  }
-
-  for (int i = 0; i < 6; ++i) {
-    int indicator = RAINBOW_LEVEL_1 + i;
-    editor->indicatorDefine(QsciScintilla::PlainIndicator,
-                            indicator); // Simple text coloring
-    editor->SendScintilla(QsciScintilla::SCI_INDICSETSTYLE, indicator,
-                          QsciScintilla::INDIC_TEXTFORE);
-    editor->SendScintilla(QsciScintilla::SCI_INDICSETFORE, indicator,
-                          (colors[i].blue() << 16) | (colors[i].green() << 8) |
-                              colors[i].red());
-    editor->SendScintilla(QsciScintilla::SCI_INDICSETALPHA, indicator, 255);
-    editor->SendScintilla(QsciScintilla::SCI_INDICSETUNDER, indicator, false);
-  }
-
-  // Connect signals for dynamic highlighting
-  // Do not disconnect everything!
-  // disconnect(editor, &QsciScintilla::textChanged, this, nullptr);
-  // Note: Use a unique connection for this specific lambda/slot to avoid
-  // duplicates if called multiple times, but lambda pointers are different. We
-  // rely on the fact that existing connections are not easily removable by
-  // lambda. However, if we call setup multiple times (theme change), we might
-  // stack connections. Solution: Connect to a named slot or manage connections.
-  // For now, we will assume this is acceptable or rely on a "setup" flag if
-  // needed. actually, let's use a timer for debounce like function highlight.
-
-  // We'll reuse the debounce mechanism if possible, or create a new one.
-  // Since we are inside setup, let's just connect directly for now with a
-  // simple debounce check.
-
-  // Better: Connect to a slot `onTextChangedForRainbow` if we had one.
-  // Or just connect once.
-  // We already have `updateFunctionList` and `updateVariableList` connected to
-  // textChanged. Let's add one more connection.
-  connect(editor, &QsciScintilla::textChanged, [this, editor]() {
-    QTimer::singleShot(100,
-                       [this, editor]() { highlightRainbowBrackets(editor); });
-  });
-
-  // Initial highlight
-  highlightRainbowBrackets(editor);
-}
-
-void CodeEditor::highlightRainbowBrackets(QsciScintilla *editor) {
-  if (!editor)
-    return;
-
-  // Clear existing rainbow indicators
-  int len = editor->length();
-  for (int i = 0; i < 6; ++i) {
-    editor->clearIndicatorRange(0, 0, editor->lines(), len,
-                                RAINBOW_LEVEL_1 + i);
-  }
-
-  QString text = editor->text();
-  // QsciAPIs or Lexer might be needed for style check.
-  // We can use SendScintilla(SCI_GETSTYLEAT, pos)
-
-  // We will scan the text.
-  // To be efficient, we might want to get all text.
-  // Note: iterating char by char on large files in main thread is slow.
-  // But for this task, it's the standard way unless we write a C++ Scintilla
-  // Lexer.
-
-  int depth = 0;
-  // We need to track actual positions.
-  // text index matches Scintilla position closely for UTF-8?
-  // QsciScintilla uses bytes?
-  // text() returns QString (UTF-16). SCI_GETSTYLEAT expects byte position.
-  // This is a mismatch risk.
-  // Safest is to loop bytes if we use SCI_GETSTYLEAT.
-
-  // Let's use Scintilla's byte-based access.
-  int length = editor->SendScintilla(QsciScintilla::SCI_GETTEXTLENGTH);
-  if (length <= 0)
-    return;
-
-  std::vector<char> buffer(length + 1);
-  editor->SendScintilla(QsciScintilla::SCI_GETTEXT, length + 1, buffer.data());
-
-  // Define bracket chars
-  // ( ) [ ] { }
-
-  for (int i = 0; i < length; ++i) {
-    char c = buffer[i];
-
-    bool isOpener = (c == '(' || c == '[' || c == '{');
-    bool isCloser = (c == ')' || c == ']' || c == '}');
-
-    if (!isOpener && !isCloser)
-      continue;
-
-    // Check style
-    int style = editor->SendScintilla(QsciScintilla::SCI_GETSTYLEAT, i);
-    bool isCommentOrString =
-        (style == QsciLexerCPP::Comment || style == QsciLexerCPP::CommentLine ||
-         style == QsciLexerCPP::CommentDoc ||
-         style == QsciLexerCPP::DoubleQuotedString ||
-         style == QsciLexerCPP::SingleQuotedString);
-
-    if (isCommentOrString)
-      continue;
-
-    int colorLevel = 0;
-
-    if (isOpener) {
-      colorLevel = depth % 6;
-      depth++;
-    } else if (isCloser) {
-      depth--;
-      if (depth < 0)
-        depth = 0;
-      colorLevel = depth % 6;
-    }
-
-    // Apply indicator
-    // calculate line and index? No, SCI_INDICATORFILLRANGE takes pos and
-    // length. But QsciScintilla wrapper functions take line/index. We can use
-    // low-level SCI calls.
-    int indicator = RAINBOW_LEVEL_1 + colorLevel;
-
-    editor->SendScintilla(QsciScintilla::SCI_SETINDICATORCURRENT, indicator);
-    editor->SendScintilla(QsciScintilla::SCI_INDICATORFILLRANGE, i, 1);
-  }
 }
