@@ -20,11 +20,13 @@
 #include <QRegularExpression> // Add this line to include
 #include <QStack>
 #include <QStyle> // Add this for QStyle class
+#include <QTextCodec>
 #include <QTextStream>
 #include <QTimer>   // 添加定时器头文件
 #include <QToolBar> // 添加工具栏头文件
 #include <QVBoxLayout>
 #include <vector> // Add this for std::vector
+
 
 CodeEditor::CodeEditor(QWidget *parent)
     : QWidget(parent), m_currentEditor(nullptr), m_apiCPP(nullptr),
@@ -119,10 +121,22 @@ QString CodeEditor::text() const {
 
 bool CodeEditor::openFile(const QString &filePath) {
   QFile file(filePath);
-  if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-    QTextStream in(&file);
-    QString content = in.readAll();
+  if (file.open(QIODevice::ReadOnly)) {
+    QByteArray data = file.readAll();
     file.close();
+
+    QString content;
+    QTextCodec::ConverterState state;
+    QTextCodec *codec = QTextCodec::codecForName("UTF-8");
+    QString utf8Content =
+        codec->toUnicode(data.constData(), data.size(), &state);
+
+    if (state.invalidChars > 0) {
+      // Contains invalid UTF-8 chars, assume local encoding (e.g. GBK)
+      content = QTextCodec::codecForLocale()->toUnicode(data);
+    } else {
+      content = utf8Content;
+    }
 
     // 在当前编辑器中显示文件内容
     if (m_currentEditor) {
