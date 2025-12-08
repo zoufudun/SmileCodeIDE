@@ -81,6 +81,8 @@ public slots:
 private slots:
   // 当前编辑器变更
   void onEditorChanged(QsciScintilla *editor);
+  // Slot to handle line number highlighting
+  void highlightCurrentLineNumber();
 
 private:
   // 设置编辑器基本属性
@@ -140,6 +142,9 @@ private:
 
   // 括号高亮
   void updateBracketHighlighting(QsciScintilla *editor);
+
+  // Track the last active line for highlighting
+  int m_previousLine = -1;
 
   // 函数名高亮
   void setupFunctionNameHighlighting(bool isDarkTheme);

@@ -87,6 +87,9 @@ CodeEditor::CodeEditor(QWidget *parent)
 
   // 初始化函数列表
   updateFunctionList();
+
+  // Apply default theme (Light) to initialize all styles including Style 34
+  applyTheme("light");
 }
 
 CodeEditor::~CodeEditor() {
@@ -365,8 +368,29 @@ void CodeEditor::applyTheme(const QString &themeName) {
       editor->setPaper(QColor("#FFFFFF"));
 
       // 设置行号边距颜色
+      // User Request: Black line numbers for Light Theme
       editor->setMarginsBackgroundColor(QColor("#F0F0F0"));
-      editor->setMarginsForegroundColor(QColor("#2B91AF"));
+      editor->setMarginsForegroundColor(QColor("#000000")); // Global Black
+
+      // Define Style 34 for Active Line Number (Green Text)
+      // Style 34 is an arbitrary user-defined style index (usually safe 32-39
+      // or higher) We set its foreground to Green and background to match
+      // margin
+      editor->SendScintilla(QsciScintilla::SCI_STYLESETFORE, 34,
+                            0x00AA00); // Green (0xBBGGRR -> 0x00AA00)
+      editor->SendScintilla(
+          QsciScintilla::SCI_STYLESETBACK, 34,
+          0xE6FFCC); // Match active line background (Light Green)
+      editor->SendScintilla(QsciScintilla::SCI_STYLESETFONT, 34, "Consolas");
+      editor->SendScintilla(QsciScintilla::SCI_STYLESETSIZE, 34, 10);
+      editor->SendScintilla(QsciScintilla::SCI_STYLESETBOLD, 34,
+                            1); // Make active line number bold
+
+      // 设置当前行高亮 - 选中的行数字显示绿色 (Simulated via Caret Line
+      // Background)
+      editor->setCaretLineVisible(true);
+      editor->setCaretLineBackgroundColor(
+          QColor("#E6FFCC")); // Light Green Background to simulate highlight
 
       // 设置折叠边距颜色
       editor->setFoldMarginColors(QColor("#F0F0F0"), QColor("#F0F0F0"));
@@ -1098,6 +1122,28 @@ void CodeEditor::setupEditor(QsciScintilla *editor) {
 
   // 初始化Rainbow Brackets
   setupRainbowBrackets(editor);
+
+  // Define marker 25 for current line number highlighting
+  // SC_MARK_BACKGROUND makes the marker affect the line background
+  const int CURRENT_LINE_MARKER = 25;
+  editor->markerDefine(QsciScintilla::Background, CURRENT_LINE_MARKER);
+  editor->setMarkerBackgroundColor(QColor("#E6FFCC"),
+                                   CURRENT_LINE_MARKER); // Light green
+  editor->setMarkerForegroundColor(QColor("#00AA00"),
+                                   CURRENT_LINE_MARKER); // Green text
+
+  // Enable the marker to appear in the line number margin (margin 0)
+  editor->SendScintilla(
+      QsciScintilla::SCI_SETMARGINMASKN, 0,
+      editor->SendScintilla(QsciScintilla::SCI_GETMARGINMASKN, 0) |
+          (1 << CURRENT_LINE_MARKER));
+
+  // 连接信号
+  connect(editor, &QsciScintilla::cursorPositionChanged, this,
+          &CodeEditor::highlightCurrentLineNumber);
+
+  // Initialize line number highlighting
+  highlightCurrentLineNumber();
 }
 
 void CodeEditor::setupRainbowBrackets(QsciScintilla *editor) {
@@ -3102,4 +3148,32 @@ bool CodeEditor::isValidFunctionDefinition(const QString &line, int lineNum,
   }
 
   return false;
+}
+
+void CodeEditor::highlightCurrentLineNumber() {
+  // Determine which editor sent the signal or use current
+  QsciScintilla *editor = qobject_cast<QsciScintilla *>(sender());
+  if (!editor)
+    editor = m_currentEditor;
+  if (!editor)
+    return;
+
+  int currentLine, currentIndex;
+  editor->getCursorPosition(&currentLine, &currentIndex);
+
+  if (currentLine != m_previousLine) {
+    // Define marker 25 for current line highlight
+    // This marker will show in the line number margin area
+    const int CURRENT_LINE_MARKER = 25;
+
+    // Remove marker from previous line
+    if (m_previousLine >= 0) {
+      editor->markerDelete(m_previousLine, CURRENT_LINE_MARKER);
+    }
+
+    // Add marker to current line
+    editor->markerAdd(currentLine, CURRENT_LINE_MARKER);
+
+    m_previousLine = currentLine;
+  }
 }
