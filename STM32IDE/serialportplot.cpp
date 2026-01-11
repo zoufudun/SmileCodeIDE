@@ -4,10 +4,12 @@
 #include <QGridLayout>
 #include <QHBoxLayout>
 #include <QIcon>
+#include <QMenu>
 #include <QMessageBox>
 #include <QScrollBar>
 #include <QSize>
 #include <QSplitter>
+#include <QToolButton>
 #include <QVBoxLayout>
 
 SerialPortPlot::SerialPortPlot(QWidget *parent)
@@ -38,6 +40,49 @@ SerialPortPlot::~SerialPortPlot() {
 void SerialPortPlot::setupUi() {
   QVBoxLayout *mainLayout =
       new QVBoxLayout(this); // Changed to Vertical for Status Bar
+
+  // --- Toolbar ---
+  // --- Toolbar ---
+  m_toolbar = new QToolBar("Main Toolbar");
+  m_toolbar->setMovable(false);
+
+  // Settings
+  m_toolbar->addAction("设置");
+
+  // Oscilloscope Settings (Menu)
+  QToolButton *btnScope = new QToolButton();
+  btnScope->setText("示波器设置");
+  btnScope->setPopupMode(QToolButton::InstantPopup);
+  QMenu *menuScope = new QMenu(btnScope);
+
+  m_actWaveform = new QAction("使能波形显示", this);
+  m_actWaveform->setCheckable(true);
+  menuScope->addAction(m_actWaveform);
+
+  QAction *actScopeSettings = new QAction("参数设置", this);
+  connect(actScopeSettings, &QAction::triggered, [this]() {
+    if (m_dockSettings->isHidden()) {
+      m_dockSettings->show();
+    } else {
+      m_dockSettings->close();
+    }
+  });
+  menuScope->addAction(actScopeSettings);
+
+  btnScope->setMenu(menuScope);
+  m_toolbar->addWidget(btnScope);
+
+  // Theme
+  m_toolbar->addAction("主题");
+
+  // Help
+  m_toolbar->addAction("帮助");
+
+  // About
+  m_toolbar->addAction("关于");
+
+  mainLayout->addWidget(m_toolbar);
+
   QSplitter *splitter = new QSplitter(Qt::Horizontal, this);
 
   // Connect splitter to mainLayout later, but first let's keep the structure
@@ -182,47 +227,18 @@ void SerialPortPlot::setupUi() {
   rxBtnLayout->addWidget(m_btnStopRx);
   rxLayout->addLayout(rxBtnLayout);
 
-  // Waveform Toggle
-  m_chkEnableWaveform = new QCheckBox("启用波形显示");
-  rxLayout->addWidget(m_chkEnableWaveform);
+  rxLayout->addLayout(rxBtnLayout);
 
-  // 4. Waveform Settings (Initially Hidden)
-  m_grpWaveformSettings = new QGroupBox("波形设置");
-  QVBoxLayout *waveLayout = new QVBoxLayout(m_grpWaveformSettings);
+  // Waveform Toggle (Removed, moved to Toolbar)
+  // m_chkEnableWaveform = new QCheckBox("启用波形显示");
+  // rxLayout->addWidget(m_chkEnableWaveform);
 
-  QHBoxLayout *ptLayout = new QHBoxLayout();
-  ptLayout->addWidget(new QLabel("点数:"));
-  m_spinPoints = new QSpinBox();
-  m_spinPoints->setRange(10, 10000);
-  m_spinPoints->setValue(100);
-  m_spinPoints->setSingleStep(10);
-  ptLayout->addWidget(m_spinPoints);
-  waveLayout->addLayout(ptLayout);
+  // 4. Waveform Settings (Moved to Side Panel in Waveform Page)
+  // Just initialize controls here if needed, or better, do it when creating
+  // m_waveformPage Let's defer creation to the m_waveformPage section to keep
+  // layout logic together
 
-  m_chkAutoY = new QCheckBox("Y轴自动缩放");
-  m_chkAutoY->setChecked(true); // Default to auto
-  waveLayout->addWidget(m_chkAutoY);
-
-  QGridLayout *rangeLayout = new QGridLayout();
-  rangeLayout->addWidget(new QLabel("Min:"), 0, 0);
-  m_spinYMin = new QDoubleSpinBox();
-  m_spinYMin->setRange(-99999, 99999);
-  m_spinYMin->setValue(0);
-  rangeLayout->addWidget(m_spinYMin, 0, 1);
-
-  rangeLayout->addWidget(new QLabel("Max:"), 1, 0);
-  m_spinYMax = new QDoubleSpinBox();
-  m_spinYMax->setRange(-99999, 99999);
-  m_spinYMax->setValue(255);
-  rangeLayout->addWidget(m_spinYMax, 1, 1);
-  waveLayout->addLayout(rangeLayout);
-
-  m_btnResetChart = new QPushButton("重置图表");
-  m_btnResetChart->setStyleSheet(getButtonStyle(ButtonType::Normal));
-  waveLayout->addWidget(m_btnResetChart);
-
-  leftLayout->addWidget(m_grpWaveformSettings);
-  m_grpWaveformSettings->setVisible(false); // Hidden by default
+  // m_grpWaveformSettings was removed from UI layout
 
   leftLayout->addWidget(grpRx);
 
@@ -281,13 +297,8 @@ void SerialPortPlot::setupUi() {
   dataLayout->addWidget(m_textReceive);
   rightSplitter->addWidget(grpData);
 
-  // Waveform Area
-  m_chartView = new QChartView();
-  rightSplitter->addWidget(m_chartView);
-  // Initially hide chart or just let splitter accept it.
-  // Let's keep it visible but maybe collapsed or let user adjust.
-
-  // Send Area
+  // Send Area (Previously combined with Right Panel logic, now part of right
+  // pane)
   QGroupBox *grpSend = new QGroupBox("数据发送");
   QVBoxLayout *sendLayout = new QVBoxLayout(grpSend);
 
@@ -318,16 +329,100 @@ void SerialPortPlot::setupUi() {
   histLayout->addWidget(m_comboHistory);
   sendLayout->addLayout(histLayout);
 
-  // Combine Right Side
-  QWidget *rightPanel = new QWidget();
-  QVBoxLayout *rightLayout = new QVBoxLayout(rightPanel);
-  rightLayout->addWidget(rightSplitter);
-  rightLayout->addWidget(grpSend);
+  rightSplitter->addWidget(grpSend);
+  // Give both data and send some space? Usually Data takes more.
+  rightSplitter->setStretchFactor(0, 4);
+  rightSplitter->setStretchFactor(1, 1);
 
-  splitter->addWidget(rightPanel);
-  splitter->setStretchFactor(1, 1); // Give more space to right side
+  splitter->addWidget(rightSplitter); // Middle Pane
 
-  mainLayout->addWidget(splitter);
+  // --- Extended Waveform Page ---
+  // We use a QMainWindow to easily support Dock Widgets
+  m_waveformPage = new QMainWindow();
+  // m_waveformPage->setWindowFlags(Qt::Widget); // Embeddable
+
+  // -- Chart (Central Widget) --
+  m_customPlot = new QCustomPlot();
+  m_waveformPage->setCentralWidget(m_customPlot);
+
+  // -- Side Settings Panel (Dock Widget) --
+  m_dockSettings = new QDockWidget("绘图设置", m_waveformPage);
+  m_dockSettings->setAllowedAreas(Qt::LeftDockWidgetArea |
+                                  Qt::RightDockWidgetArea);
+
+  QWidget *dockContents = new QWidget();
+  QVBoxLayout *panelLayout = new QVBoxLayout(dockContents);
+  panelLayout->setContentsMargins(5, 10, 5, 10);
+  panelLayout->setSpacing(8);
+
+  // Points
+  panelLayout->addWidget(new QLabel("显示点数:"));
+  m_spinPoints = new QSpinBox();
+  m_spinPoints->setRange(10, 10000);
+  m_spinPoints->setValue(100);
+  m_spinPoints->setSingleStep(10);
+  panelLayout->addWidget(m_spinPoints);
+
+  // Grid
+  m_chkShowGrid = new QCheckBox("显示网格");
+  m_chkShowGrid->setChecked(true);
+  panelLayout->addWidget(m_chkShowGrid);
+
+  // Auto Scale Button
+  m_btnAutoScale = new QPushButton("自动缩放");
+  m_btnAutoScale->setCheckable(true);
+  m_btnAutoScale->setChecked(true);
+  panelLayout->addWidget(m_btnAutoScale);
+
+  // Y Axis Min/Max
+  panelLayout->addWidget(new QLabel("Y轴最小值:"));
+  m_spinYMin = new QDoubleSpinBox();
+  m_spinYMin->setRange(-99999, 99999);
+  m_spinYMin->setValue(0);
+  m_spinYMin->setEnabled(false); // Default Auto is ON
+  panelLayout->addWidget(m_spinYMin);
+
+  panelLayout->addWidget(new QLabel("Y轴最大值:"));
+  m_spinYMax = new QDoubleSpinBox();
+  m_spinYMax->setRange(-99999, 99999);
+  m_spinYMax->setValue(255);
+  m_spinYMax->setEnabled(false); // Default Auto is ON
+  panelLayout->addWidget(m_spinYMax);
+
+  m_btnResetChart = new QPushButton("重置");
+  panelLayout->addWidget(m_btnResetChart);
+
+  panelLayout->addStretch();
+
+  m_dockSettings->setWidget(dockContents);
+  m_waveformPage->addDockWidget(Qt::LeftDockWidgetArea, m_dockSettings);
+
+  splitter->addWidget(m_waveformPage); // Rightmost Pane
+
+  // Hide initially
+  m_waveformPage->setVisible(false);
+
+  // Splitter Layout Factors
+  // 0: Settings (Fixed-ish)
+  // 1: Center (Data/Send) (Expands)
+  // 2: Waveform (Expands when visible)
+  splitter->setCollapsible(0, false);
+  splitter->setCollapsible(1, false);
+  splitter->setCollapsible(2, true);
+
+  splitter->setStretchFactor(0, 0);
+  splitter->setStretchFactor(1, 1);
+  splitter->setStretchFactor(2, 2); // Give waveform plenty of space
+
+  // --- Layout Integration ---
+  // Directly add content to Tab Widget without Navigation Bar
+
+  // Add to Tab Widget
+  m_mainTabWidget = new QTabWidget();
+  m_mainTabWidget->addTab(splitter,
+                          "会话 1"); // Splitter is the main content now
+
+  mainLayout->addWidget(m_mainTabWidget);
 
   // --- Status Bar ---
   QHBoxLayout *statusBarLayout = new QHBoxLayout();
@@ -350,32 +445,31 @@ void SerialPortPlot::setupUi() {
 }
 
 void SerialPortPlot::setupChart() {
-  QChart *chart = new QChart();
-  chart->setTitle("串口数据波形");
-  chart->legend()->hide();
+  // QCustomPlot Setup
+  m_customPlot->addGraph();
+  m_customPlot->graph(0)->setPen(QPen(Qt::blue));
+  m_customPlot->xAxis->setLabel("Time");
+  m_customPlot->yAxis->setLabel("Value");
 
-  m_series = new QLineSeries();
-  chart->addSeries(m_series);
-
-  m_axisX = new QValueAxis();
-  m_axisX->setLabelFormat("%d");
-  m_axisX->setTitleText("Time");
-  chart->addAxis(m_axisX, Qt::AlignBottom);
-  m_series->attachAxis(m_axisX);
-
-  m_axisY = new QValueAxis();
-  m_axisY->setTitleText("Value");
-  chart->addAxis(m_axisY, Qt::AlignLeft);
-  m_series->attachAxis(m_axisY);
-
-  m_chartView->setChart(chart);
-  m_chartView->setRenderHint(QPainter::Antialiasing);
+  // Interactions: Scroll and Zoom? Maybe later, keep simple for now
+  m_customPlot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom);
 
   // Initial Range
-  m_axisX->setRange(0, 100);
-  m_axisY->setRange(0, 255);
+  m_customPlot->xAxis->setRange(0, 100);
+  m_customPlot->yAxis->setRange(0, 255);
 
-  m_chartView->setVisible(false); // Hidden by default
+  m_customPlot->setVisible(true);
+
+  // Styling
+  // Dashed Grids
+  m_customPlot->xAxis->grid()->setPen(QPen(Qt::lightGray, 1, Qt::DashLine));
+  m_customPlot->yAxis->grid()->setPen(QPen(Qt::lightGray, 1, Qt::DashLine));
+  m_customPlot->xAxis->grid()->setSubGridVisible(true);
+  m_customPlot->yAxis->grid()->setSubGridVisible(true);
+
+  // Axes Arrows
+  m_customPlot->xAxis->setUpperEnding(QCPLineEnding::esSpikeArrow);
+  m_customPlot->yAxis->setUpperEnding(QCPLineEnding::esSpikeArrow);
 }
 
 void SerialPortPlot::setupConnections() {
@@ -406,12 +500,14 @@ void SerialPortPlot::setupConnections() {
   connect(m_autoSendTimer, &QTimer::timeout, this,
           &SerialPortPlot::onAutoSendTimeout);
 
-  connect(m_chkEnableWaveform, &QCheckBox::toggled, this,
+  connect(m_actWaveform, &QAction::toggled, this,
           &SerialPortPlot::onWaveformEnabled);
 
   connect(m_spinPoints, QOverload<int>::of(&QSpinBox::valueChanged), this,
           &SerialPortPlot::updateChartSettings);
-  connect(m_chkAutoY, &QCheckBox::toggled, this,
+  connect(m_chkShowGrid, &QCheckBox::toggled, this,
+          &SerialPortPlot::updateChartSettings);
+  connect(m_btnAutoScale, &QPushButton::toggled, this,
           &SerialPortPlot::updateChartSettings);
   connect(m_spinYMin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
           this, &SerialPortPlot::updateChartSettings);
@@ -422,8 +518,11 @@ void SerialPortPlot::setupConnections() {
 
   connect(m_spinYMax, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
           this, &SerialPortPlot::updateChartSettings);
+  connect(m_spinYMax, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+          this, &SerialPortPlot::updateChartSettings);
   connect(m_btnResetChart, &QPushButton::clicked, [this]() {
-    m_series->clear();
+    m_customPlot->graph(0)->data()->clear();
+    m_customPlot->replot();
     m_xValue = 0;
     updateChartSettings();
   });
@@ -564,28 +663,37 @@ void SerialPortPlot::onReadyRead() {
         m_textReceive->verticalScrollBar()->maximum());
   }
 
-  if (m_chkEnableWaveform->isChecked()) {
+  if (m_actWaveform->isChecked()) {
     updateWaveform(data);
   }
 }
 
 void SerialPortPlot::onWaveformEnabled(bool checked) {
-  m_chartView->setVisible(checked);
-  m_grpWaveformSettings->setVisible(checked);
+  m_waveformPage->setVisible(checked);
+  // Dialog visibility controlled by toolbar action manually
 }
 
 void SerialPortPlot::updateChartSettings() {
-  // Points count is handled in updateWaveform (trimming)
-  // Here we handle Y Axis
-  if (m_chkAutoY->isChecked()) {
+  if (m_btnAutoScale->isChecked()) {
     m_spinYMin->setEnabled(false);
     m_spinYMax->setEnabled(false);
-    // let updateWaveform handle auto-scaling based on data
+    // Determine best fit immediately
+    m_customPlot->graph(0)->rescaleValueAxis(true);
+    // Auto handled in updateWaveform or by QCP rescale
   } else {
     m_spinYMin->setEnabled(true);
     m_spinYMax->setEnabled(true);
-    m_axisY->setRange(m_spinYMin->value(), m_spinYMax->value());
+    m_customPlot->yAxis->setRange(m_spinYMin->value(), m_spinYMax->value());
   }
+
+  // Grid
+  bool showGrid = m_chkShowGrid->isChecked();
+  m_customPlot->xAxis->grid()->setVisible(showGrid);
+  m_customPlot->yAxis->grid()->setVisible(showGrid);
+  m_customPlot->xAxis->grid()->setSubGridVisible(showGrid);
+  m_customPlot->yAxis->grid()->setSubGridVisible(showGrid);
+
+  m_customPlot->replot();
 }
 
 void SerialPortPlot::updateWaveform(const QByteArray &data) {
@@ -619,34 +727,28 @@ void SerialPortPlot::updateWaveform(const QByteArray &data) {
       bool ok;
       double val = numStr.toDouble(&ok);
       if (ok) {
-        m_series->append(m_xValue++, val);
+        // QCustomPlot addition
+        m_customPlot->graph(0)->addData(m_xValue++, val);
+
         int maxPoints = m_spinPoints->value();
-        if (m_series->count() > maxPoints) {
-          m_series->remove(0, m_series->count() - maxPoints);
+        // Remove old data
+        if (m_customPlot->graph(0)->dataCount() > maxPoints) {
+          m_customPlot->graph(0)->data()->removeBefore(m_xValue - maxPoints);
         }
 
         // Auto Scale X
-        if (m_series->count() > 0) {
-          m_axisX->setRange(m_series->at(0).x(),
-                            m_series->at(m_series->count() - 1).x());
-        }
+        m_customPlot->xAxis->setRange(m_xValue, maxPoints, Qt::AlignRight);
 
         // Auto Scale Y
-        if (m_chkAutoY->isChecked() && m_series->count() > 0) {
-          double minY = 1e9;
-          double maxY = -1e9;
-          for (const QPointF &p : m_series->points()) {
-            if (p.y() < minY)
-              minY = p.y();
-            if (p.y() > maxY)
-              maxY = p.y();
-          }
-          // Add some padding
-          double padding = (maxY - minY) * 0.1;
-          if (padding == 0)
-            padding = 1.0;
-          m_axisY->setRange(minY - padding, maxY + padding);
+        if (m_btnAutoScale->isChecked()) {
+          m_customPlot->graph(0)->rescaleValueAxis(
+              true); // true = enlarge only? no, we want full rescal
+                     // Actually rescaleValueAxis fits strictly.
+        } else {
+          // Already set by updateChartSettings
         }
+
+        m_customPlot->replot();
       }
       inNumber = false;
     }
@@ -708,7 +810,8 @@ void SerialPortPlot::clearReceiveArea() {
   m_textReceive->clear();
   m_rxCount = 0;
   m_lblRxCount->setText("0");
-  m_series->clear();
+  m_customPlot->graph(0)->data()->clear();
+  m_customPlot->replot();
   m_xValue = 0;
 }
 
@@ -760,25 +863,23 @@ void SerialPortPlot::updateStatusInfo() {
                             : "2"));
     m_lblPortInfo->setText(info);
     m_lblPortInfo->setStyleSheet("color: green; font-weight: bold;");
-  }
-  else
-  {
-      QString info =
-          QString("串口[%1] 已关闭 %2 %3-%4-%5")
-              .arg(m_serial->portName())
-              .arg(m_serial->baudRate())
-              .arg(m_serial->dataBits())
-              .arg(m_serial->parity() == QSerialPort::NoParity
-                       ? "N"
-                       : (m_serial->parity() == QSerialPort::OddParity ? "O"
-                                                                       : "E"))
-              .arg(m_serial->stopBits() == QSerialPort::OneStop
-                       ? "1"
-                       : (m_serial->stopBits() == QSerialPort::OneAndHalfStop
-                              ? "1.5"
-                              : "2"));
-      m_lblPortInfo->setText(info);
-      m_lblPortInfo->setStyleSheet("color: red; font-weight: bold;");
+  } else {
+    QString info =
+        QString("串口[%1] 已关闭 %2 %3-%4-%5")
+            .arg(m_serial->portName())
+            .arg(m_serial->baudRate())
+            .arg(m_serial->dataBits())
+            .arg(m_serial->parity() == QSerialPort::NoParity
+                     ? "N"
+                     : (m_serial->parity() == QSerialPort::OddParity ? "O"
+                                                                     : "E"))
+            .arg(m_serial->stopBits() == QSerialPort::OneStop
+                     ? "1"
+                     : (m_serial->stopBits() == QSerialPort::OneAndHalfStop
+                            ? "1.5"
+                            : "2"));
+    m_lblPortInfo->setText(info);
+    m_lblPortInfo->setStyleSheet("color: red; font-weight: bold;");
   }
 }
 

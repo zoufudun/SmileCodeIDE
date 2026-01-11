@@ -44,6 +44,8 @@
 #include <QTreeWidget>
 #include <QVBoxLayout>
 
+#include <QFontDatabase>
+
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), m_isDebugging(false), m_serialPlot(nullptr) {
 

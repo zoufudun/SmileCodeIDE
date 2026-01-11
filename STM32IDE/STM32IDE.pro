@@ -1,4 +1,4 @@
-QT       += core gui serialport charts
+QT       += core gui serialport printsupport
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -13,6 +13,9 @@ INCLUDEPATH += "D:/Soft/Qt/5.15.2/mingw81_64/include/Qsci"
 
 # 源文件
 SOURCES += \
+    ../qcustomplot/qcustomplot.cpp \
+    TOOLS/CConversion.cpp \
+    TOOLS/CIconFont.cpp \
     buildsystem.cpp \
     codeeditor.cpp \
     main.cpp \
@@ -23,6 +26,9 @@ SOURCES += \
 
 # 头文件
 HEADERS += \
+    ../qcustomplot/qcustomplot.h \
+    TOOLS/CConversion.h \
+    TOOLS/CIconFont.h \
     buildsystem.h \
     codeeditor.h \
     mainwindow.h \

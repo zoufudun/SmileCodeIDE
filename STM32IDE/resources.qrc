@@ -42,5 +42,6 @@
         <file>icons/ONOFF/OFF5.png</file>
         <file>icons/ONOFF/ON2.png</file>
         <file>icons/CAN.png</file>
+        <file>Font/iconfont.ttf</file>
     </qresource>
 </RCC>

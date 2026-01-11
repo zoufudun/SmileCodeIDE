@@ -1,27 +1,36 @@
 #ifndef SERIALPORTPLOT_H
 #define SERIALPORTPLOT_H
 
+#include <QAction>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDoubleSpinBox>
 #include <QGroupBox>
 #include <QLabel>
+#include <QMenu>
 #include <QPushButton>
 #include <QRadioButton>
 #include <QSerialPort>
 #include <QSerialPortInfo>
 #include <QSpinBox>
+#include <QTabWidget>
 #include <QTextEdit>
 #include <QTimer>
+#include <QToolBar>
 #include <QWidget>
 
 // Charts
-#include <QtCharts/QChartView>
-#include <QtCharts/QLineSeries>
-#include <QtCharts/QSplineSeries>
-#include <QtCharts/QValueAxis>
+#include "../qcustomplot/qcustomplot.h"
+#include <QDialog>
+#include <QDockWidget>
+#include <QMainWindow>
 
-QT_CHARTS_USE_NAMESPACE
+// #include <QtCharts/QChartView>
+// #include <QtCharts/QLineSeries>
+// #include <QtCharts/QSplineSeries>
+// #include <QtCharts/QValueAxis>
+
+// QT_CHARTS_USE_NAMESPACE
 
 class SerialPortPlot : public QWidget {
   Q_OBJECT
@@ -117,19 +126,25 @@ private:
 
   // Waveform
   QCheckBox *m_chkEnableWaveform;
-  QChartView *m_chartView;
-  QLineSeries *m_series;
-  QValueAxis *m_axisX;
-  QValueAxis *m_axisY;
+  QCustomPlot *m_customPlot;
   double m_xValue;
 
   // Waveform Settings UI
-  QGroupBox *m_grpWaveformSettings;
+  QDockWidget *m_dockSettings;
   QSpinBox *m_spinPoints;
-  QCheckBox *m_chkAutoY;
+  QPushButton *m_btnAutoScale;
+  QCheckBox *m_chkShowGrid;
   QDoubleSpinBox *m_spinYMin;
   QDoubleSpinBox *m_spinYMax;
   QPushButton *m_btnResetChart;
+
+  // Extended Page
+  QMainWindow *m_waveformPage;
+
+  // Global UI Structure
+  QToolBar *m_toolbar;
+  QAction *m_actWaveform;
+  QTabWidget *m_mainTabWidget;
 };
 
 #endif // SERIALPORTPLOT_H
