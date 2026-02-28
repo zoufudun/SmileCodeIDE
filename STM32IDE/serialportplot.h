@@ -2,11 +2,14 @@
 #define SERIALPORTPLOT_H
 
 #include <QAction>
+#include <QBoxLayout>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDoubleSpinBox>
+#include <QFileDialog>
 #include <QGroupBox>
 #include <QLabel>
+#include <QLineEdit>
 #include <QMenu>
 #include <QPushButton>
 #include <QRadioButton>
@@ -17,20 +20,26 @@
 #include <QTextEdit>
 #include <QTimer>
 #include <QToolBar>
+#include <QVector>
 #include <QWidget>
 
 // Charts
 #include "../qcustomplot/qcustomplot.h"
+#include "scrollinglabel.h"
 #include <QDialog>
 #include <QDockWidget>
 #include <QMainWindow>
 
-// #include <QtCharts/QChartView>
-// #include <QtCharts/QLineSeries>
-// #include <QtCharts/QSplineSeries>
-// #include <QtCharts/QValueAxis>
+// ---- Multi-send data item ----
+struct MultiSendItem {
+  bool enabled = false;
+  QString content;
+  bool isHex = false;
+};
 
-// QT_CHARTS_USE_NAMESPACE
+static const int MULTI_COLS = 2;
+static const int MULTI_ROWS = 5;
+static const int MULTI_PER_PAGE = MULTI_COLS * MULTI_ROWS; // 10
 
 class SerialPortPlot : public QWidget {
   Q_OBJECT
@@ -41,8 +50,7 @@ public:
 
   // Status Bar
   QLabel *m_lblPortInfo;
-  QLabel *m_lblWelcome;
-  QTimer *m_scrollTimer;
+  ScrollingLabel *m_lblWelcome;
   QString m_welcomeText;
   int m_scrollPos;
 
@@ -53,7 +61,7 @@ public:
 private slots:
   // Serial Port Control
   void refreshPorts();
-  void checkPorts(); // Hot-plug check
+  void checkPorts();
   void openClosePort();
   void onPortError(QSerialPort::SerialPortError error);
 
@@ -63,9 +71,19 @@ private slots:
   void clearReceiveArea();
   void toggleAutoSend(bool checked);
   void onAutoSendTimeout();
+  void onTxModeChanged(bool hexChecked);
+
+  // Multi-send
+  void sendAll();           // kept for single-tab compat
+  void sendSelectedMulti(); // send checked items on current page
+  void onMultiPageChanged(int page);
+  void onMultiSendLoop(); // timer-driven loop send
+  void importMultiData();
+  void exportMultiData();
 
   // Waveform Settings
   void onWaveformEnabled(bool checked);
+  void onDockLocationChanged(Qt::DockWidgetArea area);
   void updateChartSettings();
 
   // UI Updates
@@ -80,6 +98,7 @@ private:
   void setupConnections();
   void setupChart();
   void updateStatusInfo();
+  void refreshMultiPage(); // redraw 20 widgets for current page
 
   // Serial Port
   QSerialPort *m_serial;
@@ -105,7 +124,7 @@ private:
   QCheckBox *m_chkRxTime;
   QCheckBox *m_chkRxNewLine;
   QPushButton *m_btnClearRx;
-  QPushButton *m_btnStopRx; // Pauses display, not reception buffer
+  QPushButton *m_btnStopRx;
 
   // UI Elements - Send Settings
   QRadioButton *m_rbTxAscii;
@@ -119,6 +138,38 @@ private:
   QPushButton *m_btnSend;
   QPushButton *m_btnClearSend;
 
+  // Send tab widget (wrapped in GroupBox)
+  QTabWidget *m_sendTabWidget;
+
+  // ---- Multi-send data model ----
+  int m_multiPage;                              // 0-based current page
+  QVector<QVector<MultiSendItem>> m_multiPages; // all pages
+
+  // Multi-send grid widgets (20 per page, reused across pages)
+  QCheckBox *m_chkMultiItem[MULTI_PER_PAGE];
+  QLineEdit *m_leMultiItem[MULTI_PER_PAGE];
+
+  // Multi-send page navigation
+  QLabel *m_lblMultiPage;
+  QSpinBox *m_spinJumpPage;
+  QPushButton *m_btnMultiFirst;
+  QPushButton *m_btnMultiPrev;
+  QPushButton *m_btnMultiNext;
+  QPushButton *m_btnMultiLast;
+  QPushButton *m_btnMultiAddPage;
+  QPushButton *m_btnMultiDelPage;
+  QPushButton *m_btnMultiImport;
+  QPushButton *m_btnMultiExport;
+  QPushButton *m_btnSendAll; // send selected on current page
+
+  // Multi-send options
+  QCheckBox *m_chkMultiNewLine;
+  QCheckBox *m_chkMultiHex;
+  QCheckBox *m_chkMultiLoop;
+  QSpinBox *m_spinMultiLoopInterval;
+  QTimer *m_multiLoopTimer;
+  int m_multiLoopIndex;
+
   // Data Display
   QTextEdit *m_textReceive;
   QLabel *m_lblRxCount;
@@ -131,6 +182,7 @@ private:
 
   // Waveform Settings UI
   QDockWidget *m_dockSettings;
+  QBoxLayout *m_settingsLayout;
   QSpinBox *m_spinPoints;
   QPushButton *m_btnAutoScale;
   QCheckBox *m_chkShowGrid;

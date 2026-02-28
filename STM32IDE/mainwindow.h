@@ -44,8 +44,10 @@
 // 添加BuildSystem头文件
 #include "buildsystem.h"
 #include "cantool.h"
+#include "terminalwidget.h"
 
 class SerialPortPlot;
+class IAPTool;
 
 class MainWindow : public QMainWindow {
   Q_OBJECT
@@ -128,6 +130,11 @@ private slots:
   void openSerialTool();  // 打开串口调试助手
   void openNetworkTool(); // 打开网络调试助手
   void openCANTool();     // 打开CAN调试助手
+  void openIAPTool();     // 打开IAP升级工具
+
+  void showWelcomeScreen(); // 显示欢迎界面
+  void checkForUpdates();   // 检查更新
+  void newTerminal();       // 新建终端
 
 private:
   void setupUi();
@@ -164,7 +171,14 @@ private:
 
   QAction *m_configureToolchainAction;
   QAction *m_fullScreenAction;
+
+  // Help menu actions
+  QAction *m_welcomeAction;
+  QAction *m_checkUpdatesAction;
   QAction *m_aboutAction;
+
+  // Terminal actions
+  QAction *m_newTerminalAction;
 
   QTabWidget *m_tabWidget;
   QTextEdit *m_outputConsole;
@@ -277,10 +291,14 @@ private:
 
   bool saveEditorContent(QsciScintilla *editor, const QString &filePath);
 
+  /* Existing code */
   QAction *m_serialToolAction;  // 串口调试助手动作
   QAction *m_networkToolAction; // 网络调试助手动作
   QAction *m_canToolAction;     // CAN调试助手动作
+  QAction *m_iapToolAction;     // IAP升级工具动作
+
   SerialPortPlot *m_serialPlot; // 串口调试助手窗口
+  IAPTool *m_iapTool;           // IAP升级工具窗口
 
 protected:
   void keyPressEvent(QKeyEvent *event) override;

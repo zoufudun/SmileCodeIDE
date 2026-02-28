@@ -43,5 +43,6 @@
         <file>icons/ONOFF/ON2.png</file>
         <file>icons/CAN.png</file>
         <file>Font/iconfont.ttf</file>
+        <file>icons/IAP.png</file>
     </qresource>
 </RCC>

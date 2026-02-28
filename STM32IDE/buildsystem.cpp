@@ -70,19 +70,57 @@ bool BuildSystem::compileFile(const QString &filePath)
         }
     }
     
-    // 获取编译命令
-    QString command = getCompileCommand(filePath);
-    if (command.isEmpty()) {
+    QFileInfo fileInfo(filePath);
+    QString extension = fileInfo.suffix().toLower();
+    QString baseName = fileInfo.baseName();
+    QString outputFile = m_outputPath + "/" + baseName + ".o";
+    
+    QString gccPath = m_toolchainPath.isEmpty() ? 
+        "arm-none-eabi-gcc" : 
+        m_toolchainPath + "/bin/arm-none-eabi-gcc";
+    QString gppPath = m_toolchainPath.isEmpty() ? 
+        "arm-none-eabi-g++" : 
+        m_toolchainPath + "/bin/arm-none-eabi-g++";
+    
+    QStringList arguments;
+    QString program;
+    
+    if (extension == "c") {
+        program = gccPath;
+        arguments << "-c" << "-mcpu=cortex-m3" << "-mthumb" << "-Wall" << "-g" << "-O0"
+                  << "-DSTM32F103xB"
+                  << "-I" + m_projectPath
+                  << "-I" + m_projectPath + "/Inc"
+                  << "-I" + m_projectPath + "/Drivers/CMSIS/Include"
+                  << "-I" + m_projectPath + "/Drivers/CMSIS/Device/ST/STM32F1xx/Include"
+                  << "-I" + m_projectPath + "/Drivers/STM32F1xx_HAL_Driver/Inc"
+                  << "-o" << outputFile << filePath;
+    } else if (extension == "cpp") {
+        program = gppPath;
+        arguments << "-c" << "-mcpu=cortex-m3" << "-mthumb" << "-Wall" << "-g" << "-O0"
+                  << "-fno-exceptions" << "-fno-rtti"
+                  << "-DSTM32F103xB"
+                  << "-I" + m_projectPath
+                  << "-I" + m_projectPath + "/Inc"
+                  << "-I" + m_projectPath + "/Drivers/CMSIS/Include"
+                  << "-I" + m_projectPath + "/Drivers/CMSIS/Device/ST/STM32F1xx/Include"
+                  << "-I" + m_projectPath + "/Drivers/STM32F1xx_HAL_Driver/Inc"
+                  << "-o" << outputFile << filePath;
+    } else if (extension == "s" || extension == "asm") {
+        program = gccPath;
+        arguments << "-c" << "-x" << "assembler-with-cpp"
+                  << "-mcpu=cortex-m3" << "-mthumb"
+                  << "-DSTM32F103xB"
+                  << "-o" << outputFile << filePath;
+    } else {
         m_lastError = "不支持的文件类型";
         return false;
     }
     
-    // 设置工作目录
     m_process->setWorkingDirectory(m_projectPath);
     
-    // 启动编译进程
-    qDebug() << "执行命令: " << command;
-    m_process->start(command);
+    qDebug() << "执行命令:" << program << arguments.join(" ");
+    m_process->start(program, arguments);
     
     return m_process->waitForStarted();
 }
@@ -106,13 +144,15 @@ bool BuildSystem::generateMakefile()
         return false;
     }
     
-    // 创建标准STM32目录结构
     QDir projectDir(m_projectPath);
     if (!projectDir.exists("Inc")) {
         projectDir.mkdir("Inc");
     }
     if (!projectDir.exists("Src")) {
         projectDir.mkdir("Src");
+    }
+    if (!projectDir.exists("Startup")) {
+        projectDir.mkdir("Startup");
     }
     if (!projectDir.exists("Drivers")) {
         projectDir.mkdir("Drivers");
@@ -131,7 +171,10 @@ bool BuildSystem::generateMakefile()
         projectDir.mkdir("build");
     }
     
-    // 创建Makefile文件
+    if (!generateLinkerScript()) {
+        return false;
+    }
+    
     QFile file(m_projectPath + "/Makefile");
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
         m_lastError = "无法创建Makefile文件";
@@ -140,74 +183,102 @@ bool BuildSystem::generateMakefile()
     
     QTextStream out(&file);
     
-    // 写入Makefile内容
-    out << "# 自动生成的Makefile\n\n";
-    out << "# 工具链设置\n";
-    out << "TOOLCHAIN_PATH = " << m_toolchainPath << "\n";
-    out << "CC = $(TOOLCHAIN_PATH)/bin/arm-none-eabi-gcc\n";
-    out << "CXX = $(TOOLCHAIN_PATH)/bin/arm-none-eabi-g++\n";
-    out << "LD = $(TOOLCHAIN_PATH)/bin/arm-none-eabi-ld\n";
-    out << "OBJCOPY = $(TOOLCHAIN_PATH)/bin/arm-none-eabi-objcopy\n";
-    out << "SIZE = $(TOOLCHAIN_PATH)/bin/arm-none-eabi-size\n\n";
+    out << "# STM32 Makefile - Auto Generated\n\n";
     
-    out << "# 目标芯片设置\n";
-    out << "TARGET = " << m_targetChip << "\n";
+    out << "# Toolchain\n";
+    if (m_toolchainPath.isEmpty()) {
+        out << "PREFIX = arm-none-eabi-\n";
+    } else {
+        out << "TOOLCHAIN_PATH = " << m_toolchainPath << "\n";
+        out << "PREFIX = $(TOOLCHAIN_PATH)/bin/arm-none-eabi-\n";
+    }
+    out << "CC = $(PREFIX)gcc\n";
+    out << "CXX = $(PREFIX)g++\n";
+    out << "AS = $(PREFIX)gcc -x assembler-with-cpp\n";
+    out << "OBJCOPY = $(PREFIX)objcopy\n";
+    out << "OBJDUMP = $(PREFIX)objdump\n";
+    out << "SIZE = $(PREFIX)size\n\n";
+    
+    out << "# Target\n";
+    QString targetName = m_targetChip.isEmpty() ? "firmware" : m_targetChip.toLower();
+    out << "TARGET = " << targetName << "\n";
     out << "BUILD_DIR = build\n\n";
     
-    out << "# 编译标志\n";
-    out << "CFLAGS = -mcpu=cortex-m3 -mthumb -Wall -g -O0\n";
-    out << "CFLAGS += -DSTM32F103xB\n\n";
+    out << "# MCU Flags\n";
+    out << "CPU = -mcpu=cortex-m3\n";
+    out << "FPU =\n";
+    out << "FLOAT-ABI =\n";
+    out << "MCU = $(CPU) -mthumb $(FPU) $(FLOAT-ABI)\n\n";
     
-    out << "# 包含路径\n";
-    out << "INCLUDES = -I.\n";
-    out << "INCLUDES += -I./Inc\n";
-    out << "INCLUDES += -I./Drivers/CMSIS/Include\n";
-    out << "INCLUDES += -I./Drivers/CMSIS/Device/ST/STM32F1xx/Include\n";
-    out << "INCLUDES += -I./Drivers/STM32F1xx_HAL_Driver/Inc\n\n";
+    out << "# Compile Flags\n";
+    out << "AS_DEFS =\n";
+    out << "C_DEFS = -DSTM32F103xB -DUSE_HAL_DRIVER\n\n";
     
-    out << "# 源文件\n";
+    out << "AS_INCLUDES =\n";
+    out << "C_INCLUDES = \\\n";
+    out << "  -I. \\\n";
+    out << "  -IInc \\\n";
+    out << "  -IDrivers/CMSIS/Include \\\n";
+    out << "  -IDrivers/CMSIS/Device/ST/STM32F1xx/Include \\\n";
+    out << "  -IDrivers/STM32F1xx_HAL_Driver/Inc\n\n";
+    
+    out << "ASFLAGS = $(MCU) $(AS_DEFS) $(AS_INCLUDES) -Wall -fdata-sections -ffunction-sections\n";
+    out << "CFLAGS = $(MCU) $(C_DEFS) $(C_INCLUDES) -Wall -fdata-sections -ffunction-sections -g -O0\n";
+    out << "CXXFLAGS = $(CFLAGS) -fno-exceptions -fno-rtti\n\n";
+    
+    out << "# Linker\n";
+    out << "LDSCRIPT = STM32F103C8Tx_FLASH.ld\n";
+    out << "LIBS = -lc -lm -lnosys\n";
+    out << "LIBDIR =\n";
+    out << "LDFLAGS = $(MCU) -specs=nano.specs -T$(LDSCRIPT) $(LIBDIR) $(LIBS) -Wl,-Map=$(BUILD_DIR)/$(TARGET).map,--cref -Wl,--gc-sections\n\n";
+    
+    out << "# Sources\n";
     out << "C_SOURCES = $(wildcard Src/*.c)\n";
-    out << "C_SOURCES += $(wildcard Drivers/STM32F1xx_HAL_Driver/Src/*.c)\n\n";
+    out << "C_SOURCES += $(wildcard Drivers/STM32F1xx_HAL_Driver/Src/*.c)\n";
+    out << "C_SOURCES += $(wildcard Drivers/CMSIS/Device/ST/STM32F1xx/Source/*.c)\n\n";
     
-    out << "# 目标文件\n";
-    out << "OBJECTS = $(addprefix $(BUILD_DIR)/,$(notdir $(C_SOURCES:.c=.o)))\n\n";
+    out << "CXX_SOURCES = $(wildcard Src/*.cpp)\n\n";
     
-    out << "# 链接脚本\n";
-    out << "LDSCRIPT = STM32F103C8Tx_FLASH.ld\n\n";
+    out << "ASM_SOURCES = $(wildcard Startup/*.s)\n";
+    out << "ASM_SOURCES += $(wildcard Src/*.s)\n\n";
     
-    out << "# 默认目标\n";
-    out << "all: $(BUILD_DIR) $(BUILD_DIR)/firmware.elf $(BUILD_DIR)/firmware.hex $(BUILD_DIR)/firmware.bin\n\n";
+    out << "# Objects\n";
+    out << "OBJECTS = $(addprefix $(BUILD_DIR)/,$(notdir $(C_SOURCES:.c=.o)))\n";
+    out << "OBJECTS += $(addprefix $(BUILD_DIR)/,$(notdir $(CXX_SOURCES:.cpp=.o)))\n";
+    out << "OBJECTS += $(addprefix $(BUILD_DIR)/,$(notdir $(ASM_SOURCES:.s=.o)))\n";
+    out << "vpath %.c $(sort $(dir $(C_SOURCES)))\n";
+    out << "vpath %.cpp $(sort $(dir $(CXX_SOURCES)))\n";
+    out << "vpath %.s $(sort $(dir $(ASM_SOURCES)))\n\n";
     
-    out << "# 创建构建目录\n";
+    out << "# Build Rules\n";
+    out << "all: $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).hex $(BUILD_DIR)/$(TARGET).bin\n\n";
+    
     out << "$(BUILD_DIR):\n";
     out << "\tmkdir -p $@\n\n";
     
-    out << "# 编译规则\n";
-    out << "$(BUILD_DIR)/%.o: Src/%.c\n";
-    out << "\t$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@\n\n";
+    out << "$(BUILD_DIR)/%.o: %.c | $(BUILD_DIR)\n";
+    out << "\t$(CC) -c $(CFLAGS) -Wa,-a,-ad,-alms=$(BUILD_DIR)/$(notdir $(<:.c=.lst)) $< -o $@\n\n";
     
-    out << "$(BUILD_DIR)/%.o: Drivers/STM32F1xx_HAL_Driver/Src/%.c\n";
-    out << "\t$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@\n\n";
+    out << "$(BUILD_DIR)/%.o: %.cpp | $(BUILD_DIR)\n";
+    out << "\t$(CXX) -c $(CXXFLAGS) -Wa,-a,-ad,-alms=$(BUILD_DIR)/$(notdir $(<:.cpp=.lst)) $< -o $@\n\n";
     
-    out << "# 链接规则\n";
-    out << "$(BUILD_DIR)/firmware.elf: $(OBJECTS)\n";
-    out << "\t$(CC) $(CFLAGS) -T$(LDSCRIPT) $(OBJECTS) -o $@ -lc -lm -lnosys\n";
+    out << "$(BUILD_DIR)/%.o: %.s | $(BUILD_DIR)\n";
+    out << "\t$(AS) -c $(ASFLAGS) $< -o $@\n\n";
+    
+    out << "$(BUILD_DIR)/$(TARGET).elf: $(OBJECTS)\n";
+    out << "\t$(CC) $(OBJECTS) $(LDFLAGS) -o $@\n";
     out << "\t$(SIZE) $@\n\n";
     
-    out << "# 生成hex文件\n";
-    out << "$(BUILD_DIR)/firmware.hex: $(BUILD_DIR)/firmware.elf\n";
+    out << "$(BUILD_DIR)/$(TARGET).hex: $(BUILD_DIR)/$(TARGET).elf\n";
     out << "\t$(OBJCOPY) -O ihex $< $@\n\n";
     
-    out << "# 生成bin文件\n";
-    out << "$(BUILD_DIR)/firmware.bin: $(BUILD_DIR)/firmware.elf\n";
-    out << "\t$(OBJCOPY) -O binary $< $@\n\n";
+    out << "$(BUILD_DIR)/$(TARGET).bin: $(BUILD_DIR)/$(TARGET).elf\n";
+    out << "\t$(OBJCOPY) -O binary -S $< $@\n\n";
     
-    out << "# 清理\n";
     out << "clean:\n";
     out << "\trm -rf $(BUILD_DIR)\n\n";
     
-    out << "# 烧录\n";
-    out << "flash: $(BUILD_DIR)/firmware.bin\n";
+    out << "flash: $(BUILD_DIR)/$(TARGET).bin\n";
     out << "\tst-flash write $< 0x8000000\n\n";
     
     out << ".PHONY: all clean flash\n";
@@ -282,17 +353,38 @@ QString BuildSystem::getCompileCommand(const QString &filePath)
 {
     QFileInfo fileInfo(filePath);
     QString extension = fileInfo.suffix().toLower();
-    QString fileName = fileInfo.fileName();
     QString baseName = fileInfo.baseName();
     QString outputFile = m_outputPath + "/" + baseName + ".o";
     
+    // 构建编译器路径
+    QString gccPath = m_toolchainPath.isEmpty() ? 
+        "arm-none-eabi-gcc" : 
+        m_toolchainPath + "/bin/arm-none-eabi-gcc";
+    QString gppPath = m_toolchainPath.isEmpty() ? 
+        "arm-none-eabi-g++" : 
+        m_toolchainPath + "/bin/arm-none-eabi-g++";
+    
+    // 构建编译标志
+    QString cflags = "-mcpu=cortex-m3 -mthumb -Wall -g -O0";
+    QString defines = "-DSTM32F103xB";
+    QString includes = QString("-I\"%1\" -I\"%1/Inc\" -I\"%1/Drivers/CMSIS/Include\" "
+                               "-I\"%1/Drivers/CMSIS/Device/ST/STM32F1xx/Include\" "
+                               "-I\"%1/Drivers/STM32F1xx_HAL_Driver/Inc\"")
+                       .arg(m_projectPath);
+    
     // 根据文件类型选择编译器
     if (extension == "c") {
-        // 使用GCC编译C文件
-        return QString("gcc -c -Wall -std=c11 -o \"%1\" \"%2\"").arg(outputFile, filePath);
+        // 使用arm-none-eabi-gcc编译C文件
+        return QString("\"%1\" -c %2 %3 %4 -o \"%5\" \"%6\"")
+            .arg(gccPath, cflags, defines, includes, outputFile, filePath);
     } else if (extension == "cpp") {
-        // 使用G++编译C++文件
-        return QString("g++ -c -Wall -std=c++11 -o \"%1\" \"%2\"").arg(outputFile, filePath);
+        // 使用arm-none-eabi-g++编译C++文件
+        return QString("\"%1\" -c %2 %3 %4 -fno-exceptions -fno-rtti -o \"%5\" \"%6\"")
+            .arg(gppPath, cflags, defines, includes, outputFile, filePath);
+    } else if (extension == "s" || extension == "asm") {
+        // 使用arm-none-eabi-gcc编译汇编文件
+        return QString("\"%1\" -c -x assembler-with-cpp %2 %3 -o \"%4\" \"%5\"")
+            .arg(gccPath, cflags, defines, outputFile, filePath);
     }
     
     return QString();
@@ -480,12 +572,11 @@ bool BuildSystem::generateLinkerScript()
     out << "    . = ALIGN(8);\n";
     out << "  } >RAM\n\n";
     
-    out << "  /* 移除无用的段 */\n";
+    out << "  /* Discard unused sections */\n";
     out << "  /DISCARD/ :\n";
     out << "  {\n";
-    out << "    libc.a ( * )\n";
-    out << "    libm.a ( * )\n";
-    out << "    libgcc.a ( * )\n";
+    out << "    *(.comment)\n";
+    out << "    *(.note*)\n";
     out << "  }\n\n";
     
     out << "  .ARM.attributes 0 : { *(.ARM.attributes) }\n";

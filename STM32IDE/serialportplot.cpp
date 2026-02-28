@@ -1,14 +1,20 @@
 #include "serialportplot.h"
+#include "toastwidget.h"
 #include <QDateTime>
 #include <QDebug>
+#include <QFileDialog>
 #include <QGridLayout>
 #include <QHBoxLayout>
+#include <QHeaderView>
 #include <QIcon>
+#include <QLineEdit>
 #include <QMenu>
 #include <QMessageBox>
+#include <QPlainTextEdit>
 #include <QScrollBar>
 #include <QSize>
 #include <QSplitter>
+#include <QTextStream>
 #include <QToolButton>
 #include <QVBoxLayout>
 
@@ -18,18 +24,23 @@ SerialPortPlot::SerialPortPlot(QWidget *parent)
   m_serial = new QSerialPort(this);
   m_autoSendTimer = new QTimer(this);
   m_portCheckTimer = new QTimer(this);
-  m_scrollTimer = new QTimer(this);
+
+  // Multi-send: init with 1 page of 20 empty items
+  m_multiPage = 0;
+  m_multiLoopIndex = 0;
+  m_multiLoopTimer = new QTimer(this);
+  m_multiPages.append(QVector<MultiSendItem>(MULTI_PER_PAGE));
 
   m_welcomeText = "   欢迎使用uSmilePro串口示波器V1.0   ";
 
   setupUi();
   setupChart();
   setupConnections();
+  refreshMultiPage(); // init multi-send page display
   refreshPorts();
 
   // Start timers
-  m_portCheckTimer->start(1000); // Check every second
-  m_scrollTimer->start(200);     // Scroll speed
+  m_portCheckTimer->start(1000);
 }
 
 SerialPortPlot::~SerialPortPlot() {
@@ -260,9 +271,11 @@ void SerialPortPlot::setupUi() {
   txLayout->addWidget(m_chkTxTime);
 
   m_chkAutoSend = new QCheckBox("自动发送(ms):");
+  m_chkAutoSend->setEnabled(false); // Disabled until port is open
   m_spinAutoSendInterval = new QSpinBox();
   m_spinAutoSendInterval->setRange(10, 10000);
   m_spinAutoSendInterval->setValue(1000);
+  m_spinAutoSendInterval->setEnabled(false); // Disabled until port is open
 
   QHBoxLayout *autoSendLayout = new QHBoxLayout();
   autoSendLayout->addWidget(m_chkAutoSend);
@@ -297,43 +310,216 @@ void SerialPortPlot::setupUi() {
   dataLayout->addWidget(m_textReceive);
   rightSplitter->addWidget(grpData);
 
-  // Send Area (Previously combined with Right Panel logic, now part of right
-  // pane)
-  QGroupBox *grpSend = new QGroupBox("数据发送");
-  QVBoxLayout *sendLayout = new QVBoxLayout(grpSend);
+  // --- Send Area: 4-tab QTabWidget ---
+  m_sendTabWidget = new QTabWidget();
+  m_sendTabWidget->setDocumentMode(false);
 
-  // Text Input
+  // ========== Tab 0: 单条发送 ==========
+  QWidget *tabSingle = new QWidget();
+  QVBoxLayout *singleLayout = new QVBoxLayout(tabSingle);
+  singleLayout->setContentsMargins(6, 6, 6, 6);
+
   m_textSend = new QTextEdit();
   m_textSend->setMaximumHeight(60);
-  sendLayout->addWidget(m_textSend);
+  m_textSend->setPlaceholderText("输入要发送的数据...");
+  singleLayout->addWidget(m_textSend);
 
-  // Buttons Row
   QHBoxLayout *btnLayout = new QHBoxLayout();
   m_btnSend = new QPushButton("发送");
   m_btnSend->setStyleSheet(getButtonStyle(ButtonType::Normal));
-  m_btnSend->setMinimumHeight(40);
+  m_btnSend->setMinimumHeight(36);
 
-  m_btnClearSend = new QPushButton("清除发送");
+  m_btnClearSend = new QPushButton("清除");
   m_btnClearSend->setStyleSheet(getButtonStyle(ButtonType::Normal));
-  m_btnClearSend->setMinimumHeight(40);
+  m_btnClearSend->setMinimumHeight(36);
 
   btnLayout->addWidget(m_btnClearSend);
   btnLayout->addWidget(m_btnSend);
-  sendLayout->addLayout(btnLayout);
+  singleLayout->addLayout(btnLayout);
 
-  // History Row (Moved to bottom)
   QHBoxLayout *histLayout = new QHBoxLayout();
-  histLayout->addWidget(new QLabel("发送历史:"));
+  histLayout->addWidget(new QLabel("历史:"));
   m_comboHistory = new QComboBox();
-  m_comboHistory->setEditable(false); // Only selectable, input via text box
+  m_comboHistory->setEditable(false);
   histLayout->addWidget(m_comboHistory);
-  sendLayout->addLayout(histLayout);
+  singleLayout->addLayout(histLayout);
 
+  m_sendTabWidget->addTab(tabSingle, "单条发送");
+
+  // ========== Tab 1: 多条发送 ==========
+  QWidget *tabMulti = new QWidget();
+  QVBoxLayout *multiLayout = new QVBoxLayout(tabMulti);
+  multiLayout->setContentsMargins(4, 4, 4, 4);
+  multiLayout->setSpacing(3);
+
+  // 双列 x 10行 网格 (共20条)
+  QGridLayout *multiGrid = new QGridLayout();
+  multiGrid->setSpacing(2);
+  for (int i = 0; i < MULTI_PER_PAGE; i++) {
+    int col = i / MULTI_ROWS;
+    int row = i % MULTI_ROWS;
+    m_chkMultiItem[i] = new QCheckBox();
+    m_chkMultiItem[i]->setFixedWidth(20);
+    m_leMultiItem[i] = new QLineEdit();
+    m_leMultiItem[i]->setPlaceholderText(QString("条目 %1").arg(i + 1));
+    m_leMultiItem[i]->setMinimumWidth(80);
+    QHBoxLayout *cell = new QHBoxLayout();
+    cell->setContentsMargins(0, 0, 0, 0);
+    cell->setSpacing(2);
+    cell->addWidget(m_chkMultiItem[i]);
+    cell->addWidget(m_leMultiItem[i]);
+    QWidget *cellW = new QWidget();
+    cellW->setLayout(cell);
+    multiGrid->addWidget(cellW, row, col);
+  }
+  multiLayout->addLayout(multiGrid);
+
+  // ================= 底部工具栏布局 =================
+  QVBoxLayout *bottomLayout = new QVBoxLayout();
+  bottomLayout->setContentsMargins(0, 4, 0, 0);
+  bottomLayout->setSpacing(6);
+
+  // 第一排：选项 与 导入导出/全选
+  QHBoxLayout *row1 = new QHBoxLayout();
+  m_chkMultiNewLine = new QCheckBox("发送新行");
+  m_chkMultiHex = new QCheckBox("16进制");
+  m_chkMultiLoop = new QCheckBox("自动循环(ms):");
+  m_spinMultiLoopInterval = new QSpinBox();
+  m_spinMultiLoopInterval->setRange(10, 60000);
+  m_spinMultiLoopInterval->setValue(1000);
+  m_spinMultiLoopInterval->setEnabled(false);
+
+  row1->addWidget(m_chkMultiNewLine);
+  row1->addWidget(m_chkMultiHex);
+  row1->addWidget(m_chkMultiLoop);
+  row1->addWidget(m_spinMultiLoopInterval);
+  row1->addStretch();
+
+  QPushButton *btnSelAll = new QPushButton("全选");
+  QPushButton *btnDeselAll = new QPushButton("全不选");
+  m_btnMultiImport = new QPushButton("导入");
+  m_btnMultiExport = new QPushButton("导出");
+  for (auto *b : {btnSelAll, btnDeselAll, m_btnMultiImport, m_btnMultiExport}) {
+    b->setStyleSheet(getButtonStyle(ButtonType::Normal));
+    b->setMinimumHeight(28);
+    row1->addWidget(b);
+  }
+  bottomLayout->addLayout(row1);
+
+  // 第二排：分页导航 与 发送按钮
+  QHBoxLayout *row2 = new QHBoxLayout();
+  m_btnMultiFirst = new QPushButton("|<");
+  m_btnMultiPrev = new QPushButton("<");
+  m_btnMultiNext = new QPushButton(">");
+  m_btnMultiLast = new QPushButton(">|");
+  for (auto *b :
+       {m_btnMultiFirst, m_btnMultiPrev, m_btnMultiNext, m_btnMultiLast}) {
+    b->setFixedWidth(32);
+    b->setStyleSheet(getButtonStyle(ButtonType::Normal));
+  }
+  m_lblMultiPage = new QLabel("第 1 / 1 页");
+  m_lblMultiPage->setAlignment(Qt::AlignCenter);
+
+  m_btnMultiAddPage = new QPushButton("+页");
+  m_btnMultiDelPage = new QPushButton("-页");
+  for (auto *b : {m_btnMultiAddPage, m_btnMultiDelPage}) {
+    b->setFixedWidth(40);
+    b->setStyleSheet(getButtonStyle(ButtonType::Normal));
+  }
+
+  m_spinJumpPage = new QSpinBox();
+  m_spinJumpPage->setRange(1, 1);
+  m_spinJumpPage->setPrefix("页码: ");
+  m_spinJumpPage->setFixedWidth(80);
+  QPushButton *btnJump = new QPushButton("GO");
+  btnJump->setStyleSheet(getButtonStyle(ButtonType::Normal));
+  btnJump->setFixedWidth(36);
+
+  row2->addWidget(m_btnMultiFirst);
+  row2->addWidget(m_btnMultiPrev);
+  row2->addWidget(m_lblMultiPage);
+  row2->addWidget(m_btnMultiNext);
+  row2->addWidget(m_btnMultiLast);
+  row2->addSpacing(10);
+  row2->addWidget(m_btnMultiAddPage);
+  row2->addWidget(m_btnMultiDelPage);
+  row2->addSpacing(10);
+  row2->addWidget(m_spinJumpPage);
+  row2->addWidget(btnJump);
+  row2->addStretch();
+
+  // 突出发送选中按钮
+  m_btnSendAll = new QPushButton("发送选中");
+  QString sendStyle = getButtonStyle(ButtonType::Normal);
+  // 可选：在基础样式上加一点微调让发送按钮更显眼
+  sendStyle += "font-weight: bold;";
+  m_btnSendAll->setStyleSheet(sendStyle);
+  m_btnSendAll->setMinimumHeight(32);
+  m_btnSendAll->setMinimumWidth(100);
+  row2->addWidget(m_btnSendAll);
+
+  bottomLayout->addLayout(row2);
+  multiLayout->addLayout(bottomLayout);
+
+  connect(btnSelAll, &QPushButton::clicked, [this]() {
+    for (int i = 0; i < MULTI_PER_PAGE; i++)
+      m_chkMultiItem[i]->setChecked(true);
+  });
+  connect(btnDeselAll, &QPushButton::clicked, [this]() {
+    for (int i = 0; i < MULTI_PER_PAGE; i++)
+      m_chkMultiItem[i]->setChecked(false);
+  });
+  connect(btnJump, &QPushButton::clicked,
+          [this]() { onMultiPageChanged(m_spinJumpPage->value() - 1); });
+
+  m_sendTabWidget->addTab(tabMulti, "多条发送");
+
+  // ========== Tab 2: 协议传送 ==========
+  QWidget *tabProtocol = new QWidget();
+  QVBoxLayout *protoLayout = new QVBoxLayout(tabProtocol);
+  protoLayout->setContentsMargins(6, 6, 6, 6);
+  QGridLayout *protoGrid = new QGridLayout();
+  protoGrid->addWidget(new QLabel("协议名:"), 0, 0);
+  protoGrid->addWidget(new QComboBox(), 0, 1);
+  protoGrid->addWidget(new QLabel("起始帧:"), 1, 0);
+  QLineEdit *leStartFrame = new QLineEdit("AA");
+  protoGrid->addWidget(leStartFrame, 1, 1);
+  protoGrid->addWidget(new QLabel("数据域:"), 2, 0);
+  QLineEdit *leData = new QLineEdit();
+  leData->setPlaceholderText("Hex 数据...");
+  protoGrid->addWidget(leData, 2, 1);
+  protoGrid->addWidget(new QLabel("校验:"), 3, 0);
+  QComboBox *cbChecksum = new QComboBox();
+  cbChecksum->addItems({"无", "Sum8", "CRC8", "CRC16"});
+  protoGrid->addWidget(cbChecksum, 3, 1);
+  protoLayout->addLayout(protoGrid);
+  QPushButton *btnProtoSend = new QPushButton("发送协议帧");
+  btnProtoSend->setStyleSheet(getButtonStyle(ButtonType::Normal));
+  btnProtoSend->setMinimumHeight(36);
+  protoLayout->addWidget(btnProtoSend);
+  protoLayout->addStretch();
+  m_sendTabWidget->addTab(tabProtocol, "协议传送");
+
+  // ========== Tab 3: 自定义发送 ==========
+  QWidget *tabCustom = new QWidget();
+  QVBoxLayout *customLayout = new QVBoxLayout(tabCustom);
+  customLayout->setContentsMargins(6, 6, 6, 6);
+  QPlainTextEdit *editScript = new QPlainTextEdit();
+  editScript->setPlaceholderText(
+      "// 自定义发送脚本（预留扩展）\n// 例如：循环发送、条件发送等");
+  customLayout->addWidget(editScript);
+  QPushButton *btnRunScript = new QPushButton("执行脚本（开发中）");
+  btnRunScript->setStyleSheet(getButtonStyle(ButtonType::Normal));
+  btnRunScript->setEnabled(false);
+  customLayout->addWidget(btnRunScript);
+  m_sendTabWidget->addTab(tabCustom, "自定义发送");
+
+  // 外包 GroupBox "数据发送"
+  QGroupBox *grpSend = new QGroupBox("数据发送");
+  QVBoxLayout *grpSendLayout = new QVBoxLayout(grpSend);
+  grpSendLayout->setContentsMargins(4, 8, 4, 4);
+  grpSendLayout->addWidget(m_sendTabWidget);
   rightSplitter->addWidget(grpSend);
-  // Give both data and send some space? Usually Data takes more.
-  rightSplitter->setStretchFactor(0, 4);
-  rightSplitter->setStretchFactor(1, 1);
-
   splitter->addWidget(rightSplitter); // Middle Pane
 
   // --- Extended Waveform Page ---
@@ -347,52 +533,53 @@ void SerialPortPlot::setupUi() {
 
   // -- Side Settings Panel (Dock Widget) --
   m_dockSettings = new QDockWidget("绘图设置", m_waveformPage);
-  m_dockSettings->setAllowedAreas(Qt::LeftDockWidgetArea |
-                                  Qt::RightDockWidgetArea);
+  m_dockSettings->setAllowedAreas(Qt::AllDockWidgetAreas);
+  connect(m_dockSettings, &QDockWidget::dockLocationChanged, this,
+          &SerialPortPlot::onDockLocationChanged);
 
   QWidget *dockContents = new QWidget();
-  QVBoxLayout *panelLayout = new QVBoxLayout(dockContents);
-  panelLayout->setContentsMargins(5, 10, 5, 10);
-  panelLayout->setSpacing(8);
+  m_settingsLayout = new QBoxLayout(QBoxLayout::TopToBottom, dockContents);
+  m_settingsLayout->setContentsMargins(5, 10, 5, 10);
+  m_settingsLayout->setSpacing(8);
 
   // Points
-  panelLayout->addWidget(new QLabel("显示点数:"));
+  m_settingsLayout->addWidget(new QLabel("显示点数:"));
   m_spinPoints = new QSpinBox();
   m_spinPoints->setRange(10, 10000);
   m_spinPoints->setValue(100);
   m_spinPoints->setSingleStep(10);
-  panelLayout->addWidget(m_spinPoints);
+  m_settingsLayout->addWidget(m_spinPoints);
 
   // Grid
   m_chkShowGrid = new QCheckBox("显示网格");
   m_chkShowGrid->setChecked(true);
-  panelLayout->addWidget(m_chkShowGrid);
+  m_settingsLayout->addWidget(m_chkShowGrid);
 
   // Auto Scale Button
   m_btnAutoScale = new QPushButton("自动缩放");
   m_btnAutoScale->setCheckable(true);
   m_btnAutoScale->setChecked(true);
-  panelLayout->addWidget(m_btnAutoScale);
+  m_settingsLayout->addWidget(m_btnAutoScale);
 
   // Y Axis Min/Max
-  panelLayout->addWidget(new QLabel("Y轴最小值:"));
+  m_settingsLayout->addWidget(new QLabel("Y轴最小值:"));
   m_spinYMin = new QDoubleSpinBox();
   m_spinYMin->setRange(-99999, 99999);
   m_spinYMin->setValue(0);
   m_spinYMin->setEnabled(false); // Default Auto is ON
-  panelLayout->addWidget(m_spinYMin);
+  m_settingsLayout->addWidget(m_spinYMin);
 
-  panelLayout->addWidget(new QLabel("Y轴最大值:"));
+  m_settingsLayout->addWidget(new QLabel("Y轴最大值:"));
   m_spinYMax = new QDoubleSpinBox();
   m_spinYMax->setRange(-99999, 99999);
   m_spinYMax->setValue(255);
   m_spinYMax->setEnabled(false); // Default Auto is ON
-  panelLayout->addWidget(m_spinYMax);
+  m_settingsLayout->addWidget(m_spinYMax);
 
   m_btnResetChart = new QPushButton("重置");
-  panelLayout->addWidget(m_btnResetChart);
+  m_settingsLayout->addWidget(m_btnResetChart);
 
-  panelLayout->addStretch();
+  m_settingsLayout->addStretch();
 
   m_dockSettings->setWidget(dockContents);
   m_waveformPage->addDockWidget(Qt::LeftDockWidgetArea, m_dockSettings);
@@ -432,10 +619,12 @@ void SerialPortPlot::setupUi() {
   m_lblPortInfo = new QLabel("串口关闭");
   m_lblPortInfo->setStyleSheet("color: red; font-weight: bold;");
 
-  // Scrolling Message
-  m_lblWelcome = new QLabel();
+  // Scrolling Message - wider label for smooth scrolling
+  m_lblWelcome = new ScrollingLabel();
   m_lblWelcome->setStyleSheet("color: blue; font-style: italic;");
-  m_lblWelcome->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+  // m_lblWelcome->setAlignment(Qt::AlignLeft | Qt::AlignVCenter); // Not
+  // needed for custom widget
+  m_lblWelcome->setMinimumWidth(400); // Fixed width for scrolling area
 
   statusBarLayout->addWidget(m_lblPortInfo);
   statusBarLayout->addStretch();
@@ -500,6 +689,66 @@ void SerialPortPlot::setupConnections() {
   connect(m_autoSendTimer, &QTimer::timeout, this,
           &SerialPortPlot::onAutoSendTimeout);
 
+  // Auto-convert TX input when switching ASCII <-> HEX
+  connect(m_rbTxHex, &QRadioButton::toggled, this,
+          &SerialPortPlot::onTxModeChanged);
+
+  // Multi-send tab button connections
+  connect(m_btnMultiFirst, &QPushButton::clicked,
+          [this]() { onMultiPageChanged(0); });
+  connect(m_btnMultiPrev, &QPushButton::clicked,
+          [this]() { onMultiPageChanged(m_multiPage - 1); });
+  connect(m_btnMultiNext, &QPushButton::clicked,
+          [this]() { onMultiPageChanged(m_multiPage + 1); });
+  connect(m_btnMultiLast, &QPushButton::clicked,
+          [this]() { onMultiPageChanged(m_multiPages.count() - 1); });
+  connect(m_btnMultiAddPage, &QPushButton::clicked, [this]() {
+    m_multiPages.append(QVector<MultiSendItem>(MULTI_PER_PAGE));
+    int newPage = m_multiPages.count() - 1;
+    m_spinJumpPage->setRange(1, m_multiPages.count());
+    onMultiPageChanged(newPage);
+  });
+  connect(m_btnMultiDelPage, &QPushButton::clicked, [this]() {
+    if (m_multiPages.count() <= 1)
+      return;
+    m_multiPages.removeAt(m_multiPage);
+    m_spinJumpPage->setRange(1, m_multiPages.count());
+    onMultiPageChanged(qMin(m_multiPage, m_multiPages.count() - 1));
+  });
+  connect(m_btnSendAll, &QPushButton::clicked, this,
+          &SerialPortPlot::sendSelectedMulti);
+  connect(m_btnMultiImport, &QPushButton::clicked, this,
+          &SerialPortPlot::importMultiData);
+  connect(m_btnMultiExport, &QPushButton::clicked, this,
+          &SerialPortPlot::exportMultiData);
+  connect(m_chkMultiLoop, &QCheckBox::toggled, [this](bool on) {
+    m_spinMultiLoopInterval->setEnabled(on);
+    if (on) {
+      m_multiLoopIndex = 0;
+      m_multiLoopTimer->start(m_spinMultiLoopInterval->value());
+    } else {
+      m_multiLoopTimer->stop();
+    }
+  });
+  connect(m_multiLoopTimer, &QTimer::timeout, this,
+          &SerialPortPlot::onMultiSendLoop);
+  connect(m_spinMultiLoopInterval, QOverload<int>::of(&QSpinBox::valueChanged),
+          [this](int v) {
+            if (m_multiLoopTimer->isActive())
+              m_multiLoopTimer->setInterval(v);
+          });
+  // Save grid edits back to model when focus leaves a cell
+  for (int i = 0; i < MULTI_PER_PAGE; i++) {
+    connect(m_chkMultiItem[i], &QCheckBox::toggled, [this, i](bool v) {
+      if (m_multiPage < m_multiPages.count())
+        m_multiPages[m_multiPage][i].enabled = v;
+    });
+    connect(m_leMultiItem[i], &QLineEdit::editingFinished, [this, i]() {
+      if (m_multiPage < m_multiPages.count())
+        m_multiPages[m_multiPage][i].content = m_leMultiItem[i]->text();
+    });
+  }
+
   connect(m_actWaveform, &QAction::toggled, this,
           &SerialPortPlot::onWaveformEnabled);
 
@@ -513,8 +762,6 @@ void SerialPortPlot::setupConnections() {
           this, &SerialPortPlot::updateChartSettings);
   connect(m_portCheckTimer, &QTimer::timeout, this,
           &SerialPortPlot::checkPorts);
-  connect(m_scrollTimer, &QTimer::timeout, this,
-          &SerialPortPlot::scrollWelcomeMessage);
 
   connect(m_spinYMax, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
           this, &SerialPortPlot::updateChartSettings);
@@ -575,13 +822,22 @@ void SerialPortPlot::openClosePort() {
     m_serial->close();
     m_serial->close();
     m_serial->close();
+    m_welcomeText =
+        "   欢迎使用uSmilePro串口示波器V1.0   "; // Revert to default
+    m_scrollPos = 0;
+    ToastWidget::showToast("串口 " + m_serial->portName() + " 已关闭", false,
+                           this);
     m_btnOpenClose->setText("打开串口");
     m_btnOpenClose->setChecked(false);
     m_lblStatusIcon->setPixmap(
         QPixmap(":/icons/ONOFF/OFF5.png")
             .scaled(100, 60, Qt::KeepAspectRatio, Qt::SmoothTransformation));
     updateStatusInfo();
-    // Enable settings
+    // Disable auto-send
+    m_chkAutoSend->setChecked(false); // triggers toggleAutoSend -> stops timer
+    m_chkAutoSend->setEnabled(false);
+    m_spinAutoSendInterval->setEnabled(false);
+    // Enable port settings
     m_comboPort->setEnabled(true);
     m_comboBaud->setEnabled(true);
     m_comboDataBits->setEnabled(true);
@@ -598,13 +854,21 @@ void SerialPortPlot::openClosePort() {
         m_comboStopBits->currentData().toInt()));
 
     if (m_serial->open(QIODevice::ReadWrite)) {
+      m_welcomeText = "   串口 " + m_serial->portName() +
+                      " 已打开   "; // Change text for scroll
+      m_scrollPos = 0;              // Reset scroll position
+      ToastWidget::showToast("串口 " + m_serial->portName() + " 已打开", true,
+                             this);
+
       m_btnOpenClose->setText("关闭串口");
       m_btnOpenClose->setChecked(true);
       m_lblStatusIcon->setPixmap(
           QPixmap(":/icons/ONOFF/ON2.png")
               .scaled(100, 60, Qt::KeepAspectRatio, Qt::SmoothTransformation));
       updateStatusInfo();
-      // Disable settings
+      // Enable auto-send controls
+      m_chkAutoSend->setEnabled(true);
+      // Disable port settings
       m_comboPort->setEnabled(false);
       m_comboBaud->setEnabled(false);
       m_comboDataBits->setEnabled(false);
@@ -631,32 +895,29 @@ void SerialPortPlot::onReadyRead() {
   m_lblRxCount->setText(QString::number(m_rxCount));
 
   if (!m_btnStopRx->isChecked()) {
-    QString displayStr;
+    QString rawStr;
 
     // Hex vs ASCII
     if (m_rbRxHex->isChecked()) {
-      displayStr = data.toHex(' ').toUpper();
+      rawStr = data.toHex(' ').toUpper();
     } else {
-      displayStr = QString::fromLocal8Bit(data); // Support Local encoding
+      rawStr = QString::fromLocal8Bit(data); // Support Local encoding
     }
 
+    // Build HTML line: red timestamp + plain data
+    QString htmlLine;
     if (m_chkRxTime->isChecked()) {
       QString timeStr =
-          QDateTime::currentDateTime().toString("[HH:mm:ss.zzz] ");
-      if (m_chkRxLog->isChecked()) {
-        m_textReceive->append(timeStr + displayStr);
-      } else {
-        m_textReceive->moveCursor(QTextCursor::End);
-        m_textReceive->insertPlainText(timeStr + displayStr);
-      }
+          QDateTime::currentDateTime().toString("[yyyy-MM-dd HH:mm:ss.zzz] ");
+      htmlLine = QString("<span style='color:red;'>%1</span>"
+                         "<span>[RX] %2</span>")
+                     .arg(timeStr.toHtmlEscaped())
+                     .arg(rawStr.toHtmlEscaped());
     } else {
-      if (m_chkRxLog->isChecked()) {
-        m_textReceive->append(displayStr);
-      } else {
-        m_textReceive->moveCursor(QTextCursor::End);
-        m_textReceive->insertPlainText(displayStr);
-      }
+      htmlLine = QString("<span>[RX] %1</span>").arg(rawStr.toHtmlEscaped());
     }
+
+    m_textReceive->append(htmlLine);
 
     // Auto Scroll
     m_textReceive->verticalScrollBar()->setValue(
@@ -671,6 +932,14 @@ void SerialPortPlot::onReadyRead() {
 void SerialPortPlot::onWaveformEnabled(bool checked) {
   m_waveformPage->setVisible(checked);
   // Dialog visibility controlled by toolbar action manually
+}
+
+void SerialPortPlot::onDockLocationChanged(Qt::DockWidgetArea area) {
+  if (area == Qt::TopDockWidgetArea || area == Qt::BottomDockWidgetArea) {
+    m_settingsLayout->setDirection(QBoxLayout::LeftToRight);
+  } else {
+    m_settingsLayout->setDirection(QBoxLayout::TopToBottom);
+  }
 }
 
 void SerialPortPlot::updateChartSettings() {
@@ -710,7 +979,6 @@ void SerialPortPlot::updateWaveform(const QByteArray &data) {
   // Let's trying to find simple float/int patterns
   // We'll iterate and find numbers.
 
-  int processedIndex = 0;
   bool inNumber = false;
   int startPos = 0;
 
@@ -790,6 +1058,30 @@ void SerialPortPlot::sendData() {
   m_txCount += idx.size();
   m_lblTxCount->setText(QString::number(m_txCount));
 
+  QString txRawStr;
+  if (m_rbTxHex->isChecked()) {
+    txRawStr = idx.toHex(' ').toUpper();
+  } else {
+    txRawStr = QString::fromLocal8Bit(idx);
+  }
+
+  // Build HTML line: blue timestamp + plain TX data
+  QString txHtmlLine;
+  if (m_chkTxTime->isChecked()) {
+    QString timeStr =
+        QDateTime::currentDateTime().toString("[yyyy-MM-dd HH:mm:ss.zzz] ");
+    txHtmlLine = QString("<span style='color:blue;'>%1</span>"
+                         "<span>[TX] %2</span>")
+                     .arg(timeStr.toHtmlEscaped())
+                     .arg(txRawStr.toHtmlEscaped());
+  } else {
+    txHtmlLine = QString("<span>[TX] %1</span>").arg(txRawStr.toHtmlEscaped());
+  }
+
+  m_textReceive->append(txHtmlLine);
+  m_textReceive->verticalScrollBar()->setValue(
+      m_textReceive->verticalScrollBar()->maximum());
+
   // Add to History (avoid duplicates at top, simple Lru-like)
   if (m_comboHistory->findText(text) == -1) {
     m_comboHistory->insertItem(0, text);
@@ -831,18 +1123,25 @@ void SerialPortPlot::scrollWelcomeMessage() {
   if (m_welcomeText.isEmpty())
     return;
 
-  // Simple marquee: move first char to end
-  // m_scrollPos is not really needed if we just rotate the string
-  // But let's keep original const string and rotate display
+  // Smooth scrolling using stylesheet text-indent
+  // Double the text for seamless loop
+  QString doubleText = m_welcomeText + "    " + m_welcomeText;
+  m_lblWelcome->setText(doubleText);
 
-  QString display =
-      m_welcomeText.mid(m_scrollPos) + m_welcomeText.left(m_scrollPos);
-  m_lblWelcome->setText(display);
+  // Calculate text width for loop point
+  QFontMetrics fm(m_lblWelcome->font());
+  int singleTextWidth = fm.horizontalAdvance(m_welcomeText + "    ");
 
-  m_scrollPos++;
-  if (m_scrollPos >= m_welcomeText.length()) {
+  // Increment scroll position smoothly (1 pixel per frame)
+  m_scrollPos += 1;
+  if (m_scrollPos >= singleTextWidth) {
     m_scrollPos = 0;
   }
+
+  // Apply text-indent via stylesheet for smooth pixel movement
+  m_lblWelcome->setStyleSheet(
+      QString("color: blue; font-style: italic; text-indent: -%1px;")
+          .arg(m_scrollPos));
 }
 
 void SerialPortPlot::updateStatusInfo() {
@@ -954,3 +1253,254 @@ QString SerialPortPlot::getButtonStyle(ButtonType type) {
 
   return baseStyle + gradient;
 }
+
+void SerialPortPlot::onTxModeChanged(bool hexChecked) {
+  QString current = m_textSend->toPlainText().trimmed();
+  if (current.isEmpty())
+    return;
+
+  if (hexChecked) {
+    // ASCII -> HEX: encode text bytes to space-separated uppercase hex
+    QByteArray bytes = current.toLocal8Bit();
+    QString hexStr = bytes.toHex(' ').toUpper();
+    m_textSend->setPlainText(hexStr);
+  } else {
+    // HEX -> ASCII: try to decode hex string back to text
+    // Remove all whitespace first to handle spaces between bytes
+    QString clean = current.remove(' ').remove('\t');
+    QByteArray bytes = QByteArray::fromHex(clean.toUtf8());
+    if (!bytes.isEmpty()) {
+      m_textSend->setPlainText(QString::fromLocal8Bit(bytes));
+    }
+  }
+}
+
+// ──────────────────────────────────────────────────────────
+// Multi-send: helper to push current page data into widgets
+// ──────────────────────────────────────────────────────────
+void SerialPortPlot::refreshMultiPage() {
+  if (m_multiPages.isEmpty())
+    return;
+  const auto &page = m_multiPages.at(m_multiPage);
+  for (int i = 0; i < MULTI_PER_PAGE; i++) {
+    const MultiSendItem &item =
+        (i < page.size()) ? page.at(i) : MultiSendItem{};
+    // Block signals to avoid saving back while loading
+    m_chkMultiItem[i]->blockSignals(true);
+    m_leMultiItem[i]->blockSignals(true);
+    m_chkMultiItem[i]->setChecked(item.enabled);
+    m_leMultiItem[i]->setText(item.content);
+    m_chkMultiItem[i]->blockSignals(false);
+    m_leMultiItem[i]->blockSignals(false);
+  }
+  int total = m_multiPages.count();
+  m_lblMultiPage->setText(
+      QString("第 %1 / %2 页").arg(m_multiPage + 1).arg(total));
+  m_spinJumpPage->setValue(m_multiPage + 1);
+  m_btnMultiFirst->setEnabled(m_multiPage > 0);
+  m_btnMultiPrev->setEnabled(m_multiPage > 0);
+  m_btnMultiNext->setEnabled(m_multiPage < total - 1);
+  m_btnMultiLast->setEnabled(m_multiPage < total - 1);
+  m_btnMultiDelPage->setEnabled(total > 1);
+}
+
+void SerialPortPlot::onMultiPageChanged(int page) {
+  // Save current page edits to model first
+  if (m_multiPage < m_multiPages.size()) {
+    auto &cur = m_multiPages[m_multiPage];
+    for (int i = 0; i < MULTI_PER_PAGE; i++) {
+      cur[i].enabled = m_chkMultiItem[i]->isChecked();
+      cur[i].content = m_leMultiItem[i]->text();
+    }
+  }
+  // Clamp
+  m_multiPage = qBound(0, page, m_multiPages.count() - 1);
+  refreshMultiPage();
+}
+
+// ──────────────────────────────────────────────────────────
+// Send all checked items on current page
+// ──────────────────────────────────────────────────────────
+void SerialPortPlot::sendSelectedMulti() {
+  if (!m_serial->isOpen())
+    return;
+
+  // Save current edits first
+  if (m_multiPage < m_multiPages.size()) {
+    auto &cur = m_multiPages[m_multiPage];
+    for (int i = 0; i < MULTI_PER_PAGE; i++) {
+      cur[i].enabled = m_chkMultiItem[i]->isChecked();
+      cur[i].content = m_leMultiItem[i]->text();
+    }
+  }
+
+  bool globalHex = m_chkMultiHex->isChecked();
+  bool globalNewLine = m_chkMultiNewLine->isChecked();
+
+  const auto &page = m_multiPages.at(m_multiPage);
+  int idx = 0;
+  for (const MultiSendItem &item : page) {
+    idx++;
+    if (!item.enabled || item.content.isEmpty())
+      continue;
+
+    QString text = item.content;
+    QByteArray data;
+    bool isHex = globalHex || item.isHex;
+    if (isHex) {
+      data = QByteArray::fromHex(text.remove(' ').toUtf8());
+    } else {
+      data = text.toLocal8Bit();
+      if (globalNewLine)
+        data.append('\n');
+    }
+
+    m_serial->write(data);
+    m_txCount += data.size();
+    m_lblTxCount->setText(QString::number(m_txCount));
+
+    QString rawStr =
+        isHex ? data.toHex(' ').toUpper() : QString::fromLocal8Bit(data);
+    QString timeStr =
+        QDateTime::currentDateTime().toString("[yyyy-MM-dd HH:mm:ss.zzz] ");
+    QString txHtml =
+        QString("<span style='color:blue;'>%1</span><span>[TX#%2] %3</span>")
+            .arg(timeStr.toHtmlEscaped())
+            .arg(idx)
+            .arg(rawStr.toHtmlEscaped());
+    m_textReceive->append(txHtml);
+    m_textReceive->verticalScrollBar()->setValue(
+        m_textReceive->verticalScrollBar()->maximum());
+  }
+}
+
+// ──────────────────────────────────────────────────────────
+// Auto-loop: cycle through ALL pages sending checked items
+// ──────────────────────────────────────────────────────────
+void SerialPortPlot::onMultiSendLoop() {
+  if (!m_serial->isOpen()) {
+    m_multiLoopTimer->stop();
+    return;
+  }
+
+  // Find next enabled item across all pages
+  int totalItems = m_multiPages.count() * MULTI_PER_PAGE;
+  for (int tries = 0; tries < totalItems; tries++) {
+    int page = m_multiLoopIndex / MULTI_PER_PAGE;
+    int idx = m_multiLoopIndex % MULTI_PER_PAGE;
+    m_multiLoopIndex = (m_multiLoopIndex + 1) % totalItems;
+
+    if (page >= m_multiPages.count())
+      continue;
+    const MultiSendItem &item = m_multiPages.at(page).at(idx);
+    if (!item.enabled || item.content.isEmpty())
+      continue;
+
+    bool isHex = m_chkMultiHex->isChecked() || item.isHex;
+    QString text = item.content;
+    QByteArray data = isHex ? QByteArray::fromHex(text.remove(' ').toUtf8())
+                            : text.toLocal8Bit();
+    if (m_chkMultiNewLine->isChecked() && !isHex)
+      data.append('\n');
+
+    m_serial->write(data);
+    m_txCount += data.size();
+    m_lblTxCount->setText(QString::number(m_txCount));
+
+    QString rawStr =
+        isHex ? data.toHex(' ').toUpper() : QString::fromLocal8Bit(data);
+    QString timeStr =
+        QDateTime::currentDateTime().toString("[yyyy-MM-dd HH:mm:ss.zzz] ");
+    QString html =
+        QString(
+            "<span style='color:blue;'>%1</span><span>[LOOP P%2#%3] %4</span>")
+            .arg(timeStr.toHtmlEscaped())
+            .arg(page + 1)
+            .arg(idx + 1)
+            .arg(rawStr.toHtmlEscaped());
+    m_textReceive->append(html);
+    m_textReceive->verticalScrollBar()->setValue(
+        m_textReceive->verticalScrollBar()->maximum());
+    break; // send one per tick
+  }
+}
+
+// ──────────────────────────────────────────────────────────
+// Import / Export CSV
+// Format: page_index,item_index,enabled,hex,content
+// ──────────────────────────────────────────────────────────
+void SerialPortPlot::importMultiData() {
+  QString path = QFileDialog::getOpenFileName(this, "导入多条发送数据", "",
+                                              "CSV (*.csv);;All files (*)");
+  if (path.isEmpty())
+    return;
+
+  QFile f(path);
+  if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) {
+    QMessageBox::warning(this, "导入失败", f.errorString());
+    return;
+  }
+  QTextStream ts(&f);
+  // Clear existing data
+  m_multiPages.clear();
+
+  while (!ts.atEnd()) {
+    QString line = ts.readLine().trimmed();
+    if (line.isEmpty() || line.startsWith('#'))
+      continue;
+    QStringList cols = line.split(',');
+    if (cols.size() < 5)
+      continue;
+    int pageIdx = cols[0].toInt();
+    int itemIdx = cols[1].toInt();
+    while (m_multiPages.size() <= pageIdx)
+      m_multiPages.append(QVector<MultiSendItem>(MULTI_PER_PAGE));
+    if (itemIdx >= 0 && itemIdx < MULTI_PER_PAGE) {
+      MultiSendItem &item = m_multiPages[pageIdx][itemIdx];
+      item.enabled = cols[2].trimmed() == "1";
+      item.isHex = cols[3].trimmed() == "1";
+      item.content = cols.mid(4).join(','); // content may contain commas
+    }
+  }
+  if (m_multiPages.isEmpty())
+    m_multiPages.append(QVector<MultiSendItem>(MULTI_PER_PAGE));
+
+  m_multiPage = 0;
+  m_spinJumpPage->setRange(1, m_multiPages.count());
+  refreshMultiPage();
+}
+
+void SerialPortPlot::exportMultiData() {
+  // Save current page edits
+  if (m_multiPage < m_multiPages.size()) {
+    auto &cur = m_multiPages[m_multiPage];
+    for (int i = 0; i < MULTI_PER_PAGE; i++) {
+      cur[i].enabled = m_chkMultiItem[i]->isChecked();
+      cur[i].content = m_leMultiItem[i]->text();
+    }
+  }
+
+  QString path = QFileDialog::getSaveFileName(
+      this, "导出多条发送数据", "multi_send.csv", "CSV (*.csv);;All files (*)");
+  if (path.isEmpty())
+    return;
+
+  QFile f(path);
+  if (!f.open(QIODevice::WriteOnly | QIODevice::Text)) {
+    QMessageBox::warning(this, "导出失败", f.errorString());
+    return;
+  }
+  QTextStream ts(&f);
+  ts << "# page_index,item_index,enabled,hex,content\n";
+  for (int p = 0; p < m_multiPages.count(); p++) {
+    const auto &page = m_multiPages.at(p);
+    for (int i = 0; i < page.size(); i++) {
+      const MultiSendItem &item = page.at(i);
+      ts << p << ',' << i << ',' << (item.enabled ? 1 : 0) << ','
+         << (item.isHex ? 1 : 0) << ',' << item.content << '\n';
+    }
+  }
+}
+
+// sendAll() kept for MOC compatibility – delegates to sendSelectedMulti()
+void SerialPortPlot::sendAll() { sendSelectedMulti(); }

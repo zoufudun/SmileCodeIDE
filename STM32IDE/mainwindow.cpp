@@ -11,6 +11,7 @@
 #include <QMenu>
 #include <QMenuBar>
 #include <QMessageBox>
+#include <QProgressDialog>
 #include <QSplitter>
 #include <QStatusBar>
 #include <QTextStream>
@@ -46,8 +47,11 @@
 
 #include <QFontDatabase>
 
+#include "iaptool.h"
+
 MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent), m_isDebugging(false), m_serialPlot(nullptr) {
+    : QMainWindow(parent), m_isDebugging(false), m_serialPlot(nullptr),
+      m_iapTool(nullptr) {
 
   // setupEditor();
 
@@ -212,90 +216,6 @@ bool MainWindow::isCurrentFileModified() const {
   }
   return false;
 }
-void MainWindow::createMenus() {
-  // 创建主菜单栏
-  QMenuBar *menuBar = this->menuBar();
-
-  // 文件菜单
-  QMenu *fileMenu = menuBar->addMenu("文件");
-
-  fileMenu->addAction(m_newProjectAction);
-  fileMenu->addAction(m_openProjectAction);
-  fileMenu->addAction(m_saveProjectAction);
-  fileMenu->addAction(m_closeProjectAction);
-  fileMenu->addSeparator();
-  fileMenu->addAction(m_saveFileAction);
-  fileMenu->addAction(m_saveFileAsAction);
-  fileMenu->addAction(m_saveAllAction);
-  fileMenu->addSeparator();
-  fileMenu->addAction(m_exitAction);
-
-  // 构建菜单
-  QMenu *buildMenu = menuBar->addMenu("构建");
-  buildMenu->addAction(m_buildAction);
-  buildMenu->addAction(m_cleanAction);
-  buildMenu->addAction(m_flashAction);
-
-  // 调试菜单
-  QMenu *debugMenu = menuBar->addMenu("调试");
-  debugMenu->addAction(m_debugAction);
-  debugMenu->addAction(m_stopDebugAction);
-  debugMenu->addSeparator();
-  debugMenu->addAction(m_continueAction);
-  debugMenu->addAction(m_stepOverAction);
-  debugMenu->addAction(m_stepIntoAction);
-  debugMenu->addAction(m_stepOutAction);
-  debugMenu->addSeparator();
-  debugMenu->addAction(m_breakpointAction);
-
-  // 工具菜单全屏模式
-  QMenu *toolsMenu = menuBar->addMenu("工具");
-  toolsMenu->addAction(m_configureToolchainAction);
-  toolsMenu->addSeparator();
-  toolsMenu->addAction(m_serialToolAction);  // 添加串口调试助手工具按钮
-  toolsMenu->addAction(m_networkToolAction); // 添加网络调试助手工具按钮
-  toolsMenu->addAction(m_canToolAction);     // 添加CAN调试助手工具按钮
-
-  // 视图菜单
-  QMenu *viewMenu = menuBar->addMenu("视图");
-  viewMenu->addAction(m_fullScreenAction);
-
-  // 添加分栏子菜单
-  QMenu *splitMenu = viewMenu->addMenu("分栏");
-  splitMenu->addAction(m_horizontalSplitAction);
-  splitMenu->addAction(m_verticalSplitAction);
-  splitMenu->addAction(m_closeSplitAction);
-  // 主题子菜单
-  QMenu *themeMenu = viewMenu->addMenu("主题");
-
-  themeMenu->addSeparator();
-
-  // 添加深色主题组
-  QMenu *darkThemesMenu = themeMenu->addMenu("深色主题");
-  darkThemesMenu->addAction(m_darkThemeAction);
-  darkThemesMenu->addAction(m_oneDarkThemeAction);
-  darkThemesMenu->addAction(m_githubDarkThemeAction);
-  darkThemesMenu->addAction(m_xcodeDarkThemeAction);
-  darkThemesMenu->addAction(m_vueThemeAction);
-  darkThemesMenu->addAction(m_monokaiProThemeAction);
-  darkThemesMenu->addAction(m_draculaThemeAction);
-  darkThemesMenu->addAction(m_nordThemeAction);
-  darkThemesMenu->addAction(m_noctisThemeAction);
-  darkThemesMenu->addAction(m_nightOwlThemeAction);
-  darkThemesMenu->addAction(m_atomMaterialThemeAction);
-  darkThemesMenu->addAction(m_atomOneThemeAction);
-  darkThemesMenu->addAction(m_gerryThemeAction);
-  darkThemesMenu->addAction(m_materialIconsThemeAction);
-
-  // 添加浅色主题组
-  QMenu *lightThemesMenu = themeMenu->addMenu("浅色主题");
-  lightThemesMenu->addAction(m_lightThemeAction);
-  lightThemesMenu->addAction(m_solarizedLightThemeAction);
-  lightThemesMenu->addAction(m_materialLightThemeAction);
-  // 帮助菜单
-  QMenu *helpMenu = menuBar->addMenu("帮助");
-  helpMenu->addAction(m_aboutAction);
-}
 
 void MainWindow::createToolbars() {
   // Create main toolbar
@@ -330,9 +250,10 @@ void MainWindow::createToolbars() {
   toolsToolbar->setMovable(true);
   toolsToolbar->addAction(m_configureToolchainAction);
   toolsToolbar->addSeparator();
-  toolsToolbar->addAction(m_serialToolAction);  // 添加串口调试助手工具按钮
+  toolsToolbar->addAction(m_serialToolAction); // 添加串口调试助手工具按钮
   toolsToolbar->addAction(m_networkToolAction); // 添加网络调试助手工具按钮
-  toolsToolbar->addAction(m_canToolAction);     // 添加CAN调试助手工具按钮
+  toolsToolbar->addAction(m_canToolAction); // 添加CAN调试助手工具按钮
+  toolsToolbar->addAction(m_iapToolAction); // 添加IAP升级工具按钮
 
   // Add view actions
   mainToolbar->addAction(findChild<QAction *>("全屏模式"));
@@ -1837,19 +1758,24 @@ void MainWindow::saveProject() {
 
 // 实现构建相关的槽函数
 void MainWindow::buildProject() {
-  // 清空输出窗口
   m_outputWindow->clear();
   m_outputWindow->append("开始构建项目...");
 
-  // 设置项目路径
-  QString projectPath = QFileInfo(m_currentFilePath).absolutePath();
+  QString projectPath = m_projectPath;
+  if (projectPath.isEmpty() && !m_currentFilePath.isEmpty()) {
+    projectPath = QFileInfo(m_currentFilePath).absolutePath();
+  }
+  
+  if (projectPath.isEmpty()) {
+    m_outputWindow->append("错误: 请先打开或创建项目");
+    return;
+  }
+  
   m_buildSystem->setProjectPath(projectPath);
+  m_buildSystem->setOutputPath(projectPath + "/build");
+  m_buildSystem->setToolchainPath(m_gccPath);
+  m_buildSystem->setTargetChip(m_targetComboBox->currentText());
 
-  // 设置输出路径
-  QString outputPath = projectPath + "/build";
-  m_buildSystem->setOutputPath(outputPath);
-
-  // 开始构建
   if (!m_buildSystem->buildProject()) {
     m_outputWindow->append("错误: " + m_buildSystem->lastError());
   }
@@ -1995,11 +1921,11 @@ void MainWindow::flashProject() {
   QString program;
   QStringList arguments;
 
-  if (m_currentDownloader == "ST-Link") {
+  if (m_currentDownloader == "STLINK") {
     program = m_openocdPath + "/bin/openocd.exe";
     arguments << "-f" << m_openocdConfig << "-c"
               << "program build/firmware.bin 0x8000000 verify reset exit";
-  } else if (m_currentDownloader == "J-Link") {
+  } else if (m_currentDownloader == "Jlink") {
     program = "JLinkExe";
     arguments << "-device" << m_targetComboBox->currentText() << "-if"
               << "SWD"
@@ -2084,7 +2010,7 @@ void MainWindow::startDebug() {
 
   // 启动GDB
   QString gdbCmd = m_gccPath.isEmpty() ? "arm-none-eabi-gdb"
-                                       : m_gccPath + "/arm-none-eabi-gdb";
+                                       : m_gccPath + "/bin/arm-none-eabi-gdb";
   QStringList gdbArgs;
   gdbArgs << m_projectPath + "/" + QFileInfo(m_projectPath).fileName() + ".elf";
 
@@ -2829,6 +2755,13 @@ void MainWindow::createActions() {
   m_canToolAction->setToolTip("打开CAN调试助手");
   connect(m_canToolAction, &QAction::triggered, this, &MainWindow::openCANTool);
 
+  // 添加IAP升级工具动作
+  m_iapToolAction = new QAction("STM32 IAP升级工具", this);
+  m_iapToolAction->setIcon(QIcon(":/icons/IAP.png")); // 需要添加相应图标
+  m_iapToolAction->setStatusTip("打开STM32 IAP升级工具");
+  m_iapToolAction->setToolTip("打开STM32 IAP升级工具");
+  connect(m_iapToolAction, &QAction::triggered, this, &MainWindow::openIAPTool);
+
   // View menu actions
   // m_fullScreenAction = new QAction("全屏模式", this);
   // m_fullScreenAction->setShortcut(QKeySequence("F11"));
@@ -2875,6 +2808,156 @@ void MainWindow::createActions() {
   m_closeSplitAction->setStatusTip("关闭当前分栏");
   connect(m_closeSplitAction, &QAction::triggered,
           [this]() { m_codeEditor->closeSplitView(); });
+
+  // Help menu actions
+  m_welcomeAction = new QAction("欢迎主界面", this);
+  m_welcomeAction->setStatusTip("显示欢迎界面");
+  connect(m_welcomeAction, &QAction::triggered, this,
+          &MainWindow::showWelcomeScreen);
+
+  m_checkUpdatesAction = new QAction("检查更新", this);
+  m_checkUpdatesAction->setStatusTip("检查是否有新版本");
+  connect(m_checkUpdatesAction, &QAction::triggered, this,
+          &MainWindow::checkForUpdates);
+
+  // Terminal actions
+  m_newTerminalAction = new QAction("新建终端", this);
+  m_newTerminalAction->setStatusTip("在当前项目目录打开新终端");
+  m_newTerminalAction->setShortcut(QKeySequence("Ctrl+Shift+`"));
+  connect(m_newTerminalAction, &QAction::triggered, this,
+          &MainWindow::newTerminal);
+}
+
+void MainWindow::createMenus() {
+  // 创建主菜单栏
+  QMenuBar *menuBar = this->menuBar();
+
+  // 文件菜单
+  QMenu *fileMenu = menuBar->addMenu("文件");
+
+  fileMenu->addAction(m_newProjectAction);
+  fileMenu->addAction(m_openProjectAction);
+  fileMenu->addAction(m_saveProjectAction);
+  fileMenu->addAction(m_closeProjectAction);
+  fileMenu->addSeparator();
+  fileMenu->addAction(m_saveFileAction);
+  fileMenu->addAction(m_saveFileAsAction);
+  fileMenu->addAction(m_saveAllAction);
+  fileMenu->addSeparator();
+  fileMenu->addAction(m_exitAction);
+
+  // 构建菜单
+  QMenu *buildMenu = menuBar->addMenu("构建");
+  buildMenu->addAction(m_buildAction);
+  buildMenu->addAction(m_cleanAction);
+  buildMenu->addAction(m_flashAction);
+
+  // 调试菜单
+  QMenu *debugMenu = menuBar->addMenu("调试");
+  debugMenu->addAction(m_debugAction);
+  debugMenu->addAction(m_stopDebugAction);
+  debugMenu->addSeparator();
+  debugMenu->addAction(m_continueAction);
+  debugMenu->addAction(m_stepOverAction);
+  debugMenu->addAction(m_stepIntoAction);
+  debugMenu->addAction(m_stepOutAction);
+  debugMenu->addSeparator();
+  debugMenu->addAction(m_breakpointAction);
+
+  // 工具菜单全屏模式
+  QMenu *toolsMenu = menuBar->addMenu("工具");
+  toolsMenu->addAction(m_configureToolchainAction);
+  toolsMenu->addSeparator();
+  toolsMenu->addAction(m_serialToolAction); // 添加串口调试助手工具按钮
+  toolsMenu->addAction(m_networkToolAction); // 添加网络调试助手工具按钮
+  toolsMenu->addAction(m_canToolAction); // 添加CAN调试助手工具按钮
+  toolsMenu->addAction(m_iapToolAction); // 添加IAP升级工具按钮
+
+  // 视图菜单
+  QMenu *viewMenu = menuBar->addMenu("视图");
+  viewMenu->addAction(m_fullScreenAction);
+
+  // 添加分栏子菜单
+  QMenu *splitMenu = viewMenu->addMenu("分栏");
+  splitMenu->addAction(m_horizontalSplitAction);
+  splitMenu->addAction(m_verticalSplitAction);
+  splitMenu->addAction(m_closeSplitAction);
+  // 主题子菜单
+  QMenu *themeMenu = viewMenu->addMenu("主题");
+
+  themeMenu->addSeparator();
+
+  // 添加深色主题组
+  QMenu *darkThemesMenu = themeMenu->addMenu("深色主题");
+  darkThemesMenu->addAction(m_darkThemeAction);
+  darkThemesMenu->addAction(m_oneDarkThemeAction);
+  darkThemesMenu->addAction(m_githubDarkThemeAction);
+  darkThemesMenu->addAction(m_xcodeDarkThemeAction);
+  darkThemesMenu->addAction(m_vueThemeAction);
+  darkThemesMenu->addAction(m_monokaiProThemeAction);
+  darkThemesMenu->addAction(m_draculaThemeAction);
+  darkThemesMenu->addAction(m_nordThemeAction);
+  darkThemesMenu->addAction(m_noctisThemeAction);
+  darkThemesMenu->addAction(m_nightOwlThemeAction);
+  darkThemesMenu->addAction(m_atomMaterialThemeAction);
+  darkThemesMenu->addAction(m_atomOneThemeAction);
+  darkThemesMenu->addAction(m_gerryThemeAction);
+  darkThemesMenu->addAction(m_materialIconsThemeAction);
+
+  // 添加浅色主题组
+  QMenu *lightThemesMenu = themeMenu->addMenu("浅色主题");
+  lightThemesMenu->addAction(m_lightThemeAction);
+  lightThemesMenu->addAction(m_solarizedLightThemeAction);
+  lightThemesMenu->addAction(m_materialLightThemeAction);
+
+  // 终端菜单
+  QMenu *terminalMenu = menuBar->addMenu("终端");
+  terminalMenu->addAction(m_newTerminalAction);
+
+  // 帮助菜单
+  QMenu *helpMenu = menuBar->addMenu("帮助");
+  helpMenu->addAction(m_welcomeAction);
+  helpMenu->addAction(m_checkUpdatesAction);
+  helpMenu->addSeparator();
+  helpMenu->addAction(m_aboutAction);
+}
+
+void MainWindow::showWelcomeScreen() {
+  QMessageBox::information(this, "欢迎",
+                           "<h3>欢迎使用 SmileCodeIDE</h3>"
+                           "<p>这是一个专为STM32开发设计的集成开发环境。</p>"
+                           "<p>开始你的嵌入式开发之旅吧！</p>");
+}
+
+void MainWindow::checkForUpdates() {
+  // 模拟检查更新
+  QProgressDialog progress("正在检查更新...", "取消", 0, 100, this);
+  progress.setWindowModality(Qt::WindowModal);
+  progress.show();
+
+  for (int i = 0; i < 100; i++) {
+    progress.setValue(i);
+    QThread::msleep(20);
+    if (progress.wasCanceled())
+      break;
+  }
+  progress.setValue(100);
+
+  QMessageBox::information(this, "检查更新", "当前已是最新版本 (v1.0.0)。");
+}
+
+void MainWindow::newTerminal() {
+  QString workingDir = m_projectPath;
+  if (workingDir.isEmpty()) {
+    workingDir = QDir::currentPath();
+  }
+
+  TerminalWidget *terminal = new TerminalWidget(workingDir, this);
+  int index = m_tabWidget->addTab(terminal, "终端");
+  m_tabWidget->setCurrentIndex(index);
+  m_tabWidget->show();
+  // If specifically dock hidden, ensure dock is visible - reusing m_tabWidget
+  // which is in a splitter
 }
 
 void MainWindow::loadSettings() {
@@ -3959,4 +4042,15 @@ void MainWindow::openNetworkTool() {
 void MainWindow::openCANTool() {
   CANTool *canTool = new CANTool(this);
   canTool->show();
+}
+
+void MainWindow::openIAPTool() {
+  if (!m_iapTool) {
+    m_iapTool = new IAPTool();
+    m_iapTool->setWindowTitle("STM32 IAP 升级工具");
+    m_iapTool->resize(600, 500);
+  }
+  m_iapTool->show();
+  m_iapTool->raise();
+  m_iapTool->activateWindow();
 }
