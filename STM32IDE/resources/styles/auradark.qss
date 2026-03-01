@@ -1,0 +1,64 @@
+/* Aura Dark Theme */
+QMainWindow, QDialog {
+    background-color: #15141b;
+    color: #edecee;
+}
+QMenuBar {
+    background-color: #110f18;
+    color: #edecee;
+}
+QMenu {
+    background-color: #15141b;
+    color: #edecee;
+    border: 1px solid #3b334b;
+}
+QToolBar {
+    background-color: #110f18;
+    border-bottom: 1px solid #2d2b38;
+}
+QTabWidget::pane {
+    border: 1px solid #2d2b38;
+}
+QTabBar::tab {
+    background-color: #15141b;
+    color: #8a7c97;
+    padding: 8px 12px;
+}
+QTabBar::tab:selected {
+    background-color: #1c1b22;
+    color: #edecee;
+    border-bottom: 2px solid #a277ff;
+}
+QTextEdit, QLineEdit {
+    background-color: #1c1b22;
+    color: #edecee;
+    border: 1px solid #2d2b38;
+}
+QPushButton {
+    background-color: #a277ff;
+    color: #15141b;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+}
+QPushButton:hover {
+    background-color: #b99aff;
+}
+QComboBox {
+    background-color: #1c1b22;
+    color: #edecee;
+    border: 1px solid #2d2b38;
+}
+QTreeView {
+    background-color: #15141b;
+    color: #edecee;
+    border: none;
+}
+QTreeView::item:selected {
+    background-color: #3b334b;
+    color: #a277ff;
+}
+QStatusBar {
+    background-color: #a277ff;
+    color: #15141b;
+}

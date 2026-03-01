@@ -1,0 +1,56 @@
+/* Solarized Dark Theme */
+QMainWindow, QDialog {
+    background-color: #002B36;
+    color: #839496;
+}
+QMenuBar, QToolBar {
+    background-color: #073642;
+    color: #93A1A1;
+    border-bottom: 1px solid #586E75;
+}
+QMenu {
+    background-color: #002B36;
+    color: #839496;
+    border: 1px solid #586E75;
+}
+QTabWidget::pane {
+    border: 1px solid #586E75;
+}
+QTabBar::tab {
+    background-color: #073642;
+    color: #586E75;
+    padding: 8px 12px;
+}
+QTabBar::tab:selected {
+    background-color: #002B36;
+    color: #93A1A1;
+    border-bottom: 2px solid #268BD2;
+}
+QTextEdit, QLineEdit, QComboBox {
+    background-color: #073642;
+    color: #93A1A1;
+    border: 1px solid #586E75;
+}
+QPushButton {
+    background-color: #268BD2;
+    color: #FDF6E3;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+}
+QPushButton:hover {
+    background-color: #2AA198;
+}
+QTreeView {
+    background-color: #002B36;
+    color: #839496;
+    border: 1px solid #586E75;
+}
+QTreeView::item:selected {
+    background-color: #073642;
+    color: #268BD2;
+}
+QStatusBar {
+    background-color: #268BD2;
+    color: #002B36;
+}

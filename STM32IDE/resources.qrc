@@ -30,8 +30,13 @@
         <file>resources/styles/nord.qss</file>
         <file>resources/styles/onedarkpro.qss</file>
         <file>resources/styles/solarizedlight.qss</file>
+        <file>resources/styles/solarizeddark.qss</file>
         <file>resources/styles/vue.qss</file>
         <file>resources/styles/xcodedark.qss</file>
+        <file>resources/styles/githublight.qss</file>
+        <file>resources/styles/auradark.qss</file>
+        <file>resources/styles/auralight.qss</file>
+        <file>resources/styles/atomlight.qss</file>
         <file>icons/network_tool.png</file>
         <file>icons/serialport.png</file>
         <file>icons/ToosSetting.png</file>

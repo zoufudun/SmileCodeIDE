@@ -250,10 +250,14 @@ void SerialSession::setupUi() {
 
   m_chkEnableWaveform = new QCheckBox("使能波形显示");
   m_chkScopeSettings = new QCheckBox("参数设置");
+  m_chkHideRxTx = new QCheckBox("隐藏收发区");
+  m_chkHideRawData = new QCheckBox("不显示原始数据");
 
   // 让复选框错落有致，美化布局
   grpScopeLayout->addWidget(m_chkEnableWaveform);
   grpScopeLayout->addWidget(m_chkScopeSettings);
+  grpScopeLayout->addWidget(m_chkHideRxTx);
+  grpScopeLayout->addWidget(m_chkHideRawData);
   leftLayout->addWidget(grpScope);
 
   // Status (Counts)
@@ -273,6 +277,7 @@ void SerialSession::setupUi() {
 
   // --- Right Panel: Data and Waveform ---
   QSplitter *rightSplitter = new QSplitter(Qt::Vertical);
+  m_dataSplitter = rightSplitter;
 
   // Receive Area
   QGroupBox *grpData = new QGroupBox("数据接收");
@@ -606,8 +611,11 @@ void SerialSession::setupChart() {
   // QCustomPlot Setup
   m_customPlot->addGraph();
   m_customPlot->graph(0)->setPen(QPen(Qt::blue));
+  m_customPlot->graph(0)->setName("CH1");
   m_customPlot->xAxis->setLabel("Time");
   m_customPlot->yAxis->setLabel("Value");
+
+  m_customPlot->legend->setVisible(true);
 
   // Interactions: Scroll and Zoom? Maybe later, keep simple for now
   m_customPlot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom);
@@ -753,6 +761,10 @@ void SerialSession::setupConnections() {
               m_chkScopeSettings->setChecked(visible);
             }
           });
+
+  // 隐藏收发区控制
+  connect(m_chkHideRxTx, &QCheckBox::toggled, this,
+          [this](bool checked) { m_dataSplitter->setVisible(!checked); });
 }
 
 void SerialSession::refreshPorts() {
@@ -897,11 +909,13 @@ void SerialSession::onReadyRead() {
       htmlLine = QString("<span>[RX] %1</span>").arg(rawStr.toHtmlEscaped());
     }
 
-    m_textReceive->append(htmlLine);
+    if (!m_chkHideRawData->isChecked()) {
+      m_textReceive->append(htmlLine);
 
-    // Auto Scroll
-    m_textReceive->verticalScrollBar()->setValue(
-        m_textReceive->verticalScrollBar()->maximum());
+      // Auto Scroll
+      m_textReceive->verticalScrollBar()->setValue(
+          m_textReceive->verticalScrollBar()->maximum());
+    }
   }
 
   if (!m_waveformPage->isHidden()) {
@@ -946,72 +960,83 @@ void SerialSession::updateChartSettings() {
 }
 
 void SerialSession::updateWaveform(const QByteArray &data) {
-  // Simple parser: treat every number found as a Y value
-  // This allows CSV or just '123\n124\n' to work
   QString str = QString::fromLocal8Bit(data);
-
-  // Split by non-digit chars (roughly) or whitespace/comma
-  // Improvement: use RegEx to find numbers
-  static QString buffer; // Keep buffer for partial numbers across packets
+  static QString buffer;
   buffer.append(str);
 
-  // Process full lines or delimiters?
-  // Let's trying to find simple float/int patterns
-  // We'll iterate and find numbers.
+  int maxPoints = m_spinPoints->value();
+  bool autoScale = m_btnAutoScale->isChecked();
+  bool dataAdded = false;
 
-  bool inNumber = false;
-  int startPos = 0;
+  while (true) {
+    int startIdx = buffer.indexOf('$');
+    if (startIdx == -1) {
+      if (buffer.length() > 4096)
+        buffer.clear(); // Safety check
+      break;
+    }
 
-  for (int i = 0; i < buffer.length(); ++i) {
-    QChar c = buffer.at(i);
-    bool isDigit = c.isDigit() || c == '.' || c == '-';
-
-    if (isDigit && !inNumber) {
-      inNumber = true;
-      startPos = i;
-    } else if (!isDigit && inNumber) {
-      // End of number
-      QString numStr = buffer.mid(startPos, i - startPos);
-      bool ok;
-      double val = numStr.toDouble(&ok);
-      if (ok) {
-        // QCustomPlot addition
-        m_customPlot->graph(0)->addData(m_xValue++, val);
-
-        int maxPoints = m_spinPoints->value();
-        // Remove old data
-        if (m_customPlot->graph(0)->dataCount() > maxPoints) {
-          m_customPlot->graph(0)->data()->removeBefore(m_xValue - maxPoints);
-        }
-
-        // Auto Scale X
-        m_customPlot->xAxis->setRange(m_xValue, maxPoints, Qt::AlignRight);
-
-        // Auto Scale Y
-        if (m_btnAutoScale->isChecked()) {
-          m_customPlot->graph(0)->rescaleValueAxis(
-              true); // true = enlarge only? no, we want full rescal
-                     // Actually rescaleValueAxis fits strictly.
-        } else {
-          // Already set by updateChartSettings
-        }
-
-        m_customPlot->replot();
+    int endIdx = buffer.indexOf(';', startIdx);
+    if (endIdx == -1) {
+      if (buffer.length() > 4096) {
+        buffer = buffer.mid(startIdx);
+        if (buffer.length() > 4096)
+          buffer.clear(); // Safety clear
       }
-      inNumber = false;
+      break; // Need more data
     }
 
-    if (!isDigit && !c.isSpace()) {
-      // Delimiter reached, safe to say we processed up to here
-      // Actually, if we are not in a number, we can discard.
+    // Found complete frame: "$ ... ;"
+    QString payload = buffer.mid(startIdx + 1, endIdx - startIdx - 1).trimmed();
+    buffer.remove(0, endIdx + 1); // Remove processed frame
+
+    if (payload.isEmpty())
+      continue;
+
+    QStringList parts = payload.split(QRegExp("\\s+"), QString::SkipEmptyParts);
+    if (parts.isEmpty())
+      continue;
+
+    // Ensure we have enough graphs
+    int neededGraphs = parts.size();
+    while (m_customPlot->graphCount() < neededGraphs) {
+      int idx = m_customPlot->graphCount();
+      m_customPlot->addGraph();
+
+      // Assign distinct colors using HSV
+      int hue = (idx * 137) % 360; // Golden angle approx
+      QColor color = QColor::fromHsv(hue, 200, 200);
+      m_customPlot->graph(idx)->setPen(QPen(color));
+      m_customPlot->graph(idx)->setName(QString("CH%1").arg(idx + 1));
     }
+
+    // Add data to graphs
+    for (int i = 0; i < parts.size(); ++i) {
+      bool ok;
+      double val = parts[i].toDouble(&ok);
+      if (ok) {
+        m_customPlot->graph(i)->addData(m_xValue, val);
+        if (m_customPlot->graph(i)->dataCount() > maxPoints) {
+          m_customPlot->graph(i)->data()->removeBefore(m_xValue - maxPoints);
+        }
+      }
+    }
+
+    m_xValue++;
+    dataAdded = true;
   }
 
-  // Keep unprocessed tail
-  if (inNumber) {
-    buffer = buffer.mid(startPos);
-  } else {
-    buffer.clear();
+  if (dataAdded) {
+    m_customPlot->xAxis->setRange(m_xValue, maxPoints, Qt::AlignRight);
+    if (autoScale) {
+      for (int i = 0; i < m_customPlot->graphCount(); ++i) {
+        if (i == 0)
+          m_customPlot->graph(i)->rescaleValueAxis(false, true);
+        else
+          m_customPlot->graph(i)->rescaleValueAxis(true, true);
+      }
+    }
+    m_customPlot->replot();
   }
 }
 
@@ -1485,10 +1510,46 @@ void SerialSession::exportMultiData() {
 // sendAll() kept for MOC compatibility – delegates to sendSelectedMulti()
 void SerialSession::sendAll() { sendSelectedMulti(); }
 
+void SerialSession::applyTheme(const QString &themeMode) {
+  if (!m_customPlot)
+    return;
+  bool isDark = themeMode.contains("dark", Qt::CaseInsensitive) ||
+                themeMode.contains("one", Qt::CaseInsensitive);
+
+  QColor bgColor = isDark ? QColor("#1E1E1E") : QColor("#FFFFFF");
+  QColor textColor = isDark ? QColor("#DCDCDC") : QColor("#000000");
+  QColor gridColor = isDark ? QColor("#3E3E42") : QColor("#E0E0E0");
+
+  m_customPlot->setBackground(bgColor);
+  m_customPlot->axisRect()->setBackground(bgColor);
+
+  // X Axis
+  m_customPlot->xAxis->setBasePen(QPen(textColor));
+  m_customPlot->xAxis->setTickPen(QPen(textColor));
+  m_customPlot->xAxis->setSubTickPen(QPen(textColor));
+  m_customPlot->xAxis->setTickLabelColor(textColor);
+  m_customPlot->xAxis->setLabelColor(textColor);
+  m_customPlot->xAxis->grid()->setPen(QPen(gridColor, 1, Qt::DotLine));
+  m_customPlot->xAxis->grid()->setZeroLinePen(QPen(gridColor));
+
+  // Y Axis
+  m_customPlot->yAxis->setBasePen(QPen(textColor));
+  m_customPlot->yAxis->setTickPen(QPen(textColor));
+  m_customPlot->yAxis->setSubTickPen(QPen(textColor));
+  m_customPlot->yAxis->setTickLabelColor(textColor);
+  m_customPlot->yAxis->setLabelColor(textColor);
+  m_customPlot->yAxis->grid()->setPen(QPen(gridColor, 1, Qt::DotLine));
+  m_customPlot->yAxis->grid()->setZeroLinePen(QPen(gridColor));
+
+  m_customPlot->replot();
+}
+
 // =========================================================================
 // SerialPortPlot: 顶层多标签页容器（会话管理器）
 // =========================================================================
 #include <QAction>
+#include <QApplication>
+#include <QFile>
 #include <QInputDialog>
 #include <QMenu>
 #include <QMessageBox>
@@ -1510,8 +1571,69 @@ SerialPortPlot::SerialPortPlot(QWidget *parent)
 
   // Oscilloscope Settings (Moved to individual tabs per user request)
 
-  // Theme
-  toolbar->addAction("主题");
+  // --------- Theme (Menu) ---------
+  QToolButton *btnTheme = new QToolButton();
+  btnTheme->setText("主题");
+  btnTheme->setPopupMode(QToolButton::InstantPopup);
+  QMenu *menuTheme = new QMenu(btnTheme);
+
+  // 1. Color Theme Submenu
+  QMenu *menuColorTheme = menuTheme->addMenu("颜色主题");
+  // Github
+  QMenu *menuGithub = menuColorTheme->addMenu("Github");
+  menuGithub->addAction("Dark", this, [this]() {
+    applyGlobalTheme("githubdark.qss");
+    emit themeChanged("dark");
+  });
+  menuGithub->addAction("Light", this, [this]() {
+    applyGlobalTheme("githublight.qss");
+    emit themeChanged("light");
+  });
+  // Aura
+  QMenu *menuAura = menuColorTheme->addMenu("Aura");
+  menuAura->addAction("Dark", this, [this]() {
+    applyGlobalTheme("auradark.qss");
+    emit themeChanged("dark");
+  });
+  menuAura->addAction("Light", this, [this]() {
+    applyGlobalTheme("auralight.qss");
+    emit themeChanged("light");
+  });
+  // ATOM
+  QMenu *menuAtom = menuColorTheme->addMenu("ATOM");
+  menuAtom->addAction("Dark", this, [this]() {
+    applyGlobalTheme("atomone.qss");
+    emit themeChanged("dark");
+  });
+  menuAtom->addAction("Light", this, [this]() {
+    applyGlobalTheme("atomlight.qss");
+    emit themeChanged("light");
+  });
+  // Solarized
+  QMenu *menuSolarized = menuColorTheme->addMenu("Solarized");
+  menuSolarized->addAction("Dark", this, [this]() {
+    applyGlobalTheme("solarizeddark.qss");
+    emit themeChanged("dark");
+  });
+  menuSolarized->addAction("Light", this, [this]() {
+    applyGlobalTheme("solarizedlight.qss");
+    emit themeChanged("light");
+  });
+
+  // 2. File Icon Theme Submenu
+  QMenu *menuFileIcon = menuTheme->addMenu("文件图标主题");
+  menuFileIcon->addAction("Material Icon", this,
+                          [this]() { applyFileIconTheme("material"); });
+  menuFileIcon->addAction("VSCode Icon", this,
+                          [this]() { applyFileIconTheme("vscode"); });
+
+  // 3. Product Icon Theme Submenu
+  QMenu *menuProductIcon = menuTheme->addMenu("产品图标主题");
+  menuProductIcon->addAction("Default", this,
+                             [this]() { applyFileIconTheme("default"); });
+
+  btnTheme->setMenu(menuTheme);
+  toolbar->addWidget(btnTheme);
 
   // Help
   toolbar->addAction("帮助");
@@ -1525,6 +1647,48 @@ SerialPortPlot::SerialPortPlot(QWidget *parent)
   m_sessionTabs = new QTabWidget(this);
   m_sessionTabs->setTabsClosable(true);
   m_sessionTabs->setMovable(true);
+
+  // 应用仿浏览器圆角标签页样式
+  m_sessionTabs->setStyleSheet(R"(
+    QTabWidget::pane {
+        border-top: 1px solid #C0C0C0;
+        background-color: transparent;
+    }
+    QTabBar::tab {
+        background: #E8E8E8;
+        border: 1px solid #C0C0C0;
+        border-bottom-color: #C0C0C0; 
+        border-top-left-radius: 8px;
+        border-top-right-radius: 8px;
+        min-width: 100px;
+        padding: 6px 16px;
+        margin-right: 2px;
+        margin-top: 4px;
+    }
+    QTabBar::tab:selected, QTabBar::tab:hover {
+        background: #FFFFFF;
+        border-bottom-color: #FFFFFF; /* 与页面内容融为一体 */
+    }
+    QTabBar::tab:selected {
+        margin-top: 0px; /* 选中的标签稍微凸起 */
+        font-weight: bold;
+    }
+    /* 针对我们特殊的加号标签稍作样式调整 */
+    QTabBar::tab:last {
+        min-width: 30px;
+        padding: 6px 8px;
+        background: transparent;
+        border: none;
+        margin-top: 4px;
+        font-weight: bold;
+        color: #555555;
+    }
+    QTabBar::tab:last:hover {
+        background: #D0D0D0;
+        border-radius: 8px;
+        color: #000000;
+    }
+  )");
 
   // 安装事件过滤器用于监听双击重命名和“+”号假选项卡的点击
   m_sessionTabs->tabBar()->installEventFilter(this);
@@ -1636,4 +1800,26 @@ void SerialPortPlot::onTabCloseRequested(int index) {
       m_sessionTabs->setCurrentIndex(m_sessionTabs->count() - 2);
     }
   }
+}
+
+void SerialPortPlot::applyGlobalTheme(const QString &themeFile) {
+  QFile file(QString(":/resources/styles/") + themeFile);
+  if (file.open(QFile::ReadOnly)) {
+    QString styleSheet = QLatin1String(file.readAll());
+    qApp->setStyleSheet(styleSheet);
+    file.close();
+  }
+
+  // Also pass to internal sessions
+  for (int i = 0; i < m_sessionTabs->count() - 1; i++) {
+    SerialSession *session =
+        qobject_cast<SerialSession *>(m_sessionTabs->widget(i));
+    if (session) {
+      session->applyTheme(themeFile);
+    }
+  }
+}
+
+void SerialPortPlot::applyFileIconTheme(const QString &themeName) {
+  QIcon::setThemeName(themeName);
 }

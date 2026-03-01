@@ -1,0 +1,64 @@
+/* Github Light Theme */
+QMainWindow, QDialog {
+    background-color: #FFFFFF;
+    color: #24292F;
+}
+QMenuBar {
+    background-color: #F6F8FA;
+    color: #24292F;
+}
+QMenu {
+    background-color: #FFFFFF;
+    color: #24292F;
+    border: 1px solid #D0D7DE;
+}
+QToolBar {
+    background-color: #F6F8FA;
+    border-bottom: 1px solid #D0D7DE;
+}
+QTabWidget::pane {
+    border: 1px solid #D0D7DE;
+}
+QTabBar::tab {
+    background-color: #F6F8FA;
+    color: #24292F;
+    padding: 8px 12px;
+}
+QTabBar::tab:selected {
+    background-color: #FFFFFF;
+    border-bottom: 2px solid #FD8C73; /* Github repo active line */
+}
+QTextEdit, QLineEdit {
+    background-color: #FFFFFF;
+    color: #24292F;
+    border: 1px solid #D0D7DE;
+}
+QPushButton {
+    background-color: #F3F4F6;
+    color: #24292F;
+    border: 1px solid #D0D7DE;
+    padding: 6px 12px;
+    border-radius: 6px;
+}
+QPushButton:hover {
+    background-color: #EBECF0;
+}
+QComboBox {
+    background-color: #FFFFFF;
+    color: #24292F;
+    border: 1px solid #D0D7DE;
+    border-radius: 6px;
+}
+QTreeView {
+    background-color: #F6F8FA;
+    color: #24292F;
+    border: 1px solid #D0D7DE;
+}
+QTreeView::item:selected {
+    background-color: #0969DA;
+    color: #FFFFFF;
+}
+QStatusBar {
+    background-color: #0969DA;
+    color: #FFFFFF;
+}

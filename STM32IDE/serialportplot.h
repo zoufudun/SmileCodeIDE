@@ -16,6 +16,7 @@
 #include <QSerialPort>
 #include <QSerialPortInfo>
 #include <QSpinBox>
+#include <QString>
 #include <QTabWidget>
 #include <QTextEdit>
 #include <QTimer>
@@ -90,6 +91,8 @@ private slots:
   void scrollWelcomeMessage();
 
 public:
+  void applyTheme(const QString &themeMode);
+
   // Waveform Settings (Accessed by Toolbar in Manager)
   void onWaveformEnabled(bool checked);
 
@@ -195,6 +198,11 @@ public:
   QDoubleSpinBox *m_spinYMax;
   QPushButton *m_btnResetChart;
 
+  // New UI controls for Waveform
+  QCheckBox *m_chkHideRxTx;
+  QCheckBox *m_chkHideRawData;
+  QSplitter *m_dataSplitter;
+
   // Extended Page
   QMainWindow *m_waveformPage;
 
@@ -212,10 +220,17 @@ public:
   explicit SerialPortPlot(QWidget *parent = nullptr);
   ~SerialPortPlot();
 
+signals:
+  void themeChanged(const QString &themeName);
+
 private slots:
   void addNewSession();
   void onTabDoubleClicked(int index);
   void onTabCloseRequested(int index);
+
+  // Theme functions
+  void applyGlobalTheme(const QString &themeFile);
+  void applyFileIconTheme(const QString &themeName);
 
 protected:
   bool eventFilter(QObject *watched, QEvent *event) override;
