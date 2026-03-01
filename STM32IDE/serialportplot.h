@@ -41,12 +41,12 @@ static const int MULTI_COLS = 2;
 static const int MULTI_ROWS = 5;
 static const int MULTI_PER_PAGE = MULTI_COLS * MULTI_ROWS; // 10
 
-class SerialPortPlot : public QWidget {
+class SerialSession : public QWidget {
   Q_OBJECT
 
 public:
-  explicit SerialPortPlot(QWidget *parent = nullptr);
-  ~SerialPortPlot();
+  explicit SerialSession(QWidget *parent = nullptr);
+  ~SerialSession();
 
   // Status Bar
   QLabel *m_lblPortInfo;
@@ -82,13 +82,16 @@ private slots:
   void exportMultiData();
 
   // Waveform Settings
-  void onWaveformEnabled(bool checked);
   void onDockLocationChanged(Qt::DockWidgetArea area);
   void updateChartSettings();
 
   // UI Updates
   void updateWaveform(const QByteArray &data);
   void scrollWelcomeMessage();
+
+public:
+  // Waveform Settings (Accessed by Toolbar in Manager)
+  void onWaveformEnabled(bool checked);
 
 private:
   enum class ButtonType { Normal, Refresh, Open, Close };
@@ -177,9 +180,11 @@ private:
 
   // Waveform
   QCheckBox *m_chkEnableWaveform;
+  QCheckBox *m_chkScopeSettings;
   QCustomPlot *m_customPlot;
   double m_xValue;
 
+public:
   // Waveform Settings UI
   QDockWidget *m_dockSettings;
   QBoxLayout *m_settingsLayout;
@@ -194,9 +199,30 @@ private:
   QMainWindow *m_waveformPage;
 
   // Global UI Structure
-  QToolBar *m_toolbar;
-  QAction *m_actWaveform;
   QTabWidget *m_mainTabWidget;
+};
+
+// -------------------------------------------------------------
+// SerialPortPlot: 顶层多标签页容器（"会话管理器"）
+// -------------------------------------------------------------
+class SerialPortPlot : public QWidget {
+  Q_OBJECT
+
+public:
+  explicit SerialPortPlot(QWidget *parent = nullptr);
+  ~SerialPortPlot();
+
+private slots:
+  void addNewSession();
+  void onTabDoubleClicked(int index);
+  void onTabCloseRequested(int index);
+
+protected:
+  bool eventFilter(QObject *watched, QEvent *event) override;
+
+private:
+  QTabWidget *m_sessionTabs;
+  int m_sessionCounter;
 };
 
 #endif // SERIALPORTPLOT_H

@@ -18,7 +18,7 @@
 #include <QToolButton>
 #include <QVBoxLayout>
 
-SerialPortPlot::SerialPortPlot(QWidget *parent)
+SerialSession::SerialSession(QWidget *parent)
     : QWidget(parent), m_rxCount(0), m_txCount(0), m_xValue(0),
       m_lastPortCount(0), m_scrollPos(0) {
   m_serial = new QSerialPort(this);
@@ -43,56 +43,14 @@ SerialPortPlot::SerialPortPlot(QWidget *parent)
   m_portCheckTimer->start(1000);
 }
 
-SerialPortPlot::~SerialPortPlot() {
+SerialSession::~SerialSession() {
   if (m_serial->isOpen())
     m_serial->close();
 }
 
-void SerialPortPlot::setupUi() {
+void SerialSession::setupUi() {
   QVBoxLayout *mainLayout =
       new QVBoxLayout(this); // Changed to Vertical for Status Bar
-
-  // --- Toolbar ---
-  // --- Toolbar ---
-  m_toolbar = new QToolBar("Main Toolbar");
-  m_toolbar->setMovable(false);
-
-  // Settings
-  m_toolbar->addAction("设置");
-
-  // Oscilloscope Settings (Menu)
-  QToolButton *btnScope = new QToolButton();
-  btnScope->setText("示波器设置");
-  btnScope->setPopupMode(QToolButton::InstantPopup);
-  QMenu *menuScope = new QMenu(btnScope);
-
-  m_actWaveform = new QAction("使能波形显示", this);
-  m_actWaveform->setCheckable(true);
-  menuScope->addAction(m_actWaveform);
-
-  QAction *actScopeSettings = new QAction("参数设置", this);
-  connect(actScopeSettings, &QAction::triggered, [this]() {
-    if (m_dockSettings->isHidden()) {
-      m_dockSettings->show();
-    } else {
-      m_dockSettings->close();
-    }
-  });
-  menuScope->addAction(actScopeSettings);
-
-  btnScope->setMenu(menuScope);
-  m_toolbar->addWidget(btnScope);
-
-  // Theme
-  m_toolbar->addAction("主题");
-
-  // Help
-  m_toolbar->addAction("帮助");
-
-  // About
-  m_toolbar->addAction("关于");
-
-  mainLayout->addWidget(m_toolbar);
 
   QSplitter *splitter = new QSplitter(Qt::Horizontal, this);
 
@@ -283,6 +241,20 @@ void SerialPortPlot::setupUi() {
   txLayout->addLayout(autoSendLayout);
 
   leftLayout->addWidget(grpTx);
+
+  // === 新增：示波器设置 GroupBox ===
+  QGroupBox *grpScope = new QGroupBox("示波器设置");
+  QVBoxLayout *grpScopeLayout = new QVBoxLayout(grpScope);
+  grpScopeLayout->setContentsMargins(6, 6, 6, 6);
+  grpScopeLayout->setSpacing(4);
+
+  m_chkEnableWaveform = new QCheckBox("使能波形显示");
+  m_chkScopeSettings = new QCheckBox("参数设置");
+
+  // 让复选框错落有致，美化布局
+  grpScopeLayout->addWidget(m_chkEnableWaveform);
+  grpScopeLayout->addWidget(m_chkScopeSettings);
+  leftLayout->addWidget(grpScope);
 
   // Status (Counts)
   QGroupBox *grpStatus = new QGroupBox("统计");
@@ -520,6 +492,7 @@ void SerialPortPlot::setupUi() {
   grpSendLayout->setContentsMargins(4, 8, 4, 4);
   grpSendLayout->addWidget(m_sendTabWidget);
   rightSplitter->addWidget(grpSend);
+
   splitter->addWidget(rightSplitter); // Middle Pane
 
   // --- Extended Waveform Page ---
@@ -535,7 +508,7 @@ void SerialPortPlot::setupUi() {
   m_dockSettings = new QDockWidget("绘图设置", m_waveformPage);
   m_dockSettings->setAllowedAreas(Qt::AllDockWidgetAreas);
   connect(m_dockSettings, &QDockWidget::dockLocationChanged, this,
-          &SerialPortPlot::onDockLocationChanged);
+          &SerialSession::onDockLocationChanged);
 
   QWidget *dockContents = new QWidget();
   m_settingsLayout = new QBoxLayout(QBoxLayout::TopToBottom, dockContents);
@@ -604,12 +577,8 @@ void SerialPortPlot::setupUi() {
   // --- Layout Integration ---
   // Directly add content to Tab Widget without Navigation Bar
 
-  // Add to Tab Widget
-  m_mainTabWidget = new QTabWidget();
-  m_mainTabWidget->addTab(splitter,
-                          "会话 1"); // Splitter is the main content now
-
-  mainLayout->addWidget(m_mainTabWidget);
+  // 移除了内部多余的 m_mainTabWidget，直接将主分割器添加到布局中
+  mainLayout->addWidget(splitter);
 
   // --- Status Bar ---
   QHBoxLayout *statusBarLayout = new QHBoxLayout();
@@ -633,7 +602,7 @@ void SerialPortPlot::setupUi() {
   mainLayout->addLayout(statusBarLayout);
 }
 
-void SerialPortPlot::setupChart() {
+void SerialSession::setupChart() {
   // QCustomPlot Setup
   m_customPlot->addGraph();
   m_customPlot->graph(0)->setPen(QPen(Qt::blue));
@@ -661,19 +630,18 @@ void SerialPortPlot::setupChart() {
   m_customPlot->yAxis->setUpperEnding(QCPLineEnding::esSpikeArrow);
 }
 
-void SerialPortPlot::setupConnections() {
+void SerialSession::setupConnections() {
   connect(m_btnRefresh, &QPushButton::clicked, this,
-          &SerialPortPlot::refreshPorts);
+          &SerialSession::refreshPorts);
   connect(m_btnOpenClose, &QPushButton::clicked, this,
-          &SerialPortPlot::openClosePort);
-  connect(m_serial, &QSerialPort::readyRead, this,
-          &SerialPortPlot::onReadyRead);
+          &SerialSession::openClosePort);
+  connect(m_serial, &QSerialPort::readyRead, this, &SerialSession::onReadyRead);
   connect(m_serial, &QSerialPort::errorOccurred, this,
-          &SerialPortPlot::onPortError);
+          &SerialSession::onPortError);
 
   connect(m_btnClearRx, &QPushButton::clicked, this,
-          &SerialPortPlot::clearReceiveArea);
-  connect(m_btnSend, &QPushButton::clicked, this, &SerialPortPlot::sendData);
+          &SerialSession::clearReceiveArea);
+  connect(m_btnSend, &QPushButton::clicked, this, &SerialSession::sendData);
 
   // Send Area Connections
   connect(m_btnClearSend, &QPushButton::clicked,
@@ -685,13 +653,13 @@ void SerialPortPlot::setupConnections() {
           });
 
   connect(m_chkAutoSend, &QCheckBox::toggled, this,
-          &SerialPortPlot::toggleAutoSend);
+          &SerialSession::toggleAutoSend);
   connect(m_autoSendTimer, &QTimer::timeout, this,
-          &SerialPortPlot::onAutoSendTimeout);
+          &SerialSession::onAutoSendTimeout);
 
   // Auto-convert TX input when switching ASCII <-> HEX
   connect(m_rbTxHex, &QRadioButton::toggled, this,
-          &SerialPortPlot::onTxModeChanged);
+          &SerialSession::onTxModeChanged);
 
   // Multi-send tab button connections
   connect(m_btnMultiFirst, &QPushButton::clicked,
@@ -716,11 +684,11 @@ void SerialPortPlot::setupConnections() {
     onMultiPageChanged(qMin(m_multiPage, m_multiPages.count() - 1));
   });
   connect(m_btnSendAll, &QPushButton::clicked, this,
-          &SerialPortPlot::sendSelectedMulti);
+          &SerialSession::sendSelectedMulti);
   connect(m_btnMultiImport, &QPushButton::clicked, this,
-          &SerialPortPlot::importMultiData);
+          &SerialSession::importMultiData);
   connect(m_btnMultiExport, &QPushButton::clicked, this,
-          &SerialPortPlot::exportMultiData);
+          &SerialSession::exportMultiData);
   connect(m_chkMultiLoop, &QCheckBox::toggled, [this](bool on) {
     m_spinMultiLoopInterval->setEnabled(on);
     if (on) {
@@ -731,7 +699,7 @@ void SerialPortPlot::setupConnections() {
     }
   });
   connect(m_multiLoopTimer, &QTimer::timeout, this,
-          &SerialPortPlot::onMultiSendLoop);
+          &SerialSession::onMultiSendLoop);
   connect(m_spinMultiLoopInterval, QOverload<int>::of(&QSpinBox::valueChanged),
           [this](int v) {
             if (m_multiLoopTimer->isActive())
@@ -749,33 +717,45 @@ void SerialPortPlot::setupConnections() {
     });
   }
 
-  connect(m_actWaveform, &QAction::toggled, this,
-          &SerialPortPlot::onWaveformEnabled);
-
   connect(m_spinPoints, QOverload<int>::of(&QSpinBox::valueChanged), this,
-          &SerialPortPlot::updateChartSettings);
+          &SerialSession::updateChartSettings);
   connect(m_chkShowGrid, &QCheckBox::toggled, this,
-          &SerialPortPlot::updateChartSettings);
+          &SerialSession::updateChartSettings);
   connect(m_btnAutoScale, &QPushButton::toggled, this,
-          &SerialPortPlot::updateChartSettings);
+          &SerialSession::updateChartSettings);
   connect(m_spinYMin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-          this, &SerialPortPlot::updateChartSettings);
-  connect(m_portCheckTimer, &QTimer::timeout, this,
-          &SerialPortPlot::checkPorts);
+          this, &SerialSession::updateChartSettings);
+  connect(m_portCheckTimer, &QTimer::timeout, this, &SerialSession::checkPorts);
 
   connect(m_spinYMax, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-          this, &SerialPortPlot::updateChartSettings);
+          this, &SerialSession::updateChartSettings);
   connect(m_spinYMax, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-          this, &SerialPortPlot::updateChartSettings);
+          this, &SerialSession::updateChartSettings);
   connect(m_btnResetChart, &QPushButton::clicked, [this]() {
     m_customPlot->graph(0)->data()->clear();
     m_customPlot->replot();
     m_xValue = 0;
     updateChartSettings();
   });
+
+  // 波形显示及参数设置按钮控制
+  connect(m_chkEnableWaveform, &QCheckBox::toggled, this,
+          &SerialSession::onWaveformEnabled);
+
+  // 波形参数设置面板控制
+  connect(m_chkScopeSettings, &QCheckBox::toggled, this,
+          [this](bool checked) { m_dockSettings->setVisible(checked); });
+
+  // 双向绑定：用户手动关闭 dock 时，复选框也会联动取消勾选状态
+  connect(m_dockSettings, &QDockWidget::visibilityChanged, this,
+          [this](bool visible) {
+            if (m_chkScopeSettings->isChecked() != visible) {
+              m_chkScopeSettings->setChecked(visible);
+            }
+          });
 }
 
-void SerialPortPlot::refreshPorts() {
+void SerialSession::refreshPorts() {
   QString currentPort = m_comboPort->currentData().toString();
   m_comboPort->clear();
   const auto infos = QSerialPortInfo::availablePorts();
@@ -791,7 +771,7 @@ void SerialPortPlot::refreshPorts() {
   }
 }
 
-void SerialPortPlot::checkPorts() {
+void SerialSession::checkPorts() {
   const auto infos = QSerialPortInfo::availablePorts();
   if (infos.count() != m_lastPortCount) {
     m_lastPortCount = infos.count();
@@ -817,7 +797,7 @@ void SerialPortPlot::checkPorts() {
   }
 }
 
-void SerialPortPlot::openClosePort() {
+void SerialSession::openClosePort() {
   if (m_serial->isOpen()) {
     m_serial->close();
     m_serial->close();
@@ -882,14 +862,14 @@ void SerialPortPlot::openClosePort() {
   }
 }
 
-void SerialPortPlot::onPortError(QSerialPort::SerialPortError error) {
+void SerialSession::onPortError(QSerialPort::SerialPortError error) {
   if (error == QSerialPort::ResourceError) {
     QMessageBox::critical(this, "严重错误", "串口连接中断！");
     openClosePort(); // Force close UI state
   }
 }
 
-void SerialPortPlot::onReadyRead() {
+void SerialSession::onReadyRead() {
   QByteArray data = m_serial->readAll();
   m_rxCount += data.size();
   m_lblRxCount->setText(QString::number(m_rxCount));
@@ -924,17 +904,17 @@ void SerialPortPlot::onReadyRead() {
         m_textReceive->verticalScrollBar()->maximum());
   }
 
-  if (m_actWaveform->isChecked()) {
+  if (!m_waveformPage->isHidden()) {
     updateWaveform(data);
   }
 }
 
-void SerialPortPlot::onWaveformEnabled(bool checked) {
+void SerialSession::onWaveformEnabled(bool checked) {
   m_waveformPage->setVisible(checked);
   // Dialog visibility controlled by toolbar action manually
 }
 
-void SerialPortPlot::onDockLocationChanged(Qt::DockWidgetArea area) {
+void SerialSession::onDockLocationChanged(Qt::DockWidgetArea area) {
   if (area == Qt::TopDockWidgetArea || area == Qt::BottomDockWidgetArea) {
     m_settingsLayout->setDirection(QBoxLayout::LeftToRight);
   } else {
@@ -942,7 +922,7 @@ void SerialPortPlot::onDockLocationChanged(Qt::DockWidgetArea area) {
   }
 }
 
-void SerialPortPlot::updateChartSettings() {
+void SerialSession::updateChartSettings() {
   if (m_btnAutoScale->isChecked()) {
     m_spinYMin->setEnabled(false);
     m_spinYMax->setEnabled(false);
@@ -965,7 +945,7 @@ void SerialPortPlot::updateChartSettings() {
   m_customPlot->replot();
 }
 
-void SerialPortPlot::updateWaveform(const QByteArray &data) {
+void SerialSession::updateWaveform(const QByteArray &data) {
   // Simple parser: treat every number found as a Y value
   // This allows CSV or just '123\n124\n' to work
   QString str = QString::fromLocal8Bit(data);
@@ -1035,7 +1015,7 @@ void SerialPortPlot::updateWaveform(const QByteArray &data) {
   }
 }
 
-void SerialPortPlot::sendData() {
+void SerialSession::sendData() {
   if (!m_serial->isOpen())
     return;
 
@@ -1098,7 +1078,7 @@ void SerialPortPlot::sendData() {
   m_comboHistory->setCurrentIndex(0);
 }
 
-void SerialPortPlot::clearReceiveArea() {
+void SerialSession::clearReceiveArea() {
   m_textReceive->clear();
   m_rxCount = 0;
   m_lblRxCount->setText("0");
@@ -1107,7 +1087,7 @@ void SerialPortPlot::clearReceiveArea() {
   m_xValue = 0;
 }
 
-void SerialPortPlot::toggleAutoSend(bool checked) {
+void SerialSession::toggleAutoSend(bool checked) {
   if (checked) {
     m_autoSendTimer->start(m_spinAutoSendInterval->value());
     m_spinAutoSendInterval->setEnabled(false);
@@ -1117,9 +1097,9 @@ void SerialPortPlot::toggleAutoSend(bool checked) {
   }
 }
 
-void SerialPortPlot::onAutoSendTimeout() { sendData(); }
+void SerialSession::onAutoSendTimeout() { sendData(); }
 
-void SerialPortPlot::scrollWelcomeMessage() {
+void SerialSession::scrollWelcomeMessage() {
   if (m_welcomeText.isEmpty())
     return;
 
@@ -1144,7 +1124,7 @@ void SerialPortPlot::scrollWelcomeMessage() {
           .arg(m_scrollPos));
 }
 
-void SerialPortPlot::updateStatusInfo() {
+void SerialSession::updateStatusInfo() {
   if (m_serial->isOpen()) {
     QString info =
         QString("串口[%1] 已打开 %2 %3-%4-%5")
@@ -1182,7 +1162,7 @@ void SerialPortPlot::updateStatusInfo() {
   }
 }
 
-QString SerialPortPlot::getButtonStyle(ButtonType type) {
+QString SerialSession::getButtonStyle(ButtonType type) {
   // Base Style with shared settings
   QString baseStyle = "QPushButton { "
                       "    border-radius: 10px; "
@@ -1254,7 +1234,7 @@ QString SerialPortPlot::getButtonStyle(ButtonType type) {
   return baseStyle + gradient;
 }
 
-void SerialPortPlot::onTxModeChanged(bool hexChecked) {
+void SerialSession::onTxModeChanged(bool hexChecked) {
   QString current = m_textSend->toPlainText().trimmed();
   if (current.isEmpty())
     return;
@@ -1278,7 +1258,7 @@ void SerialPortPlot::onTxModeChanged(bool hexChecked) {
 // ──────────────────────────────────────────────────────────
 // Multi-send: helper to push current page data into widgets
 // ──────────────────────────────────────────────────────────
-void SerialPortPlot::refreshMultiPage() {
+void SerialSession::refreshMultiPage() {
   if (m_multiPages.isEmpty())
     return;
   const auto &page = m_multiPages.at(m_multiPage);
@@ -1304,7 +1284,7 @@ void SerialPortPlot::refreshMultiPage() {
   m_btnMultiDelPage->setEnabled(total > 1);
 }
 
-void SerialPortPlot::onMultiPageChanged(int page) {
+void SerialSession::onMultiPageChanged(int page) {
   // Save current page edits to model first
   if (m_multiPage < m_multiPages.size()) {
     auto &cur = m_multiPages[m_multiPage];
@@ -1321,7 +1301,7 @@ void SerialPortPlot::onMultiPageChanged(int page) {
 // ──────────────────────────────────────────────────────────
 // Send all checked items on current page
 // ──────────────────────────────────────────────────────────
-void SerialPortPlot::sendSelectedMulti() {
+void SerialSession::sendSelectedMulti() {
   if (!m_serial->isOpen())
     return;
 
@@ -1377,7 +1357,7 @@ void SerialPortPlot::sendSelectedMulti() {
 // ──────────────────────────────────────────────────────────
 // Auto-loop: cycle through ALL pages sending checked items
 // ──────────────────────────────────────────────────────────
-void SerialPortPlot::onMultiSendLoop() {
+void SerialSession::onMultiSendLoop() {
   if (!m_serial->isOpen()) {
     m_multiLoopTimer->stop();
     return;
@@ -1429,7 +1409,7 @@ void SerialPortPlot::onMultiSendLoop() {
 // Import / Export CSV
 // Format: page_index,item_index,enabled,hex,content
 // ──────────────────────────────────────────────────────────
-void SerialPortPlot::importMultiData() {
+void SerialSession::importMultiData() {
   QString path = QFileDialog::getOpenFileName(this, "导入多条发送数据", "",
                                               "CSV (*.csv);;All files (*)");
   if (path.isEmpty())
@@ -1470,7 +1450,7 @@ void SerialPortPlot::importMultiData() {
   refreshMultiPage();
 }
 
-void SerialPortPlot::exportMultiData() {
+void SerialSession::exportMultiData() {
   // Save current page edits
   if (m_multiPage < m_multiPages.size()) {
     auto &cur = m_multiPages[m_multiPage];
@@ -1503,4 +1483,157 @@ void SerialPortPlot::exportMultiData() {
 }
 
 // sendAll() kept for MOC compatibility – delegates to sendSelectedMulti()
-void SerialPortPlot::sendAll() { sendSelectedMulti(); }
+void SerialSession::sendAll() { sendSelectedMulti(); }
+
+// =========================================================================
+// SerialPortPlot: 顶层多标签页容器（会话管理器）
+// =========================================================================
+#include <QAction>
+#include <QInputDialog>
+#include <QMenu>
+#include <QMessageBox>
+#include <QTabBar>
+#include <QToolBar>
+#include <QToolButton>
+
+SerialPortPlot::SerialPortPlot(QWidget *parent)
+    : QWidget(parent), m_sessionCounter(1) {
+  QVBoxLayout *mainLayout = new QVBoxLayout(this);
+  mainLayout->setContentsMargins(0, 0, 0, 0);
+
+  // --- 全局工具栏 (移自 SerialSession) ---
+  QToolBar *toolbar = new QToolBar("Main Toolbar");
+  toolbar->setMovable(false);
+
+  // Settings
+  toolbar->addAction("设置");
+
+  // Oscilloscope Settings (Moved to individual tabs per user request)
+
+  // Theme
+  toolbar->addAction("主题");
+
+  // Help
+  toolbar->addAction("帮助");
+
+  // About
+  toolbar->addAction("关于");
+
+  mainLayout->addWidget(toolbar);
+
+  // --- 选项卡区域 ---
+  m_sessionTabs = new QTabWidget(this);
+  m_sessionTabs->setTabsClosable(true);
+  m_sessionTabs->setMovable(true);
+
+  // 安装事件过滤器用于监听双击重命名和“+”号假选项卡的点击
+  m_sessionTabs->tabBar()->installEventFilter(this);
+
+  connect(m_sessionTabs, &QTabWidget::tabCloseRequested, this,
+          &SerialPortPlot::onTabCloseRequested);
+
+  mainLayout->addWidget(m_sessionTabs);
+
+  // 先添加 ➕ 号假标签（使用更宽更显眼的全角加号或者emoji包裹空格）
+  m_sessionTabs->addTab(new QWidget(), "  ➕  ");
+  // 隐藏假标签的关闭按钮
+  m_sessionTabs->tabBar()->setTabButton(0, QTabBar::RightSide, nullptr);
+
+  // 默认启动一个会话
+  addNewSession();
+}
+
+SerialPortPlot::~SerialPortPlot() {}
+
+bool SerialPortPlot::eventFilter(QObject *watched, QEvent *event) {
+  if (watched == m_sessionTabs->tabBar()) {
+    if (event->type() == QEvent::MouseButtonPress) {
+      QMouseEvent *mouseEvent = static_cast<QMouseEvent *>(event);
+      int index = m_sessionTabs->tabBar()->tabAt(mouseEvent->pos());
+      // 如果点击的是最后一个 "+" 号标签页
+      if (index == m_sessionTabs->count() - 1 &&
+          mouseEvent->button() == Qt::LeftButton) {
+        addNewSession();
+        return true;
+      }
+    } else if (event->type() == QEvent::MouseButtonDblClick) {
+      QMouseEvent *mouseEvent = static_cast<QMouseEvent *>(event);
+      int index = m_sessionTabs->tabBar()->tabAt(mouseEvent->pos());
+      // 排除 "+" 标签页的重命名
+      if (index >= 0 && index < m_sessionTabs->count() - 1) {
+        onTabDoubleClicked(index);
+        return true;
+      }
+    }
+  }
+  return QWidget::eventFilter(watched, event);
+}
+
+void SerialPortPlot::addNewSession() {
+  SerialSession *session = new SerialSession(this);
+  QString title;
+  if (m_sessionCounter == 1) {
+    title = "SerialPortPlotPro";
+  } else {
+    title = QString("SerialPortPlotPro%1").arg(m_sessionCounter);
+  }
+  m_sessionCounter++;
+
+  // 插入到 "  ➕  " 号前面
+  int addIndex = m_sessionTabs->count() - 1;
+  int index = m_sessionTabs->insertTab(addIndex, session, title);
+  m_sessionTabs->setCurrentIndex(index);
+}
+
+void SerialPortPlot::onTabDoubleClicked(int index) {
+  if (index < 0)
+    return;
+  bool ok;
+  QString currentTitle = m_sessionTabs->tabText(index);
+  QString newTitle = QInputDialog::getText(
+      this, "重命名会话", "新名称:", QLineEdit::Normal, currentTitle, &ok);
+  if (ok && !newTitle.isEmpty()) {
+    m_sessionTabs->setTabText(index, newTitle);
+  }
+}
+
+void SerialPortPlot::onTabCloseRequested(int index) {
+  // 禁止关闭 "+" 号标签页
+  if (index == m_sessionTabs->count() - 1)
+    return;
+
+  // 如果这是最后一个真实的选项卡（即总 count==2，1个真实 +
+  // 1个"+"），关闭它直接退出整个应用
+  if (m_sessionTabs->count() <= 2) {
+    if (window()) {
+      window()->close();
+    }
+    return;
+  }
+
+  // 记录即将关闭前要跳转到的索引，防止跳到 "+" 标签
+  int nextIndex = -1;
+  if (m_sessionTabs->currentIndex() == index) {
+    if (index > 0) {
+      nextIndex = index - 1; // 优先跳到左边
+    } else if (index < m_sessionTabs->count() - 2) {
+      nextIndex = index + 1; // 不可能的话跳到右边的真实标签
+    }
+  }
+
+  QWidget *widget = m_sessionTabs->widget(index);
+  if (widget) {
+    widget->deleteLater();
+  }
+  m_sessionTabs->removeTab(index);
+
+  // 切换到合适的索引，防止激活 "+" 标签
+  if (nextIndex >= 0) {
+    m_sessionTabs->setCurrentIndex(nextIndex);
+  } else {
+    // 默认情况如果跑到了 "+" 标签，则强制跳回最后一个真实标签
+    if (m_sessionTabs->currentIndex() == m_sessionTabs->count() - 1) {
+      m_sessionTabs->setCurrentIndex(m_sessionTabs->count() - 2);
+    }
+  }
+}
