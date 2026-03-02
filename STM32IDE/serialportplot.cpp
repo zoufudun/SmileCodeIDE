@@ -253,13 +253,15 @@ void SerialSession::setupUi() {
   m_chkEnableWaveform = new QCheckBox("使能波形显示");
   m_chkScopeSettings = new QCheckBox("参数设置");
   m_chkHideRxTx = new QCheckBox("隐藏收发区");
-  m_chkHideRawData = new QCheckBox("不显示原始数据");
+  m_chkHideRxData = new QCheckBox("不显示接收");
+  m_chkShowRawData = new QCheckBox("显示原始数据");
 
   // 让复选框错落有致，美化布局
   grpScopeLayout->addWidget(m_chkEnableWaveform);
   grpScopeLayout->addWidget(m_chkScopeSettings);
   grpScopeLayout->addWidget(m_chkHideRxTx);
-  grpScopeLayout->addWidget(m_chkHideRawData);
+  grpScopeLayout->addWidget(m_chkHideRxData);
+  grpScopeLayout->addWidget(m_chkShowRawData);
   leftLayout->addWidget(grpScope);
 
   // Status (Counts)
@@ -530,17 +532,6 @@ void SerialSession::setupUi() {
   m_spinPoints->setSingleStep(10);
   m_settingsLayout->addWidget(m_spinPoints);
 
-  // Grid
-  m_chkShowGrid = new QCheckBox("显示网格");
-  m_chkShowGrid->setChecked(true);
-  m_settingsLayout->addWidget(m_chkShowGrid);
-
-  // Auto Scale Button
-  m_btnAutoScale = new QPushButton("自动缩放");
-  m_btnAutoScale->setCheckable(true);
-  m_btnAutoScale->setChecked(true);
-  m_settingsLayout->addWidget(m_btnAutoScale);
-
   // Y Axis Min/Max
   m_settingsLayout->addWidget(new QLabel("Y轴最小值:"));
   m_spinYMin = new QDoubleSpinBox();
@@ -556,7 +547,29 @@ void SerialSession::setupUi() {
   m_spinYMax->setEnabled(false); // Default Auto is ON
   m_settingsLayout->addWidget(m_spinYMax);
 
-  m_btnResetChart = new QPushButton("重置");
+  // Y-axis ticks
+  m_settingsLayout->addWidget(new QLabel("Y轴刻度:"));
+  m_spinYTick = new QDoubleSpinBox();
+  m_spinYTick->setRange(0, 99999);
+  m_spinYTick->setValue(0);       // 0 corresponds to Auto
+  m_spinYTick->setEnabled(false); // Default Auto is ON
+  m_settingsLayout->addWidget(m_spinYTick);
+
+  // Grid
+  m_chkShowGrid = new QCheckBox("显示网格");
+  m_chkShowGrid->setChecked(true);
+  m_settingsLayout->addWidget(m_chkShowGrid);
+
+  // Auto Scale Button
+  m_btnAutoScale = new QPushButton("自动缩放");
+  m_btnAutoScale->setCheckable(true);
+  m_btnAutoScale->setChecked(true);
+  m_settingsLayout->addWidget(m_btnAutoScale);
+
+  m_btnClearWaveform = new QPushButton("清空波形");
+  m_settingsLayout->addWidget(m_btnClearWaveform);
+
+  m_btnResetChart = new QPushButton("重置参数");
   m_settingsLayout->addWidget(m_btnResetChart);
 
   m_btnStopWaveform = new QPushButton("暂停波形");
@@ -743,9 +756,10 @@ void SerialSession::setupConnections() {
 
   connect(m_spinYMax, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
           this, &SerialSession::updateChartSettings);
-  connect(m_spinYMax, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+  connect(m_spinYTick, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
           this, &SerialSession::updateChartSettings);
-  connect(m_btnResetChart, &QPushButton::clicked, [this]() {
+
+  connect(m_btnClearWaveform, &QPushButton::clicked, [this]() {
     for (int i = 0; i < m_customPlot->graphCount(); ++i) {
       if (m_customPlot->graph(i) && m_customPlot->graph(i)->data()) {
         m_customPlot->graph(i)->data()->clear();
@@ -753,6 +767,13 @@ void SerialSession::setupConnections() {
     }
     m_customPlot->replot();
     m_xValue = 0;
+  });
+
+  connect(m_btnResetChart, &QPushButton::clicked, [this]() {
+    m_spinPoints->setValue(100);
+    m_btnAutoScale->setChecked(true);
+    m_chkShowGrid->setChecked(true);
+    m_spinYTick->setValue(0);
     updateChartSettings();
   });
 
@@ -923,7 +944,7 @@ void SerialSession::onReadyRead() {
       htmlLine = QString("<span>[RX] %1</span>").arg(rawStr.toHtmlEscaped());
     }
 
-    if (!m_chkHideRawData->isChecked()) {
+    if (!m_chkHideRxData->isChecked() && !m_chkShowRawData->isChecked()) {
       m_textReceive->append(htmlLine);
 
       // Auto Scroll
@@ -932,14 +953,14 @@ void SerialSession::onReadyRead() {
     }
   }
 
-  if (!m_waveformPage->isHidden()) {
-    updateWaveform(data);
-  }
+  updateWaveform(data);
 }
 
 void SerialSession::onWaveformEnabled(bool checked) {
   m_waveformPage->setVisible(checked);
-  // Dialog visibility controlled by toolbar action manually
+  if (checked) {
+    m_customPlot->replot();
+  }
 }
 
 void SerialSession::onDockLocationChanged(Qt::DockWidgetArea area) {
@@ -954,6 +975,7 @@ void SerialSession::updateChartSettings() {
   if (m_btnAutoScale->isChecked()) {
     m_spinYMin->setEnabled(false);
     m_spinYMax->setEnabled(false);
+    m_spinYTick->setEnabled(false);
     // Determine best fit immediately
     for (int i = 0; i < m_customPlot->graphCount(); ++i) {
       if (m_customPlot->graph(i)) {
@@ -967,7 +989,17 @@ void SerialSession::updateChartSettings() {
   } else {
     m_spinYMin->setEnabled(true);
     m_spinYMax->setEnabled(true);
+    m_spinYTick->setEnabled(true);
     m_customPlot->yAxis->setRange(m_spinYMin->value(), m_spinYMax->value());
+
+    if (m_spinYTick->value() > 0) {
+      QSharedPointer<QCPAxisTickerFixed> fixedTicker(new QCPAxisTickerFixed);
+      fixedTicker->setTickStep(m_spinYTick->value());
+      m_customPlot->yAxis->setTicker(fixedTicker);
+    } else {
+      QSharedPointer<QCPAxisTicker> autoTicker(new QCPAxisTicker);
+      m_customPlot->yAxis->setTicker(autoTicker);
+    }
   }
 
   // Grid
@@ -1047,6 +1079,12 @@ void SerialSession::updateWaveform(const QByteArray &data) {
       }
     }
 
+    if (m_chkShowRawData->isChecked()) {
+      m_textReceive->append(payload);
+      m_textReceive->verticalScrollBar()->setValue(
+          m_textReceive->verticalScrollBar()->maximum());
+    }
+
     m_xValue++;
     dataAdded = true;
   }
@@ -1061,7 +1099,9 @@ void SerialSession::updateWaveform(const QByteArray &data) {
           m_customPlot->graph(i)->rescaleValueAxis(true, true);
       }
     }
-    m_customPlot->replot();
+    if (!m_waveformPage->isHidden()) {
+      m_customPlot->replot();
+    }
   }
 }
 

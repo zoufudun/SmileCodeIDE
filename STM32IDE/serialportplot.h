@@ -197,12 +197,15 @@ public:
   QCheckBox *m_chkShowGrid;
   QDoubleSpinBox *m_spinYMin;
   QDoubleSpinBox *m_spinYMax;
+  QDoubleSpinBox *m_spinYTick;
   QPushButton *m_btnResetChart;
+  QPushButton *m_btnClearWaveform;
   QPushButton *m_btnStopWaveform;
 
   // New UI controls for Waveform
   QCheckBox *m_chkHideRxTx;
-  QCheckBox *m_chkHideRawData;
+  QCheckBox *m_chkHideRxData;
+  QCheckBox *m_chkShowRawData;
   QSplitter *m_dataSplitter;
 
   // Extended Page
