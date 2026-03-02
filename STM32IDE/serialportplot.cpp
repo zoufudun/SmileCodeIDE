@@ -1,4 +1,5 @@
 #include "serialportplot.h"
+#include "curvesettings.h"
 #include "toastwidget.h"
 #include <QApplication>
 #include <QClipboard>
@@ -19,6 +20,7 @@
 #include <QTextStream>
 #include <QToolButton>
 #include <QVBoxLayout>
+
 
 SerialSession::SerialSession(QWidget *parent)
     : QWidget(parent), m_rxCount(0), m_txCount(0), m_xValue(0),
@@ -572,6 +574,9 @@ void SerialSession::setupUi() {
   m_btnResetChart = new QPushButton("重置参数");
   m_settingsLayout->addWidget(m_btnResetChart);
 
+  m_btnCurveSettings = new QPushButton("曲线设置");
+  m_settingsLayout->addWidget(m_btnCurveSettings);
+
   m_btnStopWaveform = new QPushButton("暂停波形");
   m_btnStopWaveform->setCheckable(true);
   m_settingsLayout->addWidget(m_btnStopWaveform);
@@ -637,7 +642,11 @@ void SerialSession::setupChart() {
   m_customPlot->setContextMenuPolicy(Qt::CustomContextMenu);
 
   // Interactions: Scroll and Zoom? Maybe later, keep simple for now
-  m_customPlot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom);
+  m_customPlot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom |
+                                QCP::iSelectLegend | QCP::iSelectPlottables);
+
+  // Antialiasing for better-looking curves
+  m_customPlot->setAntialiasedElements(QCP::aeAll);
 
   // Initial Range
   m_customPlot->xAxis->setRange(0, 100);
@@ -800,6 +809,32 @@ void SerialSession::setupConnections() {
   // 图表右键菜单
   connect(m_customPlot, &QCustomPlot::customContextMenuRequested, this,
           &SerialSession::onChartContextMenu);
+
+  // 曲线设置按钮
+  connect(m_btnCurveSettings, &QPushButton::clicked, this,
+          &SerialSession::onCurveSettingsClicked);
+
+  // 图例双击显示/隐藏逻辑
+  connect(m_customPlot, &QCustomPlot::legendDoubleClick, this,
+          [this](QCPLegend *legend, QCPAbstractLegendItem *item,
+                 QMouseEvent *event) {
+            Q_UNUSED(legend);
+            Q_UNUSED(event);
+            if (item) {
+              QCPPlottableLegendItem *plItem =
+                  qobject_cast<QCPPlottableLegendItem *>(item);
+              if (plItem) {
+                bool visible = plItem->plottable()->visible();
+                plItem->plottable()->setVisible(!visible);
+                m_customPlot->replot();
+              }
+            }
+          });
+}
+
+void SerialSession::onCurveSettingsClicked() {
+  CurveSettingsDialog dialog(m_customPlot, this);
+  dialog.exec();
 }
 
 void SerialSession::refreshPorts() {
@@ -1063,7 +1098,9 @@ void SerialSession::updateWaveform(const QByteArray &data) {
       // Assign distinct colors using HSV
       int hue = (idx * 137) % 360; // Golden angle approx
       QColor color = QColor::fromHsv(hue, 200, 200);
-      m_customPlot->graph(idx)->setPen(QPen(color));
+      QPen pen(color);
+      pen.setWidthF(1.5f); // Bolder lines
+      m_customPlot->graph(idx)->setPen(pen);
       m_customPlot->graph(idx)->setName(QString("CH%1").arg(idx + 1));
     }
 

@@ -26,6 +26,7 @@
 
 // Charts
 #include "../qcustomplot/qcustomplot.h"
+#include "curvesettings.h"
 #include "scrollinglabel.h"
 #include <QDialog>
 #include <QDockWidget>
@@ -96,6 +97,7 @@ public:
 
   // Waveform Settings (Accessed by Toolbar in Manager)
   void onWaveformEnabled(bool checked);
+  void onCurveSettingsClicked();
 
 private:
   enum class ButtonType { Normal, Refresh, Open, Close };
@@ -201,6 +203,7 @@ public:
   QPushButton *m_btnResetChart;
   QPushButton *m_btnClearWaveform;
   QPushButton *m_btnStopWaveform;
+  QPushButton *m_btnCurveSettings;
 
   // New UI controls for Waveform
   QCheckBox *m_chkHideRxTx;

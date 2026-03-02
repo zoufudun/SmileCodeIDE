@@ -30,7 +30,8 @@ SOURCES += \
     cantool.cpp \
     toastwidget.cpp \
     scrollinglabel.cpp \
-    terminalwidget.cpp
+    terminalwidget.cpp \
+    curvesettings.cpp
 
 # 头文件
 HEADERS += \
@@ -46,7 +47,8 @@ HEADERS += \
     cantool.h \
     toastwidget.h \
     scrollinglabel.h \
-    terminalwidget.h
+    terminalwidget.h \
+    curvesettings.h
 
 # 默认规则
 QMAKE_CXXFLAGS += -Wall -Wextra -Wpedantic
