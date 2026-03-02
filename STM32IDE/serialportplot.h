@@ -89,6 +89,7 @@ private slots:
   // UI Updates
   void updateWaveform(const QByteArray &data);
   void scrollWelcomeMessage();
+  void onChartContextMenu(const QPoint &pos);
 
 public:
   void applyTheme(const QString &themeMode);
@@ -197,6 +198,7 @@ public:
   QDoubleSpinBox *m_spinYMin;
   QDoubleSpinBox *m_spinYMax;
   QPushButton *m_btnResetChart;
+  QPushButton *m_btnStopWaveform;
 
   // New UI controls for Waveform
   QCheckBox *m_chkHideRxTx;

@@ -174,7 +174,7 @@ Wave FINAL (全部后 — 验证):
 
 ## TODOs
 
-- [ ] 1. **MCU配置JSON模板定义**
+- [x] 1. **MCU配置JSON模板定义**
 
   **What to do**: 在 resources/mcu-profiles/ 创建G0-G7/H7的JSON配置
   - 每个JSON: cpu内核、编译flags、内存布局、链接脚本模板
@@ -189,6 +189,8 @@ Wave FINAL (全部后 — 验证):
   **References**: buildsystem.cpp:368-372 (现有参数), :446-587 (链接脚本)
 
   **Acceptance Criteria**:
+  - [x] resources/mcu-profiles/f1.json, f4.json 创建
+  - [x] QJson可解析 (创建了f0.json, f1.json, f4.json, h7.json及index.json)
   - [ ] resources/mcu-profiles/f1.json, f4.json 创建
   - [ ] QJson可解析
 

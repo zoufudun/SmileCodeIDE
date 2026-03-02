@@ -5,5 +5,6 @@
     "ses_3758a5b5affe28AkcZgB7fehUK"
   ],
   "plan_name": "stm32-build-system",
-  "agent": "atlas"
+  "agent": "atlas",
+  "worktree_path": "M:\\TOPFIRE\\SmileCodeIDE"
 }

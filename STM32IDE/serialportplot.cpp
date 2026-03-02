@@ -1,5 +1,7 @@
 #include "serialportplot.h"
 #include "toastwidget.h"
+#include <QApplication>
+#include <QClipboard>
 #include <QDateTime>
 #include <QDebug>
 #include <QFileDialog>
@@ -557,6 +559,10 @@ void SerialSession::setupUi() {
   m_btnResetChart = new QPushButton("重置");
   m_settingsLayout->addWidget(m_btnResetChart);
 
+  m_btnStopWaveform = new QPushButton("暂停波形");
+  m_btnStopWaveform->setCheckable(true);
+  m_settingsLayout->addWidget(m_btnStopWaveform);
+
   m_settingsLayout->addStretch();
 
   m_dockSettings->setWidget(dockContents);
@@ -609,13 +615,13 @@ void SerialSession::setupUi() {
 
 void SerialSession::setupChart() {
   // QCustomPlot Setup
-  m_customPlot->addGraph();
-  m_customPlot->graph(0)->setPen(QPen(Qt::blue));
-  m_customPlot->graph(0)->setName("CH1");
   m_customPlot->xAxis->setLabel("Time");
   m_customPlot->yAxis->setLabel("Value");
 
   m_customPlot->legend->setVisible(true);
+
+  // Context Menu Policy
+  m_customPlot->setContextMenuPolicy(Qt::CustomContextMenu);
 
   // Interactions: Scroll and Zoom? Maybe later, keep simple for now
   m_customPlot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom);
@@ -740,7 +746,11 @@ void SerialSession::setupConnections() {
   connect(m_spinYMax, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
           this, &SerialSession::updateChartSettings);
   connect(m_btnResetChart, &QPushButton::clicked, [this]() {
-    m_customPlot->graph(0)->data()->clear();
+    for (int i = 0; i < m_customPlot->graphCount(); ++i) {
+      if (m_customPlot->graph(i) && m_customPlot->graph(i)->data()) {
+        m_customPlot->graph(i)->data()->clear();
+      }
+    }
     m_customPlot->replot();
     m_xValue = 0;
     updateChartSettings();
@@ -765,6 +775,10 @@ void SerialSession::setupConnections() {
   // 隐藏收发区控制
   connect(m_chkHideRxTx, &QCheckBox::toggled, this,
           [this](bool checked) { m_dataSplitter->setVisible(!checked); });
+
+  // 图表右键菜单
+  connect(m_customPlot, &QCustomPlot::customContextMenuRequested, this,
+          &SerialSession::onChartContextMenu);
 }
 
 void SerialSession::refreshPorts() {
@@ -941,7 +955,14 @@ void SerialSession::updateChartSettings() {
     m_spinYMin->setEnabled(false);
     m_spinYMax->setEnabled(false);
     // Determine best fit immediately
-    m_customPlot->graph(0)->rescaleValueAxis(true);
+    for (int i = 0; i < m_customPlot->graphCount(); ++i) {
+      if (m_customPlot->graph(i)) {
+        if (i == 0)
+          m_customPlot->graph(i)->rescaleValueAxis(true);
+        else
+          m_customPlot->graph(i)->rescaleValueAxis(true, true);
+      }
+    }
     // Auto handled in updateWaveform or by QCP rescale
   } else {
     m_spinYMin->setEnabled(true);
@@ -960,6 +981,10 @@ void SerialSession::updateChartSettings() {
 }
 
 void SerialSession::updateWaveform(const QByteArray &data) {
+  if (m_btnStopWaveform && m_btnStopWaveform->isChecked()) {
+    return;
+  }
+
   QString str = QString::fromLocal8Bit(data);
   static QString buffer;
   buffer.append(str);
@@ -1040,6 +1065,41 @@ void SerialSession::updateWaveform(const QByteArray &data) {
   }
 }
 
+void SerialSession::onChartContextMenu(const QPoint &pos) {
+  QMenu menu(this);
+  menu.addAction("复制绘图", this, [this]() {
+    QApplication::clipboard()->setPixmap(m_customPlot->toPixmap());
+    ToastWidget::showToast("已复制到剪贴板", false, this);
+  });
+  menu.addSeparator();
+  menu.addAction("导出为 PNG", this, [this]() {
+    QString fileName =
+        QFileDialog::getSaveFileName(this, "保存为 PNG", "", "Images (*.png)");
+    if (!fileName.isEmpty()) {
+      m_customPlot->savePng(fileName);
+      ToastWidget::showToast("已成功导出为 PNG", false, this);
+    }
+  });
+  menu.addAction("导出为 JPG", this, [this]() {
+    QString fileName =
+        QFileDialog::getSaveFileName(this, "保存为 JPG", "", "Images (*.jpg)");
+    if (!fileName.isEmpty()) {
+      m_customPlot->saveJpg(fileName);
+      ToastWidget::showToast("已成功导出为 JPG", false, this);
+    }
+  });
+  menu.addAction("导出为 PDF", this, [this]() {
+    QString fileName =
+        QFileDialog::getSaveFileName(this, "保存为 PDF", "", "PDF (*.pdf)");
+    if (!fileName.isEmpty()) {
+      m_customPlot->savePdf(fileName);
+      ToastWidget::showToast("已成功导出为 PDF", false, this);
+    }
+  });
+
+  menu.exec(m_customPlot->mapToGlobal(pos));
+}
+
 void SerialSession::sendData() {
   if (!m_serial->isOpen())
     return;
@@ -1107,7 +1167,11 @@ void SerialSession::clearReceiveArea() {
   m_textReceive->clear();
   m_rxCount = 0;
   m_lblRxCount->setText("0");
-  m_customPlot->graph(0)->data()->clear();
+  for (int i = 0; i < m_customPlot->graphCount(); ++i) {
+    if (m_customPlot->graph(i) && m_customPlot->graph(i)->data()) {
+      m_customPlot->graph(i)->data()->clear();
+    }
+  }
   m_customPlot->replot();
   m_xValue = 0;
 }

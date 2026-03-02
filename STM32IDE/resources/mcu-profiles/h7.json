@@ -1,0 +1,44 @@
+{
+  "name": "STM32H743xI",
+  "series": "H7",
+  "chip": "STM32H743",
+  "core": "Cortex-M7",
+  "fpu": true,
+  "cpu_flags": "-mcpu=cortex-m7 -mthumb -mfpu=fpv5-d16 -mfloat-abi=hard",
+  "c_flags": "-Wall -g -O0",
+  "cpp_flags": "-fno-exceptions -fno-rtti",
+  "defines": [
+    "STM32H743xx",
+    "USE_HAL_DRIVER"
+  ],
+  "includes": [
+    ".",
+    "Inc",
+    "Drivers/CMSIS/Include",
+    "Drivers/CMSIS/Device/ST/STM32H7xx/Include",
+    "Drivers/STM32H7xx_HAL_Driver/Inc"
+  ],
+  "memory": {
+    "flash": {
+      "origin": "0x08000000",
+      "size": "2M"
+    },
+    "ram": {
+      "origin": "0x20000000",
+      "size": "512K"
+    },
+    "sram1": {
+      "origin": "0x20020000",
+      "size": "128K"
+    },
+    "sram2": {
+      "origin": "0x20040000",
+      "size": "128K"
+    },
+    "sram3": {
+      "origin": "0x20060000",
+      "size": "32K"
+    }
+  },
+  "linker_template": "STM32H7xx_FLASH.ld"
+}
