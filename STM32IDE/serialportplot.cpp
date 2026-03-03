@@ -21,7 +21,6 @@
 #include <QToolButton>
 #include <QVBoxLayout>
 
-
 SerialSession::SerialSession(QWidget *parent)
     : QWidget(parent), m_rxCount(0), m_txCount(0), m_xValue(0),
       m_lastPortCount(0), m_scrollPos(0) {
@@ -1688,9 +1687,11 @@ void SerialSession::applyTheme(const QString &themeMode) {
 // =========================================================================
 // SerialPortPlot: 顶层多标签页容器（会话管理器）
 // =========================================================================
+#include "TOOLS/CIconFont.h"
 #include <QAction>
 #include <QApplication>
 #include <QFile>
+#include <QFontDatabase>
 #include <QInputDialog>
 #include <QMenu>
 #include <QMessageBox>
@@ -1703,90 +1704,45 @@ SerialPortPlot::SerialPortPlot(QWidget *parent)
   QVBoxLayout *mainLayout = new QVBoxLayout(this);
   mainLayout->setContentsMargins(0, 0, 0, 0);
 
-  // --- 全局工具栏 (移自 SerialSession) ---
-  QToolBar *toolbar = new QToolBar("Main Toolbar");
-  toolbar->setMovable(false);
-
-  // Settings
-  toolbar->addAction("设置");
-
-  // Oscilloscope Settings (Moved to individual tabs per user request)
-
-  // --------- Theme (Menu) ---------
-  QToolButton *btnTheme = new QToolButton();
-  btnTheme->setText("主题");
-  btnTheme->setPopupMode(QToolButton::InstantPopup);
-  QMenu *menuTheme = new QMenu(btnTheme);
-
-  // 1. Color Theme Submenu
-  QMenu *menuColorTheme = menuTheme->addMenu("颜色主题");
-  // Github
-  QMenu *menuGithub = menuColorTheme->addMenu("Github");
-  menuGithub->addAction("Dark", this, [this]() {
-    applyGlobalTheme("githubdark.qss");
-    emit themeChanged("dark");
-  });
-  menuGithub->addAction("Light", this, [this]() {
-    applyGlobalTheme("githublight.qss");
-    emit themeChanged("light");
-  });
-  // Aura
-  QMenu *menuAura = menuColorTheme->addMenu("Aura");
-  menuAura->addAction("Dark", this, [this]() {
-    applyGlobalTheme("auradark.qss");
-    emit themeChanged("dark");
-  });
-  menuAura->addAction("Light", this, [this]() {
-    applyGlobalTheme("auralight.qss");
-    emit themeChanged("light");
-  });
-  // ATOM
-  QMenu *menuAtom = menuColorTheme->addMenu("ATOM");
-  menuAtom->addAction("Dark", this, [this]() {
-    applyGlobalTheme("atomone.qss");
-    emit themeChanged("dark");
-  });
-  menuAtom->addAction("Light", this, [this]() {
-    applyGlobalTheme("atomlight.qss");
-    emit themeChanged("light");
-  });
-  // Solarized
-  QMenu *menuSolarized = menuColorTheme->addMenu("Solarized");
-  menuSolarized->addAction("Dark", this, [this]() {
-    applyGlobalTheme("solarizeddark.qss");
-    emit themeChanged("dark");
-  });
-  menuSolarized->addAction("Light", this, [this]() {
-    applyGlobalTheme("solarizedlight.qss");
-    emit themeChanged("light");
-  });
-
-  // 2. File Icon Theme Submenu
-  QMenu *menuFileIcon = menuTheme->addMenu("文件图标主题");
-  menuFileIcon->addAction("Material Icon", this,
-                          [this]() { applyFileIconTheme("material"); });
-  menuFileIcon->addAction("VSCode Icon", this,
-                          [this]() { applyFileIconTheme("vscode"); });
-
-  // 3. Product Icon Theme Submenu
-  QMenu *menuProductIcon = menuTheme->addMenu("产品图标主题");
-  menuProductIcon->addAction("Default", this,
-                             [this]() { applyFileIconTheme("default"); });
-
-  btnTheme->setMenu(menuTheme);
-  toolbar->addWidget(btnTheme);
-
-  // Help
-  toolbar->addAction("帮助");
-
-  // About
-  toolbar->addAction("关于");
-
-  mainLayout->addWidget(toolbar);
-
   // --- 选项卡区域 ---
   m_sessionTabs = new QTabWidget(this);
   m_sessionTabs->setTabsClosable(true);
+
+  // Split actions corner widget
+  QWidget *cornerWidget = new QWidget(this);
+  QHBoxLayout *cornerLayout = new QHBoxLayout(cornerWidget);
+  cornerLayout->setContentsMargins(0, 0, 0, 0);
+  cornerLayout->setSpacing(2);
+
+  QFont iconFont = CIconFont::instance()->getIconFont(24);
+
+  QToolButton *btnSplitH = new QToolButton(this);
+  btnSplitH->setFont(iconFont);
+  btnSplitH->setText(QString(QChar(0xe7f7)));
+  btnSplitH->setToolTip("水平分屏");
+
+  QToolButton *btnSplitV = new QToolButton(this);
+  btnSplitV->setFont(iconFont);
+  btnSplitV->setText(QString(QChar(0xe8cc)));
+  btnSplitV->setToolTip("垂直分屏");
+
+  QToolButton *btnCloseSplit = new QToolButton(this);
+  btnCloseSplit->setFont(iconFont);
+  btnCloseSplit->setText(QString(QChar(0xe7ac)));
+  btnCloseSplit->setToolTip("关闭分屏");
+
+  cornerLayout->addWidget(btnSplitH);
+  cornerLayout->addWidget(btnSplitV);
+  cornerLayout->addWidget(btnCloseSplit);
+
+  m_sessionTabs->setCornerWidget(cornerWidget, Qt::TopRightCorner);
+
+  connect(btnSplitH, &QToolButton::clicked, this,
+          &SerialPortPlot::onSplitHorizontal);
+  connect(btnSplitV, &QToolButton::clicked, this,
+          &SerialPortPlot::onSplitVertical);
+  connect(btnCloseSplit, &QToolButton::clicked, this,
+          &SerialPortPlot::onCloseSplit);
   m_sessionTabs->setMovable(true);
 
   // 应用仿浏览器圆角标签页样式
@@ -1963,4 +1919,201 @@ void SerialPortPlot::applyGlobalTheme(const QString &themeFile) {
 
 void SerialPortPlot::applyFileIconTheme(const QString &themeName) {
   QIcon::setThemeName(themeName);
+}
+
+void SerialPortPlot::onSplitHorizontal() { emit requestSplitHorizontal(this); }
+
+void SerialPortPlot::onSplitVertical() { emit requestSplitVertical(this); }
+
+void SerialPortPlot::onCloseSplit() { emit requestCloseSplit(this); }
+
+// =========================================================================
+// SerialPortContainer Implementation
+// =========================================================================
+
+SerialPortContainer::SerialPortContainer(QWidget *parent) : QWidget(parent) {
+  QVBoxLayout *layout = new QVBoxLayout(this);
+  layout->setContentsMargins(0, 0, 0, 0);
+
+  // --- 全局工具栏 ---
+  m_toolbar = new QToolBar("Main Toolbar", this);
+  m_toolbar->setMovable(false);
+
+  // Settings
+  m_toolbar->addAction("设置");
+
+  // --------- Theme (Menu) ---------
+  QToolButton *btnTheme = new QToolButton(this);
+  btnTheme->setText("主题");
+  btnTheme->setPopupMode(QToolButton::InstantPopup);
+  QMenu *menuTheme = new QMenu(btnTheme);
+
+  // 1. Color Theme Submenu
+  QMenu *menuColorTheme = menuTheme->addMenu("颜色主题");
+  // Github
+  QMenu *menuGithub = menuColorTheme->addMenu("Github");
+  menuGithub->addAction("Dark", this,
+                        [this]() { applyGlobalTheme("githubdark.qss"); });
+  menuGithub->addAction("Light", this,
+                        [this]() { applyGlobalTheme("githublight.qss"); });
+  // Aura
+  QMenu *menuAura = menuColorTheme->addMenu("Aura");
+  menuAura->addAction("Dark", this,
+                      [this]() { applyGlobalTheme("auradark.qss"); });
+  menuAura->addAction("Light", this,
+                      [this]() { applyGlobalTheme("auralight.qss"); });
+  // ATOM
+  QMenu *menuAtom = menuColorTheme->addMenu("ATOM");
+  menuAtom->addAction("Dark", this,
+                      [this]() { applyGlobalTheme("atomone.qss"); });
+  menuAtom->addAction("Light", this,
+                      [this]() { applyGlobalTheme("atomlight.qss"); });
+  // Solarized
+  QMenu *menuSolarized = menuColorTheme->addMenu("Solarized");
+  menuSolarized->addAction("Dark", this,
+                           [this]() { applyGlobalTheme("solarizeddark.qss"); });
+  menuSolarized->addAction(
+      "Light", this, [this]() { applyGlobalTheme("solarizedlight.qss"); });
+
+  // 2. File Icon Theme Submenu
+  QMenu *menuFileIcon = menuTheme->addMenu("文件图标主题");
+  menuFileIcon->addAction("Material Icon", this,
+                          [this]() { applyFileIconTheme("material"); });
+  menuFileIcon->addAction("VSCode Icon", this,
+                          [this]() { applyFileIconTheme("vscode"); });
+
+  // 3. Product Icon Theme Submenu
+  QMenu *menuProductIcon = menuTheme->addMenu("产品图标主题");
+  menuProductIcon->addAction("Default", this,
+                             [this]() { applyFileIconTheme("default"); });
+
+  btnTheme->setMenu(menuTheme);
+  m_toolbar->addWidget(btnTheme);
+
+  // Help
+  m_toolbar->addAction("帮助");
+
+  // About
+  m_toolbar->addAction("关于");
+
+  layout->addWidget(m_toolbar);
+
+  m_mainSplitter = new QSplitter(Qt::Horizontal, this);
+  layout->addWidget(m_mainSplitter);
+
+  SerialPortPlot *initialPlot = createNewPlot();
+  m_mainSplitter->addWidget(initialPlot);
+}
+
+SerialPortContainer::~SerialPortContainer() {}
+
+SerialPortPlot *SerialPortContainer::createNewPlot() {
+  SerialPortPlot *plot = new SerialPortPlot(this);
+  connect(plot, &SerialPortPlot::requestSplitHorizontal, this,
+          &SerialPortContainer::handleSplitHorizontal);
+  connect(plot, &SerialPortPlot::requestSplitVertical, this,
+          &SerialPortContainer::handleSplitVertical);
+  connect(plot, &SerialPortPlot::requestCloseSplit, this,
+          &SerialPortContainer::handleCloseSplit);
+  connect(plot, &SerialPortPlot::themeChanged, this,
+          &SerialPortContainer::handleThemeChanged);
+
+  if (!m_currentTheme.isEmpty()) {
+    plot->applyGlobalTheme(m_currentTheme);
+  }
+
+  m_plotHistory.append(plot);
+  return plot;
+}
+
+void SerialPortContainer::handleThemeChanged(const QString &themeName) {
+  m_currentTheme = themeName;
+}
+
+void SerialPortContainer::applyGlobalTheme(const QString &themeFile) {
+  m_currentTheme = themeFile;
+  for (SerialPortPlot *plot : qAsConst(m_plotHistory)) {
+    plot->applyGlobalTheme(themeFile);
+  }
+}
+
+void SerialPortContainer::applyFileIconTheme(const QString &themeName) {
+  for (SerialPortPlot *plot : qAsConst(m_plotHistory)) {
+    plot->applyFileIconTheme(themeName);
+  }
+}
+
+void SerialPortContainer::handleSplitHorizontal() {
+  SerialPortPlot *senderPlot = qobject_cast<SerialPortPlot *>(sender());
+  if (!senderPlot)
+    return;
+
+  QSplitter *parentSplitter =
+      qobject_cast<QSplitter *>(senderPlot->parentWidget());
+  if (!parentSplitter)
+    return;
+
+  SerialPortPlot *newPlot = createNewPlot();
+
+  if (parentSplitter->orientation() == Qt::Horizontal) {
+    int index = parentSplitter->indexOf(senderPlot);
+    parentSplitter->insertWidget(index + 1, newPlot);
+  } else {
+    int index = parentSplitter->indexOf(senderPlot);
+    QSplitter *newSplitter = new QSplitter(Qt::Horizontal, parentSplitter);
+
+    QList<int> sizes = parentSplitter->sizes();
+
+    parentSplitter->insertWidget(index, newSplitter);
+    newSplitter->addWidget(senderPlot);
+    newSplitter->addWidget(newPlot);
+
+    parentSplitter->setSizes(sizes);
+  }
+}
+
+void SerialPortContainer::handleSplitVertical() {
+  SerialPortPlot *senderPlot = qobject_cast<SerialPortPlot *>(sender());
+  if (!senderPlot)
+    return;
+
+  QSplitter *parentSplitter =
+      qobject_cast<QSplitter *>(senderPlot->parentWidget());
+  if (!parentSplitter)
+    return;
+
+  SerialPortPlot *newPlot = createNewPlot();
+
+  if (parentSplitter->orientation() == Qt::Vertical) {
+    int index = parentSplitter->indexOf(senderPlot);
+    parentSplitter->insertWidget(index + 1, newPlot);
+  } else {
+    int index = parentSplitter->indexOf(senderPlot);
+    QSplitter *newSplitter = new QSplitter(Qt::Vertical, parentSplitter);
+
+    QList<int> sizes = parentSplitter->sizes();
+
+    parentSplitter->insertWidget(index, newSplitter);
+    newSplitter->addWidget(senderPlot);
+    newSplitter->addWidget(newPlot);
+
+    parentSplitter->setSizes(sizes);
+  }
+}
+
+void SerialPortContainer::handleCloseSplit() {
+  if (m_plotHistory.size() <= 1) {
+    return; // Don't close the last one
+  }
+
+  // Always close the most recently created plot
+  SerialPortPlot *plotToClose = m_plotHistory.last();
+
+  QSplitter *parentSplitter =
+      qobject_cast<QSplitter *>(plotToClose->parentWidget());
+  if (parentSplitter) {
+    plotToClose->hide();
+    plotToClose->deleteLater();
+    m_plotHistory.removeLast();
+  }
 }

@@ -47,6 +47,7 @@
 #include "terminalwidget.h"
 
 class SerialPortPlot;
+class SerialPortContainer;
 class IAPTool;
 
 class MainWindow : public QMainWindow {
@@ -297,8 +298,8 @@ private:
   QAction *m_canToolAction;     // CAN调试助手动作
   QAction *m_iapToolAction;     // IAP升级工具动作
 
-  SerialPortPlot *m_serialPlot; // 串口调试助手窗口
-  IAPTool *m_iapTool;           // IAP升级工具窗口
+  SerialPortContainer *m_serialPlot; // 串口调试助手窗口
+  IAPTool *m_iapTool;                // IAP升级工具窗口
 
 protected:
   void keyPressEvent(QKeyEvent *event) override;

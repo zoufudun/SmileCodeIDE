@@ -99,6 +99,8 @@ public:
   void onWaveformEnabled(bool checked);
   void onCurveSettingsClicked();
 
+  void setToolbarVisible(bool visible);
+
 private:
   enum class ButtonType { Normal, Refresh, Open, Close };
   QString getButtonStyle(ButtonType type);
@@ -228,17 +230,23 @@ public:
   explicit SerialPortPlot(QWidget *parent = nullptr);
   ~SerialPortPlot();
 
+  void applyGlobalTheme(const QString &themeFile);
+  void applyFileIconTheme(const QString &themeName);
+
 signals:
   void themeChanged(const QString &themeName);
+  void requestSplitHorizontal(SerialPortPlot *plot);
+  void requestSplitVertical(SerialPortPlot *plot);
+  void requestCloseSplit(SerialPortPlot *plot);
 
 private slots:
   void addNewSession();
   void onTabDoubleClicked(int index);
   void onTabCloseRequested(int index);
 
-  // Theme functions
-  void applyGlobalTheme(const QString &themeFile);
-  void applyFileIconTheme(const QString &themeName);
+  void onSplitHorizontal();
+  void onSplitVertical();
+  void onCloseSplit();
 
 protected:
   bool eventFilter(QObject *watched, QEvent *event) override;
@@ -246,6 +254,34 @@ protected:
 private:
   QTabWidget *m_sessionTabs;
   int m_sessionCounter;
+};
+
+class SerialPortContainer : public QWidget {
+  Q_OBJECT
+
+public:
+  explicit SerialPortContainer(QWidget *parent = nullptr);
+  ~SerialPortContainer();
+
+private slots:
+  void handleSplitHorizontal();
+  void handleSplitVertical();
+  void handleCloseSplit();
+  void handleThemeChanged(const QString &themeName);
+
+private:
+  QToolBar *m_toolbar;
+  QSplitter *m_mainSplitter;
+
+  void applyGlobalTheme(const QString &themeFile);
+  void applyFileIconTheme(const QString &themeName);
+
+  SerialPortPlot *createNewPlot();
+  void replaceWidgetInSplitter(QSplitter *parentSplitter, QWidget *oldWidget,
+                               QWidget *newWidget);
+  int getPlotCount(QSplitter *splitter);
+  QString m_currentTheme;
+  QList<SerialPortPlot *> m_plotHistory;
 };
 
 #endif // SERIALPORTPLOT_H

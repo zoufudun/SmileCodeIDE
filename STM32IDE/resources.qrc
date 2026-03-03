@@ -49,5 +49,7 @@
         <file>icons/CAN.png</file>
         <file>Font/iconfont.ttf</file>
         <file>icons/IAP.png</file>
+        <file>Font/iconfontMAX.ttf</file>
+        <file>Font/iconfontUltra.ttf</file>
     </qresource>
 </RCC>

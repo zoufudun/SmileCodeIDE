@@ -1765,12 +1765,12 @@ void MainWindow::buildProject() {
   if (projectPath.isEmpty() && !m_currentFilePath.isEmpty()) {
     projectPath = QFileInfo(m_currentFilePath).absolutePath();
   }
-  
+
   if (projectPath.isEmpty()) {
     m_outputWindow->append("错误: 请先打开或创建项目");
     return;
   }
-  
+
   m_buildSystem->setProjectPath(projectPath);
   m_buildSystem->setOutputPath(projectPath + "/build");
   m_buildSystem->setToolchainPath(m_gccPath);
@@ -3940,7 +3940,7 @@ void MainWindow::clearProjectTree() {
 // 打开串口调试助手
 void MainWindow::openSerialTool() {
   if (!m_serialPlot) {
-    m_serialPlot = new SerialPortPlot();
+    m_serialPlot = new SerialPortContainer();
     m_serialPlot->setWindowTitle("串口调试助手");
     m_serialPlot->resize(1000, 600);
   }
