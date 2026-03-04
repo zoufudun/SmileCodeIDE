@@ -37,16 +37,16 @@ SerialSession::SerialSession(QWidget *parent)
 
   m_welcomeText = "   欢迎使用uSmilePro串口示波器V1.0   ";
 
+  // Render Throttling Setup
+  m_needsReplot = false;
+  m_replotTimer = new QTimer(this);
+  m_replotTimer->setInterval(33); // ~30 FPS limit for QCustomPlot
+
   setupUi();
   setupChart();
   setupConnections();
   refreshMultiPage(); // init multi-send page display
   refreshPorts();
-
-  // Render Throttling Setup
-  m_needsReplot = false;
-  m_replotTimer = new QTimer(this);
-  m_replotTimer->setInterval(33); // ~30 FPS limit for QCustomPlot
 
   // Start timers
   m_portCheckTimer->start(1000);
@@ -715,12 +715,15 @@ void SerialSession::setupChart() {
   // Context Menu Policy
   m_customPlot->setContextMenuPolicy(Qt::CustomContextMenu);
 
-  // Interactions: Scroll and Zoom? Maybe later, keep simple for now
+  // Interactions: Scroll and Zoom
   m_customPlot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom |
                                 QCP::iSelectLegend | QCP::iSelectPlottables);
 
-  // Antialiasing for better-looking curves
-  m_customPlot->setAntialiasedElements(QCP::aeAll);
+  // Performance Optimizations for Large Data
+  m_customPlot->setNoAntialiasingOnDrag(
+      true); // Disable AA during heavy interactions
+  m_customPlot->setAntialiasedElements(QCP::aePlottables | QCP::aeAxes |
+                                       QCP::aeGrid);
 
   // Initial Range
   m_customPlot->xAxis->setRange(0, 100);
@@ -782,11 +785,28 @@ void SerialSession::setupChart() {
   m_customPlot->xAxis->setUpperEnding(QCPLineEnding::esSpikeArrow);
   m_customPlot->yAxis->setUpperEnding(QCPLineEnding::esSpikeArrow);
 
-  // 4. Legend Styling
-  m_customPlot->legend->setBrush(
-      QColor(20, 20, 30, 150)); // Dark semi-transparent
-  m_customPlot->legend->setBorderPen(Qt::NoPen);
   m_customPlot->legend->setTextColor(QColor("#00E5FF"));
+
+  // Floating Play/Pause Button overlay
+  m_btnFloatingPlay =
+      new QToolButton(m_customPlot); // Parent is customPlot so it draws on top
+  m_btnFloatingPlay->setFont(CIconFont::instance()->getIconFont(64));
+  m_btnFloatingPlay->setText(QChar(0xE719)); // e719: Play Icon
+  m_btnFloatingPlay->setFixedSize(120, 120);
+  m_btnFloatingPlay->setCursor(Qt::PointingHandCursor);
+  m_btnFloatingPlay->setStyleSheet("QToolButton {"
+                                   "   color: rgba(255, 255, 255, 150);"
+                                   "   background: transparent;"
+                                   "   border: none;"
+                                   "}"
+                                   "QToolButton:hover {"
+                                   "   color: rgba(0, 229, 255, 220);"
+                                   "   background: rgba(255, 255, 255, 10);"
+                                   "   border-radius: 60px;"
+                                   "}");
+
+  // Install event filter to track customPlot resize and hover
+  m_customPlot->installEventFilter(this);
 }
 
 void SerialSession::applyChartTheme(int index) {
@@ -1065,6 +1085,25 @@ void SerialSession::setupConnections() {
               }
             }
           });
+
+  // Floating Play Pause Logic Integration
+  connect(m_btnFloatingPlay, &QToolButton::clicked, [this]() {
+    m_btnStopWaveform->setChecked(!m_btnStopWaveform->isChecked());
+  });
+
+  connect(m_btnStopWaveform, &QPushButton::toggled, [this](bool checked) {
+    if (checked) {
+      // Checked meaning stopped/paused: Show big play button constantly
+      m_btnFloatingPlay->setText(QChar(0xE719));
+      m_btnFloatingPlay->show();
+    } else {
+      // Unchecked meaning playing: Hide button (will only show on hover)
+      m_btnFloatingPlay->hide();
+    }
+  });
+
+  // Set default state to paused (playing starts when explicitly clicked)
+  m_btnStopWaveform->setChecked(true);
 }
 
 void SerialSession::onCurveSettingsClicked() {
@@ -1414,11 +1453,17 @@ void SerialSession::updateWaveform(const QByteArray &data) {
 
   if (dataAdded) {
     int bufferLimit = m_spinBufferLimit->value();
+    // Batch removal threshold to prevent continuous array shifting
+    int removalThreshold = bufferLimit + maxPoints;
+
     for (int i = 0; i < channelDataBatch.size(); ++i) {
       if (!channelDataBatch[i].isEmpty()) {
         m_customPlot->graph(i)->addData(channelKeysBatch[i],
                                         channelDataBatch[i]);
-        if (m_customPlot->graph(i)->dataCount() > bufferLimit) {
+
+        // Only trim when it exceeds limit significantly (e.g. by one screen
+        // width)
+        if (m_customPlot->graph(i)->dataCount() > removalThreshold) {
           m_customPlot->graph(i)->data()->removeBefore(m_xValue - bufferLimit);
         }
       }
@@ -1478,7 +1523,7 @@ void SerialSession::onWaveformScroll(int value) {
   m_customPlot->xAxis->setRange(viewLeft, viewLeft + maxPoints);
 
   if (!m_waveformPage->isHidden()) {
-    m_customPlot->replot();
+    m_needsReplot = true;
   }
 }
 
@@ -1492,7 +1537,7 @@ void SerialSession::onTimeUnitChanged(int index) {
     label = "Time (s)";
 
   m_customPlot->xAxis->setLabel(label);
-  m_customPlot->replot();
+  m_needsReplot = true;
 }
 
 void SerialSession::onChartThemeChanged(int index) {
@@ -1522,7 +1567,7 @@ void SerialSession::onChartThemeChanged(int index) {
       m_customPlot->graph(i)->setPen(pen);
     }
   }
-  m_customPlot->replot();
+  m_needsReplot = true;
 }
 
 void SerialSession::onChartContextMenu(const QPoint &pos) {
@@ -1558,6 +1603,34 @@ void SerialSession::onChartContextMenu(const QPoint &pos) {
   });
 
   menu.exec(m_customPlot->mapToGlobal(pos));
+}
+
+bool SerialSession::eventFilter(QObject *watched, QEvent *event) {
+  if (watched == m_customPlot) {
+    if (event->type() == QEvent::Resize) {
+      if (m_btnFloatingPlay) {
+        // Center the floating button dynamically
+        int x = (m_customPlot->width() - m_btnFloatingPlay->width()) / 2;
+        int y = (m_customPlot->height() - m_btnFloatingPlay->height()) / 2;
+        m_btnFloatingPlay->move(x, y);
+      }
+    } else if (event->type() == QEvent::Enter) {
+      // Hover Enter: if plotting is currently active, show a pause icon faintly
+      if (m_btnStopWaveform && !m_btnStopWaveform->isChecked() &&
+          m_btnFloatingPlay) {
+        m_btnFloatingPlay->setText(QChar(0xE6D3)); // Pause icon
+        m_btnFloatingPlay->show();
+      }
+    } else if (event->type() == QEvent::Leave) {
+      // Hover Leave: hide pause button if we were just hovering during play
+      if (m_btnStopWaveform && !m_btnStopWaveform->isChecked() &&
+          m_btnFloatingPlay) {
+        m_btnFloatingPlay->hide();
+      }
+    }
+  }
+
+  return QWidget::eventFilter(watched, event);
 }
 
 void SerialSession::sendData() {

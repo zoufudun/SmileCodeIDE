@@ -107,6 +107,9 @@ public:
 
   void setToolbarVisible(bool visible);
 
+protected:
+  bool eventFilter(QObject *watched, QEvent *event) override;
+
 private:
   enum class ButtonType { Normal, Refresh, Open, Close };
   QString getButtonStyle(ButtonType type);
@@ -226,6 +229,7 @@ public:
   QCheckBox *m_chkShowRawData;
   QSplitter *m_dataSplitter;
   QScrollBar *m_scrollbarWaveform;
+  QToolButton *m_btnFloatingPlay;
 
   // Extended Page
   QMainWindow *m_waveformPage;
