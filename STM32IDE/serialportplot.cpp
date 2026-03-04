@@ -1,4 +1,5 @@
 #include "serialportplot.h"
+#include "TOOLS/CIconFont.h"
 #include "curvesettings.h"
 #include "toastwidget.h"
 #include <QApplication>
@@ -510,9 +511,47 @@ void SerialSession::setupUi() {
   m_waveformPage = new QMainWindow();
   // m_waveformPage->setWindowFlags(Qt::Widget); // Embeddable
 
-  // -- Chart (Central Widget) --
+  // -- Chart and Scrollbar Container (Central Widget) --
+  QWidget *chartContainer = new QWidget();
+  QVBoxLayout *chartLayout = new QVBoxLayout(chartContainer);
+  chartLayout->setContentsMargins(0, 0, 0, 0);
+  chartLayout->setSpacing(0);
+
   m_customPlot = new QCustomPlot();
-  m_waveformPage->setCentralWidget(m_customPlot);
+  m_scrollbarWaveform = new QScrollBar(Qt::Horizontal);
+  m_scrollbarWaveform->setMinimum(0);
+  m_scrollbarWaveform->setMaximum(0);
+
+  // Modern Glowing Sci-Fi Scrollbar QSS
+  QString scrollbarStyle = R"(
+    QScrollBar:horizontal {
+        background: transparent;
+        height: 12px;
+        margin: 2px 0 2px 0;
+    }
+    QScrollBar::handle:horizontal {
+        background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 rgba(0, 212, 255, 180), stop:1 rgba(9, 9, 121, 180));
+        border-radius: 4px;
+        min-width: 40px;
+    }
+    QScrollBar::handle:horizontal:hover {
+        background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 rgba(0, 255, 255, 255), stop:1 rgba(0, 150, 255, 255));
+    }
+    QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+        width: 0px;
+        background: none;
+    }
+    QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
+        background: rgba(30, 30, 40, 100);
+        border-radius: 4px;
+    }
+  )";
+  m_scrollbarWaveform->setStyleSheet(scrollbarStyle);
+
+  chartLayout->addWidget(m_customPlot, 1);
+  chartLayout->addWidget(m_scrollbarWaveform, 0);
+
+  m_waveformPage->setCentralWidget(chartContainer);
 
   // -- Side Settings Panel (Dock Widget) --
   m_dockSettings = new QDockWidget("绘图设置", m_waveformPage);
@@ -525,13 +564,27 @@ void SerialSession::setupUi() {
   m_settingsLayout->setContentsMargins(5, 10, 5, 10);
   m_settingsLayout->setSpacing(8);
 
-  // Points
-  m_settingsLayout->addWidget(new QLabel("显示点数:"));
+  // Points (∆t)
+  m_settingsLayout->addWidget(new QLabel("视窗宽度(∆t):"));
   m_spinPoints = new QSpinBox();
-  m_spinPoints->setRange(10, 10000);
+  m_spinPoints->setRange(10, 100000);
   m_spinPoints->setValue(100);
   m_spinPoints->setSingleStep(10);
   m_settingsLayout->addWidget(m_spinPoints);
+
+  // Buffer Limit
+  m_settingsLayout->addWidget(new QLabel("缓冲区上限:"));
+  m_spinBufferLimit = new QSpinBox();
+  m_spinBufferLimit->setRange(100, 1000000);
+  m_spinBufferLimit->setValue(10000);
+  m_spinBufferLimit->setSingleStep(1000);
+  m_settingsLayout->addWidget(m_spinBufferLimit);
+
+  // Time Units
+  m_settingsLayout->addWidget(new QLabel("X轴标签单位:"));
+  m_comboTimeUnit = new QComboBox();
+  m_comboTimeUnit->addItems({"点数 (Points)", "毫秒 (ms)", "秒 (s)"});
+  m_settingsLayout->addWidget(m_comboTimeUnit);
 
   // Y Axis Min/Max
   m_settingsLayout->addWidget(new QLabel("Y轴最小值:"));
@@ -579,6 +632,13 @@ void SerialSession::setupUi() {
   m_btnStopWaveform = new QPushButton("暂停波形");
   m_btnStopWaveform->setCheckable(true);
   m_settingsLayout->addWidget(m_btnStopWaveform);
+
+  QGroupBox *grpChannels = new QGroupBox("通道管理");
+  m_channelsLayout = new QVBoxLayout(grpChannels);
+  m_channelsLayout->setContentsMargins(4, 4, 4, 4);
+  m_channelsLayout->setSpacing(2);
+  m_channelsLayout->addStretch();
+  m_settingsLayout->addWidget(grpChannels);
 
   m_settingsLayout->addStretch();
 
@@ -773,8 +833,11 @@ void SerialSession::setupConnections() {
         m_customPlot->graph(i)->data()->clear();
       }
     }
-    m_customPlot->replot();
     m_xValue = 0;
+    m_scrollbarWaveform->setMinimum(0);
+    m_scrollbarWaveform->setMaximum(0);
+    m_scrollbarWaveform->setValue(0);
+    m_customPlot->replot();
   });
 
   connect(m_btnResetChart, &QPushButton::clicked, [this]() {
@@ -784,6 +847,17 @@ void SerialSession::setupConnections() {
     m_spinYTick->setValue(0);
     updateChartSettings();
   });
+
+  connect(m_scrollbarWaveform, &QScrollBar::valueChanged, this,
+          &SerialSession::onWaveformScroll);
+  connect(m_comboTimeUnit, QOverload<int>::of(&QComboBox::currentIndexChanged),
+          this, &SerialSession::onTimeUnitChanged);
+  connect(m_spinBufferLimit, QOverload<int>::of(&QSpinBox::valueChanged), this,
+          [this](int val) {
+            if (m_spinPoints->value() > val) {
+              m_spinPoints->setValue(val);
+            }
+          });
 
   // 波形显示及参数设置按钮控制
   connect(m_chkEnableWaveform, &QCheckBox::toggled, this,
@@ -1059,6 +1133,9 @@ void SerialSession::updateWaveform(const QByteArray &data) {
   bool autoScale = m_btnAutoScale->isChecked();
   bool dataAdded = false;
 
+  QVector<QVector<double>> channelDataBatch;
+  QVector<QVector<double>> channelKeysBatch;
+
   while (true) {
     int startIdx = buffer.indexOf('$');
     if (startIdx == -1) {
@@ -1101,32 +1178,111 @@ void SerialSession::updateWaveform(const QByteArray &data) {
       pen.setWidthF(1.5f); // Bolder lines
       m_customPlot->graph(idx)->setPen(pen);
       m_customPlot->graph(idx)->setName(QString("CH%1").arg(idx + 1));
+
+      // Create channel eye icon toggle row
+      QWidget *chWidget = new QWidget();
+      QHBoxLayout *chLayout = new QHBoxLayout(chWidget);
+      chLayout->setContentsMargins(0, 0, 0, 0);
+
+      QLabel *colorLabel = new QLabel("■");
+      colorLabel->setStyleSheet(
+          QString("color: %1; font-size: 16px;").arg(color.name()));
+
+      QLabel *nameLabel = new QLabel(m_customPlot->graph(idx)->name());
+
+      QToolButton *eyeBtn = new QToolButton();
+      eyeBtn->setCheckable(true);
+      eyeBtn->setChecked(true);
+      eyeBtn->setFont(CIconFont::instance()->getIconFont(16));
+      eyeBtn->setText(QChar(0xE846)); // visible icon
+      eyeBtn->setStyleSheet(
+          "QToolButton:checked { font-weight: normal; color: #4CAF50; border: "
+          "none; background: transparent; } "
+          "QToolButton:!checked { font-weight: normal; color: gray; "
+          "border: none; background: transparent; }");
+
+      connect(eyeBtn, &QToolButton::toggled, [this, idx, eyeBtn](bool checked) {
+        eyeBtn->setText(checked ? QChar(0xE846) : QChar(0xE847));
+        if (idx < m_customPlot->graphCount() && m_customPlot->graph(idx)) {
+          m_customPlot->graph(idx)->setVisible(checked);
+          m_customPlot->replot();
+        }
+      });
+
+      chLayout->addWidget(colorLabel);
+      chLayout->addWidget(nameLabel);
+      chLayout->addStretch();
+      chLayout->addWidget(eyeBtn);
+
+      if (m_channelsLayout->count() > 0) {
+        m_channelsLayout->insertWidget(m_channelsLayout->count() - 1, chWidget);
+      } else {
+        m_channelsLayout->addWidget(chWidget);
+      }
+      m_channelWidgets[idx] = chWidget;
     }
 
-    // Add data to graphs
+    // Accumulate data to graphs
     for (int i = 0; i < parts.size(); ++i) {
       bool ok;
       double val = parts[i].toDouble(&ok);
       if (ok) {
-        m_customPlot->graph(i)->addData(m_xValue, val);
-        if (m_customPlot->graph(i)->dataCount() > maxPoints) {
-          m_customPlot->graph(i)->data()->removeBefore(m_xValue - maxPoints);
+        if (i >= channelDataBatch.size()) {
+          channelDataBatch.resize(i + 1);
+          channelKeysBatch.resize(i + 1);
         }
+        channelDataBatch[i].append(val);
+        channelKeysBatch[i].append(m_xValue);
       }
     }
 
     if (m_chkShowRawData->isChecked()) {
       m_textReceive->append(payload);
-      m_textReceive->verticalScrollBar()->setValue(
-          m_textReceive->verticalScrollBar()->maximum());
     }
 
     m_xValue++;
     dataAdded = true;
   }
 
+  if (m_chkShowRawData->isChecked() && dataAdded) {
+    m_textReceive->verticalScrollBar()->setValue(
+        m_textReceive->verticalScrollBar()->maximum());
+  }
+
   if (dataAdded) {
-    m_customPlot->xAxis->setRange(m_xValue, maxPoints, Qt::AlignRight);
+    int bufferLimit = m_spinBufferLimit->value();
+    for (int i = 0; i < channelDataBatch.size(); ++i) {
+      if (!channelDataBatch[i].isEmpty()) {
+        m_customPlot->graph(i)->addData(channelKeysBatch[i],
+                                        channelDataBatch[i]);
+        if (m_customPlot->graph(i)->dataCount() > bufferLimit) {
+          m_customPlot->graph(i)->data()->removeBefore(m_xValue - bufferLimit);
+        }
+      }
+    }
+
+    double dataMinX = qMax(0.0, m_xValue - bufferLimit);
+    double dataMaxX = m_xValue;
+
+    bool isTracking =
+        (m_scrollbarWaveform->value() == m_scrollbarWaveform->maximum());
+    int scrollMax = qMax(0, (int)(dataMaxX - dataMinX - maxPoints));
+
+    // Disable signals briefly to avoid triggering onWaveformScroll during
+    // internal setup
+    m_scrollbarWaveform->blockSignals(true);
+    m_scrollbarWaveform->setMinimum(0);
+    m_scrollbarWaveform->setMaximum(scrollMax);
+    m_scrollbarWaveform->blockSignals(false);
+
+    if (isTracking) {
+      m_scrollbarWaveform->setValue(scrollMax);
+      m_customPlot->xAxis->setRange(m_xValue, maxPoints, Qt::AlignRight);
+    } else {
+      double viewLeft = dataMinX + m_scrollbarWaveform->value();
+      m_customPlot->xAxis->setRange(viewLeft, viewLeft + maxPoints);
+    }
+
     if (autoScale) {
       for (int i = 0; i < m_customPlot->graphCount(); ++i) {
         if (i == 0)
@@ -1139,6 +1295,32 @@ void SerialSession::updateWaveform(const QByteArray &data) {
       m_customPlot->replot();
     }
   }
+}
+
+void SerialSession::onWaveformScroll(int value) {
+  int maxPoints = m_spinPoints->value();
+  int bufferLimit = m_spinBufferLimit->value();
+  double dataMinX = qMax(0.0, m_xValue - bufferLimit);
+
+  double viewLeft = dataMinX + value;
+  m_customPlot->xAxis->setRange(viewLeft, viewLeft + maxPoints);
+
+  if (!m_waveformPage->isHidden()) {
+    m_customPlot->replot();
+  }
+}
+
+void SerialSession::onTimeUnitChanged(int index) {
+  QString label;
+  if (index == 0)
+    label = "Time (Points)";
+  else if (index == 1)
+    label = "Time (ms)";
+  else if (index == 2)
+    label = "Time (s)";
+
+  m_customPlot->xAxis->setLabel(label);
+  m_customPlot->replot();
 }
 
 void SerialSession::onChartContextMenu(const QPoint &pos) {

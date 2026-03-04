@@ -10,9 +10,11 @@
 #include <QGroupBox>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMap>
 #include <QMenu>
 #include <QPushButton>
 #include <QRadioButton>
+#include <QScrollBar>
 #include <QSerialPort>
 #include <QSerialPortInfo>
 #include <QSpinBox>
@@ -23,6 +25,7 @@
 #include <QToolBar>
 #include <QVector>
 #include <QWidget>
+
 
 // Charts
 #include "../qcustomplot/qcustomplot.h"
@@ -86,6 +89,8 @@ private slots:
   // Waveform Settings
   void onDockLocationChanged(Qt::DockWidgetArea area);
   void updateChartSettings();
+  void onWaveformScroll(int value);
+  void onTimeUnitChanged(int index);
 
   // UI Updates
   void updateWaveform(const QByteArray &data);
@@ -197,6 +202,8 @@ public:
   QDockWidget *m_dockSettings;
   QBoxLayout *m_settingsLayout;
   QSpinBox *m_spinPoints;
+  QSpinBox *m_spinBufferLimit;
+  QComboBox *m_comboTimeUnit;
   QPushButton *m_btnAutoScale;
   QCheckBox *m_chkShowGrid;
   QDoubleSpinBox *m_spinYMin;
@@ -207,11 +214,15 @@ public:
   QPushButton *m_btnStopWaveform;
   QPushButton *m_btnCurveSettings;
 
+  QVBoxLayout *m_channelsLayout;
+  QMap<int, QWidget *> m_channelWidgets; // keep track of channel widget rows
+
   // New UI controls for Waveform
   QCheckBox *m_chkHideRxTx;
   QCheckBox *m_chkHideRxData;
   QCheckBox *m_chkShowRawData;
   QSplitter *m_dataSplitter;
+  QScrollBar *m_scrollbarWaveform;
 
   // Extended Page
   QMainWindow *m_waveformPage;
