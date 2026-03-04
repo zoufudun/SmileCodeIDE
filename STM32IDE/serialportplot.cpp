@@ -713,16 +713,65 @@ void SerialSession::setupChart() {
 
   m_customPlot->setVisible(true);
 
-  // Styling
-  // Dashed Grids
-  m_customPlot->xAxis->grid()->setPen(QPen(Qt::lightGray, 1, Qt::DashLine));
-  m_customPlot->yAxis->grid()->setPen(QPen(Qt::lightGray, 1, Qt::DashLine));
+  // High-Tech Neon Styling
+  // 1. Dark glowing gradient background
+  QLinearGradient plotGradient;
+  plotGradient.setStart(0, 0);
+  plotGradient.setFinalStop(0, 350);
+  plotGradient.setColorAt(0, QColor("#1E1E28"));
+  plotGradient.setColorAt(1, QColor("#282836"));
+  m_customPlot->setBackground(plotGradient);
+
+  // Set axis rectangle background to slightly darker translucent
+  m_customPlot->axisRect()->setBackground(QColor(10, 10, 15, 180));
+
+  // 2. Glowing cyan/blue axes
+  QPen axisPen(QColor("#00E5FF"), 2);
+  m_customPlot->xAxis->setBasePen(axisPen);
+  m_customPlot->yAxis->setBasePen(axisPen);
+  m_customPlot->xAxis->setTickPen(axisPen);
+  m_customPlot->yAxis->setTickPen(axisPen);
+  m_customPlot->xAxis->setSubTickPen(QPen(QColor("#00B0FF"), 1));
+  m_customPlot->yAxis->setSubTickPen(QPen(QColor("#00B0FF"), 1));
+
+  // Axis Labels and Tick Labels
+  m_customPlot->xAxis->setTickLabelColor(QColor("#E0E0FF"));
+  m_customPlot->yAxis->setTickLabelColor(QColor("#E0E0FF"));
+  m_customPlot->xAxis->setLabelColor(QColor("#00E5FF"));
+  m_customPlot->yAxis->setLabelColor(QColor("#00E5FF"));
+
+  QFont tickFont = font();
+  tickFont.setPointSize(9);
+  m_customPlot->xAxis->setTickLabelFont(tickFont);
+  m_customPlot->yAxis->setTickLabelFont(tickFont);
+
+  QFont labelFont = font();
+  labelFont.setPointSize(11);
+  labelFont.setBold(true);
+  m_customPlot->xAxis->setLabelFont(labelFont);
+  m_customPlot->yAxis->setLabelFont(labelFont);
+
+  // 3. Subtle Dashed Grids (Dark Cyan)
+  m_customPlot->xAxis->grid()->setPen(
+      QPen(QColor(0, 150, 200, 50), 1, Qt::DashLine));
+  m_customPlot->yAxis->grid()->setPen(
+      QPen(QColor(0, 150, 200, 50), 1, Qt::DashLine));
   m_customPlot->xAxis->grid()->setSubGridVisible(true);
   m_customPlot->yAxis->grid()->setSubGridVisible(true);
+  m_customPlot->xAxis->grid()->setSubGridPen(
+      QPen(QColor(0, 150, 200, 20), 1, Qt::DotLine));
+  m_customPlot->yAxis->grid()->setSubGridPen(
+      QPen(QColor(0, 150, 200, 20), 1, Qt::DotLine));
 
   // Axes Arrows
   m_customPlot->xAxis->setUpperEnding(QCPLineEnding::esSpikeArrow);
   m_customPlot->yAxis->setUpperEnding(QCPLineEnding::esSpikeArrow);
+
+  // 4. Legend Styling
+  m_customPlot->legend->setBrush(
+      QColor(20, 20, 30, 150)); // Dark semi-transparent
+  m_customPlot->legend->setBorderPen(Qt::NoPen);
+  m_customPlot->legend->setTextColor(QColor("#00E5FF"));
 }
 
 void SerialSession::setupConnections() {
@@ -1171,11 +1220,12 @@ void SerialSession::updateWaveform(const QByteArray &data) {
       int idx = m_customPlot->graphCount();
       m_customPlot->addGraph();
 
-      // Assign distinct colors using HSV
+      // Assign distinct vibrant colors using HSV for a "neon" effect
       int hue = (idx * 137) % 360; // Golden angle approx
-      QColor color = QColor::fromHsv(hue, 200, 200);
+      // Use high saturation and value for neon glow
+      QColor color = QColor::fromHsv(hue, 230, 255);
       QPen pen(color);
-      pen.setWidthF(1.5f); // Bolder lines
+      pen.setWidthF(2.0f); // Thicker line for glowing appearance
       m_customPlot->graph(idx)->setPen(pen);
       m_customPlot->graph(idx)->setName(QString("CH%1").arg(idx + 1));
 
