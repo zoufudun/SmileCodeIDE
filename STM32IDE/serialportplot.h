@@ -26,7 +26,6 @@
 #include <QVector>
 #include <QWidget>
 
-
 // Charts
 #include "../qcustomplot/qcustomplot.h"
 #include "curvesettings.h"
@@ -91,11 +90,13 @@ private slots:
   void updateChartSettings();
   void onWaveformScroll(int value);
   void onTimeUnitChanged(int index);
+  void onChartThemeChanged(int index);
 
   // UI Updates
   void updateWaveform(const QByteArray &data);
   void scrollWelcomeMessage();
   void onChartContextMenu(const QPoint &pos);
+  void onReplotTimeout();
 
 public:
   void applyTheme(const QString &themeMode);
@@ -113,6 +114,7 @@ private:
   void setupUi();
   void setupConnections();
   void setupChart();
+  void applyChartTheme(int index);
   void updateStatusInfo();
   void refreshMultiPage(); // redraw 20 widgets for current page
 
@@ -204,6 +206,7 @@ public:
   QSpinBox *m_spinPoints;
   QSpinBox *m_spinBufferLimit;
   QComboBox *m_comboTimeUnit;
+  QComboBox *m_comboChartTheme;
   QPushButton *m_btnAutoScale;
   QCheckBox *m_chkShowGrid;
   QDoubleSpinBox *m_spinYMin;
@@ -229,6 +232,10 @@ public:
 
   // Global UI Structure
   QTabWidget *m_mainTabWidget;
+
+  // Render Throttling
+  QTimer *m_replotTimer;
+  bool m_needsReplot;
 };
 
 // -------------------------------------------------------------

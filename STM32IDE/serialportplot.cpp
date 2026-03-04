@@ -43,8 +43,14 @@ SerialSession::SerialSession(QWidget *parent)
   refreshMultiPage(); // init multi-send page display
   refreshPorts();
 
+  // Render Throttling Setup
+  m_needsReplot = false;
+  m_replotTimer = new QTimer(this);
+  m_replotTimer->setInterval(33); // ~30 FPS limit for QCustomPlot
+
   // Start timers
   m_portCheckTimer->start(1000);
+  m_replotTimer->start();
 }
 
 SerialSession::~SerialSession() {
@@ -586,6 +592,15 @@ void SerialSession::setupUi() {
   m_comboTimeUnit->addItems({"点数 (Points)", "毫秒 (ms)", "秒 (s)"});
   m_settingsLayout->addWidget(m_comboTimeUnit);
 
+  // Waveform Theme selection
+  m_settingsLayout->addWidget(new QLabel("波形主题:"));
+  m_comboChartTheme = new QComboBox();
+  m_comboChartTheme->addItem("亮色主题", 0);
+  m_comboChartTheme->addItem("暗黑炫光", 1);
+  m_comboChartTheme->addItem("科幻示波器", 2);
+  m_comboChartTheme->setCurrentIndex(1); // Default to Neon
+  m_settingsLayout->addWidget(m_comboChartTheme);
+
   // Y Axis Min/Max
   m_settingsLayout->addWidget(new QLabel("Y轴最小值:"));
   m_spinYMin = new QDoubleSpinBox();
@@ -774,6 +789,98 @@ void SerialSession::setupChart() {
   m_customPlot->legend->setTextColor(QColor("#00E5FF"));
 }
 
+void SerialSession::applyChartTheme(int index) {
+  QColor tickLabelColor, labelColor, gridColor, subGridColor;
+  QPen gridPen, subGridPen, axisPen;
+  QFont tickFont = font();
+  tickFont.setPointSize(9);
+  QFont labelFont = font();
+  labelFont.setPointSize(11);
+  labelFont.setBold(true);
+
+  if (index == 0) {
+    // 0: Light Theme
+    m_customPlot->setBackground(Qt::white);
+    m_customPlot->axisRect()->setBackground(Qt::white);
+
+    axisPen = QPen(Qt::black, 1);
+    tickLabelColor = Qt::black;
+    labelColor = Qt::black;
+
+    gridPen = QPen(Qt::lightGray, 1, Qt::DashLine);
+    subGridPen = QPen(QColor(230, 230, 230), 1, Qt::DotLine);
+
+    m_customPlot->legend->setBrush(QColor(255, 255, 255, 200));
+    m_customPlot->legend->setBorderPen(QPen(Qt::lightGray));
+    m_customPlot->legend->setTextColor(Qt::black);
+  } else if (index == 1) {
+    // 1: Neon Theme (Dark)
+    QLinearGradient plotGradient;
+    plotGradient.setStart(0, 0);
+    plotGradient.setFinalStop(0, 350);
+    plotGradient.setColorAt(0, QColor("#1E1E28"));
+    plotGradient.setColorAt(1, QColor("#282836"));
+    m_customPlot->setBackground(plotGradient);
+    m_customPlot->axisRect()->setBackground(QColor(10, 10, 15, 180));
+
+    axisPen = QPen(QColor("#00E5FF"), 2);
+    tickLabelColor = QColor("#E0E0FF");
+    labelColor = QColor("#00E5FF");
+
+    gridPen = QPen(QColor(0, 150, 200, 50), 1, Qt::DashLine);
+    subGridPen = QPen(QColor(0, 150, 200, 20), 1, Qt::DotLine);
+
+    m_customPlot->legend->setBrush(QColor(20, 20, 30, 150));
+    m_customPlot->legend->setBorderPen(Qt::NoPen);
+    m_customPlot->legend->setTextColor(QColor("#00E5FF"));
+  } else if (index == 2) {
+    // 2: Sci-Fi Oscilloscope Theme (Intense Green/Cyan on Deep Black)
+    m_customPlot->setBackground(Qt::black);
+    m_customPlot->axisRect()->setBackground(QColor(0, 5, 0, 255));
+
+    axisPen = QPen(QColor("#00FF41"), 2); // Matrix Green
+    tickLabelColor = QColor("#00FF41");
+    labelColor = QColor("#00FF41");
+
+    gridPen =
+        QPen(QColor(0, 255, 65, 80), 1, Qt::SolidLine); // More visible grid
+    subGridPen =
+        QPen(QColor(0, 255, 65, 30), 1, Qt::DotLine); // CRT-like secondary grid
+
+    m_customPlot->legend->setBrush(QColor(0, 20, 0, 180));
+    m_customPlot->legend->setBorderPen(QPen(QColor("#00FF41")));
+    m_customPlot->legend->setTextColor(QColor("#00FF41"));
+  }
+
+  // Apply Axes styles
+  m_customPlot->xAxis->setBasePen(axisPen);
+  m_customPlot->yAxis->setBasePen(axisPen);
+  m_customPlot->xAxis->setTickPen(axisPen);
+  m_customPlot->yAxis->setTickPen(axisPen);
+  m_customPlot->xAxis->setSubTickPen(QPen(axisPen.color(), 1));
+  m_customPlot->yAxis->setSubTickPen(QPen(axisPen.color(), 1));
+
+  m_customPlot->xAxis->setTickLabelColor(tickLabelColor);
+  m_customPlot->yAxis->setTickLabelColor(tickLabelColor);
+  m_customPlot->xAxis->setLabelColor(labelColor);
+  m_customPlot->yAxis->setLabelColor(labelColor);
+
+  m_customPlot->xAxis->setTickLabelFont(tickFont);
+  m_customPlot->yAxis->setTickLabelFont(tickFont);
+  m_customPlot->xAxis->setLabelFont(labelFont);
+  m_customPlot->yAxis->setLabelFont(labelFont);
+
+  // Apply Grid styles
+  m_customPlot->xAxis->grid()->setPen(gridPen);
+  m_customPlot->yAxis->grid()->setPen(gridPen);
+  m_customPlot->xAxis->grid()->setSubGridVisible(true);
+  m_customPlot->yAxis->grid()->setSubGridVisible(true);
+  m_customPlot->xAxis->grid()->setSubGridPen(subGridPen);
+  m_customPlot->yAxis->grid()->setSubGridPen(subGridPen);
+
+  m_customPlot->replot();
+}
+
 void SerialSession::setupConnections() {
   connect(m_btnRefresh, &QPushButton::clicked, this,
           &SerialSession::refreshPorts);
@@ -897,10 +1004,16 @@ void SerialSession::setupConnections() {
     updateChartSettings();
   });
 
+  connect(m_replotTimer, &QTimer::timeout, this,
+          &SerialSession::onReplotTimeout);
+
   connect(m_scrollbarWaveform, &QScrollBar::valueChanged, this,
           &SerialSession::onWaveformScroll);
   connect(m_comboTimeUnit, QOverload<int>::of(&QComboBox::currentIndexChanged),
           this, &SerialSession::onTimeUnitChanged);
+  connect(m_comboChartTheme,
+          QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+          &SerialSession::onChartThemeChanged);
   connect(m_spinBufferLimit, QOverload<int>::of(&QSpinBox::valueChanged), this,
           [this](int val) {
             if (m_spinPoints->value() > val) {
@@ -1333,18 +1446,27 @@ void SerialSession::updateWaveform(const QByteArray &data) {
       m_customPlot->xAxis->setRange(viewLeft, viewLeft + maxPoints);
     }
 
-    if (autoScale) {
-      for (int i = 0; i < m_customPlot->graphCount(); ++i) {
-        if (i == 0)
-          m_customPlot->graph(i)->rescaleValueAxis(false, true);
-        else
-          m_customPlot->graph(i)->rescaleValueAxis(true, true);
-      }
-    }
     if (!m_waveformPage->isHidden()) {
-      m_customPlot->replot();
+      m_needsReplot = true; // Flag for the 30fps timer to pick up
     }
   }
+}
+
+void SerialSession::onReplotTimeout() {
+  if (!m_needsReplot || m_waveformPage->isHidden())
+    return;
+
+  if (m_btnAutoScale->isChecked()) {
+    for (int i = 0; i < m_customPlot->graphCount(); ++i) {
+      if (i == 0)
+        m_customPlot->graph(i)->rescaleValueAxis(false, true);
+      else
+        m_customPlot->graph(i)->rescaleValueAxis(true, true);
+    }
+  }
+
+  m_customPlot->replot();
+  m_needsReplot = false;
 }
 
 void SerialSession::onWaveformScroll(int value) {
@@ -1370,6 +1492,36 @@ void SerialSession::onTimeUnitChanged(int index) {
     label = "Time (s)";
 
   m_customPlot->xAxis->setLabel(label);
+  m_customPlot->replot();
+}
+
+void SerialSession::onChartThemeChanged(int index) {
+  applyChartTheme(index);
+
+  // Update existing channels' line thickness and color vibrancy based on theme
+  for (int i = 0; i < m_customPlot->graphCount(); ++i) {
+    if (m_customPlot->graph(i)) {
+      int hue = (i * 137) % 360;
+      QColor color;
+      QPen pen;
+
+      if (index == 0) {
+        // Light Theme: Standard saturation
+        color = QColor::fromHsv(hue, 200, 200);
+        pen = QPen(color, 1.5f);
+      } else if (index == 1) {
+        // Neon Theme: High saturation and value
+        color = QColor::fromHsv(hue, 230, 255);
+        pen = QPen(color, 2.0f);
+      } else if (index == 2) {
+        // Sci-Fi Oscilloscope: Extremely bright, almost glowing borders
+        color = QColor::fromHsv(hue, 250, 255);
+        pen = QPen(color, 2.5f);
+      }
+
+      m_customPlot->graph(i)->setPen(pen);
+    }
+  }
   m_customPlot->replot();
 }
 
