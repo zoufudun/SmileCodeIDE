@@ -1,6 +1,7 @@
 #include "serialportplot.h"
 #include "TOOLS/CIconFont.h"
 #include "curvesettings.h"
+#include "mainwindow.h"
 #include "toastwidget.h"
 #include <QApplication>
 #include <QClipboard>
@@ -69,39 +70,35 @@ void SerialSession::setupUi() {
   m_innerMainWindow->setSizePolicy(QSizePolicy::Expanding,
                                    QSizePolicy::Expanding);
 
-  // Custom separator style for the Docks
-  m_innerMainWindow->setStyleSheet(
-      "QMainWindow::separator { background: #E0E0E0; width: 4px; height: 4px; }"
-      "QMainWindow::separator:hover { background: #00E5FF; }");
-
-  // Give left panel area some global styling
-  // Global Stylesheet for GroupBoxes and Background
+  // Global Stylesheet for Custom Cards
   this->setStyleSheet("SerialPortPlot { background-color: #f5f5f5; }"
-                      "QGroupBox { "
-                      "    border: 1px solid #BDBDBD; "
-                      "    border-radius: 10px; "
-                      "    margin-top: 10px; "
-                      "    font-weight: bold; "
+                      "QWidget#cardWidget { "
+                      "    background-color: #FFFFFF; "
+                      "    border: 1px solid #E0E0E0; "
+                      "    border-radius: 12px; "
                       "}"
-                      "QGroupBox::title { "
-                      "    subcontrol-origin: margin; "
-                      "    subcontrol-position: top left; "
-                      "    padding: 0 5px; "
-                      "    left: 10px; "
+                      "QLabel#cardTitle { "
+                      "    font-weight: bold; "
+                      "    font-size: 13px; "
+                      "    color: #333333; "
+                      "    padding-bottom: 5px; "
                       "}"
                       "QTextEdit { "
                       "    border: 1px solid #4CAF50; "
                       "    border-radius: 10px; "
                       "    padding: 5px; "
-                      "    background-color: #FFFFFF; "
+                      "    background-color: #FAFAFA; "
                       "}");
 
   // 1. Port Settings
-  QGroupBox *grpPort = new QGroupBox(
-      "串口设置"); // 垂直布局的子对象grpPort（串口设置分组框）
-                   // 当前没有指定其父，后面通过leftLayout->addWidget(grpPort);确定其父为leftLayout
-  QGridLayout *portLayout = new QGridLayout(
-      grpPort); // 串口网格布局，布局绑定grpPort，确定网格布局的父是grpPort
+  QWidget *grpPort = new QWidget();
+  grpPort->setObjectName("cardWidget");
+  QVBoxLayout *portMainLayout = new QVBoxLayout(grpPort);
+  portMainLayout->setContentsMargins(10, 10, 10, 10);
+
+  QGridLayout *portLayout = new QGridLayout();
+  portLayout->setContentsMargins(0, 0, 0, 0);
+  portMainLayout->addLayout(portLayout);
 
   portLayout->addWidget(new QLabel("端口号:"), 0, 0);
   m_comboPort = new QComboBox();
@@ -136,17 +133,22 @@ void SerialSession::setupUi() {
 
   QHBoxLayout *portActionLayout = new QHBoxLayout();
 
-  m_btnRefresh = new QPushButton("刷新");
-  m_btnRefresh->setMinimumWidth(80);
+  m_btnRefresh = new QPushButton(QChar(0xE84D));
+  m_btnRefresh->setFont(CIconFont::instance()->getIconFont(24)); // Larger Icon
+  m_btnRefresh->setToolTip("刷新端口");
+  m_btnRefresh->setMinimumWidth(60);
   m_btnRefresh->setMinimumHeight(40);
   m_btnRefresh->setStyleSheet(getButtonStyle(ButtonType::Refresh));
   portActionLayout->addWidget(m_btnRefresh);
 
-  m_btnOpenClose = new QPushButton("打开串口");
+  m_btnOpenClose = new QPushButton(QChar(0xE84E));
+  m_btnOpenClose->setFont(
+      CIconFont::instance()->getIconFont(24)); // Larger Icon
   m_btnOpenClose->setCheckable(true);
+  m_btnOpenClose->setToolTip("打开串口");
 
   // Make button smaller (compact)
-  m_btnOpenClose->setMinimumWidth(80);
+  m_btnOpenClose->setMinimumWidth(60);
   m_btnOpenClose->setMinimumHeight(40);
   m_btnOpenClose->setStyleSheet(getButtonStyle(ButtonType::Open));
 
@@ -167,16 +169,44 @@ void SerialSession::setupUi() {
   portLayout->addLayout(portActionLayout, 5, 0, 1, 3);
 
   m_dockPort = new QDockWidget("串口设置", m_innerMainWindow);
+  m_dockPort->setObjectName("premiumDock");
   m_dockPort->setFeatures(QDockWidget::DockWidgetMovable |
                           QDockWidget::DockWidgetFloatable |
                           QDockWidget::DockWidgetClosable);
   m_dockPort->setWidget(grpPort);
-  m_dockPort->setTitleBarWidget(new QWidget());
   m_innerMainWindow->addDockWidget(Qt::LeftDockWidgetArea, m_dockPort);
 
+  // Apply premium theme color to dock frame and fix shadow
+  m_dockPort->setStyleSheet(R"(
+    QDockWidget#premiumDock {
+        border: 1px solid #CFD8DC;
+        titlebar-close-icon: url(:/icons/close.png);
+        titlebar-normal-icon: url(:/icons/undock.png);
+    }
+    QDockWidget#premiumDock::title {
+        background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #E3F2FD, stop:1 #BBDEFB);
+        padding-top: 8px;
+        padding-bottom: 2px;
+        font-weight: bold;
+        color: #1565C0;
+        border-bottom: 1px solid #90CAF9;
+        text-shadow: none; /* Force remove shadow if any system style injects it */
+    }
+    QWidget#cardWidget {
+        background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #FAFAFA, stop:1 #F5F5F5);
+        border: none;
+    }
+  )");
+
   // 2. Receive Settings
-  QGroupBox *grpRx = new QGroupBox("接收设置");
-  QVBoxLayout *rxLayout = new QVBoxLayout(grpRx);
+  QWidget *grpRx = new QWidget();
+  grpRx->setObjectName("cardWidget");
+  QVBoxLayout *rxMainLayout = new QVBoxLayout(grpRx);
+  rxMainLayout->setContentsMargins(10, 10, 10, 10);
+
+  QVBoxLayout *rxLayout = new QVBoxLayout();
+  rxLayout->setContentsMargins(0, 0, 0, 0);
+  rxMainLayout->addLayout(rxLayout);
 
   QHBoxLayout *rxModeLayout = new QHBoxLayout();
   m_rbRxAscii = new QRadioButton("ASCII");
@@ -196,6 +226,14 @@ void SerialSession::setupUi() {
   rxLayout->addWidget(m_chkRxTime);
   // rxLayout->addWidget(m_chkRxNewLine);
 
+  // Instantiate the logical buttons that are used by the Rx panel signals.
+  // They are no longer added to the layout directly (replaced by floating
+  // controls), but their logical state (isChecked, clicked) is required by
+  // onReadyRead and toggles.
+  m_btnStopRx = new QPushButton(this);
+  m_btnStopRx->setCheckable(true);
+  m_btnClearRx = new QPushButton(this);
+
   // Floating controls will replace the inline buttons later, but keeping for
   // now or remove if redundant
 
@@ -204,12 +242,18 @@ void SerialSession::setupUi() {
                         QDockWidget::DockWidgetFloatable |
                         QDockWidget::DockWidgetClosable);
   m_dockRx->setWidget(grpRx);
-  m_dockRx->setTitleBarWidget(new QWidget());
   m_innerMainWindow->addDockWidget(Qt::LeftDockWidgetArea, m_dockRx);
+  m_dockRx->hide(); // Requirement 1: Hide by default
 
   // 3. Send Settings
-  QGroupBox *grpTx = new QGroupBox("发送设置");
-  QVBoxLayout *txLayout = new QVBoxLayout(grpTx);
+  QWidget *grpTx = new QWidget();
+  grpTx->setObjectName("cardWidget");
+  QVBoxLayout *txMainLayout = new QVBoxLayout(grpTx);
+  txMainLayout->setContentsMargins(10, 10, 10, 10);
+
+  QVBoxLayout *txLayout = new QVBoxLayout();
+  txLayout->setContentsMargins(0, 0, 0, 0);
+  txMainLayout->addLayout(txLayout);
 
   QHBoxLayout *txModeLayout = new QHBoxLayout();
   m_rbTxAscii = new QRadioButton("ASCII");
@@ -241,62 +285,151 @@ void SerialSession::setupUi() {
                         QDockWidget::DockWidgetFloatable |
                         QDockWidget::DockWidgetClosable);
   m_dockTx->setWidget(grpTx);
-  m_dockTx->setTitleBarWidget(new QWidget());
   m_innerMainWindow->addDockWidget(Qt::LeftDockWidgetArea, m_dockTx);
+  m_dockTx->hide(); // Requirement 1: Hide by default
 
-  // === 新增：示波器设置 GroupBox ===
-  QGroupBox *grpScope = new QGroupBox("示波器设置");
-  QVBoxLayout *grpScopeLayout = new QVBoxLayout(grpScope);
-  grpScopeLayout->setContentsMargins(6, 6, 6, 6);
+  // === 新增：示波器设置 Card ===
+  QWidget *grpScope = new QWidget();
+  grpScope->setObjectName("cardWidget");
+  QVBoxLayout *grpScopeMainLayout = new QVBoxLayout(grpScope);
+  grpScopeMainLayout->setContentsMargins(10, 10, 10, 10);
+
+  QVBoxLayout *grpScopeLayout = new QVBoxLayout();
+  grpScopeLayout->setContentsMargins(0, 0, 0, 0);
+  grpScopeMainLayout->addLayout(grpScopeLayout);
   grpScopeLayout->setSpacing(4);
+  m_settingsLayout = grpScopeLayout;
 
   m_chkEnableWaveform = new QCheckBox("使能波形显示");
-  m_chkScopeSettings = new QCheckBox("参数设置");
+  m_chkEnableWaveform->setStyleSheet("font-weight: bold; color: #1565C0;");
   m_chkHideRxTx = new QCheckBox("隐藏收发区");
   m_chkHideRxData = new QCheckBox("不显示接收");
   m_chkShowRawData = new QCheckBox("显示原始数据");
 
-  // 让复选框错落有致，美化布局
   grpScopeLayout->addWidget(m_chkEnableWaveform);
-  grpScopeLayout->addWidget(m_chkScopeSettings);
   grpScopeLayout->addWidget(m_chkHideRxTx);
   grpScopeLayout->addWidget(m_chkHideRxData);
   grpScopeLayout->addWidget(m_chkShowRawData);
 
+  // 1. Group Box for Plot Parameters (Window width, buffer, theme)
+  m_groupPlotParams = new QGroupBox("绘图参数");
+  QVBoxLayout *paramsLayout = new QVBoxLayout(m_groupPlotParams);
+  paramsLayout->setContentsMargins(4, 8, 4, 4);
+  paramsLayout->setSpacing(4);
+
+  paramsLayout->addWidget(new QLabel("视窗宽度(∆t):"));
+  m_spinPoints = new QSpinBox();
+  m_spinPoints->setRange(10, 100000);
+  m_spinPoints->setValue(100);
+  paramsLayout->addWidget(m_spinPoints);
+
+  paramsLayout->addWidget(new QLabel("缓冲区上限:"));
+  m_spinBufferLimit = new QSpinBox();
+  m_spinBufferLimit->setRange(100, 1000000);
+  m_spinBufferLimit->setValue(10000);
+  paramsLayout->addWidget(m_spinBufferLimit);
+
+  paramsLayout->addWidget(new QLabel("X轴标签单位:"));
+  m_comboTimeUnit = new QComboBox();
+  m_comboTimeUnit->addItems({"点数 (Points)", "毫秒 (ms)", "秒 (s)"});
+  paramsLayout->addWidget(m_comboTimeUnit);
+
+  paramsLayout->addWidget(new QLabel("波形主题:"));
+  m_comboChartTheme = new QComboBox();
+  m_comboChartTheme->addItems({"亮色主题", "暗黑炫光", "科幻示波器"});
+  m_comboChartTheme->setCurrentIndex(1);
+  paramsLayout->addWidget(m_comboChartTheme);
+
+  grpScopeLayout->addWidget(m_groupPlotParams);
+
+  // 2. Group Box for Y-Axis control
+  m_groupYAxis = new QGroupBox("Y轴控制");
+  QGridLayout *yLayout = new QGridLayout(m_groupYAxis);
+  yLayout->setContentsMargins(4, 8, 4, 4);
+  yLayout->setSpacing(4);
+
+  yLayout->addWidget(new QLabel("最小值:"), 0, 0);
+  m_spinYMin = new QDoubleSpinBox();
+  m_spinYMin->setRange(-99999, 99999);
+  m_spinYMin->setEnabled(false);
+  yLayout->addWidget(m_spinYMin, 0, 1);
+
+  yLayout->addWidget(new QLabel("最大值:"), 1, 0);
+  m_spinYMax = new QDoubleSpinBox();
+  m_spinYMax->setRange(-99999, 99999);
+  m_spinYMax->setEnabled(false);
+  yLayout->addWidget(m_spinYMax, 1, 1);
+
+  yLayout->addWidget(new QLabel("刻度:"), 2, 0);
+  m_spinYTick = new QDoubleSpinBox();
+  m_spinYTick->setRange(0, 99999);
+  m_spinYTick->setEnabled(false);
+  yLayout->addWidget(m_spinYTick, 2, 1);
+
+  m_chkShowGrid = new QCheckBox("显示网格");
+  m_chkShowGrid->setChecked(true);
+  yLayout->addWidget(m_chkShowGrid, 3, 0, 1, 2);
+
+  m_btnAutoScale = new QPushButton("开启自动缩放");
+  m_btnAutoScale->setCheckable(true);
+  m_btnAutoScale->setChecked(true);
+  m_btnAutoScale->setStyleSheet(getButtonStyle(ButtonType::Normal));
+  yLayout->addWidget(m_btnAutoScale, 4, 0, 1, 2);
+
+  grpScopeLayout->addWidget(m_groupYAxis);
+
+  // 3. Operation Area
+  QHBoxLayout *opLayout = new QHBoxLayout();
+  m_btnClearWaveform = new QPushButton("清空");
+  m_btnResetChart = new QPushButton("重置");
+  m_btnStopWaveform = new QPushButton("暂停");
+  m_btnStopWaveform->setCheckable(true);
+
+  for (auto *b : {m_btnClearWaveform, m_btnResetChart, m_btnStopWaveform}) {
+    b->setStyleSheet(getButtonStyle(ButtonType::Normal));
+    b->setMinimumHeight(28);
+    opLayout->addWidget(b);
+  }
+  grpScopeLayout->addLayout(opLayout);
+
+  m_btnCurveSettings = new QPushButton("查看/修改曲线样式");
+  m_btnCurveSettings->setStyleSheet(getButtonStyle(ButtonType::Normal));
+  m_btnCurveSettings->setMinimumHeight(32);
+  grpScopeLayout->addWidget(m_btnCurveSettings);
+
+  QGroupBox *grpChannels = new QGroupBox("通道管理");
+  m_channelsLayout = new QVBoxLayout(grpChannels);
+  m_channelsLayout->setContentsMargins(4, 4, 4, 4);
+  m_channelsLayout->addStretch();
+  grpScopeLayout->addWidget(grpChannels);
+
+  grpScopeLayout->addStretch();
+
   m_dockScopeSettings = new QDockWidget("示波器设置", m_innerMainWindow);
+  m_dockScopeSettings->setObjectName("premiumDock");
   m_dockScopeSettings->setFeatures(QDockWidget::DockWidgetMovable |
                                    QDockWidget::DockWidgetFloatable |
                                    QDockWidget::DockWidgetClosable);
   m_dockScopeSettings->setWidget(grpScope);
-  m_dockScopeSettings->setTitleBarWidget(new QWidget());
   m_innerMainWindow->addDockWidget(Qt::LeftDockWidgetArea, m_dockScopeSettings);
 
-  // Status (Counts) -> we'll move to the status bar later or keep in a dock.
-  // Let's make it a dock too.
-  QDockWidget *dockStatus = new QDockWidget("统计", m_innerMainWindow);
-  dockStatus->setFeatures(QDockWidget::DockWidgetMovable |
-                          QDockWidget::DockWidgetFloatable |
-                          QDockWidget::DockWidgetClosable);
-  QGroupBox *grpStatus = new QGroupBox();
-  QGridLayout *statusLayout = new QGridLayout(grpStatus);
-  statusLayout->addWidget(new QLabel("RX:"), 0, 0);
-  m_lblRxCount = new QLabel("0");
-  statusLayout->addWidget(m_lblRxCount, 0, 1);
-  statusLayout->addWidget(new QLabel("TX:"), 1, 0);
-  m_lblTxCount = new QLabel("0");
-  statusLayout->addWidget(m_lblTxCount, 1, 1);
-  dockStatus->setWidget(grpStatus);
-  dockStatus->setTitleBarWidget(new QWidget());
-  m_innerMainWindow->addDockWidget(Qt::LeftDockWidgetArea, dockStatus);
+  // Style scope settings dock similarly
+  m_dockScopeSettings->setStyleSheet(R"(
+    QDockWidget#premiumDock::title {
+        background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #E8F5E9, stop:1 #C8E6C9);
+        padding-top: 8px;
+        padding-bottom: 2px;
+        font-weight: bold;
+        color: #2E7D32;
+        border-bottom: 1px solid #A5D6A7;
+        text-shadow: none;
+    }
+  )");
 
-  // --- View Menu ---
-  QMenuBar *menuBar = m_innerMainWindow->menuBar();
-  QMenu *viewMenu = menuBar->addMenu("视图 (View)");
-  viewMenu->addAction(m_dockPort->toggleViewAction());
-  viewMenu->addAction(m_dockRx->toggleViewAction());
-  viewMenu->addAction(m_dockTx->toggleViewAction());
-  viewMenu->addAction(m_dockScopeSettings->toggleViewAction());
-  viewMenu->addAction(dockStatus->toggleViewAction());
+  m_lblRxCount = new QLabel("0");
+  m_lblTxCount = new QLabel("0");
+
+  // --- View Toolbar removed as requested by user, merged into main window ---
 
   // --- Main Horizontal Splitter (Data on left, Waveform on right) ---
   m_mainHorizSplitter = new QSplitter(Qt::Horizontal);
@@ -306,25 +439,36 @@ void SerialSession::setupUi() {
   QSplitter *rightSplitter = new QSplitter(Qt::Vertical);
   m_mainHorizSplitter->addWidget(rightSplitter);
   m_dataSplitter = rightSplitter;
-  m_dataSplitter = rightSplitter;
 
   // Receive Area
-  QGroupBox *grpData = new QGroupBox("数据接收");
-  QVBoxLayout *dataLayout = new QVBoxLayout(grpData);
-  dataLayout->setContentsMargins(5, 5, 5, 5);
+  QWidget *grpData = new QWidget();
+  grpData->setObjectName("cardWidget");
+  QVBoxLayout *dataMainLayout = new QVBoxLayout(grpData);
+  dataMainLayout->setContentsMargins(10, 10, 10, 10);
 
+  QVBoxLayout *dataLayout = new QVBoxLayout();
+  dataLayout->setContentsMargins(0, 0, 0, 0);
+  dataMainLayout->addLayout(dataLayout);
+
+  // To make the buttons float over the text area securely
   QWidget *rxContainer = new QWidget();
   QVBoxLayout *rxContainerLayout = new QVBoxLayout(rxContainer);
   rxContainerLayout->setContentsMargins(0, 0, 0, 0);
 
   m_textReceive = new QTextEdit();
+  // Prevent unbounded growth that causes permanent UI freeze on rapid
+  // auto-sends
+  m_textReceive->document()->setMaximumBlockCount(1000);
   m_textReceive->setReadOnly(true);
-  rxContainerLayout->addWidget(m_textReceive);
+  m_textReceive->installEventFilter(this);
 
-  // Floating RX Toolbar
-  QHBoxLayout *rxFloatLayout = new QHBoxLayout();
-  rxFloatLayout->setContentsMargins(10, 0, 0, 10);
-  rxFloatLayout->setSpacing(10);
+  // Floating container
+  QWidget *rxFloatWidget = new QWidget(m_textReceive);
+  rxFloatWidget->setObjectName("rxFloat");
+
+  QHBoxLayout *rxFloatLayout = new QHBoxLayout(rxFloatWidget);
+  rxFloatLayout->setContentsMargins(0, 0, 0, 0);
+  rxFloatLayout->setSpacing(8);
 
   auto createFloatBtn = [](QChar iconCode) {
     QToolButton *btn = new QToolButton();
@@ -333,36 +477,42 @@ void SerialSession::setupUi() {
     btn->setFixedSize(32, 32);
     btn->setCursor(Qt::PointingHandCursor);
     btn->setCheckable(true);
-    btn->setStyleSheet("QToolButton { color: #888888; background: rgba(255, "
-                       "255, 255, 200); border-radius: 16px; }"
-                       "QToolButton:hover { color: #00E5FF; background: "
-                       "rgba(240, 240, 240, 255); }"
-                       "QToolButton:checked { color: #00C853; background: "
-                       "rgba(230, 255, 230, 255); }");
+    // Give it a solid background so it masks text underneath
+    btn->setStyleSheet(
+        "QToolButton { color: #555555; background: #E3F2FD; border: 1px solid "
+        "#BBDEFB; border-radius: 16px; }"
+        "QToolButton:hover { background: #BBDEFB; color: #1976D2; }"
+        "QToolButton:checked { background: #C8E6C9; color: #388E3C; "
+        "border-color: #A5D6A7; }");
     return btn;
   };
 
   m_btnRxHexToggle = createFloatBtn(QChar(0xEBBC));
   m_btnRxTimeToggle = createFloatBtn(QChar(0xE676));
-  m_btnRxPauseToggle =
-      createFloatBtn(QChar(0xE617)); // e617 is play, paused is e7d8
+  m_btnRxPauseToggle = createFloatBtn(QChar(0xE617));
   m_btnRxClear = createFloatBtn(QChar(0xE621));
   m_btnRxClear->setCheckable(false);
 
-  rxFloatLayout->addStretch(); // Push all icons to the bottom-right
   rxFloatLayout->addWidget(m_btnRxHexToggle);
   rxFloatLayout->addWidget(m_btnRxTimeToggle);
   rxFloatLayout->addWidget(m_btnRxPauseToggle);
   rxFloatLayout->addWidget(m_btnRxClear);
 
-  // Overlay using absolute placement trick (requires resize event) or
-  // overlapping grids Better approach here is placing them in a layout INSIDE
-  // the TextEdit or right on top
-  rxContainerLayout->addLayout(rxFloatLayout);
+  rxContainerLayout->addWidget(m_textReceive);
 
   dataLayout->addWidget(rxContainer);
 
   rightSplitter->addWidget(grpData);
+
+  // --- Send Area Container ---
+  QWidget *grpSend = new QWidget();
+  grpSend->setObjectName("cardWidget");
+  QVBoxLayout *grpSendMainLayout = new QVBoxLayout(grpSend);
+  grpSendMainLayout->setContentsMargins(10, 10, 10, 10);
+
+  QVBoxLayout *grpSendLayout = new QVBoxLayout();
+  grpSendLayout->setContentsMargins(0, 0, 0, 0);
+  grpSendMainLayout->addLayout(grpSendLayout);
 
   // --- Send Area: 4-tab QTabWidget ---
   m_sendTabWidget = new QTabWidget();
@@ -373,27 +523,40 @@ void SerialSession::setupUi() {
   QVBoxLayout *singleLayout = new QVBoxLayout(tabSingle);
   singleLayout->setContentsMargins(6, 6, 6, 6);
 
+  // We need the Tx icons floating ABOVE the Send text box.
+  QWidget *txContainer = new QWidget();
+  QVBoxLayout *txContainerLayout = new QVBoxLayout(txContainer);
+  txContainerLayout->setContentsMargins(0, 0, 0, 0);
+
   m_textSend = new QTextEdit();
-  m_textSend->setMaximumHeight(80); // Increased from 60
+  m_textSend->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
   m_textSend->setPlaceholderText("输入要发送的数据...");
-  singleLayout->addWidget(m_textSend);
+  m_textSend->installEventFilter(this);
 
-  // Floating TX Toolbar
-  QHBoxLayout *txFloatLayout = new QHBoxLayout();
-  txFloatLayout->setContentsMargins(10, 0, 10, 10);
-  txFloatLayout->setSpacing(10);
+  // Floating widget for right corner (icons)
+  QWidget *txFloatRightWidget = new QWidget(m_textSend);
+  txFloatRightWidget->setObjectName("txFloatRight");
+  QHBoxLayout *txFloatRightLayout = new QHBoxLayout(txFloatRightWidget);
+  txFloatRightLayout->setContentsMargins(0, 0, 0, 0);
+  txFloatRightLayout->setSpacing(10);
 
-  // Left side: Send Button
   m_btnSend = createFloatBtn(QChar(0xE651));
   m_btnSend->setCheckable(false);
-  txFloatLayout->addWidget(m_btnSend);
-
-  // Push the rest to the right
-  txFloatLayout->addStretch();
-
   m_btnTxHexToggle = createFloatBtn(QChar(0xEBBC));
   m_btnTxClear = createFloatBtn(QChar(0xE621));
   m_btnTxClear->setCheckable(false);
+
+  // 悬浮在右下角
+  txFloatRightLayout->addWidget(m_btnTxHexToggle);
+  txFloatRightLayout->addWidget(m_btnSend);
+  txFloatRightLayout->addWidget(m_btnTxClear);
+
+  // Floating widget for left corner (Auto send, new line)
+  QWidget *txFloatLeftWidget = new QWidget(m_textSend);
+  txFloatLeftWidget->setObjectName("txFloatLeft");
+  QHBoxLayout *txFloatLeftLayout = new QHBoxLayout(txFloatLeftWidget);
+  txFloatLeftLayout->setContentsMargins(0, 0, 0, 0);
+  txFloatLeftLayout->setSpacing(5);
 
   m_chkAutoSend = new QCheckBox("自动发送");
   m_chkAutoSend->setEnabled(false);
@@ -401,25 +564,39 @@ void SerialSession::setupUi() {
   m_spinAutoSendInterval->setRange(10, 10000);
   m_spinAutoSendInterval->setValue(1000);
   m_spinAutoSendInterval->setSuffix(" ms");
-  m_spinAutoSendInterval->hide();
+  m_spinAutoSendInterval->hide(); // Only show when checked
 
   m_chkTxNewLine = new QCheckBox("发送新行");
 
+  txFloatLeftLayout->addWidget(m_chkAutoSend);
+  txFloatLeftLayout->addWidget(m_spinAutoSendInterval);
+  txFloatLeftLayout->addWidget(m_chkTxNewLine);
+
+  connect(m_chkAutoSend, &QCheckBox::toggled, this, [this](bool checked) {
+    m_spinAutoSendInterval->setVisible(checked);
+  });
+
+  txContainerLayout->addWidget(m_textSend);
+
+  singleLayout->addWidget(txContainer);
+
+  // Bottom Area (under text box) Layout
+  QGridLayout *txBottomLayout = new QGridLayout();
+  txBottomLayout->setSpacing(8);
+
   m_comboHistory = new QComboBox();
   m_comboHistory->setEditable(false);
-  m_comboHistory->setMinimumWidth(100);
+  m_comboHistory->setMinimumWidth(150);
 
-  txFloatLayout->addWidget(m_chkAutoSend);
-  txFloatLayout->addWidget(m_spinAutoSendInterval);
-  txFloatLayout->addWidget(m_chkTxNewLine);
-  txFloatLayout->addWidget(m_btnTxHexToggle);
-  txFloatLayout->addWidget(m_btnTxClear);
-  txFloatLayout->addWidget(m_comboHistory);
+  // Row 1 of Bottom: History (History ComboBox)
+  QHBoxLayout *txHistory = new QHBoxLayout();
+  txHistory->addWidget(new QLabel("历史记录:"));
+  txHistory->addWidget(m_comboHistory);
+  txHistory->addStretch();
 
-  // Instead of a layout, we absolute position the overlay inside the TextEdit
-  // For now, we put it in the container layout below the textbox
-  // Actually, to make it floating, it should be in overlay layer
-  singleLayout->addLayout(txFloatLayout);
+  txBottomLayout->addLayout(txHistory, 0, 0);
+
+  singleLayout->addLayout(txBottomLayout);
 
   m_sendTabWidget->addTab(tabSingle, "单条发送");
 
@@ -591,10 +768,6 @@ void SerialSession::setupUi() {
   customLayout->addWidget(btnRunScript);
   m_sendTabWidget->addTab(tabCustom, "自定义发送");
 
-  // 外包 GroupBox "数据发送"
-  QGroupBox *grpSend = new QGroupBox("数据发送");
-  QVBoxLayout *grpSendLayout = new QVBoxLayout(grpSend);
-  grpSendLayout->setContentsMargins(4, 8, 4, 4);
   grpSendLayout->addWidget(m_sendTabWidget);
 
   // Instead of rightSplitter->addWidget(grpSend), we add to rightSplitter
@@ -656,106 +829,7 @@ void SerialSession::setupUi() {
 
   m_waveformPage->setCentralWidget(chartContainer);
 
-  // -- Side Settings Panel (Dock Widget) --
-  m_dockSettings = new QDockWidget("绘图设置", m_waveformPage);
-  m_dockSettings->setAllowedAreas(Qt::AllDockWidgetAreas);
-  connect(m_dockSettings, &QDockWidget::dockLocationChanged, this,
-          &SerialSession::onDockLocationChanged);
-
-  QWidget *dockContents = new QWidget();
-  m_settingsLayout = new QBoxLayout(QBoxLayout::TopToBottom, dockContents);
-  m_settingsLayout->setContentsMargins(5, 10, 5, 10);
-  m_settingsLayout->setSpacing(8);
-
-  // Points (∆t)
-  m_settingsLayout->addWidget(new QLabel("视窗宽度(∆t):"));
-  m_spinPoints = new QSpinBox();
-  m_spinPoints->setRange(10, 100000);
-  m_spinPoints->setValue(100);
-  m_spinPoints->setSingleStep(10);
-  m_settingsLayout->addWidget(m_spinPoints);
-
-  // Buffer Limit
-  m_settingsLayout->addWidget(new QLabel("缓冲区上限:"));
-  m_spinBufferLimit = new QSpinBox();
-  m_spinBufferLimit->setRange(100, 1000000);
-  m_spinBufferLimit->setValue(10000);
-  m_spinBufferLimit->setSingleStep(1000);
-  m_settingsLayout->addWidget(m_spinBufferLimit);
-
-  // Time Units
-  m_settingsLayout->addWidget(new QLabel("X轴标签单位:"));
-  m_comboTimeUnit = new QComboBox();
-  m_comboTimeUnit->addItems({"点数 (Points)", "毫秒 (ms)", "秒 (s)"});
-  m_settingsLayout->addWidget(m_comboTimeUnit);
-
-  // Waveform Theme selection
-  m_settingsLayout->addWidget(new QLabel("波形主题:"));
-  m_comboChartTheme = new QComboBox();
-  m_comboChartTheme->addItem("亮色主题", 0);
-  m_comboChartTheme->addItem("暗黑炫光", 1);
-  m_comboChartTheme->addItem("科幻示波器", 2);
-  m_comboChartTheme->setCurrentIndex(1); // Default to Neon
-  m_settingsLayout->addWidget(m_comboChartTheme);
-
-  // Y Axis Min/Max
-  m_settingsLayout->addWidget(new QLabel("Y轴最小值:"));
-  m_spinYMin = new QDoubleSpinBox();
-  m_spinYMin->setRange(-99999, 99999);
-  m_spinYMin->setValue(0);
-  m_spinYMin->setEnabled(false); // Default Auto is ON
-  m_settingsLayout->addWidget(m_spinYMin);
-
-  m_settingsLayout->addWidget(new QLabel("Y轴最大值:"));
-  m_spinYMax = new QDoubleSpinBox();
-  m_spinYMax->setRange(-99999, 99999);
-  m_spinYMax->setValue(255);
-  m_spinYMax->setEnabled(false); // Default Auto is ON
-  m_settingsLayout->addWidget(m_spinYMax);
-
-  // Y-axis ticks
-  m_settingsLayout->addWidget(new QLabel("Y轴刻度:"));
-  m_spinYTick = new QDoubleSpinBox();
-  m_spinYTick->setRange(0, 99999);
-  m_spinYTick->setValue(0);       // 0 corresponds to Auto
-  m_spinYTick->setEnabled(false); // Default Auto is ON
-  m_settingsLayout->addWidget(m_spinYTick);
-
-  // Grid
-  m_chkShowGrid = new QCheckBox("显示网格");
-  m_chkShowGrid->setChecked(true);
-  m_settingsLayout->addWidget(m_chkShowGrid);
-
-  // Auto Scale Button
-  m_btnAutoScale = new QPushButton("自动缩放");
-  m_btnAutoScale->setCheckable(true);
-  m_btnAutoScale->setChecked(true);
-  m_settingsLayout->addWidget(m_btnAutoScale);
-
-  m_btnClearWaveform = new QPushButton("清空波形");
-  m_settingsLayout->addWidget(m_btnClearWaveform);
-
-  m_btnResetChart = new QPushButton("重置参数");
-  m_settingsLayout->addWidget(m_btnResetChart);
-
-  m_btnCurveSettings = new QPushButton("曲线设置");
-  m_settingsLayout->addWidget(m_btnCurveSettings);
-
-  m_btnStopWaveform = new QPushButton("暂停波形");
-  m_btnStopWaveform->setCheckable(true);
-  m_settingsLayout->addWidget(m_btnStopWaveform);
-
-  QGroupBox *grpChannels = new QGroupBox("通道管理");
-  m_channelsLayout = new QVBoxLayout(grpChannels);
-  m_channelsLayout->setContentsMargins(4, 4, 4, 4);
-  m_channelsLayout->setSpacing(2);
-  m_channelsLayout->addStretch();
-  m_settingsLayout->addWidget(grpChannels);
-
-  m_settingsLayout->addStretch();
-
-  m_dockSettings->setWidget(dockContents);
-  m_waveformPage->addDockWidget(Qt::LeftDockWidgetArea, m_dockSettings);
+  // m_dockSettings merged into m_dockScopeSettings above.
 
   m_mainHorizSplitter->addWidget(
       m_waveformPage); // Append to main layout vertically
@@ -785,6 +859,20 @@ void SerialSession::setupUi() {
 
   statusBarLayout->addWidget(m_lblPortInfo);
   statusBarLayout->addStretch();
+
+  // RX/TX Statistics
+  QLabel *lblRxText = new QLabel("RX:");
+  lblRxText->setStyleSheet("font-weight: bold; color: #555;");
+  statusBarLayout->addWidget(lblRxText);
+  statusBarLayout->addWidget(m_lblRxCount);
+  statusBarLayout->addSpacing(15);
+
+  QLabel *lblTxText = new QLabel("TX:");
+  lblTxText->setStyleSheet("font-weight: bold; color: #555;");
+  statusBarLayout->addWidget(lblTxText);
+  statusBarLayout->addWidget(m_lblTxCount);
+  statusBarLayout->addSpacing(20);
+
   statusBarLayout->addWidget(m_lblWelcome);
 
   mainLayout->addLayout(statusBarLayout);
@@ -1059,6 +1147,12 @@ void SerialSession::setupConnections() {
     m_spinJumpPage->setRange(1, m_multiPages.count());
     onMultiPageChanged(newPage);
   });
+  // Scope Settings Toggles
+  connect(m_chkHideRxTx, &QCheckBox::toggled,
+          [this](bool checked) { m_dataSplitter->setVisible(!checked); });
+  connect(m_chkHideRxData, &QCheckBox::toggled,
+          [this](bool checked) { m_textReceive->setVisible(!checked); });
+
   connect(m_btnMultiDelPage, &QPushButton::clicked, [this]() {
     if (m_multiPages.count() <= 1)
       return;
@@ -1153,21 +1247,9 @@ void SerialSession::setupConnections() {
             }
           });
 
-  // 波形显示及参数设置按钮控制
+  // 波形显示控制
   connect(m_chkEnableWaveform, &QCheckBox::toggled, this,
           &SerialSession::onWaveformEnabled);
-
-  // 波形参数设置面板控制
-  connect(m_chkScopeSettings, &QCheckBox::toggled, this,
-          [this](bool checked) { m_dockSettings->setVisible(checked); });
-
-  // 双向绑定：用户手动关闭 dock 时，复选框也会联动取消勾选状态
-  connect(m_dockSettings, &QDockWidget::visibilityChanged, this,
-          [this](bool visible) {
-            if (m_chkScopeSettings->isChecked() != visible) {
-              m_chkScopeSettings->setChecked(visible);
-            }
-          });
 
   // 隐藏收发区控制
   connect(m_chkHideRxTx, &QCheckBox::toggled, this,
@@ -1267,15 +1349,13 @@ void SerialSession::checkPorts() {
 
 void SerialSession::openClosePort() {
   if (m_serial->isOpen()) {
-    m_serial->close();
-    m_serial->close();
-    m_serial->close();
+    m_serial->close(); // close once — duplicate calls caused state corruption
     m_welcomeText =
         "   欢迎使用uSmilePro串口示波器V1.0   "; // Revert to default
     m_scrollPos = 0;
     ToastWidget::showToast("串口 " + m_serial->portName() + " 已关闭", false,
                            this);
-    m_btnOpenClose->setText("打开串口");
+    m_btnOpenClose->setText(QChar(0xE84E));
     m_btnOpenClose->setChecked(false);
     m_lblStatusIcon->setPixmap(
         QPixmap(":/icons/ONOFF/OFF5.png")
@@ -1308,7 +1388,7 @@ void SerialSession::openClosePort() {
       ToastWidget::showToast("串口 " + m_serial->portName() + " 已打开", true,
                              this);
 
-      m_btnOpenClose->setText("关闭串口");
+      m_btnOpenClose->setText(QChar(0xE855));
       m_btnOpenClose->setChecked(true);
       m_lblStatusIcon->setPixmap(
           QPixmap(":/icons/ONOFF/ON2.png")
@@ -1323,17 +1403,26 @@ void SerialSession::openClosePort() {
       m_comboParity->setEnabled(false);
       m_comboStopBits->setEnabled(false);
     } else {
-      QMessageBox::critical(this, "错误",
-                            "无法打开串口:\n" + m_serial->errorString());
+      QString errorStr = m_serial->errorString();
+      QTimer::singleShot(0, this, [this, errorStr]() {
+        QMessageBox::critical(this, "错误", "无法打开串口:\n" + errorStr);
+      });
       m_btnOpenClose->setChecked(false);
+      m_btnOpenClose->setText(QChar(0xE84E));
+      m_btnOpenClose->setToolTip("打开串口");
     }
   }
 }
 
 void SerialSession::onPortError(QSerialPort::SerialPortError error) {
   if (error == QSerialPort::ResourceError) {
-    QMessageBox::critical(this, "严重错误", "串口连接中断！");
-    openClosePort(); // Force close UI state
+    // Defer dialog + close to next event loop iteration to avoid re-entrant
+    // signal handling (calling QMessageBox directly from a serial error signal
+    // can cause recursive event-loop processing and crash).
+    QTimer::singleShot(0, this, [this]() {
+      QMessageBox::critical(this, "严重错误", "串口连接中断！");
+      openClosePort();
+    });
   }
 }
 
@@ -1365,12 +1454,16 @@ void SerialSession::onReadyRead() {
       htmlLine = QString("<span>[RX] %1</span>").arg(rawStr.toHtmlEscaped());
     }
 
-    if (!m_chkHideRxData->isChecked() && !m_chkShowRawData->isChecked()) {
-      m_textReceive->append(htmlLine);
-
-      // Auto Scroll
-      m_textReceive->verticalScrollBar()->setValue(
-          m_textReceive->verticalScrollBar()->maximum());
+    if (!m_chkHideRxData->isChecked()) {
+      bool showRaw = m_chkShowRawData->isChecked();
+      if (showRaw) {
+        // Show exactly what was received (the raw bytes as string)
+        m_textReceive->append(htmlLine);
+        m_textReceive->verticalScrollBar()->setValue(
+            m_textReceive->verticalScrollBar()->maximum());
+      }
+      // If NOT showRaw, updateWaveform will handle appending the cleaned
+      // Payload
     }
   }
 
@@ -1439,8 +1532,10 @@ void SerialSession::updateWaveform(const QByteArray &data) {
   }
 
   QString str = QString::fromLocal8Bit(data);
-  static QString buffer;
-  buffer.append(str);
+  // Use the per-instance member buffer — NOT a static, which would be shared
+  // across all SerialSession instances and causes data corruption + crashes
+  // when two serial ports are open simultaneously.
+  m_rxBuffer.append(str);
 
   int maxPoints = m_spinPoints->value();
   bool autoScale = m_btnAutoScale->isChecked();
@@ -1450,26 +1545,27 @@ void SerialSession::updateWaveform(const QByteArray &data) {
   QVector<QVector<double>> channelKeysBatch;
 
   while (true) {
-    int startIdx = buffer.indexOf('$');
+    int startIdx = m_rxBuffer.indexOf('$');
     if (startIdx == -1) {
-      if (buffer.length() > 4096)
-        buffer.clear(); // Safety check
+      if (m_rxBuffer.length() > 4096)
+        m_rxBuffer.clear(); // Safety check
       break;
     }
 
-    int endIdx = buffer.indexOf(';', startIdx);
+    int endIdx = m_rxBuffer.indexOf(';', startIdx);
     if (endIdx == -1) {
-      if (buffer.length() > 4096) {
-        buffer = buffer.mid(startIdx);
-        if (buffer.length() > 4096)
-          buffer.clear(); // Safety clear
+      if (m_rxBuffer.length() > 4096) {
+        m_rxBuffer = m_rxBuffer.mid(startIdx);
+        if (m_rxBuffer.length() > 4096)
+          m_rxBuffer.clear(); // Safety clear
       }
       break; // Need more data
     }
 
     // Found complete frame: "$ ... ;"
-    QString payload = buffer.mid(startIdx + 1, endIdx - startIdx - 1).trimmed();
-    buffer.remove(0, endIdx + 1); // Remove processed frame
+    QString payload =
+        m_rxBuffer.mid(startIdx + 1, endIdx - startIdx - 1).trimmed();
+    m_rxBuffer.remove(0, endIdx + 1); // Remove processed frame
 
     if (payload.isEmpty())
       continue;
@@ -1550,8 +1646,11 @@ void SerialSession::updateWaveform(const QByteArray &data) {
       }
     }
 
-    if (m_chkShowRawData->isChecked()) {
-      m_textReceive->append(payload);
+    // If "Show Raw Data" is UNCHECKED, we show the extracted Payload for
+    // clarity
+    if (!m_chkShowRawData->isChecked()) {
+      m_textReceive->append("<span style='color: #4CAF50;'>[Payload] " +
+                            payload.toHtmlEscaped() + "</span>");
     }
 
     m_xValue++;
@@ -1740,6 +1839,27 @@ bool SerialSession::eventFilter(QObject *watched, QEvent *event) {
         m_btnFloatingPlay->hide();
       }
     }
+  } else if (watched == m_textReceive && event->type() == QEvent::Resize) {
+    QResizeEvent *re = static_cast<QResizeEvent *>(event);
+    QWidget *rxFloat = m_textReceive->findChild<QWidget *>("rxFloat");
+    if (rxFloat) {
+      rxFloat->adjustSize();
+      rxFloat->move(re->size().width() - rxFloat->width() - 10,
+                    re->size().height() - rxFloat->height() - 10);
+    }
+  } else if (watched == m_textSend && event->type() == QEvent::Resize) {
+    QResizeEvent *re = static_cast<QResizeEvent *>(event);
+    QWidget *txFloatRight = m_textSend->findChild<QWidget *>("txFloatRight");
+    QWidget *txFloatLeft = m_textSend->findChild<QWidget *>("txFloatLeft");
+    if (txFloatRight) {
+      txFloatRight->adjustSize();
+      txFloatRight->move(re->size().width() - txFloatRight->width() - 10,
+                         re->size().height() - txFloatRight->height() - 10);
+    }
+    if (txFloatLeft) {
+      txFloatLeft->adjustSize();
+      txFloatLeft->move(10, re->size().height() - txFloatLeft->height() - 10);
+    }
   }
 
   return QWidget::eventFilter(watched, event);
@@ -1831,7 +1951,30 @@ void SerialSession::toggleAutoSend(bool checked) {
   }
 }
 
-void SerialSession::onAutoSendTimeout() { sendData(); }
+void SerialSession::onAutoSendTimeout() {
+  // Guard: only send if this widget is visible and the port is still open
+  if (!isVisible() || !m_serial->isOpen()) {
+    m_autoSendTimer->stop();
+    m_chkAutoSend->setChecked(false);
+    return;
+  }
+  sendData();
+}
+
+void SerialSession::hideEvent(QHideEvent *event) {
+  // Pause ALL sending timers when the session tab is hidden.
+  // Failing to stop multiLoopTimer here caused continued writes to a hidden
+  // session's serial port, leading to crashes when another session was active.
+  if (m_autoSendTimer->isActive()) {
+    m_autoSendTimer->stop();
+    m_chkAutoSend->setChecked(false);
+  }
+  if (m_multiLoopTimer->isActive()) {
+    m_multiLoopTimer->stop();
+    m_chkMultiLoop->setChecked(false);
+  }
+  QWidget::hideEvent(event);
+}
 
 void SerialSession::scrollWelcomeMessage() {
   if (m_welcomeText.isEmpty())
@@ -2323,7 +2466,7 @@ SerialPortPlot::SerialPortPlot(QWidget *parent)
     QTabBar::tab {
         background: #E8E8E8;
         border: 1px solid #C0C0C0;
-        border-bottom-color: #C0C0C0; 
+        border-bottom-color: #C0C0C0;
         border-top-left-radius: 8px;
         border-top-right-radius: 8px;
         min-width: 100px;
@@ -2409,10 +2552,50 @@ void SerialPortPlot::addNewSession() {
   }
   m_sessionCounter++;
 
+  // The user requested View toolbar inside the inner session instead of main
+  // window. We will configure the local toolbar inside SerialSession.
+
   // 插入到 "  ➕  " 号前面
   int addIndex = m_sessionTabs->count() - 1;
   int index = m_sessionTabs->insertTab(addIndex, session, title);
   m_sessionTabs->setCurrentIndex(index);
+}
+
+SerialSession *SerialPortPlot::getActiveSession() const {
+  if (!m_sessionTabs)
+    return nullptr;
+  int currentIndex = m_sessionTabs->currentIndex();
+  if (currentIndex < 0 || currentIndex >= m_sessionTabs->count() - 1)
+    return nullptr;
+
+  return qobject_cast<SerialSession *>(m_sessionTabs->widget(currentIndex));
+}
+
+void SerialPortPlot::toggleDock(int dockType, bool checked) {
+  // Get current session
+  int currentIndex = m_sessionTabs->currentIndex();
+  if (currentIndex < 0 || currentIndex >= m_sessionTabs->count() - 1)
+    return;
+
+  SerialSession *session =
+      qobject_cast<SerialSession *>(m_sessionTabs->widget(currentIndex));
+  if (!session)
+    return;
+
+  switch (dockType) {
+  case 0:
+    session->m_dockPort->setVisible(checked);
+    break;
+  case 1:
+    session->m_dockRx->setVisible(checked);
+    break;
+  case 2:
+    session->m_dockTx->setVisible(checked);
+    break;
+  case 3:
+    session->m_dockScopeSettings->setVisible(checked);
+    break;
+  }
 }
 
 void SerialPortPlot::onTabDoubleClicked(int index) {
@@ -2564,6 +2747,41 @@ SerialPortContainer::SerialPortContainer(QWidget *parent) : QWidget(parent) {
 
   // About
   m_toolbar->addAction("关于");
+
+  // 视图 (View)
+  QToolButton *btnView = new QToolButton(this);
+  btnView->setText("视图");
+  btnView->setPopupMode(QToolButton::InstantPopup);
+  QMenu *menuView = new QMenu(btnView);
+
+  connect(menuView, &QMenu::aboutToShow, this, [this, menuView]() {
+    menuView->clear();
+    if (m_plotHistory.isEmpty())
+      return;
+
+    SerialPortPlot *activePlot = nullptr;
+    for (SerialPortPlot *plot : m_plotHistory) {
+      if (plot->isAncestorOf(QApplication::focusWidget()) || plot->hasFocus()) {
+        activePlot = plot;
+        break;
+      }
+    }
+    if (!activePlot)
+      activePlot = m_plotHistory.last();
+
+    SerialSession *session = activePlot->getActiveSession();
+    if (session) {
+      menuView->addAction(session->m_dockPort->toggleViewAction());
+      menuView->addAction(session->m_dockRx->toggleViewAction());
+      menuView->addAction(session->m_dockTx->toggleViewAction());
+      menuView->addAction(session->m_dockScopeSettings->toggleViewAction());
+    } else {
+      menuView->addAction("当前无活动会话")->setEnabled(false);
+    }
+  });
+
+  btnView->setMenu(menuView);
+  m_toolbar->addWidget(btnView);
 
   layout->addWidget(m_toolbar);
 

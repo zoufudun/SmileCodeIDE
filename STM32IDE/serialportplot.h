@@ -81,6 +81,9 @@ private slots:
   void onAutoSendTimeout();
   void onTxModeChanged(bool hexChecked);
 
+protected:
+  void hideEvent(QHideEvent *event) override;
+
   // Multi-send
   void sendAll();           // kept for single-tab compat
   void sendSelectedMulti(); // send checked items on current page
@@ -110,11 +113,13 @@ public:
   void onCurveSettingsClicked();
 
   void setToolbarVisible(bool visible);
+  QMenu *getViewMenu() const { return m_viewMenu; }
 
 protected:
   bool eventFilter(QObject *watched, QEvent *event) override;
 
 private:
+  QMenu *m_viewMenu = nullptr;
   enum class ButtonType { Normal, Refresh, Open, Close };
   QString getButtonStyle(ButtonType type);
 
@@ -174,7 +179,7 @@ private:
   QToolButton *m_btnTxClear;
 
   // Send tab widget (wrapped in GroupBox)
-  QTabWidget *m_sendTabWidget;
+  // m_sendTabWidget; // moved to public section
 
   // ---- Multi-send data model ----
   int m_multiPage;                              // 0-based current page
@@ -205,21 +210,28 @@ private:
   QTimer *m_multiLoopTimer;
   int m_multiLoopIndex;
 
-  // Data Display
-  QTextEdit *m_textReceive;
+public:
+  // UI Elements - Dock Widgets
+  QDockWidget *m_dockPort;
+  QDockWidget *m_dockRx;
+  QDockWidget *m_dockTx;
+  QDockWidget *m_dockScopeSettings;
+
+  // Statistics Labels
   QLabel *m_lblRxCount;
   QLabel *m_lblTxCount;
 
-  // Waveform
+  // Waveform elements
   QCheckBox *m_chkEnableWaveform;
-  QCheckBox *m_chkScopeSettings;
   QCustomPlot *m_customPlot;
-  double m_xValue;
-
-public:
-  // Waveform Settings UI
-  QDockWidget *m_dockSettings;
   QBoxLayout *m_settingsLayout;
+
+  // Other UI members that were likely public
+  QTabWidget *m_sendTabWidget;
+  QTextEdit *m_textReceive;
+
+  // Waveform parameters
+  double m_xValue;
   QSpinBox *m_spinPoints;
   QSpinBox *m_spinBufferLimit;
   QComboBox *m_comboTimeUnit;
@@ -235,9 +247,8 @@ public:
   QPushButton *m_btnCurveSettings;
 
   QVBoxLayout *m_channelsLayout;
-  QMap<int, QWidget *> m_channelWidgets; // keep track of channel widget rows
+  QMap<int, QWidget *> m_channelWidgets;
 
-  // New UI controls for Waveform
   QCheckBox *m_chkHideRxTx;
   QCheckBox *m_chkHideRxData;
   QCheckBox *m_chkShowRawData;
@@ -246,21 +257,19 @@ public:
   QScrollBar *m_scrollbarWaveform;
   QToolButton *m_btnFloatingPlay;
 
-  // Extended Page
   QMainWindow *m_waveformPage;
-
-  // Global UI Structure (Internal Card Layout)
   QMainWindow *m_innerMainWindow;
-  QDockWidget *m_dockPort;
-  QDockWidget *m_dockRx;
-  QDockWidget *m_dockTx;
-  QDockWidget *m_dockScopeSettings;
 
-  QTabWidget *m_mainTabWidget;
+  QGroupBox *m_groupPlotParams;
+  QGroupBox *m_groupYAxis;
 
+private:
   // Render Throttling
   QTimer *m_replotTimer;
   bool m_needsReplot;
+
+  // Per-instance waveform receive buffer (must NOT be static)
+  QString m_rxBuffer;
 };
 
 // -------------------------------------------------------------
@@ -276,11 +285,16 @@ public:
   void applyGlobalTheme(const QString &themeFile);
   void applyFileIconTheme(const QString &themeName);
 
+  SerialSession *getActiveSession() const;
+
 signals:
   void themeChanged(const QString &themeName);
   void requestSplitHorizontal(SerialPortPlot *plot);
   void requestSplitVertical(SerialPortPlot *plot);
   void requestCloseSplit(SerialPortPlot *plot);
+
+public slots:
+  void toggleDock(int dockType, bool checked);
 
 private slots:
   void addNewSession();

@@ -3943,6 +3943,11 @@ void MainWindow::openSerialTool() {
     m_serialPlot = new SerialPortContainer();
     m_serialPlot->setWindowTitle("串口调试助手");
     m_serialPlot->resize(1000, 600);
+
+    // 如果 SerialPortContainer 可以获取当前的 Session
+    // 假设 SerialPortContainer 内部有 getActiveSession()
+    // 由于我们不知道其内部接口，我们可以安全地做这一步：
+    // 若后续发现 SerialPortContainer 有提供 view menu 我们就在这加。
   }
   m_serialPlot->show();
   m_serialPlot->raise();
