@@ -59,28 +59,22 @@ SerialSession::~SerialSession() {
 }
 
 void SerialSession::setupUi() {
-  QVBoxLayout *mainLayout =
-      new QVBoxLayout(this); // Changed to Vertical for Status Bar
+  QVBoxLayout *mainLayout = new QVBoxLayout(this);
+  mainLayout->setContentsMargins(0, 0, 0, 0);
 
-  QSplitter *splitter = new QSplitter(Qt::Horizontal, this);
+  m_innerMainWindow = new QMainWindow(this);
+  m_innerMainWindow->setWindowFlags(Qt::Widget);
+  m_innerMainWindow->setDockOptions(QMainWindow::AnimatedDocks |
+                                    QMainWindow::AllowNestedDocks);
+  m_innerMainWindow->setSizePolicy(QSizePolicy::Expanding,
+                                   QSizePolicy::Expanding);
 
-  // Connect splitter to mainLayout later, but first let's keep the structure
-  // The original code did mainLayout->addWidget(splitter). We will do that too.
-  // splitter->setStyleSheet("QSplitter::handle { background-color: #cccccc;
-  // }");
-  // --- Left Panel: Settings ---
-  QWidget *leftPanel =
-      new QWidget(); // 创建左面板，当前没有指定其父，后面通过
-                     // splitter->addWidget(leftPanel);确定QSplitter为其父
-  QVBoxLayout *leftLayout = new QVBoxLayout(
-      leftPanel); // 垂直布局绑定leftPanel，确定垂直布局的父是leftPanel；
+  // Custom separator style for the Docks
+  m_innerMainWindow->setStyleSheet(
+      "QMainWindow::separator { background: #E0E0E0; width: 4px; height: 4px; }"
+      "QMainWindow::separator:hover { background: #00E5FF; }");
 
-  // 给左侧布局设内边距（面板边缘到控件的距离）
-  leftLayout->setContentsMargins(10, 10, 10, 10); // 上下左右各10像素
-  // 设置控件之间的间距
-  leftLayout->setSpacing(8); // 控件之间隔8像素
-
-  // 给左侧面板加浅灰色背景，和右侧绘图区域区分开
+  // Give left panel area some global styling
   // Global Stylesheet for GroupBoxes and Background
   this->setStyleSheet("SerialPortPlot { background-color: #f5f5f5; }"
                       "QGroupBox { "
@@ -172,7 +166,13 @@ void SerialSession::setupUi() {
   // Add sub-layout to main grid at row 5, spanning 3 cols
   portLayout->addLayout(portActionLayout, 5, 0, 1, 3);
 
-  leftLayout->addWidget(grpPort);
+  m_dockPort = new QDockWidget("串口设置", m_innerMainWindow);
+  m_dockPort->setFeatures(QDockWidget::DockWidgetMovable |
+                          QDockWidget::DockWidgetFloatable |
+                          QDockWidget::DockWidgetClosable);
+  m_dockPort->setWidget(grpPort);
+  m_dockPort->setTitleBarWidget(new QWidget());
+  m_innerMainWindow->addDockWidget(Qt::LeftDockWidgetArea, m_dockPort);
 
   // 2. Receive Settings
   QGroupBox *grpRx = new QGroupBox("接收设置");
@@ -196,30 +196,16 @@ void SerialSession::setupUi() {
   rxLayout->addWidget(m_chkRxTime);
   // rxLayout->addWidget(m_chkRxNewLine);
 
-  QHBoxLayout *rxBtnLayout = new QHBoxLayout();
-  m_btnClearRx = new QPushButton("清空");
-  m_btnClearRx->setStyleSheet(getButtonStyle(ButtonType::Normal));
-  m_btnStopRx = new QPushButton("暂停显示");
-  m_btnStopRx->setStyleSheet(getButtonStyle(ButtonType::Normal));
-  m_btnStopRx->setCheckable(true);
-  rxBtnLayout->addWidget(m_btnClearRx);
-  rxBtnLayout->addWidget(m_btnStopRx);
-  rxLayout->addLayout(rxBtnLayout);
+  // Floating controls will replace the inline buttons later, but keeping for
+  // now or remove if redundant
 
-  rxLayout->addLayout(rxBtnLayout);
-
-  // Waveform Toggle (Removed, moved to Toolbar)
-  // m_chkEnableWaveform = new QCheckBox("启用波形显示");
-  // rxLayout->addWidget(m_chkEnableWaveform);
-
-  // 4. Waveform Settings (Moved to Side Panel in Waveform Page)
-  // Just initialize controls here if needed, or better, do it when creating
-  // m_waveformPage Let's defer creation to the m_waveformPage section to keep
-  // layout logic together
-
-  // m_grpWaveformSettings was removed from UI layout
-
-  leftLayout->addWidget(grpRx);
+  m_dockRx = new QDockWidget("接收设置", m_innerMainWindow);
+  m_dockRx->setFeatures(QDockWidget::DockWidgetMovable |
+                        QDockWidget::DockWidgetFloatable |
+                        QDockWidget::DockWidgetClosable);
+  m_dockRx->setWidget(grpRx);
+  m_dockRx->setTitleBarWidget(new QWidget());
+  m_innerMainWindow->addDockWidget(Qt::LeftDockWidgetArea, m_dockRx);
 
   // 3. Send Settings
   QGroupBox *grpTx = new QGroupBox("发送设置");
@@ -250,7 +236,13 @@ void SerialSession::setupUi() {
   autoSendLayout->addWidget(m_spinAutoSendInterval);
   txLayout->addLayout(autoSendLayout);
 
-  leftLayout->addWidget(grpTx);
+  m_dockTx = new QDockWidget("发送设置", m_innerMainWindow);
+  m_dockTx->setFeatures(QDockWidget::DockWidgetMovable |
+                        QDockWidget::DockWidgetFloatable |
+                        QDockWidget::DockWidgetClosable);
+  m_dockTx->setWidget(grpTx);
+  m_dockTx->setTitleBarWidget(new QWidget());
+  m_innerMainWindow->addDockWidget(Qt::LeftDockWidgetArea, m_dockTx);
 
   // === 新增：示波器设置 GroupBox ===
   QGroupBox *grpScope = new QGroupBox("示波器设置");
@@ -270,10 +262,22 @@ void SerialSession::setupUi() {
   grpScopeLayout->addWidget(m_chkHideRxTx);
   grpScopeLayout->addWidget(m_chkHideRxData);
   grpScopeLayout->addWidget(m_chkShowRawData);
-  leftLayout->addWidget(grpScope);
 
-  // Status (Counts)
-  QGroupBox *grpStatus = new QGroupBox("统计");
+  m_dockScopeSettings = new QDockWidget("示波器设置", m_innerMainWindow);
+  m_dockScopeSettings->setFeatures(QDockWidget::DockWidgetMovable |
+                                   QDockWidget::DockWidgetFloatable |
+                                   QDockWidget::DockWidgetClosable);
+  m_dockScopeSettings->setWidget(grpScope);
+  m_dockScopeSettings->setTitleBarWidget(new QWidget());
+  m_innerMainWindow->addDockWidget(Qt::LeftDockWidgetArea, m_dockScopeSettings);
+
+  // Status (Counts) -> we'll move to the status bar later or keep in a dock.
+  // Let's make it a dock too.
+  QDockWidget *dockStatus = new QDockWidget("统计", m_innerMainWindow);
+  dockStatus->setFeatures(QDockWidget::DockWidgetMovable |
+                          QDockWidget::DockWidgetFloatable |
+                          QDockWidget::DockWidgetClosable);
+  QGroupBox *grpStatus = new QGroupBox();
   QGridLayout *statusLayout = new QGridLayout(grpStatus);
   statusLayout->addWidget(new QLabel("RX:"), 0, 0);
   m_lblRxCount = new QLabel("0");
@@ -281,22 +285,83 @@ void SerialSession::setupUi() {
   statusLayout->addWidget(new QLabel("TX:"), 1, 0);
   m_lblTxCount = new QLabel("0");
   statusLayout->addWidget(m_lblTxCount, 1, 1);
-  leftLayout->addWidget(grpStatus);
+  dockStatus->setWidget(grpStatus);
+  dockStatus->setTitleBarWidget(new QWidget());
+  m_innerMainWindow->addDockWidget(Qt::LeftDockWidgetArea, dockStatus);
 
-  leftLayout->addStretch();
+  // --- View Menu ---
+  QMenuBar *menuBar = m_innerMainWindow->menuBar();
+  QMenu *viewMenu = menuBar->addMenu("视图 (View)");
+  viewMenu->addAction(m_dockPort->toggleViewAction());
+  viewMenu->addAction(m_dockRx->toggleViewAction());
+  viewMenu->addAction(m_dockTx->toggleViewAction());
+  viewMenu->addAction(m_dockScopeSettings->toggleViewAction());
+  viewMenu->addAction(dockStatus->toggleViewAction());
 
-  splitter->addWidget(leftPanel);
+  // --- Main Horizontal Splitter (Data on left, Waveform on right) ---
+  m_mainHorizSplitter = new QSplitter(Qt::Horizontal);
+  m_innerMainWindow->setCentralWidget(m_mainHorizSplitter);
 
-  // --- Right Panel: Data and Waveform ---
+  // --- Vertical Data Splitter (Rx and Tx) ---
   QSplitter *rightSplitter = new QSplitter(Qt::Vertical);
+  m_mainHorizSplitter->addWidget(rightSplitter);
+  m_dataSplitter = rightSplitter;
   m_dataSplitter = rightSplitter;
 
   // Receive Area
   QGroupBox *grpData = new QGroupBox("数据接收");
   QVBoxLayout *dataLayout = new QVBoxLayout(grpData);
+  dataLayout->setContentsMargins(5, 5, 5, 5);
+
+  QWidget *rxContainer = new QWidget();
+  QVBoxLayout *rxContainerLayout = new QVBoxLayout(rxContainer);
+  rxContainerLayout->setContentsMargins(0, 0, 0, 0);
+
   m_textReceive = new QTextEdit();
   m_textReceive->setReadOnly(true);
-  dataLayout->addWidget(m_textReceive);
+  rxContainerLayout->addWidget(m_textReceive);
+
+  // Floating RX Toolbar
+  QHBoxLayout *rxFloatLayout = new QHBoxLayout();
+  rxFloatLayout->setContentsMargins(10, 0, 0, 10);
+  rxFloatLayout->setSpacing(10);
+
+  auto createFloatBtn = [](QChar iconCode) {
+    QToolButton *btn = new QToolButton();
+    btn->setFont(CIconFont::instance()->getIconFont(20));
+    btn->setText(iconCode);
+    btn->setFixedSize(32, 32);
+    btn->setCursor(Qt::PointingHandCursor);
+    btn->setCheckable(true);
+    btn->setStyleSheet("QToolButton { color: #888888; background: rgba(255, "
+                       "255, 255, 200); border-radius: 16px; }"
+                       "QToolButton:hover { color: #00E5FF; background: "
+                       "rgba(240, 240, 240, 255); }"
+                       "QToolButton:checked { color: #00C853; background: "
+                       "rgba(230, 255, 230, 255); }");
+    return btn;
+  };
+
+  m_btnRxHexToggle = createFloatBtn(QChar(0xEBBC));
+  m_btnRxTimeToggle = createFloatBtn(QChar(0xE676));
+  m_btnRxPauseToggle =
+      createFloatBtn(QChar(0xE617)); // e617 is play, paused is e7d8
+  m_btnRxClear = createFloatBtn(QChar(0xE621));
+  m_btnRxClear->setCheckable(false);
+
+  rxFloatLayout->addStretch(); // Push all icons to the bottom-right
+  rxFloatLayout->addWidget(m_btnRxHexToggle);
+  rxFloatLayout->addWidget(m_btnRxTimeToggle);
+  rxFloatLayout->addWidget(m_btnRxPauseToggle);
+  rxFloatLayout->addWidget(m_btnRxClear);
+
+  // Overlay using absolute placement trick (requires resize event) or
+  // overlapping grids Better approach here is placing them in a layout INSIDE
+  // the TextEdit or right on top
+  rxContainerLayout->addLayout(rxFloatLayout);
+
+  dataLayout->addWidget(rxContainer);
+
   rightSplitter->addWidget(grpData);
 
   // --- Send Area: 4-tab QTabWidget ---
@@ -309,29 +374,52 @@ void SerialSession::setupUi() {
   singleLayout->setContentsMargins(6, 6, 6, 6);
 
   m_textSend = new QTextEdit();
-  m_textSend->setMaximumHeight(60);
+  m_textSend->setMaximumHeight(80); // Increased from 60
   m_textSend->setPlaceholderText("输入要发送的数据...");
   singleLayout->addWidget(m_textSend);
 
-  QHBoxLayout *btnLayout = new QHBoxLayout();
-  m_btnSend = new QPushButton("发送");
-  m_btnSend->setStyleSheet(getButtonStyle(ButtonType::Normal));
-  m_btnSend->setMinimumHeight(36);
+  // Floating TX Toolbar
+  QHBoxLayout *txFloatLayout = new QHBoxLayout();
+  txFloatLayout->setContentsMargins(10, 0, 10, 10);
+  txFloatLayout->setSpacing(10);
 
-  m_btnClearSend = new QPushButton("清除");
-  m_btnClearSend->setStyleSheet(getButtonStyle(ButtonType::Normal));
-  m_btnClearSend->setMinimumHeight(36);
+  // Left side: Send Button
+  m_btnSend = createFloatBtn(QChar(0xE651));
+  m_btnSend->setCheckable(false);
+  txFloatLayout->addWidget(m_btnSend);
 
-  btnLayout->addWidget(m_btnClearSend);
-  btnLayout->addWidget(m_btnSend);
-  singleLayout->addLayout(btnLayout);
+  // Push the rest to the right
+  txFloatLayout->addStretch();
 
-  QHBoxLayout *histLayout = new QHBoxLayout();
-  histLayout->addWidget(new QLabel("历史:"));
+  m_btnTxHexToggle = createFloatBtn(QChar(0xEBBC));
+  m_btnTxClear = createFloatBtn(QChar(0xE621));
+  m_btnTxClear->setCheckable(false);
+
+  m_chkAutoSend = new QCheckBox("自动发送");
+  m_chkAutoSend->setEnabled(false);
+  m_spinAutoSendInterval = new QSpinBox();
+  m_spinAutoSendInterval->setRange(10, 10000);
+  m_spinAutoSendInterval->setValue(1000);
+  m_spinAutoSendInterval->setSuffix(" ms");
+  m_spinAutoSendInterval->hide();
+
+  m_chkTxNewLine = new QCheckBox("发送新行");
+
   m_comboHistory = new QComboBox();
   m_comboHistory->setEditable(false);
-  histLayout->addWidget(m_comboHistory);
-  singleLayout->addLayout(histLayout);
+  m_comboHistory->setMinimumWidth(100);
+
+  txFloatLayout->addWidget(m_chkAutoSend);
+  txFloatLayout->addWidget(m_spinAutoSendInterval);
+  txFloatLayout->addWidget(m_chkTxNewLine);
+  txFloatLayout->addWidget(m_btnTxHexToggle);
+  txFloatLayout->addWidget(m_btnTxClear);
+  txFloatLayout->addWidget(m_comboHistory);
+
+  // Instead of a layout, we absolute position the overlay inside the TextEdit
+  // For now, we put it in the container layout below the textbox
+  // Actually, to make it floating, it should be in overlay layer
+  singleLayout->addLayout(txFloatLayout);
 
   m_sendTabWidget->addTab(tabSingle, "单条发送");
 
@@ -508,14 +596,23 @@ void SerialSession::setupUi() {
   QVBoxLayout *grpSendLayout = new QVBoxLayout(grpSend);
   grpSendLayout->setContentsMargins(4, 8, 4, 4);
   grpSendLayout->addWidget(m_sendTabWidget);
+
+  // Instead of rightSplitter->addWidget(grpSend), we add to rightSplitter
+  // directly which is already set as CentralWidget
   rightSplitter->addWidget(grpSend);
 
-  splitter->addWidget(rightSplitter); // Middle Pane
+  // Set rightSplitter vertical stretch factor so send area is larger
+  rightSplitter->setStretchFactor(0, 3); // Receive Area
+  rightSplitter->setStretchFactor(1, 2); // Send Area (made taller)
+
+  // Lastly, add our main internal window to the actual top-level layout
+  mainLayout->addWidget(m_innerMainWindow);
 
   // --- Extended Waveform Page ---
   // We use a QMainWindow to easily support Dock Widgets
   m_waveformPage = new QMainWindow();
-  // m_waveformPage->setWindowFlags(Qt::Widget); // Embeddable
+  m_waveformPage->setWindowFlags(Qt::Widget); // Embeddable
+  m_waveformPage->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
   // -- Chart and Scrollbar Container (Central Widget) --
   QWidget *chartContainer = new QWidget();
@@ -660,28 +757,16 @@ void SerialSession::setupUi() {
   m_dockSettings->setWidget(dockContents);
   m_waveformPage->addDockWidget(Qt::LeftDockWidgetArea, m_dockSettings);
 
-  splitter->addWidget(m_waveformPage); // Rightmost Pane
+  m_mainHorizSplitter->addWidget(
+      m_waveformPage); // Append to main layout vertically
 
   // Hide initially
-  m_waveformPage->setVisible(false);
-
-  // Splitter Layout Factors
-  // 0: Settings (Fixed-ish)
-  // 1: Center (Data/Send) (Expands)
-  // 2: Waveform (Expands when visible)
-  splitter->setCollapsible(0, false);
-  splitter->setCollapsible(1, false);
-  splitter->setCollapsible(2, true);
-
-  splitter->setStretchFactor(0, 0);
-  splitter->setStretchFactor(1, 1);
-  splitter->setStretchFactor(2, 2); // Give waveform plenty of space
+  m_waveformPage->setVisible(false); // Give waveform plenty of space
 
   // --- Layout Integration ---
   // Directly add content to Tab Widget without Navigation Bar
 
   // 移除了内部多余的 m_mainTabWidget，直接将主分割器添加到布局中
-  mainLayout->addWidget(splitter);
 
   // --- Status Bar ---
   QHBoxLayout *statusBarLayout = new QHBoxLayout();
@@ -910,12 +995,12 @@ void SerialSession::setupConnections() {
   connect(m_serial, &QSerialPort::errorOccurred, this,
           &SerialSession::onPortError);
 
-  connect(m_btnClearRx, &QPushButton::clicked, this,
+  connect(m_btnRxClear, &QToolButton::clicked, this,
           &SerialSession::clearReceiveArea);
-  connect(m_btnSend, &QPushButton::clicked, this, &SerialSession::sendData);
+  connect(m_btnSend, &QToolButton::clicked, this, &SerialSession::sendData);
 
   // Send Area Connections
-  connect(m_btnClearSend, &QPushButton::clicked,
+  connect(m_btnTxClear, &QToolButton::clicked,
           [this]() { m_textSend->clear(); });
   connect(m_comboHistory, QOverload<int>::of(&QComboBox::activated),
           [this](int index) {
@@ -923,8 +1008,35 @@ void SerialSession::setupConnections() {
               m_textSend->setText(m_comboHistory->itemText(index));
           });
 
-  connect(m_chkAutoSend, &QCheckBox::toggled, this,
-          &SerialSession::toggleAutoSend);
+  connect(m_chkAutoSend, &QCheckBox::toggled, [this](bool checked) {
+    if (checked) {
+      m_spinAutoSendInterval->show();
+    } else {
+      m_spinAutoSendInterval->hide();
+    }
+    toggleAutoSend(checked);
+  });
+
+  // Floating Action Toggles
+  connect(m_btnRxHexToggle, &QToolButton::toggled, [this](bool checked) {
+    m_rbRxHex->setChecked(checked);
+    m_rbRxAscii->setChecked(!checked);
+  });
+  connect(m_btnTxHexToggle, &QToolButton::toggled, [this](bool checked) {
+    m_rbTxHex->setChecked(checked);
+    m_rbTxAscii->setChecked(!checked);
+  });
+  connect(m_btnRxTimeToggle, &QToolButton::toggled,
+          [this](bool checked) { m_chkRxTime->setChecked(checked); });
+  // Connect the floating play/pause to the logical pause variable
+  connect(m_btnRxPauseToggle, &QToolButton::toggled, [this](bool paused) {
+    m_btnStopRx->setChecked(paused);
+    if (paused) {
+      m_btnRxPauseToggle->setText(QChar(0xE7D8)); // Pause icon
+    } else {
+      m_btnRxPauseToggle->setText(QChar(0xE617)); // Play icon
+    }
+  });
   connect(m_autoSendTimer, &QTimer::timeout, this,
           &SerialSession::onAutoSendTimeout);
 

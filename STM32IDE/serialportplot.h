@@ -5,13 +5,16 @@
 #include <QBoxLayout>
 #include <QCheckBox>
 #include <QComboBox>
+#include <QDockWidget>
 #include <QDoubleSpinBox>
 #include <QFileDialog>
 #include <QGroupBox>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMainWindow>
 #include <QMap>
 #include <QMenu>
+#include <QMenuBar>
 #include <QPushButton>
 #include <QRadioButton>
 #include <QScrollBar>
@@ -23,6 +26,7 @@
 #include <QTextEdit>
 #include <QTimer>
 #include <QToolBar>
+#include <QToolButton>
 #include <QVector>
 #include <QWidget>
 
@@ -147,6 +151,12 @@ private:
   QPushButton *m_btnClearRx;
   QPushButton *m_btnStopRx;
 
+  // Floating Controls for Receive Text Area
+  QToolButton *m_btnRxHexToggle;
+  QToolButton *m_btnRxTimeToggle;
+  QToolButton *m_btnRxPauseToggle;
+  QToolButton *m_btnRxClear;
+
   // UI Elements - Send Settings
   QRadioButton *m_rbTxAscii;
   QRadioButton *m_rbTxHex;
@@ -156,8 +166,12 @@ private:
   QSpinBox *m_spinAutoSendInterval;
   QComboBox *m_comboHistory;
   QTextEdit *m_textSend;
-  QPushButton *m_btnSend;
+  QToolButton *m_btnSend;
   QPushButton *m_btnClearSend;
+
+  // Floating Controls for Send Text Area
+  QToolButton *m_btnTxHexToggle;
+  QToolButton *m_btnTxClear;
 
   // Send tab widget (wrapped in GroupBox)
   QTabWidget *m_sendTabWidget;
@@ -228,13 +242,20 @@ public:
   QCheckBox *m_chkHideRxData;
   QCheckBox *m_chkShowRawData;
   QSplitter *m_dataSplitter;
+  QSplitter *m_mainHorizSplitter;
   QScrollBar *m_scrollbarWaveform;
   QToolButton *m_btnFloatingPlay;
 
   // Extended Page
   QMainWindow *m_waveformPage;
 
-  // Global UI Structure
+  // Global UI Structure (Internal Card Layout)
+  QMainWindow *m_innerMainWindow;
+  QDockWidget *m_dockPort;
+  QDockWidget *m_dockRx;
+  QDockWidget *m_dockTx;
+  QDockWidget *m_dockScopeSettings;
+
   QTabWidget *m_mainTabWidget;
 
   // Render Throttling
