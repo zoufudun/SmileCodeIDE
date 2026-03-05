@@ -133,24 +133,42 @@ void SerialSession::setupUi() {
 
   QHBoxLayout *portActionLayout = new QHBoxLayout();
 
+  // 刷新按钮：纯图标样式，无按钮边框
   m_btnRefresh = new QPushButton(QChar(0xE84D));
-  m_btnRefresh->setFont(CIconFont::instance()->getIconFont(24)); // Larger Icon
+  m_btnRefresh->setFont(CIconFont::instance()->getIconFont(50));
   m_btnRefresh->setToolTip("刷新端口");
-  m_btnRefresh->setMinimumWidth(60);
-  m_btnRefresh->setMinimumHeight(40);
-  m_btnRefresh->setStyleSheet(getButtonStyle(ButtonType::Refresh));
+  m_btnRefresh->setMinimumWidth(52);
+  m_btnRefresh->setMinimumHeight(44);
+  m_btnRefresh->setFlat(true);
+  m_btnRefresh->setStyleSheet(
+      "QPushButton { background: transparent; border: none; border-radius: 8px;"
+      "  color: #1565C0; padding: 4px; }"
+      "QPushButton:hover { background: rgba(21,101,192,40); }"
+      "QPushButton:pressed { background: rgba(21,101,192,80); }");
+
+  // m_btnRefresh->setStyleSheet(
+  //     "QPushButton { color: #555555; background: #E3F2FD; border: 1px solid "
+  //     "#BBDEFB; border-radius: 16px; }"
+  //     "QPushButton:hover { background: #BBDEFB; color: #1976D2; }"
+  //     "QPushButton:checked { background: #C8E6C9; color: #388E3C; "
+  //     "border-color: #A5D6A7; }");
   portActionLayout->addWidget(m_btnRefresh);
 
+  // 打开串口按钮：纯图标样式，无按钮边框
   m_btnOpenClose = new QPushButton(QChar(0xE84E));
-  m_btnOpenClose->setFont(
-      CIconFont::instance()->getIconFont(24)); // Larger Icon
+  m_btnOpenClose->setFont(CIconFont::instance()->getIconFont(50));
   m_btnOpenClose->setCheckable(true);
   m_btnOpenClose->setToolTip("打开串口");
-
-  // Make button smaller (compact)
-  m_btnOpenClose->setMinimumWidth(60);
-  m_btnOpenClose->setMinimumHeight(40);
-  m_btnOpenClose->setStyleSheet(getButtonStyle(ButtonType::Open));
+  m_btnOpenClose->setFlat(true);
+  m_btnOpenClose->setMinimumWidth(52);
+  m_btnOpenClose->setMinimumHeight(44);
+  m_btnOpenClose->setStyleSheet(
+      "QPushButton { background: transparent; border: none; border-radius: 8px;"
+      "  color: #2E7D32; padding: 4px; }"
+      "QPushButton:hover { background: rgba(46,125,50,40); }"
+      "QPushButton:checked { color: #C62828; }"
+      "QPushButton:checked:hover { background: rgba(198,40,40,40); }"
+      "QPushButton:pressed { background: rgba(46,125,50,80); }");
 
   // Status Icon Label
   m_lblStatusIcon = new QLabel();
@@ -472,7 +490,7 @@ void SerialSession::setupUi() {
 
   auto createFloatBtn = [](QChar iconCode) {
     QToolButton *btn = new QToolButton();
-    btn->setFont(CIconFont::instance()->getIconFont(20));
+    btn->setFont(CIconFont::instance()->getIconFont(25));
     btn->setText(iconCode);
     btn->setFixedSize(32, 32);
     btn->setCursor(Qt::PointingHandCursor);
@@ -517,6 +535,32 @@ void SerialSession::setupUi() {
   // --- Send Area: 4-tab QTabWidget ---
   m_sendTabWidget = new QTabWidget();
   m_sendTabWidget->setDocumentMode(false);
+  // 消除标签页面板左上角遮挡条框
+  m_sendTabWidget->setStyleSheet(R"(
+    QTabWidget::pane {
+        border: 1px solid #C8C8C8;
+        border-top: none;
+        background: transparent;
+    }
+    QTabWidget::tab-bar { left: 0px; }
+    QTabBar::tab {
+        background: #F0F0F0;
+        border: 1px solid #C8C8C8;
+        border-bottom: none;
+        border-top-left-radius: 6px;
+        border-top-right-radius: 6px;
+        min-width: 70px;
+        padding: 4px 12px;
+        margin-right: 1px;
+    }
+    QTabBar::tab:selected {
+        background: #FFFFFF;
+        font-weight: bold;
+        color: #1565C0;
+    }
+    QTabBar::tab:hover:!selected { background: #E8EDF5; }
+    QTabBar::tab:first { margin-left: 0px; }
+  )");
 
   // ========== Tab 0: 单条发送 ==========
   QWidget *tabSingle = new QWidget();
@@ -1456,14 +1500,13 @@ void SerialSession::onReadyRead() {
 
     if (!m_chkHideRxData->isChecked()) {
       bool showRaw = m_chkShowRawData->isChecked();
-      if (showRaw) {
-        // Show exactly what was received (the raw bytes as string)
+      if (!showRaw) {
+        // 未勾选「显示原始数据」时，显示接收到的完整原始数据
         m_textReceive->append(htmlLine);
         m_textReceive->verticalScrollBar()->setValue(
             m_textReceive->verticalScrollBar()->maximum());
       }
-      // If NOT showRaw, updateWaveform will handle appending the cleaned
-      // Payload
+      // 勾选时，updateWaveform 会显示去掉帧头帧尾的 Payload
     }
   }
 
@@ -1646,9 +1689,8 @@ void SerialSession::updateWaveform(const QByteArray &data) {
       }
     }
 
-    // If "Show Raw Data" is UNCHECKED, we show the extracted Payload for
-    // clarity
-    if (!m_chkShowRawData->isChecked()) {
+    // 勾选「显示原始数据」时，显示去掉帧头帧尾后的 Payload
+    if (m_chkShowRawData->isChecked()) {
       m_textReceive->append("<span style='color: #4CAF50;'>[Payload] " +
                             payload.toHtmlEscaped() + "</span>");
     }
@@ -1952,8 +1994,8 @@ void SerialSession::toggleAutoSend(bool checked) {
 }
 
 void SerialSession::onAutoSendTimeout() {
-  // Guard: only send if this widget is visible and the port is still open
-  if (!isVisible() || !m_serial->isOpen()) {
+  // 仅在串口未打开时停止（不检查 isVisible，切换标签页时应继续发送）
+  if (!m_serial->isOpen()) {
     m_autoSendTimer->stop();
     m_chkAutoSend->setChecked(false);
     return;
@@ -1962,16 +2004,18 @@ void SerialSession::onAutoSendTimeout() {
 }
 
 void SerialSession::hideEvent(QHideEvent *event) {
-  // Pause ALL sending timers when the session tab is hidden.
-  // Failing to stop multiLoopTimer here caused continued writes to a hidden
-  // session's serial port, leading to crashes when another session was active.
-  if (m_autoSendTimer->isActive()) {
-    m_autoSendTimer->stop();
-    m_chkAutoSend->setChecked(false);
-  }
-  if (m_multiLoopTimer->isActive()) {
-    m_multiLoopTimer->stop();
-    m_chkMultiLoop->setChecked(false);
+  // 仅在串口未打开时停止定时器并取消勾选。
+  // 若串口已打开，保持定时器运行：onAutoSendTimeout/onMultiSendLoop
+  // 内部均有 isOpen() 检查，隐藏时继续发送也是安全的。
+  if (!m_serial->isOpen()) {
+    if (m_autoSendTimer->isActive()) {
+      m_autoSendTimer->stop();
+      m_chkAutoSend->setChecked(false);
+    }
+    if (m_multiLoopTimer->isActive()) {
+      m_multiLoopTimer->stop();
+      m_chkMultiLoop->setChecked(false);
+    }
   }
   QWidget::hideEvent(event);
 }
@@ -2041,23 +2085,25 @@ void SerialSession::updateStatusInfo() {
 
 QString SerialSession::getButtonStyle(ButtonType type) {
   // Base Style with shared settings
+  // NOTE: font-family is intentionally NOT in baseStyle so that icon buttons
+  // (Refresh/Open) can use the iconfont set via setFont() without QSS override.
   QString baseStyle = "QPushButton { "
                       "    border-radius: 10px; "
                       "    border: 1px solid #90A4AE; "
                       "    padding: 5px; "
-                      "    font-family: 'Microsoft YaHei UI'; "
                       "    color: black; "
                       "}"
                       "QPushButton:hover { "
-                      "    font-weight: 900; " // Flashy text on hover
+                      "    font-weight: 900; "
                       "    font-size: 10pt; "
                       "}";
 
   QString gradient;
   switch (type) {
   case ButtonType::Normal:
-    // Glossy Blue-Gray
+    // Glossy Blue-Gray, include font-family for CJK text buttons
     gradient = "QPushButton { "
+               "    font-family: 'Microsoft YaHei UI'; "
                "    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, "
                "stop:0 #FFFFFF, stop:0.1 #CFD8DC, stop:1 #B0BEC5); "
                "}"
@@ -2462,6 +2508,16 @@ SerialPortPlot::SerialPortPlot(QWidget *parent)
     QTabWidget::pane {
         border-top: 1px solid #C0C0C0;
         background-color: transparent;
+        margin-top: -1px;
+    }
+    QTabWidget::left-corner {
+        background: transparent;
+        border: none;
+        width: 0px;
+    }
+    QTabWidget::right-corner {
+        background: transparent;
+        border: none;
     }
     QTabBar::tab {
         background: #E8E8E8;
@@ -2476,11 +2532,14 @@ SerialPortPlot::SerialPortPlot(QWidget *parent)
     }
     QTabBar::tab:selected, QTabBar::tab:hover {
         background: #FFFFFF;
-        border-bottom-color: #FFFFFF; /* 与页面内容融为一体 */
+        border-bottom-color: #FFFFFF;
     }
     QTabBar::tab:selected {
-        margin-top: 0px; /* 选中的标签稍微凸起 */
+        margin-top: 0px;
         font-weight: bold;
+    }
+    QTabBar::tab:first {
+        margin-left: 0px;
     }
     /* 针对我们特殊的加号标签稍作样式调整 */
     QTabBar::tab:last {
