@@ -91,6 +91,15 @@ void SerialSession::setupUi() {
   m_innerMainWindow->setSizePolicy(QSizePolicy::Expanding,
                                    QSizePolicy::Expanding);
 
+  // 先创建 central widget，再添加 Dock，避免 Dock 被错误放置到顶部区域
+  m_mainHorizSplitter = new QSplitter(Qt::Horizontal);
+  m_innerMainWindow->setCentralWidget(m_mainHorizSplitter);
+
+  // 左侧数据区（接收/发送）在一个垂直分割器里
+  QSplitter *rightSplitter = new QSplitter(Qt::Vertical);
+  m_mainHorizSplitter->addWidget(rightSplitter);
+  m_dataSplitter = rightSplitter;
+
   // Global Stylesheet for Custom Cards
   this->setStyleSheet("SerialPortPlot { background-color: #f5f5f5; }"
                       "QWidget#cardWidget { "
@@ -212,27 +221,74 @@ void SerialSession::setupUi() {
   m_dockPort->setFeatures(QDockWidget::DockWidgetMovable |
                           QDockWidget::DockWidgetFloatable |
                           QDockWidget::DockWidgetClosable);
+  m_dockPort->setAllowedAreas(Qt::LeftDockWidgetArea);
   m_dockPort->setWidget(grpPort);
   m_innerMainWindow->addDockWidget(Qt::LeftDockWidgetArea, m_dockPort);
 
-  // Apply premium theme color to dock frame and fix shadow
+  // Apply premium sci-fi theme to dock frame
   m_dockPort->setStyleSheet(R"(
     QDockWidget#premiumDock {
-        border: 1px solid #CFD8DC;
-        titlebar-close-icon: url(:/icons/close.png);
-        titlebar-normal-icon: url(:/icons/undock.png);
+        border: 2px solid transparent;
+        border-image: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+            stop:0 rgba(102, 126, 234, 0.1),
+            stop:1 rgba(118, 75, 162, 0.1));
     }
     QDockWidget#premiumDock::title {
-        background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #E3F2FD, stop:1 #BBDEFB);
-        padding-top: 8px;
-        padding-bottom: 2px;
+        background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+            stop:0 rgba(102, 126, 234, 0.9),
+            stop:0.5 rgba(118, 75, 162, 0.9),
+            stop:1 rgba(102, 126, 234, 0.9));
+        padding-top: 10px;
+        padding-bottom: 6px;
+        padding-left: 10px;
         font-weight: bold;
-        color: #1565C0;
-        border-bottom: 1px solid #90CAF9;
-        text-shadow: none; /* Force remove shadow if any system style injects it */
+        font-size: 11pt;
+        color: #FFFFFF;
+        border: none;
+        border-bottom: 2px solid rgba(255, 255, 255, 0.3);
+        text-shadow: 0 0 10px rgba(102, 126, 234, 0.8);
+    }
+    QDockWidget#premiumDock::close-button {
+        background: transparent;
+        border: 1px solid rgba(255, 255, 255, 0.5);
+        border-radius: 5px;
+        padding: 3px;
+        icon-size: 18px;
+        subcontrol-position: top right;
+        subcontrol-origin: margin;
+        position: absolute;
+        top: 6px;
+        right: 8px;
+        width: 26px;
+        height: 26px;
+    }
+    QDockWidget#premiumDock::close-button:hover {
+        background: rgba(244, 67, 54, 0.8);
+        border: 1px solid #F44336;
+    }
+    QDockWidget#premiumDock::float-button {
+        background: transparent;
+        border: 1px solid rgba(255, 255, 255, 0.5);
+        border-radius: 5px;
+        padding: 3px;
+        icon-size: 18px;
+        subcontrol-position: top right;
+        subcontrol-origin: margin;
+        position: absolute;
+        top: 6px;
+        right: 38px;
+        width: 26px;
+        height: 26px;
+    }
+    QDockWidget#premiumDock::float-button:hover {
+        background: rgba(33, 150, 243, 0.8);
+        border: 1px solid #2196F3;
     }
     QWidget#cardWidget {
-        background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #FAFAFA, stop:1 #F5F5F5);
+        background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+            stop:0 #FAFAFA,
+            stop:1 #F0F0F5);
         border: none;
     }
   )");
@@ -267,7 +323,9 @@ void SerialSession::setupUi() {
   // onReadyRead and toggles.
   m_btnStopRx = new QPushButton(this);
   m_btnStopRx->setCheckable(true);
+  m_btnStopRx->setVisible(false);
   m_btnClearRx = new QPushButton(this);
+  m_btnClearRx->setVisible(false);
 
   // Floating controls will replace the inline buttons later, but keeping for
   // now or remove if redundant
@@ -276,6 +334,7 @@ void SerialSession::setupUi() {
   m_dockRx->setFeatures(QDockWidget::DockWidgetMovable |
                         QDockWidget::DockWidgetFloatable |
                         QDockWidget::DockWidgetClosable);
+  m_dockRx->setAllowedAreas(Qt::LeftDockWidgetArea);
   m_dockRx->setWidget(grpRx);
   m_innerMainWindow->addDockWidget(Qt::LeftDockWidgetArea, m_dockRx);
   m_dockRx->hide(); // Requirement 1: Hide by default
@@ -320,6 +379,7 @@ void SerialSession::setupUi() {
   m_dockTx->setFeatures(QDockWidget::DockWidgetMovable |
                         QDockWidget::DockWidgetFloatable |
                         QDockWidget::DockWidgetClosable);
+  m_dockTx->setAllowedAreas(Qt::LeftDockWidgetArea);
   m_dockTx->setWidget(grpTx);
   m_innerMainWindow->addDockWidget(Qt::LeftDockWidgetArea, m_dockTx);
   m_dockTx->hide(); // Requirement 1: Hide by default
@@ -336,19 +396,130 @@ void SerialSession::setupUi() {
   grpScopeLayout->setSpacing(4);
   m_settingsLayout = grpScopeLayout;
 
-  m_chkEnableWaveform = new QCheckBox("使能波形显示");
-  m_chkEnableWaveform->setStyleSheet("font-weight: bold; color: #1565C0;");
-  m_chkHideRxTx = new QCheckBox("隐藏收发区");
-  m_chkHideRxData = new QCheckBox("不显示接收");
-  m_chkShowRawData = new QCheckBox("显示原始数据");
+  const QFont scopeIconFont = CIconFont::instance()->getIconFont(50);
+  auto setupScopeIconCheck = [&scopeIconFont](QCheckBox *check,
+                                               const QString &icon,
+                                               const QString &tooltip) {
+    check->setFont(scopeIconFont);
+    check->setText(icon);
+    check->setToolTip(tooltip);
+    check->setCursor(Qt::PointingHandCursor);
+    check->setStyleSheet(
+        "QCheckBox {"
+        "  background: transparent;"
+        "  border: none;"
+        "  color: #546E7A;"
+        "  font-size: 50px;"
+        "  padding: 0px;"
+        "  margin: 0px;"
+        "}"
+        "QCheckBox:hover { color: #42A5F5; }"
+        "QCheckBox:checked { color: #1976D2; }"
+        "QCheckBox::indicator { width: 0px; height: 0px; }");
+    check->setFixedSize(62, 62);
+  };
 
-  grpScopeLayout->addWidget(m_chkEnableWaveform);
-  grpScopeLayout->addWidget(m_chkHideRxTx);
-  grpScopeLayout->addWidget(m_chkHideRxData);
-  grpScopeLayout->addWidget(m_chkShowRawData);
+  auto setupScopeIconButton = [&scopeIconFont](QPushButton *button,
+                                                const QString &icon,
+                                                const QString &tooltip,
+                                                bool checkable) {
+    button->setFont(scopeIconFont);
+    button->setText(icon);
+    button->setToolTip(tooltip);
+    button->setCheckable(checkable);
+    button->setCursor(Qt::PointingHandCursor);
+    button->setFlat(true);
+    button->setFixedSize(62, 62);
+    button->setStyleSheet(
+        "QPushButton {"
+        "  background: transparent;"
+        "  border: none;"
+        "  color: #546E7A;"
+        "  font-size: 50px;"
+        "  padding: 0px;"
+        "  margin: 0px;"
+        "}"
+        "QPushButton:hover { color: #42A5F5; }"
+        "QPushButton:pressed { color: #1E88E5; }"
+        "QPushButton:checked { color: #1976D2; }");
+  };
+
+  m_chkEnableWaveform = new QCheckBox();
+  setupScopeIconCheck(m_chkEnableWaveform, "\ue86b", "启用/关闭波形显示");
+
+  m_chkHideRxTx = new QCheckBox();
+  setupScopeIconCheck(m_chkHideRxTx, "\ue9db", "隐藏/显示收发区");
+
+  m_chkHideRxData = new QCheckBox();
+  setupScopeIconCheck(m_chkHideRxData, "\ue883", "不显示接收数据");
+
+  m_chkShowRawData = new QCheckBox();
+  setupScopeIconCheck(m_chkShowRawData, "\ue881", "显示原始数据");
+
+  m_chkShowGrid = new QCheckBox();
+  setupScopeIconCheck(m_chkShowGrid, "\ue866", "显示/隐藏网格");
+  m_chkShowGrid->setChecked(true);
+
+  m_btnAutoScale = new QPushButton();
+  setupScopeIconButton(m_btnAutoScale, "\ue879", "自动缩放开关", true);
+  m_btnAutoScale->setChecked(true);
+
+  m_btnClearWaveform = new QPushButton();
+  setupScopeIconButton(m_btnClearWaveform, "\ue604", "清空波形数据", false);
+
+  m_btnResetChart = new QPushButton();
+  setupScopeIconButton(m_btnResetChart, "\ue85d", "重置图表设置", false);
+
+  m_btnStopWaveform = new QPushButton();
+  setupScopeIconButton(m_btnStopWaveform, "\ue87c", "暂停/继续波形显示",
+                       true);
+
+  m_btnCurveSettings = new QPushButton();
+  setupScopeIconButton(m_btnCurveSettings, "\ue872", "查看/修改曲线样式",
+                       false);
+
+  auto makeScopeItem = [](QWidget *iconWidget) -> QWidget * {
+    QWidget *cell = new QWidget();
+    QVBoxLayout *cellLayout = new QVBoxLayout(cell);
+    cellLayout->setContentsMargins(0, 0, 0, 0);
+    cellLayout->setSpacing(0);
+    cellLayout->addStretch();
+    cellLayout->addWidget(iconWidget, 0, Qt::AlignHCenter | Qt::AlignVCenter);
+    cellLayout->addStretch();
+    return cell;
+  };
+
+  QGridLayout *scopeIconRow = new QGridLayout();
+  scopeIconRow->setContentsMargins(0, 0, 0, 0);
+  scopeIconRow->setHorizontalSpacing(8);
+  scopeIconRow->setVerticalSpacing(0);
+  scopeIconRow->addWidget(makeScopeItem(m_chkEnableWaveform), 0, 0);
+  scopeIconRow->addWidget(makeScopeItem(m_chkShowGrid), 0, 1);
+  scopeIconRow->addWidget(makeScopeItem(m_btnAutoScale), 0, 2);
+  scopeIconRow->addWidget(makeScopeItem(m_btnClearWaveform), 0, 3);
+  scopeIconRow->addWidget(makeScopeItem(m_btnResetChart), 0, 4);
+  scopeIconRow->addWidget(makeScopeItem(m_btnStopWaveform), 0, 5);
+  scopeIconRow->addWidget(makeScopeItem(m_btnCurveSettings), 0, 6);
+  for (int c = 0; c < 7; ++c) {
+    scopeIconRow->setColumnStretch(c, 1);
+  }
+  grpScopeLayout->addLayout(scopeIconRow);
+
+  QGridLayout *scopeFlagsLayout = new QGridLayout();
+  scopeFlagsLayout->setContentsMargins(0, 6, 0, 0);
+  scopeFlagsLayout->setHorizontalSpacing(8);
+  scopeFlagsLayout->setVerticalSpacing(0);
+  scopeFlagsLayout->addWidget(makeScopeItem(m_chkHideRxTx), 0, 0);
+  scopeFlagsLayout->addWidget(makeScopeItem(m_chkHideRxData), 0, 1);
+  scopeFlagsLayout->addWidget(makeScopeItem(m_chkShowRawData), 0, 2);
+  scopeFlagsLayout->addWidget(new QWidget(), 0, 3); // spacer
+  for (int c = 0; c < 4; ++c) {
+    scopeFlagsLayout->setColumnStretch(c, 1);
+  }
+  grpScopeLayout->addLayout(scopeFlagsLayout);
 
   // 1. Group Box for Plot Parameters (Window width, buffer, theme)
-  m_groupPlotParams = new QGroupBox("绘图参数");
+  m_groupPlotParams = new QGroupBox();
   QVBoxLayout *paramsLayout = new QVBoxLayout(m_groupPlotParams);
   paramsLayout->setContentsMargins(4, 8, 4, 4);
   paramsLayout->setSpacing(4);
@@ -376,13 +547,20 @@ void SerialSession::setupUi() {
   m_comboChartTheme->setCurrentIndex(1);
   paramsLayout->addWidget(m_comboChartTheme);
 
+  m_groupPlotParams->setFlat(true);
+  m_groupPlotParams->setStyleSheet(
+      "QGroupBox { border: none; margin-top: 0px; font-weight: 600; color: "
+      "#455A64; }"
+      "QGroupBox::title { subcontrol-origin: margin; left: 0px; top: 0px; "
+      "padding: 0px; }");
   grpScopeLayout->addWidget(m_groupPlotParams);
 
   // 2. Group Box for Y-Axis control
-  m_groupYAxis = new QGroupBox("Y轴控制");
+  m_groupYAxis = new QGroupBox();
   QGridLayout *yLayout = new QGridLayout(m_groupYAxis);
   yLayout->setContentsMargins(4, 8, 4, 4);
-  yLayout->setSpacing(4);
+  yLayout->setHorizontalSpacing(8);
+  yLayout->setVerticalSpacing(6);
 
   yLayout->addWidget(new QLabel("最小值:"), 0, 0);
   m_spinYMin = new QDoubleSpinBox();
@@ -402,36 +580,13 @@ void SerialSession::setupUi() {
   m_spinYTick->setEnabled(false);
   yLayout->addWidget(m_spinYTick, 2, 1);
 
-  m_chkShowGrid = new QCheckBox("显示网格");
-  m_chkShowGrid->setChecked(true);
-  yLayout->addWidget(m_chkShowGrid, 3, 0, 1, 2);
-
-  m_btnAutoScale = new QPushButton("开启自动缩放");
-  m_btnAutoScale->setCheckable(true);
-  m_btnAutoScale->setChecked(true);
-  m_btnAutoScale->setStyleSheet(getButtonStyle(ButtonType::Normal));
-  yLayout->addWidget(m_btnAutoScale, 4, 0, 1, 2);
-
+  m_groupYAxis->setFlat(true);
+  m_groupYAxis->setStyleSheet(
+      "QGroupBox { border: none; margin-top: 0px; font-weight: 600; color: "
+      "#455A64; }"
+      "QGroupBox::title { subcontrol-origin: margin; left: 0px; top: 0px; "
+      "padding: 0px; }");
   grpScopeLayout->addWidget(m_groupYAxis);
-
-  // 3. Operation Area
-  QHBoxLayout *opLayout = new QHBoxLayout();
-  m_btnClearWaveform = new QPushButton("清空");
-  m_btnResetChart = new QPushButton("重置");
-  m_btnStopWaveform = new QPushButton("暂停");
-  m_btnStopWaveform->setCheckable(true);
-
-  for (auto *b : {m_btnClearWaveform, m_btnResetChart, m_btnStopWaveform}) {
-    b->setStyleSheet(getButtonStyle(ButtonType::Normal));
-    b->setMinimumHeight(28);
-    opLayout->addWidget(b);
-  }
-  grpScopeLayout->addLayout(opLayout);
-
-  m_btnCurveSettings = new QPushButton("查看/修改曲线样式");
-  m_btnCurveSettings->setStyleSheet(getButtonStyle(ButtonType::Normal));
-  m_btnCurveSettings->setMinimumHeight(32);
-  grpScopeLayout->addWidget(m_btnCurveSettings);
 
   QGroupBox *grpChannels = new QGroupBox("通道管理");
   m_channelsLayout = new QVBoxLayout(grpChannels);
@@ -446,19 +601,69 @@ void SerialSession::setupUi() {
   m_dockScopeSettings->setFeatures(QDockWidget::DockWidgetMovable |
                                    QDockWidget::DockWidgetFloatable |
                                    QDockWidget::DockWidgetClosable);
+  m_dockScopeSettings->setAllowedAreas(Qt::LeftDockWidgetArea);
   m_dockScopeSettings->setWidget(grpScope);
   m_innerMainWindow->addDockWidget(Qt::LeftDockWidgetArea, m_dockScopeSettings);
 
-  // Style scope settings dock similarly
+  // Style scope settings dock with sci-fi theme
   m_dockScopeSettings->setStyleSheet(R"(
+    QDockWidget#premiumDock {
+        border: 2px solid transparent;
+        border-image: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+            stop:0 rgba(17, 153, 142, 0.1),
+            stop:1 rgba(56, 239, 125, 0.1));
+    }
     QDockWidget#premiumDock::title {
-        background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #E8F5E9, stop:1 #C8E6C9);
-        padding-top: 8px;
-        padding-bottom: 2px;
+        background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+            stop:0 rgba(17, 153, 142, 0.9),
+            stop:0.5 rgba(56, 239, 125, 0.9),
+            stop:1 rgba(17, 153, 142, 0.9));
+        padding-top: 10px;
+        padding-bottom: 6px;
+        padding-left: 10px;
         font-weight: bold;
-        color: #2E7D32;
-        border-bottom: 1px solid #A5D6A7;
-        text-shadow: none;
+        font-size: 11pt;
+        color: #FFFFFF;
+        border: none;
+        border-bottom: 2px solid rgba(255, 255, 255, 0.3);
+        text-shadow: 0 0 10px rgba(56, 239, 125, 0.8);
+    }
+    QDockWidget#premiumDock::close-button {
+        background: transparent;
+        border: 1px solid rgba(255, 255, 255, 0.5);
+        border-radius: 5px;
+        padding: 3px;
+        icon-size: 18px;
+        subcontrol-position: top right;
+        subcontrol-origin: margin;
+        position: absolute;
+        top: 6px;
+        right: 8px;
+        width: 26px;
+        height: 26px;
+    }
+    QDockWidget#premiumDock::close-button:hover {
+        background: rgba(244, 67, 54, 0.8);
+        border: 1px solid #F44336;
+    }
+    QDockWidget#premiumDock::float-button {
+        background: transparent;
+        border: 1px solid rgba(255, 255, 255, 0.5);
+        border-radius: 5px;
+        padding: 3px;
+        icon-size: 18px;
+        subcontrol-position: top right;
+        subcontrol-origin: margin;
+        position: absolute;
+        top: 6px;
+        right: 38px;
+        width: 26px;
+        height: 26px;
+    }
+    QDockWidget#premiumDock::float-button:hover {
+        background: rgba(33, 150, 243, 0.8);
+        border: 1px solid #2196F3;
     }
   )");
 
@@ -467,14 +672,25 @@ void SerialSession::setupUi() {
 
   // --- View Toolbar removed as requested by user, merged into main window ---
 
-  // --- Main Horizontal Splitter (Data on left, Waveform on right) ---
-  m_mainHorizSplitter = new QSplitter(Qt::Horizontal);
-  m_innerMainWindow->setCentralWidget(m_mainHorizSplitter);
+  // 强制将示波器设置停靠在串口设置下方，避免跑到顶部横条遮挡内容
+  auto ensureLeftDockArea = [this](QDockWidget *dock) {
+    if (!dock)
+      return;
+    if (m_innerMainWindow->dockWidgetArea(dock) == Qt::LeftDockWidgetArea)
+      return;
 
-  // --- Vertical Data Splitter (Rx and Tx) ---
-  QSplitter *rightSplitter = new QSplitter(Qt::Vertical);
-  m_mainHorizSplitter->addWidget(rightSplitter);
-  m_dataSplitter = rightSplitter;
+    const bool wasVisible = dock->isVisible();
+    m_innerMainWindow->removeDockWidget(dock);
+    m_innerMainWindow->addDockWidget(Qt::LeftDockWidgetArea, dock);
+    dock->setVisible(wasVisible);
+  };
+  ensureLeftDockArea(m_dockPort);
+  ensureLeftDockArea(m_dockRx);
+  ensureLeftDockArea(m_dockTx);
+  ensureLeftDockArea(m_dockScopeSettings);
+
+  m_innerMainWindow->splitDockWidget(m_dockPort, m_dockScopeSettings,
+                                     Qt::Vertical);
 
   // Receive Area
   QWidget *grpData = new QWidget();
@@ -501,6 +717,9 @@ void SerialSession::setupUi() {
   // Floating container
   QWidget *rxFloatWidget = new QWidget(m_textReceive);
   rxFloatWidget->setObjectName("rxFloat");
+  rxFloatWidget->setAttribute(Qt::WA_TransparentForMouseEvents, false);
+  rxFloatWidget->setStyleSheet("background: transparent; border: none;");
+  rxFloatWidget->raise(); // 确保浮动控件在最上层
 
   QHBoxLayout *rxFloatLayout = new QHBoxLayout(rxFloatWidget);
   rxFloatLayout->setContentsMargins(0, 0, 0, 0);
@@ -534,6 +753,12 @@ void SerialSession::setupUi() {
   rxFloatLayout->addWidget(m_btnRxPauseToggle);
   rxFloatLayout->addWidget(m_btnRxClear);
 
+  // 初始化浮动控件位置（避免显示在左上角）
+  rxFloatWidget->adjustSize();
+  rxFloatWidget->move(
+      qMax(4, m_textReceive->width() - rxFloatWidget->width() - 10),
+      qMax(4, m_textReceive->height() - rxFloatWidget->height() - 10));
+
   rxContainerLayout->addWidget(m_textReceive);
 
   dataLayout->addWidget(rxContainer);
@@ -559,6 +784,18 @@ void SerialSession::setupUi() {
         border: 1px solid #C8C8C8;
         border-top: none;
         background: transparent;
+    }
+    QTabWidget::left-corner {
+        background: transparent;
+        border: none;
+        width: 0px;
+        height: 0px;
+    }
+    QTabWidget::right-corner {
+        background: transparent;
+        border: none;
+        width: 0px;
+        height: 0px;
     }
     QTabWidget::tab-bar { left: 0px; }
     QTabBar::tab {
@@ -598,6 +835,9 @@ void SerialSession::setupUi() {
   // Floating widget for right corner (icons)
   QWidget *txFloatRightWidget = new QWidget(m_textSend);
   txFloatRightWidget->setObjectName("txFloatRight");
+  txFloatRightWidget->setAttribute(Qt::WA_TransparentForMouseEvents, false);
+  txFloatRightWidget->setStyleSheet("background: transparent; border: none;");
+  txFloatRightWidget->raise(); // 确保浮动控件在最上层
   QHBoxLayout *txFloatRightLayout = new QHBoxLayout(txFloatRightWidget);
   txFloatRightLayout->setContentsMargins(0, 0, 0, 0);
   txFloatRightLayout->setSpacing(10);
@@ -616,19 +856,34 @@ void SerialSession::setupUi() {
   // Floating widget for left corner (Auto send, new line)
   QWidget *txFloatLeftWidget = new QWidget(m_textSend);
   txFloatLeftWidget->setObjectName("txFloatLeft");
+  txFloatLeftWidget->setAttribute(Qt::WA_TransparentForMouseEvents, false);
+  txFloatLeftWidget->setStyleSheet("background: transparent; border: none;");
+  txFloatLeftWidget->raise(); // 确保浮动控件在最上层
   QHBoxLayout *txFloatLeftLayout = new QHBoxLayout(txFloatLeftWidget);
-  txFloatLeftLayout->setContentsMargins(0, 0, 0, 0);
-  txFloatLeftLayout->setSpacing(5);
+  txFloatLeftLayout->setContentsMargins(6, 3, 6, 3);
+  txFloatLeftLayout->setSpacing(8);
 
   m_chkAutoSend = new QCheckBox("自动发送");
   m_chkAutoSend->setEnabled(false);
+  m_chkAutoSend->setStyleSheet(
+      "QCheckBox { color: #263238; font-weight: 600; spacing: 6px; }"
+      "QCheckBox:disabled { color: #546E7A; }"
+      "QCheckBox::indicator { width: 0px; height: 0px; }");
   m_spinAutoSendInterval = new QSpinBox();
   m_spinAutoSendInterval->setRange(10, 10000);
   m_spinAutoSendInterval->setValue(1000);
   m_spinAutoSendInterval->setSuffix(" ms");
+  m_spinAutoSendInterval->setEnabled(false);
+  m_spinAutoSendInterval->setStyleSheet(
+      "QSpinBox { color: #263238; background: rgba(255,255,255,240);"
+      " border: 1px solid #90A4AE; border-radius: 4px; padding: 0 4px; }"
+      "QSpinBox:disabled { color: #546E7A; }");
   m_spinAutoSendInterval->hide(); // Only show when checked
 
   m_chkTxNewLine = new QCheckBox("发送新行");
+  m_chkTxNewLine->setStyleSheet(
+      "QCheckBox { color: #263238; font-weight: 600; spacing: 6px; }"
+      "QCheckBox::indicator { width: 0px; height: 0px; }");
 
   // Keep dock-side and floating controls in sync without overriding members.
   connect(dockChkTxNewLine, &QCheckBox::toggled, m_chkTxNewLine,
@@ -647,13 +902,35 @@ void SerialSession::setupUi() {
           &QCheckBox::setEnabled);
   connect(m_btnOpenClose, &QPushButton::toggled, dockSpinAutoSendInterval,
           &QSpinBox::setEnabled);
+  connect(m_btnOpenClose, &QPushButton::toggled, m_chkAutoSend,
+          &QCheckBox::setEnabled);
+  connect(m_btnOpenClose, &QPushButton::toggled, m_spinAutoSendInterval,
+          &QSpinBox::setEnabled);
 
   txFloatLeftLayout->addWidget(m_chkAutoSend);
   txFloatLeftLayout->addWidget(m_spinAutoSendInterval);
   txFloatLeftLayout->addWidget(m_chkTxNewLine);
 
+  // 初始化浮动控件位置（避免显示在左上角）
+  txFloatRightWidget->adjustSize();
+  txFloatRightWidget->move(
+      qMax(4, m_textSend->width() - txFloatRightWidget->width() - 10),
+      qMax(4, m_textSend->height() - txFloatRightWidget->height() - 10));
+  txFloatLeftWidget->adjustSize();
+  txFloatLeftWidget->move(
+      10, qMax(4, m_textSend->height() - txFloatLeftWidget->height() - 10));
+
   connect(m_chkAutoSend, &QCheckBox::toggled, this, [this](bool checked) {
     m_spinAutoSendInterval->setVisible(checked);
+    if (!m_textSend)
+      return;
+
+    QWidget *txFloatLeft = m_textSend->findChild<QWidget *>("txFloatLeft");
+    if (txFloatLeft) {
+      txFloatLeft->adjustSize();
+      txFloatLeft->move(
+          10, qMax(4, m_textSend->height() - txFloatLeft->height() - 10));
+    }
   });
 
   txContainerLayout->addWidget(m_textSend);
@@ -1367,11 +1644,13 @@ void SerialSession::setupConnections() {
 
   connect(m_btnStopWaveform, &QPushButton::toggled, [this](bool checked) {
     if (checked) {
-      // Checked meaning stopped/paused: Show big play button constantly
+      // Checked meaning stopped/paused: Show play icon (e87d)
+      m_btnStopWaveform->setText("\ue87d");
       m_btnFloatingPlay->setText(QChar(0xE719));
       m_btnFloatingPlay->show();
     } else {
-      // Unchecked meaning playing: Hide button (will only show on hover)
+      // Unchecked meaning playing: Show pause icon (e87c)
+      m_btnStopWaveform->setText("\ue87c");
       m_btnFloatingPlay->hide();
     }
   });
@@ -1944,26 +2223,39 @@ bool SerialSession::eventFilter(QObject *watched, QEvent *event) {
         m_btnFloatingPlay->hide();
       }
     }
-  } else if (watched == m_textReceive && event->type() == QEvent::Resize) {
-    QResizeEvent *re = static_cast<QResizeEvent *>(event);
+  } else if (watched == m_textReceive &&
+             (event->type() == QEvent::Resize ||
+              event->type() == QEvent::Show)) {
+    QSize size = m_textReceive->size();
+    if (event->type() == QEvent::Resize) {
+      QResizeEvent *re = static_cast<QResizeEvent *>(event);
+      size = re->size();
+    }
     QWidget *rxFloat = m_textReceive->findChild<QWidget *>("rxFloat");
     if (rxFloat) {
       rxFloat->adjustSize();
-      rxFloat->move(re->size().width() - rxFloat->width() - 10,
-                    re->size().height() - rxFloat->height() - 10);
+      rxFloat->move(qMax(4, size.width() - rxFloat->width() - 10),
+                    qMax(4, size.height() - rxFloat->height() - 10));
     }
-  } else if (watched == m_textSend && event->type() == QEvent::Resize) {
-    QResizeEvent *re = static_cast<QResizeEvent *>(event);
+  } else if (watched == m_textSend &&
+             (event->type() == QEvent::Resize ||
+              event->type() == QEvent::Show)) {
+    QSize size = m_textSend->size();
+    if (event->type() == QEvent::Resize) {
+      QResizeEvent *re = static_cast<QResizeEvent *>(event);
+      size = re->size();
+    }
     QWidget *txFloatRight = m_textSend->findChild<QWidget *>("txFloatRight");
     QWidget *txFloatLeft = m_textSend->findChild<QWidget *>("txFloatLeft");
     if (txFloatRight) {
       txFloatRight->adjustSize();
-      txFloatRight->move(re->size().width() - txFloatRight->width() - 10,
-                         re->size().height() - txFloatRight->height() - 10);
+      txFloatRight->move(qMax(4, size.width() - txFloatRight->width() - 10),
+                         qMax(4, size.height() - txFloatRight->height() - 10));
     }
     if (txFloatLeft) {
       txFloatLeft->adjustSize();
-      txFloatLeft->move(10, re->size().height() - txFloatLeft->height() - 10);
+      txFloatLeft->move(10,
+                        qMax(4, size.height() - txFloatLeft->height() - 10));
     }
   }
 
