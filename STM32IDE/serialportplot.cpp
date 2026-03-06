@@ -16,6 +16,7 @@
 #include <QMenu>
 #include <QMessageBox>
 #include <QPlainTextEdit>
+#include <QRegularExpression>
 #include <QScrollBar>
 #include <QSize>
 #include <QSplitter>
@@ -23,9 +24,29 @@
 #include <QToolButton>
 #include <QVBoxLayout>
 
+namespace {
+class ScaledAxisTicker : public QCPAxisTicker {
+public:
+  explicit ScaledAxisTicker(double divisor, int fixedPrecision = -1)
+      : m_divisor(divisor > 0.0 ? divisor : 1.0),
+        m_fixedPrecision(fixedPrecision) {}
+
+  QString getTickLabel(double tick, const QLocale &locale, QChar formatChar,
+                       int precision) Q_DECL_OVERRIDE {
+    const QChar fmt = formatChar.isNull() ? QChar('f') : formatChar;
+    const int p = (m_fixedPrecision >= 0) ? m_fixedPrecision : precision;
+    return locale.toString(tick / m_divisor, fmt.toLatin1(), p);
+  }
+
+private:
+  double m_divisor;
+  int m_fixedPrecision;
+};
+} // namespace
+
 SerialSession::SerialSession(QWidget *parent)
-    : QWidget(parent), m_rxCount(0), m_txCount(0), m_xValue(0),
-      m_lastPortCount(0), m_scrollPos(0) {
+    : QWidget(parent), m_lastPortCount(0), m_rxCount(0), m_txCount(0),
+      m_xValue(0) {
   m_serial = new QSerialPort(this);
   m_autoSendTimer = new QTimer(this);
   m_portCheckTimer = new QTimer(this);
@@ -236,13 +257,9 @@ void SerialSession::setupUi() {
 
   m_chkRxLog = new QCheckBox("日志模式");
   m_chkRxTime = new QCheckBox("显示时间");
-  m_chkRxNewLine = new QCheckBox(
-      "自动换行"); // Actually TextEdit does this, maybe "Add Newline"? Let's
-                   // assume user means data interpretation or auto-scrolling
 
   rxLayout->addWidget(m_chkRxLog);
   rxLayout->addWidget(m_chkRxTime);
-  // rxLayout->addWidget(m_chkRxNewLine);
 
   // Instantiate the logical buttons that are used by the Rx panel signals.
   // They are no longer added to the layout directly (replaced by floating
@@ -281,21 +298,22 @@ void SerialSession::setupUi() {
   txModeLayout->addWidget(m_rbTxHex);
   txLayout->addLayout(txModeLayout);
 
-  m_chkTxNewLine = new QCheckBox("发送新行");
+  // Dock-side controls are kept as mirrors of the floating controls below.
+  QCheckBox *dockChkTxNewLine = new QCheckBox("发送新行");
   m_chkTxTime = new QCheckBox("显示时间"); // Timestamp in local log
-  txLayout->addWidget(m_chkTxNewLine);
+  txLayout->addWidget(dockChkTxNewLine);
   txLayout->addWidget(m_chkTxTime);
 
-  m_chkAutoSend = new QCheckBox("自动发送(ms):");
-  m_chkAutoSend->setEnabled(false); // Disabled until port is open
-  m_spinAutoSendInterval = new QSpinBox();
-  m_spinAutoSendInterval->setRange(10, 10000);
-  m_spinAutoSendInterval->setValue(1000);
-  m_spinAutoSendInterval->setEnabled(false); // Disabled until port is open
+  QCheckBox *dockChkAutoSend = new QCheckBox("自动发送(ms):");
+  dockChkAutoSend->setEnabled(false); // Disabled until port is open
+  QSpinBox *dockSpinAutoSendInterval = new QSpinBox();
+  dockSpinAutoSendInterval->setRange(10, 10000);
+  dockSpinAutoSendInterval->setValue(1000);
+  dockSpinAutoSendInterval->setEnabled(false); // Disabled until port is open
 
   QHBoxLayout *autoSendLayout = new QHBoxLayout();
-  autoSendLayout->addWidget(m_chkAutoSend);
-  autoSendLayout->addWidget(m_spinAutoSendInterval);
+  autoSendLayout->addWidget(dockChkAutoSend);
+  autoSendLayout->addWidget(dockSpinAutoSendInterval);
   txLayout->addLayout(autoSendLayout);
 
   m_dockTx = new QDockWidget("发送设置", m_innerMainWindow);
@@ -612,6 +630,24 @@ void SerialSession::setupUi() {
 
   m_chkTxNewLine = new QCheckBox("发送新行");
 
+  // Keep dock-side and floating controls in sync without overriding members.
+  connect(dockChkTxNewLine, &QCheckBox::toggled, m_chkTxNewLine,
+          &QCheckBox::setChecked);
+  connect(m_chkTxNewLine, &QCheckBox::toggled, dockChkTxNewLine,
+          &QCheckBox::setChecked);
+  connect(dockChkAutoSend, &QCheckBox::toggled, m_chkAutoSend,
+          &QCheckBox::setChecked);
+  connect(m_chkAutoSend, &QCheckBox::toggled, dockChkAutoSend,
+          &QCheckBox::setChecked);
+  connect(dockSpinAutoSendInterval, QOverload<int>::of(&QSpinBox::valueChanged),
+          m_spinAutoSendInterval, &QSpinBox::setValue);
+  connect(m_spinAutoSendInterval, QOverload<int>::of(&QSpinBox::valueChanged),
+          dockSpinAutoSendInterval, &QSpinBox::setValue);
+  connect(m_btnOpenClose, &QPushButton::toggled, dockChkAutoSend,
+          &QCheckBox::setEnabled);
+  connect(m_btnOpenClose, &QPushButton::toggled, dockSpinAutoSendInterval,
+          &QSpinBox::setEnabled);
+
   txFloatLeftLayout->addWidget(m_chkAutoSend);
   txFloatLeftLayout->addWidget(m_spinAutoSendInterval);
   txFloatLeftLayout->addWidget(m_chkTxNewLine);
@@ -900,6 +936,7 @@ void SerialSession::setupUi() {
   // m_lblWelcome->setAlignment(Qt::AlignLeft | Qt::AlignVCenter); // Not
   // needed for custom widget
   m_lblWelcome->setMinimumWidth(400); // Fixed width for scrolling area
+  m_lblWelcome->setText(m_welcomeText);
 
   statusBarLayout->addWidget(m_lblPortInfo);
   statusBarLayout->addStretch();
@@ -1291,13 +1328,12 @@ void SerialSession::setupConnections() {
             }
           });
 
+  connect(m_dockScopeSettings, &QDockWidget::dockLocationChanged, this,
+          &SerialSession::onDockLocationChanged);
+
   // 波形显示控制
   connect(m_chkEnableWaveform, &QCheckBox::toggled, this,
           &SerialSession::onWaveformEnabled);
-
-  // 隐藏收发区控制
-  connect(m_chkHideRxTx, &QCheckBox::toggled, this,
-          [this](bool checked) { m_dataSplitter->setVisible(!checked); });
 
   // 图表右键菜单
   connect(m_customPlot, &QCustomPlot::customContextMenuRequested, this,
@@ -1342,6 +1378,7 @@ void SerialSession::setupConnections() {
 
   // Set default state to paused (playing starts when explicitly clicked)
   m_btnStopWaveform->setChecked(true);
+  onTimeUnitChanged(m_comboTimeUnit->currentIndex());
 }
 
 void SerialSession::onCurveSettingsClicked() {
@@ -1396,7 +1433,7 @@ void SerialSession::openClosePort() {
     m_serial->close(); // close once — duplicate calls caused state corruption
     m_welcomeText =
         "   欢迎使用uSmilePro串口示波器V1.0   "; // Revert to default
-    m_scrollPos = 0;
+    m_lblWelcome->setText(m_welcomeText);
     ToastWidget::showToast("串口 " + m_serial->portName() + " 已关闭", false,
                            this);
     m_btnOpenClose->setText(QChar(0xE84E));
@@ -1428,7 +1465,7 @@ void SerialSession::openClosePort() {
     if (m_serial->open(QIODevice::ReadWrite)) {
       m_welcomeText = "   串口 " + m_serial->portName() +
                       " 已打开   "; // Change text for scroll
-      m_scrollPos = 0;              // Reset scroll position
+      m_lblWelcome->setText(m_welcomeText);
       ToastWidget::showToast("串口 " + m_serial->portName() + " 已打开", true,
                              this);
 
@@ -1485,17 +1522,24 @@ void SerialSession::onReadyRead() {
       rawStr = QString::fromLocal8Bit(data); // Support Local encoding
     }
 
+    const bool logMode = m_chkRxLog->isChecked();
+    const bool showTimestamp = m_chkRxTime->isChecked() || logMode;
+    const QString rxTag = logMode ? "[LOG][RX]" : "[RX]";
+
     // Build HTML line: red timestamp + plain data
     QString htmlLine;
-    if (m_chkRxTime->isChecked()) {
+    if (showTimestamp) {
       QString timeStr =
           QDateTime::currentDateTime().toString("[yyyy-MM-dd HH:mm:ss.zzz] ");
       htmlLine = QString("<span style='color:red;'>%1</span>"
-                         "<span>[RX] %2</span>")
+                         "<span>%2 %3</span>")
                      .arg(timeStr.toHtmlEscaped())
+                     .arg(rxTag)
                      .arg(rawStr.toHtmlEscaped());
     } else {
-      htmlLine = QString("<span>[RX] %1</span>").arg(rawStr.toHtmlEscaped());
+      htmlLine = QString("<span>%1 %2</span>")
+                     .arg(rxTag)
+                     .arg(rawStr.toHtmlEscaped());
     }
 
     if (!m_chkHideRxData->isChecked()) {
@@ -1570,18 +1614,18 @@ void SerialSession::updateChartSettings() {
 }
 
 void SerialSession::updateWaveform(const QByteArray &data) {
-  if (m_btnStopWaveform && m_btnStopWaveform->isChecked()) {
+  bool waveformStopped = m_btnStopWaveform && m_btnStopWaveform->isChecked();
+  // 若波形已暂停且不需要显示 Payload，则直接跳过
+  if (waveformStopped && !m_chkShowRawData->isChecked()) {
     return;
   }
 
-  QString str = QString::fromLocal8Bit(data);
   // Use the per-instance member buffer — NOT a static, which would be shared
   // across all SerialSession instances and causes data corruption + crashes
   // when two serial ports are open simultaneously.
-  m_rxBuffer.append(str);
+  m_rxBuffer.append(data);
 
   int maxPoints = m_spinPoints->value();
-  bool autoScale = m_btnAutoScale->isChecked();
   bool dataAdded = false;
 
   QVector<QVector<double>> channelDataBatch;
@@ -1590,30 +1634,46 @@ void SerialSession::updateWaveform(const QByteArray &data) {
   while (true) {
     int startIdx = m_rxBuffer.indexOf('$');
     if (startIdx == -1) {
-      if (m_rxBuffer.length() > 4096)
+      if (m_rxBuffer.size() > 4096)
         m_rxBuffer.clear(); // Safety check
       break;
     }
 
     int endIdx = m_rxBuffer.indexOf(';', startIdx);
     if (endIdx == -1) {
-      if (m_rxBuffer.length() > 4096) {
+      if (m_rxBuffer.size() > 4096) {
         m_rxBuffer = m_rxBuffer.mid(startIdx);
-        if (m_rxBuffer.length() > 4096)
+        if (m_rxBuffer.size() > 4096)
           m_rxBuffer.clear(); // Safety clear
       }
       break; // Need more data
     }
 
     // Found complete frame: "$ ... ;"
-    QString payload =
+    QByteArray payloadBytes =
         m_rxBuffer.mid(startIdx + 1, endIdx - startIdx - 1).trimmed();
     m_rxBuffer.remove(0, endIdx + 1); // Remove processed frame
 
-    if (payload.isEmpty())
+    if (payloadBytes.isEmpty())
       continue;
 
-    QStringList parts = payload.split(QRegExp("\\s+"), QString::SkipEmptyParts);
+    QString payload = QString::fromLatin1(payloadBytes);
+
+    // 勾选「显示原始数据」时，显示去掉帧头帧尾后的 Payload
+    if (m_chkShowRawData->isChecked()) {
+      m_textReceive->append("<span style='color: #4CAF50;'>[Payload] " +
+                            payload.toHtmlEscaped() + "</span>");
+      m_textReceive->verticalScrollBar()->setValue(
+          m_textReceive->verticalScrollBar()->maximum());
+    }
+
+    // 如果波形已暂停，跳过图表数据更新
+    if (waveformStopped) {
+      continue;
+    }
+
+    QStringList parts =
+        payload.split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
     if (parts.isEmpty())
       continue;
 
@@ -1689,19 +1749,8 @@ void SerialSession::updateWaveform(const QByteArray &data) {
       }
     }
 
-    // 勾选「显示原始数据」时，显示去掉帧头帧尾后的 Payload
-    if (m_chkShowRawData->isChecked()) {
-      m_textReceive->append("<span style='color: #4CAF50;'>[Payload] " +
-                            payload.toHtmlEscaped() + "</span>");
-    }
-
     m_xValue++;
     dataAdded = true;
-  }
-
-  if (m_chkShowRawData->isChecked() && dataAdded) {
-    m_textReceive->verticalScrollBar()->setValue(
-        m_textReceive->verticalScrollBar()->maximum());
   }
 
   if (dataAdded) {
@@ -1782,13 +1831,27 @@ void SerialSession::onWaveformScroll(int value) {
 
 void SerialSession::onTimeUnitChanged(int index) {
   QString label;
-  if (index == 0)
-    label = "Time (Points)";
-  else if (index == 1)
-    label = "Time (ms)";
-  else if (index == 2)
-    label = "Time (s)";
+  double divisor = 1.0;
+  int precision = 0;
 
+  if (index == 0) {
+    label = "Time (Points)";
+    divisor = 1.0;
+    precision = 0;
+  } else if (index == 1) {
+    label = "Time (ms)";
+    divisor = 1.0; // 1 point is treated as 1 ms for display purposes.
+    precision = 0;
+  } else if (index == 2) {
+    label = "Time (s)";
+    divisor = 1000.0;
+    precision = 3;
+  } else {
+    label = "Time";
+  }
+
+  m_customPlot->xAxis->setTicker(
+      QSharedPointer<QCPAxisTicker>(new ScaledAxisTicker(divisor, precision)));
   m_customPlot->xAxis->setLabel(label);
   m_needsReplot = true;
 }
@@ -1937,17 +2000,24 @@ void SerialSession::sendData() {
     txRawStr = QString::fromLocal8Bit(idx);
   }
 
+  const bool logMode = m_chkRxLog->isChecked();
+  const bool showTimestamp = m_chkTxTime->isChecked() || logMode;
+  const QString txTag = logMode ? "[LOG][TX]" : "[TX]";
+
   // Build HTML line: blue timestamp + plain TX data
   QString txHtmlLine;
-  if (m_chkTxTime->isChecked()) {
+  if (showTimestamp) {
     QString timeStr =
         QDateTime::currentDateTime().toString("[yyyy-MM-dd HH:mm:ss.zzz] ");
     txHtmlLine = QString("<span style='color:blue;'>%1</span>"
-                         "<span>[TX] %2</span>")
+                         "<span>%2 %3</span>")
                      .arg(timeStr.toHtmlEscaped())
+                     .arg(txTag)
                      .arg(txRawStr.toHtmlEscaped());
   } else {
-    txHtmlLine = QString("<span>[TX] %1</span>").arg(txRawStr.toHtmlEscaped());
+    txHtmlLine = QString("<span>%1 %2</span>")
+                     .arg(txTag)
+                     .arg(txRawStr.toHtmlEscaped());
   }
 
   m_textReceive->append(txHtmlLine);
@@ -1972,6 +2042,7 @@ void SerialSession::sendData() {
 
 void SerialSession::clearReceiveArea() {
   m_textReceive->clear();
+  m_rxBuffer.clear();
   m_rxCount = 0;
   m_lblRxCount->setText("0");
   for (int i = 0; i < m_customPlot->graphCount(); ++i) {
@@ -1979,6 +2050,9 @@ void SerialSession::clearReceiveArea() {
       m_customPlot->graph(i)->data()->clear();
     }
   }
+  m_scrollbarWaveform->setMinimum(0);
+  m_scrollbarWaveform->setMaximum(0);
+  m_scrollbarWaveform->setValue(0);
   m_customPlot->replot();
   m_xValue = 0;
 }
@@ -2018,31 +2092,6 @@ void SerialSession::hideEvent(QHideEvent *event) {
     }
   }
   QWidget::hideEvent(event);
-}
-
-void SerialSession::scrollWelcomeMessage() {
-  if (m_welcomeText.isEmpty())
-    return;
-
-  // Smooth scrolling using stylesheet text-indent
-  // Double the text for seamless loop
-  QString doubleText = m_welcomeText + "    " + m_welcomeText;
-  m_lblWelcome->setText(doubleText);
-
-  // Calculate text width for loop point
-  QFontMetrics fm(m_lblWelcome->font());
-  int singleTextWidth = fm.horizontalAdvance(m_welcomeText + "    ");
-
-  // Increment scroll position smoothly (1 pixel per frame)
-  m_scrollPos += 1;
-  if (m_scrollPos >= singleTextWidth) {
-    m_scrollPos = 0;
-  }
-
-  // Apply text-indent via stylesheet for smooth pixel movement
-  m_lblWelcome->setStyleSheet(
-      QString("color: blue; font-style: italic; text-indent: -%1px;")
-          .arg(m_scrollPos));
 }
 
 void SerialSession::updateStatusInfo() {
@@ -2239,6 +2288,7 @@ void SerialSession::sendSelectedMulti() {
 
   bool globalHex = m_chkMultiHex->isChecked();
   bool globalNewLine = m_chkMultiNewLine->isChecked();
+  const bool logMode = m_chkRxLog->isChecked();
 
   const auto &page = m_multiPages.at(m_multiPage);
   int idx = 0;
@@ -2255,7 +2305,7 @@ void SerialSession::sendSelectedMulti() {
     } else {
       data = text.toLocal8Bit();
       if (globalNewLine)
-        data.append('\n');
+        data.append("\r\n");
     }
 
     m_serial->write(data);
@@ -2267,8 +2317,9 @@ void SerialSession::sendSelectedMulti() {
     QString timeStr =
         QDateTime::currentDateTime().toString("[yyyy-MM-dd HH:mm:ss.zzz] ");
     QString txHtml =
-        QString("<span style='color:blue;'>%1</span><span>[TX#%2] %3</span>")
+        QString("<span style='color:blue;'>%1</span><span>%2#%3 %4</span>")
             .arg(timeStr.toHtmlEscaped())
+            .arg(logMode ? "[LOG][TX]" : "[TX]")
             .arg(idx)
             .arg(rawStr.toHtmlEscaped());
     m_textReceive->append(txHtml);
@@ -2285,6 +2336,8 @@ void SerialSession::onMultiSendLoop() {
     m_multiLoopTimer->stop();
     return;
   }
+
+  const bool logMode = m_chkRxLog->isChecked();
 
   // Find next enabled item across all pages
   int totalItems = m_multiPages.count() * MULTI_PER_PAGE;
@@ -2304,7 +2357,7 @@ void SerialSession::onMultiSendLoop() {
     QByteArray data = isHex ? QByteArray::fromHex(text.remove(' ').toUtf8())
                             : text.toLocal8Bit();
     if (m_chkMultiNewLine->isChecked() && !isHex)
-      data.append('\n');
+      data.append("\r\n");
 
     m_serial->write(data);
     m_txCount += data.size();
@@ -2315,9 +2368,9 @@ void SerialSession::onMultiSendLoop() {
     QString timeStr =
         QDateTime::currentDateTime().toString("[yyyy-MM-dd HH:mm:ss.zzz] ");
     QString html =
-        QString(
-            "<span style='color:blue;'>%1</span><span>[LOOP P%2#%3] %4</span>")
+        QString("<span style='color:blue;'>%1</span><span>%2 P%3#%4 %5</span>")
             .arg(timeStr.toHtmlEscaped())
+            .arg(logMode ? "[LOG][LOOP]" : "[LOOP]")
             .arg(page + 1)
             .arg(idx + 1)
             .arg(rawStr.toHtmlEscaped());
@@ -2674,12 +2727,8 @@ void SerialPortPlot::onTabCloseRequested(int index) {
   if (index == m_sessionTabs->count() - 1)
     return;
 
-  // 如果这是最后一个真实的选项卡（即总 count==2，1个真实 +
-  // 1个"+"），关闭它直接退出整个应用
+  // 保持至少一个真实会话，避免误关闭整个串口工具窗口
   if (m_sessionTabs->count() <= 2) {
-    if (window()) {
-      window()->close();
-    }
     return;
   }
 
@@ -2726,6 +2775,8 @@ void SerialPortPlot::applyGlobalTheme(const QString &themeFile) {
       session->applyTheme(themeFile);
     }
   }
+
+  emit themeChanged(themeFile);
 }
 
 void SerialPortPlot::applyFileIconTheme(const QString &themeName) {
@@ -2947,19 +2998,19 @@ void SerialPortContainer::handleSplitVertical() {
   }
 }
 
-void SerialPortContainer::handleCloseSplit() {
+void SerialPortContainer::handleCloseSplit(SerialPortPlot *plotToClose) {
   if (m_plotHistory.size() <= 1) {
     return; // Don't close the last one
   }
-
-  // Always close the most recently created plot
-  SerialPortPlot *plotToClose = m_plotHistory.last();
+  if (!plotToClose || !m_plotHistory.contains(plotToClose)) {
+    return;
+  }
 
   QSplitter *parentSplitter =
       qobject_cast<QSplitter *>(plotToClose->parentWidget());
   if (parentSplitter) {
     plotToClose->hide();
     plotToClose->deleteLater();
-    m_plotHistory.removeLast();
+    m_plotHistory.removeAll(plotToClose);
   }
 }

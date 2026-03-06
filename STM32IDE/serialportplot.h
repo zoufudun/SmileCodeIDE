@@ -2,6 +2,7 @@
 #define SERIALPORTPLOT_H
 
 #include <QAction>
+#include <QByteArray>
 #include <QBoxLayout>
 #include <QCheckBox>
 #include <QComboBox>
@@ -60,7 +61,6 @@ public:
   QLabel *m_lblPortInfo;
   ScrollingLabel *m_lblWelcome;
   QString m_welcomeText;
-  int m_scrollPos;
 
   // Hot Plug
   QTimer *m_portCheckTimer;
@@ -101,7 +101,6 @@ protected:
 
   // UI Updates
   void updateWaveform(const QByteArray &data);
-  void scrollWelcomeMessage();
   void onChartContextMenu(const QPoint &pos);
   void onReplotTimeout();
 
@@ -112,14 +111,10 @@ public:
   void onWaveformEnabled(bool checked);
   void onCurveSettingsClicked();
 
-  void setToolbarVisible(bool visible);
-  QMenu *getViewMenu() const { return m_viewMenu; }
-
 protected:
   bool eventFilter(QObject *watched, QEvent *event) override;
 
 private:
-  QMenu *m_viewMenu = nullptr;
   enum class ButtonType { Normal, Refresh, Open, Close };
   QString getButtonStyle(ButtonType type);
 
@@ -144,7 +139,6 @@ private:
   QComboBox *m_comboStopBits;
   QPushButton *m_btnOpenClose;
   QLabel *m_lblStatusIcon;
-  QLabel *m_statusLabel;
   QPushButton *m_btnRefresh;
 
   // UI Elements - Receive Settings
@@ -152,7 +146,6 @@ private:
   QRadioButton *m_rbRxHex;
   QCheckBox *m_chkRxLog;
   QCheckBox *m_chkRxTime;
-  QCheckBox *m_chkRxNewLine;
   QPushButton *m_btnClearRx;
   QPushButton *m_btnStopRx;
 
@@ -172,7 +165,6 @@ private:
   QComboBox *m_comboHistory;
   QTextEdit *m_textSend;
   QToolButton *m_btnSend;
-  QPushButton *m_btnClearSend;
 
   // Floating Controls for Send Text Area
   QToolButton *m_btnTxHexToggle;
@@ -269,7 +261,7 @@ private:
   bool m_needsReplot;
 
   // Per-instance waveform receive buffer (must NOT be static)
-  QString m_rxBuffer;
+  QByteArray m_rxBuffer;
 };
 
 // -------------------------------------------------------------
@@ -323,7 +315,7 @@ public:
 private slots:
   void handleSplitHorizontal();
   void handleSplitVertical();
-  void handleCloseSplit();
+  void handleCloseSplit(SerialPortPlot *plot);
   void handleThemeChanged(const QString &themeName);
 
 private:
@@ -334,9 +326,6 @@ private:
   void applyFileIconTheme(const QString &themeName);
 
   SerialPortPlot *createNewPlot();
-  void replaceWidgetInSplitter(QSplitter *parentSplitter, QWidget *oldWidget,
-                               QWidget *newWidget);
-  int getPlotCount(QSplitter *splitter);
   QString m_currentTheme;
   QList<SerialPortPlot *> m_plotHistory;
 };
