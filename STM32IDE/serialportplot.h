@@ -123,6 +123,13 @@ private:
   void setupChart();
   void applyChartTheme(int index);
   void updateStatusInfo();
+  void updateXAxisRange();
+  void rescaleXAxisData(double oldScale, double newScale);
+  double currentTimeUnitScale() const;
+  int currentTimeUnitPrecision() const;
+  int displayWidthToPoints(double displayWidth) const;
+  double pointsToDisplayWidth(int points) const;
+  void refreshViewWidthSpin();
   void refreshMultiPage(); // redraw 20 widgets for current page
 
   // Serial Port
@@ -158,9 +165,9 @@ private:
   // UI Elements - Send Settings
   QRadioButton *m_rbTxAscii;
   QRadioButton *m_rbTxHex;
-  QCheckBox *m_chkTxNewLine;
+  QToolButton *m_chkTxNewLine;
   QCheckBox *m_chkTxTime;
-  QCheckBox *m_chkAutoSend;
+  QToolButton *m_chkAutoSend;
   QSpinBox *m_spinAutoSendInterval;
   QComboBox *m_comboHistory;
   QTextEdit *m_textSend;
@@ -168,6 +175,7 @@ private:
 
   // Floating Controls for Send Text Area
   QToolButton *m_btnTxHexToggle;
+  QToolButton *m_btnTxTimeToggle;
   QToolButton *m_btnTxClear;
 
   // Send tab widget (wrapped in GroupBox)
@@ -224,8 +232,11 @@ public:
 
   // Waveform parameters
   double m_xValue;
-  QSpinBox *m_spinPoints;
+  double m_xAxisScale;
+  int m_viewWidthPoints;
+  QDoubleSpinBox *m_spinPoints;
   QSpinBox *m_spinBufferLimit;
+  QDoubleSpinBox *m_spinSampleInterval;
   QComboBox *m_comboTimeUnit;
   QComboBox *m_comboChartTheme;
   QPushButton *m_btnAutoScale;

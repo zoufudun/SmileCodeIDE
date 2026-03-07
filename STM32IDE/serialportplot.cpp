@@ -17,14 +17,44 @@
 #include <QMessageBox>
 #include <QPlainTextEdit>
 #include <QRegularExpression>
+#include <QSignalBlocker>
 #include <QScrollBar>
 #include <QSize>
 #include <QSplitter>
 #include <QTextStream>
 #include <QToolButton>
+#include <QToolTip>
 #include <QVBoxLayout>
 
 namespace {
+QString unifiedToolTipStyleSheet() {
+  return QStringLiteral(
+      "QToolTip {"
+      " color: #263238;"
+      " background-color: #FFF8E1;"
+      " border: 1px solid #FFCC80;"
+      " padding: 4px 8px;"
+      "}");
+}
+
+void ensureUnifiedToolTipStyle() {
+  if (!qApp) {
+    return;
+  }
+
+  const QString tooltipStyle = unifiedToolTipStyleSheet();
+  QString appStyle = qApp->styleSheet();
+  if (!appStyle.contains(QStringLiteral("QToolTip {"))) {
+    qApp->setStyleSheet(appStyle + tooltipStyle);
+  }
+
+  QFont toolTipFont = qApp->font();
+  if (toolTipFont.pointSize() < 9) {
+    toolTipFont.setPointSize(9);
+  }
+  QToolTip::setFont(toolTipFont);
+}
+
 class ScaledAxisTicker : public QCPAxisTicker {
 public:
   explicit ScaledAxisTicker(double divisor, int fixedPrecision = -1)
@@ -46,7 +76,8 @@ private:
 
 SerialSession::SerialSession(QWidget *parent)
     : QWidget(parent), m_lastPortCount(0), m_rxCount(0), m_txCount(0),
-      m_xValue(0) {
+      m_xValue(0), m_xAxisScale(1.0), m_viewWidthPoints(100) {
+  ensureUnifiedToolTipStyle();
   m_serial = new QSerialPort(this);
   m_autoSendTimer = new QTimer(this);
   m_portCheckTimer = new QTimer(this);
@@ -216,7 +247,7 @@ void SerialSession::setupUi() {
   // Add sub-layout to main grid at row 5, spanning 3 cols
   portLayout->addLayout(portActionLayout, 5, 0, 1, 3);
 
-  m_dockPort = new QDockWidget("串口设置", m_innerMainWindow);
+  m_dockPort = new QDockWidget("SerailPort Settings", m_innerMainWindow);
   m_dockPort->setObjectName("premiumDock");
   m_dockPort->setFeatures(QDockWidget::DockWidgetMovable |
                           QDockWidget::DockWidgetFloatable |
@@ -228,11 +259,10 @@ void SerialSession::setupUi() {
   // Apply premium sci-fi theme to dock frame
   m_dockPort->setStyleSheet(R"(
     QDockWidget#premiumDock {
-        border: 2px solid transparent;
-        border-image: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
             stop:0 rgba(102, 126, 234, 0.1),
             stop:1 rgba(118, 75, 162, 0.1));
+        border: none;
     }
     QDockWidget#premiumDock::title {
         background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
@@ -251,39 +281,39 @@ void SerialSession::setupUi() {
     }
     QDockWidget#premiumDock::close-button {
         background: transparent;
-        border: 1px solid rgba(255, 255, 255, 0.5);
-        border-radius: 5px;
-        padding: 3px;
-        icon-size: 18px;
+        border: none;
+        border-radius: 3px;
+        padding: 0px;
+        icon-size: 14px;
         subcontrol-position: top right;
         subcontrol-origin: margin;
         position: absolute;
-        top: 6px;
-        right: 8px;
-        width: 26px;
-        height: 26px;
+        top: 10px;
+        right: 10px;
+        width: 20px;
+        height: 20px;
     }
     QDockWidget#premiumDock::close-button:hover {
         background: rgba(244, 67, 54, 0.8);
-        border: 1px solid #F44336;
+        border: none;
     }
     QDockWidget#premiumDock::float-button {
         background: transparent;
-        border: 1px solid rgba(255, 255, 255, 0.5);
-        border-radius: 5px;
-        padding: 3px;
-        icon-size: 18px;
+        border: none;
+        border-radius: 3px;
+        padding: 0px;
+        icon-size: 14px;
         subcontrol-position: top right;
         subcontrol-origin: margin;
         position: absolute;
-        top: 6px;
-        right: 38px;
-        width: 26px;
-        height: 26px;
+        top: 10px;
+        right: 35px;
+        width: 20px;
+        height: 20px;
     }
     QDockWidget#premiumDock::float-button:hover {
         background: rgba(33, 150, 243, 0.8);
-        border: 1px solid #2196F3;
+        border: none;
     }
     QWidget#cardWidget {
         background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1,
@@ -445,7 +475,11 @@ void SerialSession::setupUi() {
   };
 
   m_chkEnableWaveform = new QCheckBox();
-  setupScopeIconCheck(m_chkEnableWaveform, "\ue86b", "启用/关闭波形显示");
+  setupScopeIconCheck(m_chkEnableWaveform, "\ue86e", "启用/关闭波形显示");
+
+  m_chkShowGrid = new QCheckBox();
+  setupScopeIconCheck(m_chkShowGrid, "\ue866", "显示/隐藏网格");
+  m_chkShowGrid->setChecked(true);
 
   m_chkHideRxTx = new QCheckBox();
   setupScopeIconCheck(m_chkHideRxTx, "\ue9db", "隐藏/显示收发区");
@@ -455,10 +489,6 @@ void SerialSession::setupUi() {
 
   m_chkShowRawData = new QCheckBox();
   setupScopeIconCheck(m_chkShowRawData, "\ue881", "显示原始数据");
-
-  m_chkShowGrid = new QCheckBox();
-  setupScopeIconCheck(m_chkShowGrid, "\ue866", "显示/隐藏网格");
-  m_chkShowGrid->setChecked(true);
 
   m_btnAutoScale = new QPushButton();
   setupScopeIconButton(m_btnAutoScale, "\ue879", "自动缩放开关", true);
@@ -492,60 +522,67 @@ void SerialSession::setupUi() {
   QGridLayout *scopeIconRow = new QGridLayout();
   scopeIconRow->setContentsMargins(0, 0, 0, 0);
   scopeIconRow->setHorizontalSpacing(8);
-  scopeIconRow->setVerticalSpacing(0);
+  scopeIconRow->setVerticalSpacing(8);
+
+  // 第一排：5个图标
   scopeIconRow->addWidget(makeScopeItem(m_chkEnableWaveform), 0, 0);
   scopeIconRow->addWidget(makeScopeItem(m_chkShowGrid), 0, 1);
   scopeIconRow->addWidget(makeScopeItem(m_btnAutoScale), 0, 2);
   scopeIconRow->addWidget(makeScopeItem(m_btnClearWaveform), 0, 3);
   scopeIconRow->addWidget(makeScopeItem(m_btnResetChart), 0, 4);
-  scopeIconRow->addWidget(makeScopeItem(m_btnStopWaveform), 0, 5);
-  scopeIconRow->addWidget(makeScopeItem(m_btnCurveSettings), 0, 6);
-  for (int c = 0; c < 7; ++c) {
+
+  // 第二排：5个图标
+  scopeIconRow->addWidget(makeScopeItem(m_btnStopWaveform), 1, 0);
+  scopeIconRow->addWidget(makeScopeItem(m_btnCurveSettings), 1, 1);
+  scopeIconRow->addWidget(makeScopeItem(m_chkHideRxTx), 1, 2);
+  scopeIconRow->addWidget(makeScopeItem(m_chkHideRxData), 1, 3);
+  scopeIconRow->addWidget(makeScopeItem(m_chkShowRawData), 1, 4);
+
+  for (int c = 0; c < 5; ++c) {
     scopeIconRow->setColumnStretch(c, 1);
   }
   grpScopeLayout->addLayout(scopeIconRow);
 
-  QGridLayout *scopeFlagsLayout = new QGridLayout();
-  scopeFlagsLayout->setContentsMargins(0, 6, 0, 0);
-  scopeFlagsLayout->setHorizontalSpacing(8);
-  scopeFlagsLayout->setVerticalSpacing(0);
-  scopeFlagsLayout->addWidget(makeScopeItem(m_chkHideRxTx), 0, 0);
-  scopeFlagsLayout->addWidget(makeScopeItem(m_chkHideRxData), 0, 1);
-  scopeFlagsLayout->addWidget(makeScopeItem(m_chkShowRawData), 0, 2);
-  scopeFlagsLayout->addWidget(new QWidget(), 0, 3); // spacer
-  for (int c = 0; c < 4; ++c) {
-    scopeFlagsLayout->setColumnStretch(c, 1);
-  }
-  grpScopeLayout->addLayout(scopeFlagsLayout);
-
   // 1. Group Box for Plot Parameters (Window width, buffer, theme)
   m_groupPlotParams = new QGroupBox();
-  QVBoxLayout *paramsLayout = new QVBoxLayout(m_groupPlotParams);
+  QGridLayout *paramsLayout = new QGridLayout(m_groupPlotParams);
   paramsLayout->setContentsMargins(4, 8, 4, 4);
-  paramsLayout->setSpacing(4);
+  paramsLayout->setHorizontalSpacing(8);
+  paramsLayout->setVerticalSpacing(6);
 
-  paramsLayout->addWidget(new QLabel("视窗宽度(∆t):"));
-  m_spinPoints = new QSpinBox();
-  m_spinPoints->setRange(10, 100000);
-  m_spinPoints->setValue(100);
-  paramsLayout->addWidget(m_spinPoints);
+  // 第一行：视窗宽度 + 缓冲区上限
+  paramsLayout->addWidget(new QLabel("视窗宽度(∆t):"), 0, 0);
+  m_spinPoints = new QDoubleSpinBox();
+  m_spinPoints->setKeyboardTracking(false);
+  paramsLayout->addWidget(m_spinPoints, 0, 1);
 
-  paramsLayout->addWidget(new QLabel("缓冲区上限:"));
+  paramsLayout->addWidget(new QLabel("缓冲区上限:"), 0, 2);
   m_spinBufferLimit = new QSpinBox();
   m_spinBufferLimit->setRange(100, 1000000);
   m_spinBufferLimit->setValue(10000);
-  paramsLayout->addWidget(m_spinBufferLimit);
+  paramsLayout->addWidget(m_spinBufferLimit, 0, 3);
 
-  paramsLayout->addWidget(new QLabel("X轴标签单位:"));
+  // 第二行：X轴标签单位 + 波形主题
+  paramsLayout->addWidget(new QLabel("X轴标签单位:"), 1, 0);
   m_comboTimeUnit = new QComboBox();
   m_comboTimeUnit->addItems({"点数 (Points)", "毫秒 (ms)", "秒 (s)"});
-  paramsLayout->addWidget(m_comboTimeUnit);
+  paramsLayout->addWidget(m_comboTimeUnit, 1, 1);
 
-  paramsLayout->addWidget(new QLabel("波形主题:"));
+  paramsLayout->addWidget(new QLabel("波形主题:"), 1, 2);
   m_comboChartTheme = new QComboBox();
   m_comboChartTheme->addItems({"亮色主题", "暗黑炫光", "科幻示波器"});
   m_comboChartTheme->setCurrentIndex(1);
-  paramsLayout->addWidget(m_comboChartTheme);
+  paramsLayout->addWidget(m_comboChartTheme, 1, 3);
+
+  paramsLayout->addWidget(new QLabel("采样周期(ms/点):"), 2, 0);
+  m_spinSampleInterval = new QDoubleSpinBox();
+  m_spinSampleInterval->setRange(0.001, 60000.0);
+  m_spinSampleInterval->setDecimals(3);
+  m_spinSampleInterval->setSingleStep(0.1);
+  m_spinSampleInterval->setValue(1.0);
+  m_spinSampleInterval->setSuffix(" ms");
+  m_spinSampleInterval->setToolTip("设置每个采样点对应的真实时间");
+  paramsLayout->addWidget(m_spinSampleInterval, 2, 1);
 
   m_groupPlotParams->setFlat(true);
   m_groupPlotParams->setStyleSheet(
@@ -562,19 +599,19 @@ void SerialSession::setupUi() {
   yLayout->setHorizontalSpacing(8);
   yLayout->setVerticalSpacing(6);
 
-  yLayout->addWidget(new QLabel("最小值:"), 0, 0);
+  yLayout->addWidget(new QLabel("Y轴最小值:"), 0, 0);
   m_spinYMin = new QDoubleSpinBox();
   m_spinYMin->setRange(-99999, 99999);
   m_spinYMin->setEnabled(false);
   yLayout->addWidget(m_spinYMin, 0, 1);
 
-  yLayout->addWidget(new QLabel("最大值:"), 1, 0);
+  yLayout->addWidget(new QLabel("Y轴最大值:"), 1, 0);
   m_spinYMax = new QDoubleSpinBox();
   m_spinYMax->setRange(-99999, 99999);
   m_spinYMax->setEnabled(false);
   yLayout->addWidget(m_spinYMax, 1, 1);
 
-  yLayout->addWidget(new QLabel("刻度:"), 2, 0);
+  yLayout->addWidget(new QLabel("Y轴刻度:"), 2, 0);
   m_spinYTick = new QDoubleSpinBox();
   m_spinYTick->setRange(0, 99999);
   m_spinYTick->setEnabled(false);
@@ -596,7 +633,7 @@ void SerialSession::setupUi() {
 
   grpScopeLayout->addStretch();
 
-  m_dockScopeSettings = new QDockWidget("示波器设置", m_innerMainWindow);
+  m_dockScopeSettings = new QDockWidget("SerialPloter Settings", m_innerMainWindow);
   m_dockScopeSettings->setObjectName("premiumDock");
   m_dockScopeSettings->setFeatures(QDockWidget::DockWidgetMovable |
                                    QDockWidget::DockWidgetFloatable |
@@ -608,11 +645,10 @@ void SerialSession::setupUi() {
   // Style scope settings dock with sci-fi theme
   m_dockScopeSettings->setStyleSheet(R"(
     QDockWidget#premiumDock {
-        border: 2px solid transparent;
-        border-image: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
         background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
             stop:0 rgba(17, 153, 142, 0.1),
             stop:1 rgba(56, 239, 125, 0.1));
+        border: none;
     }
     QDockWidget#premiumDock::title {
         background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
@@ -631,39 +667,39 @@ void SerialSession::setupUi() {
     }
     QDockWidget#premiumDock::close-button {
         background: transparent;
-        border: 1px solid rgba(255, 255, 255, 0.5);
-        border-radius: 5px;
-        padding: 3px;
-        icon-size: 18px;
+        border: none;
+        border-radius: 3px;
+        padding: 0px;
+        icon-size: 14px;
         subcontrol-position: top right;
         subcontrol-origin: margin;
         position: absolute;
-        top: 6px;
-        right: 8px;
-        width: 26px;
-        height: 26px;
+        top: 10px;
+        right: 10px;
+        width: 20px;
+        height: 20px;
     }
     QDockWidget#premiumDock::close-button:hover {
         background: rgba(244, 67, 54, 0.8);
-        border: 1px solid #F44336;
+        border: none;
     }
     QDockWidget#premiumDock::float-button {
         background: transparent;
-        border: 1px solid rgba(255, 255, 255, 0.5);
-        border-radius: 5px;
-        padding: 3px;
-        icon-size: 18px;
+        border: none;
+        border-radius: 3px;
+        padding: 0px;
+        icon-size: 14px;
         subcontrol-position: top right;
         subcontrol-origin: margin;
         position: absolute;
-        top: 6px;
-        right: 38px;
-        width: 26px;
-        height: 26px;
+        top: 10px;
+        right: 35px;
+        width: 20px;
+        height: 20px;
     }
     QDockWidget#premiumDock::float-button:hover {
         background: rgba(33, 150, 243, 0.8);
-        border: 1px solid #2196F3;
+        border: none;
     }
   )");
 
@@ -692,7 +728,7 @@ void SerialSession::setupUi() {
   m_innerMainWindow->splitDockWidget(m_dockPort, m_dockScopeSettings,
                                      Qt::Vertical);
 
-  // Receive Area
+  // Receive Area - 改为DockWidget
   QWidget *grpData = new QWidget();
   grpData->setObjectName("cardWidget");
   QVBoxLayout *dataMainLayout = new QVBoxLayout(grpData);
@@ -738,7 +774,9 @@ void SerialSession::setupUi() {
         "#BBDEFB; border-radius: 16px; }"
         "QToolButton:hover { background: #BBDEFB; color: #1976D2; }"
         "QToolButton:checked { background: #C8E6C9; color: #388E3C; "
-        "border-color: #A5D6A7; }");
+        "border-color: #A5D6A7; }"
+        "QToolTip { color: #263238; background: #FFF8E1; border: 1px solid "
+        "#FFCC80; padding: 4px 8px; }");
     return btn;
   };
 
@@ -747,6 +785,11 @@ void SerialSession::setupUi() {
   m_btnRxPauseToggle = createFloatBtn(QChar(0xE617));
   m_btnRxClear = createFloatBtn(QChar(0xE621));
   m_btnRxClear->setCheckable(false);
+
+  m_btnRxHexToggle->setToolTip("HEX显示");
+  m_btnRxTimeToggle->setToolTip("显示时间");
+  m_btnRxPauseToggle->setToolTip("暂停接收");
+  m_btnRxClear->setToolTip("清空接收区");
 
   rxFloatLayout->addWidget(m_btnRxHexToggle);
   rxFloatLayout->addWidget(m_btnRxTimeToggle);
@@ -763,9 +806,72 @@ void SerialSession::setupUi() {
 
   dataLayout->addWidget(rxContainer);
 
-  rightSplitter->addWidget(grpData);
+  // 将接收区域包装为DockWidget
+  QDockWidget *m_dockReceive = new QDockWidget("Receive Data", m_innerMainWindow);
+  m_dockReceive->setObjectName("dataDock");
+  m_dockReceive->setFeatures(QDockWidget::DockWidgetMovable |
+                              QDockWidget::DockWidgetFloatable |
+                              QDockWidget::DockWidgetClosable);
+  m_dockReceive->setWidget(grpData);
+  m_dockReceive->setStyleSheet(R"(
+    QDockWidget#dataDock {
+        background: #FAFAFA;
+        border: none;
+    }
+    QDockWidget#dataDock::title {
+        background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+            stop:0 rgba(33, 150, 243, 0.9),
+            stop:1 rgba(100, 181, 246, 0.9));
+        padding-top: 8px;
+        padding-bottom: 6px;
+        padding-left: 10px;
+        font-weight: bold;
+        font-size: 10pt;
+        color: #FFFFFF;
+        border: none;
+        text-shadow: 0 0 8px rgba(33, 150, 243, 0.6);
+    }
+    QDockWidget#dataDock::close-button {
+        background: transparent;
+        border: none;
+        border-radius: 3px;
+        padding: 0px;
+        icon-size: 12px;
+        subcontrol-position: top right;
+        subcontrol-origin: margin;
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        width: 18px;
+        height: 18px;
+    }
+    QDockWidget#dataDock::close-button:hover {
+        background: rgba(244, 67, 54, 0.8);
+        border: none;
+    }
+    QDockWidget#dataDock::float-button {
+        background: transparent;
+        border: none;
+        border-radius: 3px;
+        padding: 0px;
+        icon-size: 12px;
+        subcontrol-position: top right;
+        subcontrol-origin: margin;
+        position: absolute;
+        top: 8px;
+        right: 30px;
+        width: 18px;
+        height: 18px;
+    }
+    QDockWidget#dataDock::float-button:hover {
+        background: rgba(33, 150, 243, 0.8);
+        border: none;
+    }
+  )");
 
-  // --- Send Area Container ---
+  rightSplitter->addWidget(m_dockReceive);
+
+  // --- Send Area Container - 改为DockWidget ---
   QWidget *grpSend = new QWidget();
   grpSend->setObjectName("cardWidget");
   QVBoxLayout *grpSendMainLayout = new QVBoxLayout(grpSend);
@@ -845,11 +951,18 @@ void SerialSession::setupUi() {
   m_btnSend = createFloatBtn(QChar(0xE651));
   m_btnSend->setCheckable(false);
   m_btnTxHexToggle = createFloatBtn(QChar(0xEBBC));
+  m_btnTxTimeToggle = createFloatBtn(QChar(0xE676));
   m_btnTxClear = createFloatBtn(QChar(0xE621));
   m_btnTxClear->setCheckable(false);
 
+  m_btnTxHexToggle->setToolTip("HEX显示");
+  m_btnTxTimeToggle->setToolTip("显示时间");
+  m_btnSend->setToolTip("发送数据");
+  m_btnTxClear->setToolTip("清空发送区");
+
   // 悬浮在右下角
   txFloatRightLayout->addWidget(m_btnTxHexToggle);
+  txFloatRightLayout->addWidget(m_btnTxTimeToggle);
   txFloatRightLayout->addWidget(m_btnSend);
   txFloatRightLayout->addWidget(m_btnTxClear);
 
@@ -863,12 +976,9 @@ void SerialSession::setupUi() {
   txFloatLeftLayout->setContentsMargins(6, 3, 6, 3);
   txFloatLeftLayout->setSpacing(8);
 
-  m_chkAutoSend = new QCheckBox("自动发送");
+  m_chkAutoSend = createFloatBtn(QChar(0xE886));
+  m_chkAutoSend->setToolTip("自动发送");
   m_chkAutoSend->setEnabled(false);
-  m_chkAutoSend->setStyleSheet(
-      "QCheckBox { color: #263238; font-weight: 600; spacing: 6px; }"
-      "QCheckBox:disabled { color: #546E7A; }"
-      "QCheckBox::indicator { width: 0px; height: 0px; }");
   m_spinAutoSendInterval = new QSpinBox();
   m_spinAutoSendInterval->setRange(10, 10000);
   m_spinAutoSendInterval->setValue(1000);
@@ -880,19 +990,17 @@ void SerialSession::setupUi() {
       "QSpinBox:disabled { color: #546E7A; }");
   m_spinAutoSendInterval->hide(); // Only show when checked
 
-  m_chkTxNewLine = new QCheckBox("发送新行");
-  m_chkTxNewLine->setStyleSheet(
-      "QCheckBox { color: #263238; font-weight: 600; spacing: 6px; }"
-      "QCheckBox::indicator { width: 0px; height: 0px; }");
+  m_chkTxNewLine = createFloatBtn(QChar(0xE888));
+  m_chkTxNewLine->setToolTip("发送新行");
 
   // Keep dock-side and floating controls in sync without overriding members.
   connect(dockChkTxNewLine, &QCheckBox::toggled, m_chkTxNewLine,
-          &QCheckBox::setChecked);
-  connect(m_chkTxNewLine, &QCheckBox::toggled, dockChkTxNewLine,
+          &QToolButton::setChecked);
+  connect(m_chkTxNewLine, &QToolButton::toggled, dockChkTxNewLine,
           &QCheckBox::setChecked);
   connect(dockChkAutoSend, &QCheckBox::toggled, m_chkAutoSend,
-          &QCheckBox::setChecked);
-  connect(m_chkAutoSend, &QCheckBox::toggled, dockChkAutoSend,
+          &QToolButton::setChecked);
+  connect(m_chkAutoSend, &QToolButton::toggled, dockChkAutoSend,
           &QCheckBox::setChecked);
   connect(dockSpinAutoSendInterval, QOverload<int>::of(&QSpinBox::valueChanged),
           m_spinAutoSendInterval, &QSpinBox::setValue);
@@ -903,13 +1011,13 @@ void SerialSession::setupUi() {
   connect(m_btnOpenClose, &QPushButton::toggled, dockSpinAutoSendInterval,
           &QSpinBox::setEnabled);
   connect(m_btnOpenClose, &QPushButton::toggled, m_chkAutoSend,
-          &QCheckBox::setEnabled);
+          &QToolButton::setEnabled);
   connect(m_btnOpenClose, &QPushButton::toggled, m_spinAutoSendInterval,
           &QSpinBox::setEnabled);
 
   txFloatLeftLayout->addWidget(m_chkAutoSend);
-  txFloatLeftLayout->addWidget(m_spinAutoSendInterval);
   txFloatLeftLayout->addWidget(m_chkTxNewLine);
+  txFloatLeftLayout->addWidget(m_spinAutoSendInterval);
 
   // 初始化浮动控件位置（避免显示在左上角）
   txFloatRightWidget->adjustSize();
@@ -920,7 +1028,7 @@ void SerialSession::setupUi() {
   txFloatLeftWidget->move(
       10, qMax(4, m_textSend->height() - txFloatLeftWidget->height() - 10));
 
-  connect(m_chkAutoSend, &QCheckBox::toggled, this, [this](bool checked) {
+  connect(m_chkAutoSend, &QToolButton::toggled, this, [this](bool checked) {
     m_spinAutoSendInterval->setVisible(checked);
     if (!m_textSend)
       return;
@@ -1127,9 +1235,72 @@ void SerialSession::setupUi() {
 
   grpSendLayout->addWidget(m_sendTabWidget);
 
+  // 将发送区域包装为DockWidget
+  QDockWidget *m_dockSend = new QDockWidget("Send Data", m_innerMainWindow);
+  m_dockSend->setObjectName("dataDock");
+  m_dockSend->setFeatures(QDockWidget::DockWidgetMovable |
+                          QDockWidget::DockWidgetFloatable |
+                          QDockWidget::DockWidgetClosable);
+  m_dockSend->setWidget(grpSend);
+  m_dockSend->setStyleSheet(R"(
+    QDockWidget#dataDock {
+        background: #FAFAFA;
+        border: none;
+    }
+    QDockWidget#dataDock::title {
+        background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+            stop:0 rgba(76, 175, 80, 0.9),
+            stop:1 rgba(129, 199, 132, 0.9));
+        padding-top: 8px;
+        padding-bottom: 6px;
+        padding-left: 10px;
+        font-weight: bold;
+        font-size: 10pt;
+        color: #FFFFFF;
+        border: none;
+        text-shadow: 0 0 8px rgba(76, 175, 80, 0.6);
+    }
+    QDockWidget#dataDock::close-button {
+        background: transparent;
+        border: none;
+        border-radius: 3px;
+        padding: 0px;
+        icon-size: 12px;
+        subcontrol-position: top right;
+        subcontrol-origin: margin;
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        width: 18px;
+        height: 18px;
+    }
+    QDockWidget#dataDock::close-button:hover {
+        background: rgba(244, 67, 54, 0.8);
+        border: none;
+    }
+    QDockWidget#dataDock::float-button {
+        background: transparent;
+        border: none;
+        border-radius: 3px;
+        padding: 0px;
+        icon-size: 12px;
+        subcontrol-position: top right;
+        subcontrol-origin: margin;
+        position: absolute;
+        top: 8px;
+        right: 30px;
+        width: 18px;
+        height: 18px;
+    }
+    QDockWidget#dataDock::float-button:hover {
+        background: rgba(76, 175, 80, 0.8);
+        border: none;
+    }
+  )");
+
   // Instead of rightSplitter->addWidget(grpSend), we add to rightSplitter
   // directly which is already set as CentralWidget
-  rightSplitter->addWidget(grpSend);
+  rightSplitter->addWidget(m_dockSend);
 
   // Set rightSplitter vertical stretch factor so send area is larger
   rightSplitter->setStretchFactor(0, 3); // Receive Area
@@ -1454,7 +1625,7 @@ void SerialSession::setupConnections() {
               m_textSend->setText(m_comboHistory->itemText(index));
           });
 
-  connect(m_chkAutoSend, &QCheckBox::toggled, [this](bool checked) {
+  connect(m_chkAutoSend, &QToolButton::toggled, [this](bool checked) {
     if (checked) {
       m_spinAutoSendInterval->show();
     } else {
@@ -1474,6 +1645,10 @@ void SerialSession::setupConnections() {
   });
   connect(m_btnRxTimeToggle, &QToolButton::toggled,
           [this](bool checked) { m_chkRxTime->setChecked(checked); });
+  connect(m_btnTxTimeToggle, &QToolButton::toggled,
+          [this](bool checked) { m_chkTxTime->setChecked(checked); });
+  connect(m_chkTxTime, &QCheckBox::toggled, m_btnTxTimeToggle,
+          &QToolButton::setChecked);
   // Connect the floating play/pause to the logical pause variable
   connect(m_btnRxPauseToggle, &QToolButton::toggled, [this](bool paused) {
     m_btnStopRx->setChecked(paused);
@@ -1552,8 +1727,15 @@ void SerialSession::setupConnections() {
     });
   }
 
-  connect(m_spinPoints, QOverload<int>::of(&QSpinBox::valueChanged), this,
-          &SerialSession::updateChartSettings);
+  connect(m_spinPoints, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+          this, [this](double value) {
+            const int newViewWidthPoints = displayWidthToPoints(value);
+            if (newViewWidthPoints != m_viewWidthPoints) {
+              m_viewWidthPoints = newViewWidthPoints;
+              updateChartSettings();
+            }
+            refreshViewWidthSpin();
+          });
   connect(m_chkShowGrid, &QCheckBox::toggled, this,
           &SerialSession::updateChartSettings);
   connect(m_btnAutoScale, &QPushButton::toggled, this,
@@ -1577,11 +1759,13 @@ void SerialSession::setupConnections() {
     m_scrollbarWaveform->setMinimum(0);
     m_scrollbarWaveform->setMaximum(0);
     m_scrollbarWaveform->setValue(0);
+    updateXAxisRange();
     m_customPlot->replot();
   });
 
   connect(m_btnResetChart, &QPushButton::clicked, [this]() {
-    m_spinPoints->setValue(100);
+    m_viewWidthPoints = 100;
+    refreshViewWidthSpin();
     m_btnAutoScale->setChecked(true);
     m_chkShowGrid->setChecked(true);
     m_spinYTick->setValue(0);
@@ -1595,14 +1779,19 @@ void SerialSession::setupConnections() {
           &SerialSession::onWaveformScroll);
   connect(m_comboTimeUnit, QOverload<int>::of(&QComboBox::currentIndexChanged),
           this, &SerialSession::onTimeUnitChanged);
+  connect(m_spinSampleInterval,
+          QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
+          [this](double) { onTimeUnitChanged(m_comboTimeUnit->currentIndex()); });
   connect(m_comboChartTheme,
           QOverload<int>::of(&QComboBox::currentIndexChanged), this,
           &SerialSession::onChartThemeChanged);
   connect(m_spinBufferLimit, QOverload<int>::of(&QSpinBox::valueChanged), this,
           [this](int val) {
-            if (m_spinPoints->value() > val) {
-              m_spinPoints->setValue(val);
+            if (m_viewWidthPoints > val) {
+              m_viewWidthPoints = val;
             }
+            refreshViewWidthSpin();
+            updateChartSettings();
           });
 
   connect(m_dockScopeSettings, &QDockWidget::dockLocationChanged, this,
@@ -1851,6 +2040,161 @@ void SerialSession::onDockLocationChanged(Qt::DockWidgetArea area) {
   }
 }
 
+double SerialSession::currentTimeUnitScale() const {
+  const double sampleIntervalMs =
+      m_spinSampleInterval ? m_spinSampleInterval->value() : 1.0;
+
+  if (!m_comboTimeUnit) {
+    return 1.0;
+  }
+
+  switch (m_comboTimeUnit->currentIndex()) {
+  case 1:
+    return sampleIntervalMs;
+  case 2:
+    return sampleIntervalMs / 1000.0;
+  case 0:
+  default:
+    return 1.0;
+  }
+}
+
+int SerialSession::currentTimeUnitPrecision() const {
+  const double sampleIntervalMs =
+      m_spinSampleInterval ? m_spinSampleInterval->value() : 1.0;
+  const bool sampleIntervalIsInteger =
+      qFuzzyIsNull(sampleIntervalMs - qRound64(sampleIntervalMs));
+
+  if (!m_comboTimeUnit) {
+    return 0;
+  }
+
+  switch (m_comboTimeUnit->currentIndex()) {
+  case 1:
+    return sampleIntervalIsInteger ? 0 : 3;
+  case 2:
+    return 3;
+  case 0:
+  default:
+    return 0;
+  }
+}
+
+int SerialSession::displayWidthToPoints(double displayWidth) const {
+  const double scale = currentTimeUnitScale();
+  if (scale <= 0.0) {
+    return 1;
+  }
+
+  const int bufferLimit =
+      m_spinBufferLimit ? qMax(1, m_spinBufferLimit->value()) : qMax(1, m_viewWidthPoints);
+  return qBound(1, qRound(displayWidth / scale), bufferLimit);
+}
+
+double SerialSession::pointsToDisplayWidth(int points) const {
+  return points * currentTimeUnitScale();
+}
+
+void SerialSession::refreshViewWidthSpin() {
+  if (!m_spinPoints) {
+    return;
+  }
+
+  const int bufferLimit =
+      m_spinBufferLimit ? qMax(1, m_spinBufferLimit->value()) : qMax(1, m_viewWidthPoints);
+  m_viewWidthPoints = qBound(1, m_viewWidthPoints, bufferLimit);
+
+  const int unitIndex = m_comboTimeUnit ? m_comboTimeUnit->currentIndex() : 0;
+  const int precision = currentTimeUnitPrecision();
+  const double minValue = pointsToDisplayWidth(1);
+  const double maxValue = pointsToDisplayWidth(bufferLimit);
+
+  QSignalBlocker blocker(m_spinPoints);
+  m_spinPoints->setDecimals(precision);
+  m_spinPoints->setRange(minValue, qMax(minValue, maxValue));
+  m_spinPoints->setSingleStep(
+      qMax(unitIndex == 0 ? 1.0 : 0.001, pointsToDisplayWidth(1)));
+
+  if (unitIndex == 1) {
+    m_spinPoints->setSuffix(" ms");
+  } else if (unitIndex == 2) {
+    m_spinPoints->setSuffix(" s");
+  } else {
+    m_spinPoints->setSuffix(" pt");
+  }
+
+  m_spinPoints->setValue(pointsToDisplayWidth(m_viewWidthPoints));
+}
+
+void SerialSession::rescaleXAxisData(double oldScale, double newScale) {
+  if (qFuzzyCompare(oldScale, newScale) || oldScale == 0.0) {
+    return;
+  }
+
+  const double ratio = newScale / oldScale;
+  for (int i = 0; i < m_customPlot->graphCount(); ++i) {
+    QCPGraph *graph = m_customPlot->graph(i);
+    if (!graph) {
+      continue;
+    }
+
+    QSharedPointer<QCPGraphDataContainer> data = graph->data();
+    if (!data || data->isEmpty()) {
+      continue;
+    }
+
+    QVector<double> keys;
+    QVector<double> values;
+    keys.reserve(data->size());
+    values.reserve(data->size());
+
+    for (auto it = data->constBegin(); it != data->constEnd(); ++it) {
+      keys.append(it->key * ratio);
+      values.append(it->value);
+    }
+
+    graph->setData(keys, values, true);
+  }
+}
+
+void SerialSession::updateXAxisRange() {
+  const int maxPoints = m_viewWidthPoints;
+  const int bufferLimit = m_spinBufferLimit->value();
+  const double scale = m_xAxisScale;
+
+  const double rawDataMinX = qMax(0.0, m_xValue - bufferLimit);
+  const double rawDataMaxX = m_xValue;
+  const bool isTracking =
+      (m_scrollbarWaveform->value() == m_scrollbarWaveform->maximum());
+  const int scrollMax =
+      qMax(0, static_cast<int>(rawDataMaxX - rawDataMinX - maxPoints));
+
+  m_scrollbarWaveform->blockSignals(true);
+  m_scrollbarWaveform->setMinimum(0);
+  m_scrollbarWaveform->setMaximum(scrollMax);
+  if (isTracking) {
+    m_scrollbarWaveform->setValue(scrollMax);
+  } else if (m_scrollbarWaveform->value() > scrollMax) {
+    m_scrollbarWaveform->setValue(scrollMax);
+  }
+  m_scrollbarWaveform->blockSignals(false);
+
+  const double visibleWidth = maxPoints * scale;
+  if (rawDataMaxX <= maxPoints) {
+    m_customPlot->xAxis->setRange(0, visibleWidth);
+    return;
+  }
+
+  if (isTracking) {
+    m_customPlot->xAxis->setRange(rawDataMaxX * scale, visibleWidth,
+                                  Qt::AlignRight);
+  } else {
+    const double rawViewLeft = rawDataMinX + m_scrollbarWaveform->value();
+    m_customPlot->xAxis->setRange(rawViewLeft * scale,
+                                  (rawViewLeft + maxPoints) * scale);
+  }
+}
+
 void SerialSession::updateChartSettings() {
   if (m_btnAutoScale->isChecked()) {
     m_spinYMin->setEnabled(false);
@@ -1889,6 +2233,8 @@ void SerialSession::updateChartSettings() {
   m_customPlot->xAxis->grid()->setSubGridVisible(showGrid);
   m_customPlot->yAxis->grid()->setSubGridVisible(showGrid);
 
+  updateXAxisRange();
+
   m_customPlot->replot();
 }
 
@@ -1904,7 +2250,7 @@ void SerialSession::updateWaveform(const QByteArray &data) {
   // when two serial ports are open simultaneously.
   m_rxBuffer.append(data);
 
-  int maxPoints = m_spinPoints->value();
+  int maxPoints = m_viewWidthPoints;
   bool dataAdded = false;
 
   QVector<QVector<double>> channelDataBatch;
@@ -2024,7 +2370,7 @@ void SerialSession::updateWaveform(const QByteArray &data) {
           channelKeysBatch.resize(i + 1);
         }
         channelDataBatch[i].append(val);
-        channelKeysBatch[i].append(m_xValue);
+        channelKeysBatch[i].append(m_xValue * m_xAxisScale);
       }
     }
 
@@ -2045,32 +2391,13 @@ void SerialSession::updateWaveform(const QByteArray &data) {
         // Only trim when it exceeds limit significantly (e.g. by one screen
         // width)
         if (m_customPlot->graph(i)->dataCount() > removalThreshold) {
-          m_customPlot->graph(i)->data()->removeBefore(m_xValue - bufferLimit);
+          m_customPlot->graph(i)->data()->removeBefore((m_xValue - bufferLimit) *
+                                                       m_xAxisScale);
         }
       }
     }
 
-    double dataMinX = qMax(0.0, m_xValue - bufferLimit);
-    double dataMaxX = m_xValue;
-
-    bool isTracking =
-        (m_scrollbarWaveform->value() == m_scrollbarWaveform->maximum());
-    int scrollMax = qMax(0, (int)(dataMaxX - dataMinX - maxPoints));
-
-    // Disable signals briefly to avoid triggering onWaveformScroll during
-    // internal setup
-    m_scrollbarWaveform->blockSignals(true);
-    m_scrollbarWaveform->setMinimum(0);
-    m_scrollbarWaveform->setMaximum(scrollMax);
-    m_scrollbarWaveform->blockSignals(false);
-
-    if (isTracking) {
-      m_scrollbarWaveform->setValue(scrollMax);
-      m_customPlot->xAxis->setRange(m_xValue, maxPoints, Qt::AlignRight);
-    } else {
-      double viewLeft = dataMinX + m_scrollbarWaveform->value();
-      m_customPlot->xAxis->setRange(viewLeft, viewLeft + maxPoints);
-    }
+    updateXAxisRange();
 
     if (!m_waveformPage->isHidden()) {
       m_needsReplot = true; // Flag for the 30fps timer to pick up
@@ -2096,12 +2423,13 @@ void SerialSession::onReplotTimeout() {
 }
 
 void SerialSession::onWaveformScroll(int value) {
-  int maxPoints = m_spinPoints->value();
+  int maxPoints = m_viewWidthPoints;
   int bufferLimit = m_spinBufferLimit->value();
   double dataMinX = qMax(0.0, m_xValue - bufferLimit);
 
   double viewLeft = dataMinX + value;
-  m_customPlot->xAxis->setRange(viewLeft, viewLeft + maxPoints);
+  m_customPlot->xAxis->setRange(viewLeft * m_xAxisScale,
+                                (viewLeft + maxPoints) * m_xAxisScale);
 
   if (!m_waveformPage->isHidden()) {
     m_needsReplot = true;
@@ -2110,28 +2438,32 @@ void SerialSession::onWaveformScroll(int value) {
 
 void SerialSession::onTimeUnitChanged(int index) {
   QString label;
-  double divisor = 1.0;
-  int precision = 0;
+  double scale = 1.0;
+  int precision = currentTimeUnitPrecision();
 
   if (index == 0) {
     label = "Time (Points)";
-    divisor = 1.0;
-    precision = 0;
+    scale = 1.0;
   } else if (index == 1) {
     label = "Time (ms)";
-    divisor = 1.0; // 1 point is treated as 1 ms for display purposes.
-    precision = 0;
+    scale = currentTimeUnitScale();
   } else if (index == 2) {
     label = "Time (s)";
-    divisor = 1000.0;
-    precision = 3;
+    scale = currentTimeUnitScale();
   } else {
     label = "Time";
   }
 
-  m_customPlot->xAxis->setTicker(
-      QSharedPointer<QCPAxisTicker>(new ScaledAxisTicker(divisor, precision)));
+  const double oldScale = m_xAxisScale;
+  m_xAxisScale = scale;
+  rescaleXAxisData(oldScale, m_xAxisScale);
+
+  m_customPlot->xAxis->setTicker(QSharedPointer<QCPAxisTicker>(new QCPAxisTicker));
+  m_customPlot->xAxis->setNumberFormat("f");
+  m_customPlot->xAxis->setNumberPrecision(precision);
   m_customPlot->xAxis->setLabel(label);
+  refreshViewWidthSpin();
+  updateXAxisRange();
   m_needsReplot = true;
 }
 
@@ -2345,8 +2677,9 @@ void SerialSession::clearReceiveArea() {
   m_scrollbarWaveform->setMinimum(0);
   m_scrollbarWaveform->setMaximum(0);
   m_scrollbarWaveform->setValue(0);
-  m_customPlot->replot();
   m_xValue = 0;
+  updateXAxisRange();
+  m_customPlot->replot();
 }
 
 void SerialSession::toggleAutoSend(bool checked) {
@@ -3055,7 +3388,8 @@ void SerialPortPlot::applyGlobalTheme(const QString &themeFile) {
   QFile file(QString(":/resources/styles/") + themeFile);
   if (file.open(QFile::ReadOnly)) {
     QString styleSheet = QLatin1String(file.readAll());
-    qApp->setStyleSheet(styleSheet);
+    qApp->setStyleSheet(styleSheet + unifiedToolTipStyleSheet());
+    ensureUnifiedToolTipStyle();
     file.close();
   }
 
