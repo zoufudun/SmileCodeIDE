@@ -1,4 +1,4 @@
-#include "serialportplot.h"
+﻿#include "serialportplot.h"
 #include "TOOLS/CIconFont.h"
 #include "curvesettings.h"
 #include "mainwindow.h"
@@ -1633,6 +1633,12 @@ void SerialSession::setupConnections() {
     }
     toggleAutoSend(checked);
   });
+  connect(m_spinAutoSendInterval, QOverload<int>::of(&QSpinBox::valueChanged),
+          [this](int interval) {
+            if (m_autoSendTimer->isActive()) {
+              m_autoSendTimer->setInterval(interval);
+            }
+          });
 
   // Floating Action Toggles
   connect(m_btnRxHexToggle, &QToolButton::toggled, [this](bool checked) {
@@ -2685,11 +2691,11 @@ void SerialSession::clearReceiveArea() {
 void SerialSession::toggleAutoSend(bool checked) {
   if (checked) {
     m_autoSendTimer->start(m_spinAutoSendInterval->value());
-    m_spinAutoSendInterval->setEnabled(false);
   } else {
     m_autoSendTimer->stop();
-    m_spinAutoSendInterval->setEnabled(true);
   }
+
+  m_spinAutoSendInterval->setEnabled(m_serial->isOpen());
 }
 
 void SerialSession::onAutoSendTimeout() {
@@ -3640,3 +3646,4 @@ void SerialPortContainer::handleCloseSplit(SerialPortPlot *plotToClose) {
     m_plotHistory.removeAll(plotToClose);
   }
 }
+
