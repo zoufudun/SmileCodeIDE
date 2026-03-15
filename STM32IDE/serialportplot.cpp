@@ -3,6 +3,9 @@
 #include "curvesettings.h"
 #include "mainwindow.h"
 #include "toastwidget.h"
+#include "widgetdesigner.h"
+#include "customwidget.h"
+#include "verticaltabwidget.h"
 #include <QApplication>
 #include <QClipboard>
 #include <QDateTime>
@@ -76,7 +79,8 @@ private:
 
 SerialSession::SerialSession(QWidget *parent)
     : QWidget(parent), m_lastPortCount(0), m_rxCount(0), m_txCount(0),
-      m_xValue(0), m_xAxisScale(1.0), m_viewWidthPoints(100) {
+      m_xValue(0), m_xAxisScale(1.0), m_viewWidthPoints(100),
+      m_widgetDesigner(nullptr), m_widgetToolbox(nullptr), m_leftTabWidget(nullptr) {
   ensureUnifiedToolTipStyle();
   m_serial = new QSerialPort(this);
   m_autoSendTimer = new QTimer(this);
@@ -125,6 +129,12 @@ void SerialSession::setupUi() {
   // 先创建 central widget，再添加 Dock，避免 Dock 被错误放置到顶部区域
   m_mainHorizSplitter = new QSplitter(Qt::Horizontal);
   m_innerMainWindow->setCentralWidget(m_mainHorizSplitter);
+
+  // === 左侧垂直标签页 ===
+  m_leftTabWidget = new VerticalTabWidget();
+  m_leftTabWidget->setMinimumWidth(400);
+  m_leftTabWidget->setMaximumWidth(600);
+  m_mainHorizSplitter->addWidget(m_leftTabWidget);
 
   // 左侧数据区（接收/发送）在一个垂直分割器里
   QSplitter *rightSplitter = new QSplitter(Qt::Vertical);
@@ -215,21 +225,19 @@ void SerialSession::setupUi() {
   //     "border-color: #A5D6A7; }");
   portActionLayout->addWidget(m_btnRefresh);
 
-  // 打开串口按钮：纯图标样式，无按钮边框
-  m_btnOpenClose = new QPushButton(QChar(0xE84E));
+  // 打开串口按钮：带背景的按钮样式
+  m_btnOpenClose = new QPushButton(QChar(0xe88f));
   m_btnOpenClose->setFont(CIconFont::instance()->getIconFont(50));
   m_btnOpenClose->setCheckable(true);
   m_btnOpenClose->setToolTip("打开串口");
-  m_btnOpenClose->setFlat(true);
   m_btnOpenClose->setMinimumWidth(52);
   m_btnOpenClose->setMinimumHeight(44);
   m_btnOpenClose->setStyleSheet(
-      "QPushButton { background: transparent; border: none; border-radius: 8px;"
-      "  color: #2E7D32; padding: 4px; }"
-      "QPushButton:hover { background: rgba(46,125,50,40); }"
-      "QPushButton:checked { color: #C62828; }"
-      "QPushButton:checked:hover { background: rgba(198,40,40,40); }"
-      "QPushButton:pressed { background: rgba(46,125,50,80); }");
+      "QPushButton { color: #555555; background: #E3F2FD; border: 1px solid "
+      "#BBDEFB; border-radius: 16px; }"
+      "QPushButton:hover { background: #BBDEFB; color: #1976D2; }"
+      "QPushButton:checked { background: #FFCDD2; color: #C62828; "
+      "border-color: #EF9A9A; }");
 
   // Status Icon Label
   m_lblStatusIcon = new QLabel();
@@ -247,81 +255,8 @@ void SerialSession::setupUi() {
   // Add sub-layout to main grid at row 5, spanning 3 cols
   portLayout->addLayout(portActionLayout, 5, 0, 1, 3);
 
-  m_dockPort = new QDockWidget("SerailPort Settings", m_innerMainWindow);
-  m_dockPort->setObjectName("premiumDock");
-  m_dockPort->setFeatures(QDockWidget::DockWidgetMovable |
-                          QDockWidget::DockWidgetFloatable |
-                          QDockWidget::DockWidgetClosable);
-  m_dockPort->setAllowedAreas(Qt::LeftDockWidgetArea);
-  m_dockPort->setWidget(grpPort);
-  m_innerMainWindow->addDockWidget(Qt::LeftDockWidgetArea, m_dockPort);
-
-  // Apply premium sci-fi theme to dock frame
-  m_dockPort->setStyleSheet(R"(
-    QDockWidget#premiumDock {
-        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-            stop:0 rgba(102, 126, 234, 0.1),
-            stop:1 rgba(118, 75, 162, 0.1));
-        border: none;
-    }
-    QDockWidget#premiumDock::title {
-        background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-            stop:0 rgba(102, 126, 234, 0.9),
-            stop:0.5 rgba(118, 75, 162, 0.9),
-            stop:1 rgba(102, 126, 234, 0.9));
-        padding-top: 10px;
-        padding-bottom: 6px;
-        padding-left: 10px;
-        font-weight: bold;
-        font-size: 11pt;
-        color: #FFFFFF;
-        border: none;
-        border-bottom: 2px solid rgba(255, 255, 255, 0.3);
-        text-shadow: 0 0 10px rgba(102, 126, 234, 0.8);
-    }
-    QDockWidget#premiumDock::close-button {
-        background: transparent;
-        border: none;
-        border-radius: 3px;
-        padding: 0px;
-        icon-size: 14px;
-        subcontrol-position: top right;
-        subcontrol-origin: margin;
-        position: absolute;
-        top: 10px;
-        right: 10px;
-        width: 20px;
-        height: 20px;
-    }
-    QDockWidget#premiumDock::close-button:hover {
-        background: rgba(244, 67, 54, 0.8);
-        border: none;
-    }
-    QDockWidget#premiumDock::float-button {
-        background: transparent;
-        border: none;
-        border-radius: 3px;
-        padding: 0px;
-        icon-size: 14px;
-        subcontrol-position: top right;
-        subcontrol-origin: margin;
-        position: absolute;
-        top: 10px;
-        right: 35px;
-        width: 20px;
-        height: 20px;
-    }
-    QDockWidget#premiumDock::float-button:hover {
-        background: rgba(33, 150, 243, 0.8);
-        border: none;
-    }
-    QWidget#cardWidget {
-        background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-            stop:0 #FAFAFA,
-            stop:1 #F0F0F5);
-        border: none;
-    }
-  )");
+  // 将串口设置添加到垂直标签页（第一个标签）
+  m_leftTabWidget->addTab(grpPort, "串口设置", QString(QChar(0xe88d)));
 
   // 2. Receive Settings
   QWidget *grpRx = new QWidget();
@@ -633,100 +568,45 @@ void SerialSession::setupUi() {
 
   grpScopeLayout->addStretch();
 
-  m_dockScopeSettings = new QDockWidget("SerialPloter Settings", m_innerMainWindow);
-  m_dockScopeSettings->setObjectName("premiumDock");
-  m_dockScopeSettings->setFeatures(QDockWidget::DockWidgetMovable |
-                                   QDockWidget::DockWidgetFloatable |
-                                   QDockWidget::DockWidgetClosable);
-  m_dockScopeSettings->setAllowedAreas(Qt::LeftDockWidgetArea);
-  m_dockScopeSettings->setWidget(grpScope);
-  m_innerMainWindow->addDockWidget(Qt::LeftDockWidgetArea, m_dockScopeSettings);
-
-  // Style scope settings dock with sci-fi theme
-  m_dockScopeSettings->setStyleSheet(R"(
-    QDockWidget#premiumDock {
-        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-            stop:0 rgba(17, 153, 142, 0.1),
-            stop:1 rgba(56, 239, 125, 0.1));
-        border: none;
-    }
-    QDockWidget#premiumDock::title {
-        background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-            stop:0 rgba(17, 153, 142, 0.9),
-            stop:0.5 rgba(56, 239, 125, 0.9),
-            stop:1 rgba(17, 153, 142, 0.9));
-        padding-top: 10px;
-        padding-bottom: 6px;
-        padding-left: 10px;
-        font-weight: bold;
-        font-size: 11pt;
-        color: #FFFFFF;
-        border: none;
-        border-bottom: 2px solid rgba(255, 255, 255, 0.3);
-        text-shadow: 0 0 10px rgba(56, 239, 125, 0.8);
-    }
-    QDockWidget#premiumDock::close-button {
-        background: transparent;
-        border: none;
-        border-radius: 3px;
-        padding: 0px;
-        icon-size: 14px;
-        subcontrol-position: top right;
-        subcontrol-origin: margin;
-        position: absolute;
-        top: 10px;
-        right: 10px;
-        width: 20px;
-        height: 20px;
-    }
-    QDockWidget#premiumDock::close-button:hover {
-        background: rgba(244, 67, 54, 0.8);
-        border: none;
-    }
-    QDockWidget#premiumDock::float-button {
-        background: transparent;
-        border: none;
-        border-radius: 3px;
-        padding: 0px;
-        icon-size: 14px;
-        subcontrol-position: top right;
-        subcontrol-origin: margin;
-        position: absolute;
-        top: 10px;
-        right: 35px;
-        width: 20px;
-        height: 20px;
-    }
-    QDockWidget#premiumDock::float-button:hover {
-        background: rgba(33, 150, 243, 0.8);
-        border: none;
-    }
-  )");
+  // 将示波器设置添加到垂直标签页（第二个标签）
+  m_leftTabWidget->addTab(grpScope, "示波器设置", QString(QChar(0xe86d)));
 
   m_lblRxCount = new QLabel("0");
   m_lblTxCount = new QLabel("0");
 
-  // --- View Toolbar removed as requested by user, merged into main window ---
+  // === 控件设计器区域 - 两列布局 ===
+  QWidget *designerContainer = new QWidget();
+  QHBoxLayout *designerLayout = new QHBoxLayout(designerContainer);
+  designerLayout->setContentsMargins(0, 0, 0, 0);
+  designerLayout->setSpacing(0);
 
-  // 强制将示波器设置停靠在串口设置下方，避免跑到顶部横条遮挡内容
-  auto ensureLeftDockArea = [this](QDockWidget *dock) {
-    if (!dock)
-      return;
-    if (m_innerMainWindow->dockWidgetArea(dock) == Qt::LeftDockWidgetArea)
-      return;
+  // 左侧：工具箱（控件库）
+  m_widgetToolbox = new WidgetToolbox(designerContainer);
+  m_widgetToolbox->setFixedWidth(200);
+  designerLayout->addWidget(m_widgetToolbox);
 
-    const bool wasVisible = dock->isVisible();
-    m_innerMainWindow->removeDockWidget(dock);
-    m_innerMainWindow->addDockWidget(Qt::LeftDockWidgetArea, dock);
-    dock->setVisible(wasVisible);
-  };
-  ensureLeftDockArea(m_dockPort);
-  ensureLeftDockArea(m_dockRx);
-  ensureLeftDockArea(m_dockTx);
-  ensureLeftDockArea(m_dockScopeSettings);
+  // 右侧：设计器区域（控件放置区）
+  m_widgetDesigner = new WidgetDesignerArea(designerContainer);
+  designerLayout->addWidget(m_widgetDesigner, 1);
 
-  m_innerMainWindow->splitDockWidget(m_dockPort, m_dockScopeSettings,
-                                     Qt::Vertical);
+  // 将控件设计器添加到垂直标签页（第三个标签）
+  m_leftTabWidget->addTab(designerContainer, "控件设计器", QString(QChar(0xe88b)));
+
+  // 连接工具箱按钮信号到设计器
+  connect(m_widgetToolbox, &WidgetToolbox::addProtocolButton, m_widgetDesigner,
+          [this]() { m_widgetDesigner->addProtocolButton(QPoint()); });
+  connect(m_widgetToolbox, &WidgetToolbox::addScopeWidget, m_widgetDesigner,
+          [this]() { m_widgetDesigner->addScopeWidget(QPoint()); });
+
+  // 连接设计器的发送数据信号
+  connect(m_widgetDesigner, &WidgetDesignerArea::sendData, this,
+          [this](const QByteArray &data) {
+            if (m_serial && m_serial->isOpen()) {
+              m_serial->write(data);
+              m_txCount += data.size();
+              updateStatusInfo();
+            }
+          });
 
   // Receive Area - 改为DockWidget
   QWidget *grpData = new QWidget();
@@ -1800,8 +1680,9 @@ void SerialSession::setupConnections() {
             updateChartSettings();
           });
 
-  connect(m_dockScopeSettings, &QDockWidget::dockLocationChanged, this,
-          &SerialSession::onDockLocationChanged);
+  // 注释掉DockWidget相关的连接，因为已改为标签页
+  // connect(m_dockScopeSettings, &QDockWidget::dockLocationChanged, this,
+  //         &SerialSession::onDockLocationChanged);
 
   // 波形显示控制
   connect(m_chkEnableWaveform, &QCheckBox::toggled, this,
@@ -1910,11 +1791,17 @@ void SerialSession::openClosePort() {
     m_lblWelcome->setText(m_welcomeText);
     ToastWidget::showToast("串口 " + m_serial->portName() + " 已关闭", false,
                            this);
-    m_btnOpenClose->setText(QChar(0xE84E));
+    m_btnOpenClose->setText(QChar(0xe88f));
     m_btnOpenClose->setChecked(false);
     m_lblStatusIcon->setPixmap(
         QPixmap(":/icons/ONOFF/OFF5.png")
             .scaled(100, 60, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+
+    // 更新垂直标签页的串口设置图标为关闭状态
+    if (m_leftTabWidget) {
+      m_leftTabWidget->updateTabIcon(0, QString(QChar(0xe88c)));
+    }
+
     updateStatusInfo();
     // Disable auto-send
     m_chkAutoSend->setChecked(false); // triggers toggleAutoSend -> stops timer
@@ -1943,11 +1830,17 @@ void SerialSession::openClosePort() {
       ToastWidget::showToast("串口 " + m_serial->portName() + " 已打开", true,
                              this);
 
-      m_btnOpenClose->setText(QChar(0xE855));
+      m_btnOpenClose->setText(QChar(0xe88c));
       m_btnOpenClose->setChecked(true);
       m_lblStatusIcon->setPixmap(
           QPixmap(":/icons/ONOFF/ON2.png")
               .scaled(100, 60, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+
+      // 更新垂直标签页的串口设置图标为打开状态
+      if (m_leftTabWidget) {
+        m_leftTabWidget->updateTabIcon(0, QString(QChar(0xe88e)));
+      }
+
       updateStatusInfo();
       // Enable auto-send controls
       m_chkAutoSend->setEnabled(true);
@@ -1963,7 +1856,7 @@ void SerialSession::openClosePort() {
         QMessageBox::critical(this, "错误", "无法打开串口:\n" + errorStr);
       });
       m_btnOpenClose->setChecked(false);
-      m_btnOpenClose->setText(QChar(0xE84E));
+      m_btnOpenClose->setText(QChar(0xe88f));
       m_btnOpenClose->setToolTip("打开串口");
     }
   }
@@ -1985,6 +1878,11 @@ void SerialSession::onReadyRead() {
   QByteArray data = m_serial->readAll();
   m_rxCount += data.size();
   m_lblRxCount->setText(QString::number(m_rxCount));
+
+  // 将数据转发给控件设计器中的示波器组件
+  if (m_widgetDesigner) {
+    emit m_widgetDesigner->scopeDataReceived(data);
+  }
 
   if (!m_btnStopRx->isChecked()) {
     QString rawStr;
@@ -3327,7 +3225,8 @@ void SerialPortPlot::toggleDock(int dockType, bool checked) {
 
   switch (dockType) {
   case 0:
-    session->m_dockPort->setVisible(checked);
+    // m_dockPort已改为标签页，不再需要setVisible
+    // session->m_dockPort->setVisible(checked);
     break;
   case 1:
     session->m_dockRx->setVisible(checked);
@@ -3336,7 +3235,8 @@ void SerialPortPlot::toggleDock(int dockType, bool checked) {
     session->m_dockTx->setVisible(checked);
     break;
   case 3:
-    session->m_dockScopeSettings->setVisible(checked);
+    // m_dockScopeSettings已改为标签页，不再需要setVisible
+    // session->m_dockScopeSettings->setVisible(checked);
     break;
   }
 }
@@ -3513,10 +3413,11 @@ SerialPortContainer::SerialPortContainer(QWidget *parent) : QWidget(parent) {
 
     SerialSession *session = activePlot->getActiveSession();
     if (session) {
-      menuView->addAction(session->m_dockPort->toggleViewAction());
+      // m_dockPort和m_dockScopeSettings已改为标签页，不再添加到菜单
+      // menuView->addAction(session->m_dockPort->toggleViewAction());
       menuView->addAction(session->m_dockRx->toggleViewAction());
       menuView->addAction(session->m_dockTx->toggleViewAction());
-      menuView->addAction(session->m_dockScopeSettings->toggleViewAction());
+      // menuView->addAction(session->m_dockScopeSettings->toggleViewAction());
     } else {
       menuView->addAction("当前无活动会话")->setEnabled(false);
     }

@@ -13,6 +13,11 @@ release/toastwidget.o
 release/scrollinglabel.o
 release/terminalwidget.o
 release/curvesettings.o
+release/customwidget.o
+release/widgetdesigner.o
+release/editorwidget.o
+release/mcuprofilemanager.o
+release/verticaltabwidget.o
 release/qrc_resources.o
 release/moc_qcustomplot.o
 release/moc_CIconFont.o
@@ -27,3 +32,8 @@ release/moc_toastwidget.o
 release/moc_scrollinglabel.o
 release/moc_terminalwidget.o
 release/moc_curvesettings.o
+release/moc_customwidget.o
+release/moc_widgetdesigner.o
+release/moc_editorwidget.o
+release/moc_mcuprofilemanager.o
+release/moc_verticaltabwidget.o

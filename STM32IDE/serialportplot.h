@@ -266,6 +266,12 @@ public:
   QGroupBox *m_groupPlotParams;
   QGroupBox *m_groupYAxis;
 
+  // 控件设计器相关
+  class WidgetDesignerArea *m_widgetDesigner;
+  class WidgetToolbox *m_widgetToolbox;
+  class VerticalTabWidget *m_leftTabWidget;
+  QDockWidget *m_dockWidgetDesigner;
+
 private:
   // Render Throttling
   QTimer *m_replotTimer;

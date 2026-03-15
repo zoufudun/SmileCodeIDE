@@ -1,0 +1,116 @@
+#ifndef WIDGETDESIGNER_H
+#define WIDGETDESIGNER_H
+
+#include "customwidget.h"
+#include <QScrollArea>
+#include <QWidget>
+
+// 控件设计器区域 - 支持拖放控件
+class WidgetDesignerArea : public QWidget {
+  Q_OBJECT
+
+public:
+  explicit WidgetDesignerArea(QWidget *parent = nullptr);
+
+  // 添加自定义协议按钮
+  void addProtocolButton(const QPoint &pos = QPoint());
+
+  // 添加示波器组件
+  void addScopeWidget(const QPoint &pos = QPoint());
+
+signals:
+  void sendData(const QByteArray &data);
+  void scopeDataReceived(const QByteArray &data);
+
+protected:
+  void dragEnterEvent(QDragEnterEvent *event) override;
+  void dragMoveEvent(QDragMoveEvent *event) override;
+  void dropEvent(QDropEvent *event) override;
+  void paintEvent(QPaintEvent *event) override;
+
+private:
+  QVector<CustomProtocolButton *> m_protocolButtons;
+  QVector<class CustomScopeWidget *> m_scopeWidgets;
+  int m_nextButtonId = 1;
+  int m_nextScopeId = 1;
+};
+
+// 控件工具箱 - 提供可拖放的控件模板
+class WidgetToolbox : public QWidget {
+  Q_OBJECT
+
+public:
+  explicit WidgetToolbox(QWidget *parent = nullptr);
+
+signals:
+  void addProtocolButton();
+  void addScopeWidget();
+
+protected:
+  void mousePressEvent(QMouseEvent *event) override;
+  void mouseMoveEvent(QMouseEvent *event) override;
+
+private:
+  class QPushButton *m_btnProtocol;
+  class QPushButton *m_btnScope;
+  QPoint m_dragStartPos;
+  QPushButton *m_draggedButton = nullptr;
+};
+
+// 自定义示波器组件
+class CustomScopeWidget : public QWidget {
+  Q_OBJECT
+
+public:
+  explicit CustomScopeWidget(QWidget *parent = nullptr);
+
+  void setFrameConfig(const QByteArray &header, const QByteArray &tail);
+  void bindData(const QByteArray &data);
+
+  QString getName() const { return m_name; }
+  void setName(const QString &name);
+
+public slots:
+  void onDataReceived(const QByteArray &data);
+
+protected:
+  void contextMenuEvent(QContextMenuEvent *event) override;
+  void paintEvent(QPaintEvent *event) override;
+
+private:
+  void showConfigDialog();
+  void parseFrameData(const QByteArray &data);
+
+  QString m_name = "示波器";
+  QByteArray m_frameHeader;
+  QByteArray m_frameTail;
+  class QCustomPlot *m_plot;
+  QVector<double> m_xData;
+  QVector<double> m_yData;
+  double m_xValue = 0;
+  int m_maxPoints = 1000;
+};
+
+// 示波器配置对话框
+class ScopeConfigDialog : public QDialog {
+  Q_OBJECT
+
+public:
+  explicit ScopeConfigDialog(QWidget *parent = nullptr);
+
+  void setFrameHeader(const QByteArray &header);
+  void setFrameTail(const QByteArray &tail);
+  QByteArray getFrameHeader() const;
+  QByteArray getFrameTail() const;
+
+  void setName(const QString &name);
+  QString getName() const;
+
+private:
+  class QLineEdit *m_editName;
+  class QLineEdit *m_editFrameHeader;
+  class QLineEdit *m_editFrameTail;
+  class QSpinBox *m_spinMaxPoints;
+};
+
+#endif // WIDGETDESIGNER_H

@@ -8,6 +8,9 @@
 #include <QDir>
 #include <QFile>
 #include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QCoreApplication>
 #include <QDebug>
 
 McuProfileManager::McuProfileManager(QObject *parent)

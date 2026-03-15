@@ -31,7 +31,12 @@ SOURCES += \
     toastwidget.cpp \
     scrollinglabel.cpp \
     terminalwidget.cpp \
-    curvesettings.cpp
+    curvesettings.cpp \
+    customwidget.cpp \
+    widgetdesigner.cpp \
+    editorwidget.cpp \
+    mcuprofilemanager.cpp \
+    verticaltabwidget.cpp
 
 # 头文件
 HEADERS += \
@@ -48,7 +53,12 @@ HEADERS += \
     toastwidget.h \
     scrollinglabel.h \
     terminalwidget.h \
-    curvesettings.h
+    curvesettings.h \
+    customwidget.h \
+    widgetdesigner.h \
+    editorwidget.h \
+    mcuprofilemanager.h \
+    verticaltabwidget.h
 
 # 默认规则
 QMAKE_CXXFLAGS += -Wall -Wextra -Wpedantic
