@@ -21,6 +21,26 @@ enum class ChecksumType {
   Sum16     // 16位累加和
 };
 
+// 动态段类型
+enum class SegmentType {
+  FrameHeader,    // 帧头
+  FrameTail,      // 帧尾
+  DataLength,     // 数据段长度
+  Sequence,       // 帧序号
+  FunctionCode,   // 功能码
+  DataPayload,    // 数据区
+  Checksum,       // 校验
+  FixedValue      // 固定字节/数值
+};
+
+// 动态协议段配置
+struct ProtocolDynamicSegment {
+  SegmentType type = SegmentType::FixedValue;
+  QByteArray value; // 对于固定值/头尾/功能码/预设数据
+  int size = 1;     // 对于长度、序号的字节跨度
+  int config = 0;   // 对于校验，则存储 ChecksumType 值；对于长度，存储是否包含头尾等标志
+};
+
 // 协议帧配置
 struct ProtocolConfig {
   // 帧头
@@ -59,6 +79,10 @@ struct ProtocolConfig {
   int loopInterval = 1000;  // 毫秒
 
   QString name = "自定义协议";
+
+  // 模式选择: 0为常规模式(模式1), 1为动态拼接模式(模式2)
+  int configMode = 0;
+  QVector<ProtocolDynamicSegment> dynamicSegments;
 };
 
 // 自定义协议按钮控件
@@ -89,8 +113,10 @@ private slots:
   void onButtonClicked();
   void showConfigDialog();
   void onAutoSendTimeout();
+  void onBorderTimerTimeout();
 
 protected:
+  void paintEvent(QPaintEvent *event) override;
   void contextMenuEvent(QContextMenuEvent *event) override;
   void mousePressEvent(QMouseEvent *event) override;
   void mouseMoveEvent(QMouseEvent *event) override;
@@ -100,6 +126,9 @@ private:
   quint16 m_sequenceNumber = 0;
   class QTimer *m_autoSendTimer = nullptr;
   QPoint m_dragStartPos;
+  int m_buttonStyle = 0;
+  class QTimer *m_borderTimer = nullptr;
+  int m_borderAngle = 0;
 
   // 校验算法实现
   quint8 calculateXOR(const QByteArray &data);
@@ -108,6 +137,32 @@ private:
   quint32 calculateCRC32(const QByteArray &data);
   quint8 calculateSum8(const QByteArray &data);
   quint16 calculateSum16(const QByteArray &data);
+};
+
+// 动态段配置行控件
+class ProtocolPartWidget : public QWidget {
+  Q_OBJECT
+public:
+  explicit ProtocolPartWidget(const ProtocolDynamicSegment &seg = ProtocolDynamicSegment(), QWidget *parent = nullptr);
+  ProtocolDynamicSegment getSegment() const;
+
+signals:
+  void removeRequested(ProtocolPartWidget *widget);
+  void moveUpRequested(ProtocolPartWidget *widget);
+  void moveDownRequested(ProtocolPartWidget *widget);
+
+private slots:
+  void onTypeChanged(int index);
+
+private:
+  class QComboBox *m_comboType;
+  class QStackedWidget *m_stackedParams;
+
+  // Params widgets
+  class QLineEdit *m_editValue;        // HEX输入框：适用于 头、尾、数值、功能码、预设数据
+  class QComboBox *m_comboSize;        // 占用字节数：适用于 长度、序号 
+  class QComboBox *m_comboLengthRange; // 长度包含范围
+  class QComboBox *m_comboChecksumAlgo;// 校验算法
 };
 
 // 协议配置对话框
@@ -120,7 +175,15 @@ public:
   void setConfig(const ProtocolConfig &config);
   ProtocolConfig getConfig() const;
 
+private slots:
+  void onModeChanged(int index);
+  void onAddSegmentClicked();
+
 private:
+  class QComboBox *m_comboMode;
+  class QStackedWidget *m_mainStackedWidget;
+
+  // Mode 1 UI
   class QLineEdit *m_editName;
   class QLineEdit *m_editFrameHeader;
   class QCheckBox *m_chkUseHeader;
@@ -142,6 +205,11 @@ private:
   // 循环发送配置
   class QCheckBox *m_chkAutoSendLoop;
   class QSpinBox *m_spinLoopInterval;
+  class QLineEdit *m_editNameCommon; // 独立于模式的名称输入框
+  
+  // Mode 2 UI
+  class QVBoxLayout *m_dynamicListLayout;
+  QVector<ProtocolPartWidget *> m_partWidgets;
 };
 
 #endif // CUSTOMWIDGET_H

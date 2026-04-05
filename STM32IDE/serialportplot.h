@@ -216,6 +216,8 @@ public:
   QDockWidget *m_dockRx;
   QDockWidget *m_dockTx;
   QDockWidget *m_dockScopeSettings;
+  QDockWidget *m_dockReceive;
+  QDockWidget *m_dockSend;
 
   // Statistics Labels
   QLabel *m_lblRxCount;
@@ -255,7 +257,7 @@ public:
   QCheckBox *m_chkHideRxTx;
   QCheckBox *m_chkHideRxData;
   QCheckBox *m_chkShowRawData;
-  QSplitter *m_dataSplitter;
+  QWidget *m_dataSplitter;
   QSplitter *m_mainHorizSplitter;
   QScrollBar *m_scrollbarWaveform;
   QToolButton *m_btnFloatingPlay;
@@ -271,6 +273,7 @@ public:
   class WidgetToolbox *m_widgetToolbox;
   class VerticalTabWidget *m_leftTabWidget;
   QDockWidget *m_dockWidgetDesigner;
+  int m_designerTabIndex = -1;
 
 private:
   // Render Throttling

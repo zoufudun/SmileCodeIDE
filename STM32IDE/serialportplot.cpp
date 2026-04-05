@@ -1,4 +1,4 @@
-﻿#include "serialportplot.h"
+#include "serialportplot.h"
 #include "TOOLS/CIconFont.h"
 #include "curvesettings.h"
 #include "mainwindow.h"
@@ -56,6 +56,63 @@ void ensureUnifiedToolTipStyle() {
     toolTipFont.setPointSize(9);
   }
   QToolTip::setFont(toolTipFont);
+}
+
+QString neutralDataDockStyleSheet() {
+  return QStringLiteral(R"(
+    QDockWidget#dataDock {
+        background: #FFFFFF;
+        border: 1px solid #D8DEE6;
+        border-radius: 14px;
+    }
+    QDockWidget#dataDock::title {
+        background: #F3F4F6;
+        padding-top: 6px;
+        padding-bottom: 6px;
+        padding-left: 12px;
+        padding-right: 80px;
+        font-weight: bold;
+        font-size: 11pt;
+        color: #374151;
+        border: none;
+        border-bottom: 1px solid #E5E7EB;
+        border-top-left-radius: 14px;
+        border-top-right-radius: 14px;
+        min-height: 32px;
+    }
+    QDockWidget#dataDock QWidget#dockContentWidget {
+        background: #FFFFFF;
+        border: none;
+        border-bottom-left-radius: 14px;
+        border-bottom-right-radius: 14px;
+    }
+    QDockWidget#dataDock::close-button,
+    QDockWidget#dataDock::float-button {
+        background: transparent;
+        border: none;
+        border-radius: 4px;
+        padding: 2px;
+        icon-size: 16px;
+        subcontrol-position: center right;
+        subcontrol-origin: margin;
+        width: 24px;
+        height: 24px;
+    }
+    QDockWidget#dataDock::close-button {
+        right: 6px;
+    }
+    QDockWidget#dataDock::float-button {
+        right: 34px;
+    }
+    QDockWidget#dataDock::close-button:hover,
+    QDockWidget#dataDock::float-button:hover {
+        background: rgba(148, 163, 184, 0.18);
+    }
+    QDockWidget#dataDock::close-button:pressed,
+    QDockWidget#dataDock::float-button:pressed {
+        background: rgba(100, 116, 139, 0.24);
+    }
+  )");
 }
 
 class ScaledAxisTicker : public QCPAxisTicker {
@@ -136,10 +193,21 @@ void SerialSession::setupUi() {
   m_leftTabWidget->setMaximumWidth(600);
   m_mainHorizSplitter->addWidget(m_leftTabWidget);
 
-  // 左侧数据区（接收/发送）在一个垂直分割器里
-  QSplitter *rightSplitter = new QSplitter(Qt::Vertical);
-  m_mainHorizSplitter->addWidget(rightSplitter);
-  m_dataSplitter = rightSplitter;
+  // 左侧数据区（接收/发送）由独立的 Dock Host 托管，保证真正支持浮动/拖动/关闭
+  QMainWindow *dataDockHost = new QMainWindow();
+  dataDockHost->setWindowFlags(Qt::Widget);
+  dataDockHost->setDockOptions(QMainWindow::AnimatedDocks |
+                               QMainWindow::AllowNestedDocks |
+                               QMainWindow::AllowTabbedDocks);
+  dataDockHost->setStyleSheet("QMainWindow { background: transparent; border: none; }");
+  QWidget *dataDockPlaceholder = new QWidget(dataDockHost);
+  dataDockPlaceholder->setMinimumSize(0, 0);
+  dataDockPlaceholder->setSizePolicy(QSizePolicy::Ignored,
+                                     QSizePolicy::Ignored);
+  dataDockPlaceholder->hide();
+  dataDockHost->setCentralWidget(dataDockPlaceholder);
+  m_mainHorizSplitter->addWidget(dataDockHost);
+  m_dataSplitter = dataDockHost;
 
   // Global Stylesheet for Custom Cards
   this->setStyleSheet("SerialPortPlot { background-color: #f5f5f5; }"
@@ -226,18 +294,19 @@ void SerialSession::setupUi() {
   portActionLayout->addWidget(m_btnRefresh);
 
   // 打开串口按钮：带背景的按钮样式
-  m_btnOpenClose = new QPushButton(QChar(0xe88f));
+  m_btnOpenClose = new QPushButton(QChar(0xe84e));
   m_btnOpenClose->setFont(CIconFont::instance()->getIconFont(50));
   m_btnOpenClose->setCheckable(true);
   m_btnOpenClose->setToolTip("打开串口");
   m_btnOpenClose->setMinimumWidth(52);
   m_btnOpenClose->setMinimumHeight(44);
+  m_btnOpenClose->setFlat(true);
   m_btnOpenClose->setStyleSheet(
-      "QPushButton { color: #555555; background: #E3F2FD; border: 1px solid "
-      "#BBDEFB; border-radius: 16px; }"
-      "QPushButton:hover { background: #BBDEFB; color: #1976D2; }"
-      "QPushButton:checked { background: #FFCDD2; color: #C62828; "
-      "border-color: #EF9A9A; }");
+      "QPushButton { background: transparent; border: none; border-radius: 8px;"
+      "  color: #1565C0; padding: 4px; }"
+      "QPushButton:hover { background: rgba(21,101,192,40); }"
+      "QPushButton:pressed { background: rgba(21,101,192,80); }"
+      "QPushButton:checked { color: #C62828; }");
 
   // Status Icon Label
   m_lblStatusIcon = new QLabel();
@@ -256,7 +325,7 @@ void SerialSession::setupUi() {
   portLayout->addLayout(portActionLayout, 5, 0, 1, 3);
 
   // 将串口设置添加到垂直标签页（第一个标签）
-  m_leftTabWidget->addTab(grpPort, "串口设置", QString(QChar(0xe88d)));
+  m_leftTabWidget->addTab(grpPort, "串口设置", QString(QChar(0xe890)));
 
   // 2. Receive Settings
   QWidget *grpRx = new QWidget();
@@ -574,23 +643,36 @@ void SerialSession::setupUi() {
   m_lblRxCount = new QLabel("0");
   m_lblTxCount = new QLabel("0");
 
-  // === 控件设计器区域 - 两列布局 ===
-  QWidget *designerContainer = new QWidget();
-  QHBoxLayout *designerLayout = new QHBoxLayout(designerContainer);
-  designerLayout->setContentsMargins(0, 0, 0, 0);
-  designerLayout->setSpacing(0);
+  // === 控件设计器区域 - 垂直分割（左：控件库，右：实例化区）===
+  QSplitter *designerSplitter = new QSplitter(Qt::Horizontal);
+  designerSplitter->setObjectName("designerSplitter");
+  designerSplitter->setChildrenCollapsible(false);
+  designerSplitter->setHandleWidth(6);
+  designerSplitter->setStyleSheet(
+      "QSplitter#designerSplitter::handle {"
+      "  background: #DADCE0;"
+      "}"
+      "QSplitter#designerSplitter::handle:hover {"
+      "  background: #BDC1C6;"
+      "}");
 
   // 左侧：工具箱（控件库）
-  m_widgetToolbox = new WidgetToolbox(designerContainer);
-  m_widgetToolbox->setFixedWidth(200);
-  designerLayout->addWidget(m_widgetToolbox);
+  m_widgetToolbox = new WidgetToolbox(designerSplitter);
+  m_widgetToolbox->setMinimumWidth(220);
+  m_widgetToolbox->setMaximumWidth(360);
 
   // 右侧：设计器区域（控件放置区）
-  m_widgetDesigner = new WidgetDesignerArea(designerContainer);
-  designerLayout->addWidget(m_widgetDesigner, 1);
+  m_widgetDesigner = new WidgetDesignerArea(designerSplitter);
+
+  designerSplitter->addWidget(m_widgetToolbox);
+  designerSplitter->addWidget(m_widgetDesigner);
+  designerSplitter->setStretchFactor(0, 0);
+  designerSplitter->setStretchFactor(1, 1);
+  designerSplitter->setSizes({240, 600});
 
   // 将控件设计器添加到垂直标签页（第三个标签）
-  m_leftTabWidget->addTab(designerContainer, "控件设计器", QString(QChar(0xe88b)));
+  m_designerTabIndex = m_leftTabWidget->addTab(
+      designerSplitter, "控件设计器", QString(QChar(0xe88b)));
 
   // 连接工具箱按钮信号到设计器
   connect(m_widgetToolbox, &WidgetToolbox::addProtocolButton, m_widgetDesigner,
@@ -610,7 +692,7 @@ void SerialSession::setupUi() {
 
   // Receive Area - 改为DockWidget
   QWidget *grpData = new QWidget();
-  grpData->setObjectName("cardWidget");
+  grpData->setObjectName("dockContentWidget");
   QVBoxLayout *dataMainLayout = new QVBoxLayout(grpData);
   dataMainLayout->setContentsMargins(10, 10, 10, 10);
 
@@ -687,73 +769,19 @@ void SerialSession::setupUi() {
   dataLayout->addWidget(rxContainer);
 
   // 将接收区域包装为DockWidget
-  QDockWidget *m_dockReceive = new QDockWidget("Receive Data", m_innerMainWindow);
+  m_dockReceive = new QDockWidget("接收数据", dataDockHost);
   m_dockReceive->setObjectName("dataDock");
   m_dockReceive->setFeatures(QDockWidget::DockWidgetMovable |
                               QDockWidget::DockWidgetFloatable |
                               QDockWidget::DockWidgetClosable);
+  m_dockReceive->setAllowedAreas(Qt::AllDockWidgetAreas);
   m_dockReceive->setWidget(grpData);
-  m_dockReceive->setStyleSheet(R"(
-    QDockWidget#dataDock {
-        background: #FAFAFA;
-        border: none;
-    }
-    QDockWidget#dataDock::title {
-        background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-            stop:0 rgba(33, 150, 243, 0.9),
-            stop:1 rgba(100, 181, 246, 0.9));
-        padding-top: 8px;
-        padding-bottom: 6px;
-        padding-left: 10px;
-        font-weight: bold;
-        font-size: 10pt;
-        color: #FFFFFF;
-        border: none;
-        text-shadow: 0 0 8px rgba(33, 150, 243, 0.6);
-    }
-    QDockWidget#dataDock::close-button {
-        background: transparent;
-        border: none;
-        border-radius: 3px;
-        padding: 0px;
-        icon-size: 12px;
-        subcontrol-position: top right;
-        subcontrol-origin: margin;
-        position: absolute;
-        top: 8px;
-        right: 8px;
-        width: 18px;
-        height: 18px;
-    }
-    QDockWidget#dataDock::close-button:hover {
-        background: rgba(244, 67, 54, 0.8);
-        border: none;
-    }
-    QDockWidget#dataDock::float-button {
-        background: transparent;
-        border: none;
-        border-radius: 3px;
-        padding: 0px;
-        icon-size: 12px;
-        subcontrol-position: top right;
-        subcontrol-origin: margin;
-        position: absolute;
-        top: 8px;
-        right: 30px;
-        width: 18px;
-        height: 18px;
-    }
-    QDockWidget#dataDock::float-button:hover {
-        background: rgba(33, 150, 243, 0.8);
-        border: none;
-    }
-  )");
-
-  rightSplitter->addWidget(m_dockReceive);
+  m_dockReceive->setStyleSheet(neutralDataDockStyleSheet());
+  dataDockHost->addDockWidget(Qt::TopDockWidgetArea, m_dockReceive);
 
   // --- Send Area Container - 改为DockWidget ---
   QWidget *grpSend = new QWidget();
-  grpSend->setObjectName("cardWidget");
+  grpSend->setObjectName("dockContentWidget");
   QVBoxLayout *grpSendMainLayout = new QVBoxLayout(grpSend);
   grpSendMainLayout->setContentsMargins(10, 10, 10, 10);
 
@@ -1116,75 +1144,18 @@ void SerialSession::setupUi() {
   grpSendLayout->addWidget(m_sendTabWidget);
 
   // 将发送区域包装为DockWidget
-  QDockWidget *m_dockSend = new QDockWidget("Send Data", m_innerMainWindow);
+  m_dockSend = new QDockWidget("数据发送", dataDockHost);
   m_dockSend->setObjectName("dataDock");
   m_dockSend->setFeatures(QDockWidget::DockWidgetMovable |
                           QDockWidget::DockWidgetFloatable |
                           QDockWidget::DockWidgetClosable);
+  m_dockSend->setAllowedAreas(Qt::AllDockWidgetAreas);
   m_dockSend->setWidget(grpSend);
-  m_dockSend->setStyleSheet(R"(
-    QDockWidget#dataDock {
-        background: #FAFAFA;
-        border: none;
-    }
-    QDockWidget#dataDock::title {
-        background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-            stop:0 rgba(76, 175, 80, 0.9),
-            stop:1 rgba(129, 199, 132, 0.9));
-        padding-top: 8px;
-        padding-bottom: 6px;
-        padding-left: 10px;
-        font-weight: bold;
-        font-size: 10pt;
-        color: #FFFFFF;
-        border: none;
-        text-shadow: 0 0 8px rgba(76, 175, 80, 0.6);
-    }
-    QDockWidget#dataDock::close-button {
-        background: transparent;
-        border: none;
-        border-radius: 3px;
-        padding: 0px;
-        icon-size: 12px;
-        subcontrol-position: top right;
-        subcontrol-origin: margin;
-        position: absolute;
-        top: 8px;
-        right: 8px;
-        width: 18px;
-        height: 18px;
-    }
-    QDockWidget#dataDock::close-button:hover {
-        background: rgba(244, 67, 54, 0.8);
-        border: none;
-    }
-    QDockWidget#dataDock::float-button {
-        background: transparent;
-        border: none;
-        border-radius: 3px;
-        padding: 0px;
-        icon-size: 12px;
-        subcontrol-position: top right;
-        subcontrol-origin: margin;
-        position: absolute;
-        top: 8px;
-        right: 30px;
-        width: 18px;
-        height: 18px;
-    }
-    QDockWidget#dataDock::float-button:hover {
-        background: rgba(76, 175, 80, 0.8);
-        border: none;
-    }
-  )");
-
-  // Instead of rightSplitter->addWidget(grpSend), we add to rightSplitter
-  // directly which is already set as CentralWidget
-  rightSplitter->addWidget(m_dockSend);
-
-  // Set rightSplitter vertical stretch factor so send area is larger
-  rightSplitter->setStretchFactor(0, 3); // Receive Area
-  rightSplitter->setStretchFactor(1, 2); // Send Area (made taller)
+  m_dockSend->setStyleSheet(neutralDataDockStyleSheet());
+  dataDockHost->addDockWidget(Qt::TopDockWidgetArea, m_dockSend);
+  dataDockHost->splitDockWidget(m_dockReceive, m_dockSend, Qt::Vertical);
+  dataDockHost->resizeDocks({m_dockReceive, m_dockSend}, {3, 2},
+                            Qt::Vertical);
 
   // Lastly, add our main internal window to the actual top-level layout
   mainLayout->addWidget(m_innerMainWindow);
@@ -1492,6 +1463,60 @@ void SerialSession::setupConnections() {
   connect(m_serial, &QSerialPort::errorOccurred, this,
           &SerialSession::onPortError);
 
+  connect(m_leftTabWidget, &VerticalTabWidget::currentChanged, this,
+          [this](int index) {
+            if (m_leftTabWidget) {
+              if (index == m_designerTabIndex) {
+                m_leftTabWidget->setMinimumWidth(0);
+                m_leftTabWidget->setMaximumWidth(QWIDGETSIZE_MAX);
+              } else {
+                m_leftTabWidget->setMinimumWidth(400);
+                m_leftTabWidget->setMaximumWidth(600);
+              }
+            }
+
+            if (index == 0) {
+              // 串口设置：显示收发区，隐藏波形图
+              if (m_dataSplitter) {
+                m_dataSplitter->setVisible(!m_chkHideRxTx->isChecked());
+              }
+              m_dockReceive->show();
+              m_dockSend->show();
+              if (m_waveformPage) {
+                m_waveformPage->setVisible(false);
+              }
+            } else if (index == 1) {
+              // 示波器：隐藏收发区，默认打开波形
+              if (m_dataSplitter) {
+                m_dataSplitter->setVisible(false);
+              }
+              m_dockReceive->hide();
+              m_dockSend->hide();
+              m_chkEnableWaveform->setChecked(true);
+              if (m_waveformPage) {
+                m_waveformPage->setVisible(true);
+              }
+            } else if (index == m_designerTabIndex) {
+              // 控件设计器：隐藏收发区与波形
+              if (m_dataSplitter) {
+                m_dataSplitter->setVisible(false);
+              }
+              m_dockReceive->hide();
+              m_dockSend->hide();
+              if (m_waveformPage) {
+                m_waveformPage->setVisible(false);
+              }
+            } else {
+              if (m_dataSplitter) {
+                m_dataSplitter->setVisible(!m_chkHideRxTx->isChecked());
+              }
+              if (m_waveformPage) {
+                m_waveformPage->setVisible(
+                    m_chkEnableWaveform->isChecked());
+              }
+            }
+          });
+
   connect(m_btnRxClear, &QToolButton::clicked, this,
           &SerialSession::clearReceiveArea);
   connect(m_btnSend, &QToolButton::clicked, this, &SerialSession::sendData);
@@ -1567,8 +1592,20 @@ void SerialSession::setupConnections() {
     onMultiPageChanged(newPage);
   });
   // Scope Settings Toggles
-  connect(m_chkHideRxTx, &QCheckBox::toggled,
-          [this](bool checked) { m_dataSplitter->setVisible(!checked); });
+  connect(m_chkHideRxTx, &QCheckBox::toggled, [this](bool checked) {
+    const int index =
+        m_leftTabWidget ? m_leftTabWidget->currentIndex() : -1;
+    if (!m_dataSplitter) {
+      return;
+    }
+    if (index == 0) {
+      m_dataSplitter->setVisible(!checked);
+    } else if (index == 1 || index == m_designerTabIndex) {
+      m_dataSplitter->setVisible(false);
+    } else {
+      m_dataSplitter->setVisible(!checked);
+    }
+  });
   connect(m_chkHideRxData, &QCheckBox::toggled,
           [this](bool checked) { m_textReceive->setVisible(!checked); });
 
@@ -1791,7 +1828,7 @@ void SerialSession::openClosePort() {
     m_lblWelcome->setText(m_welcomeText);
     ToastWidget::showToast("串口 " + m_serial->portName() + " 已关闭", false,
                            this);
-    m_btnOpenClose->setText(QChar(0xe88f));
+    m_btnOpenClose->setText(QChar(0xe84e));
     m_btnOpenClose->setChecked(false);
     m_lblStatusIcon->setPixmap(
         QPixmap(":/icons/ONOFF/OFF5.png")
@@ -1830,7 +1867,7 @@ void SerialSession::openClosePort() {
       ToastWidget::showToast("串口 " + m_serial->portName() + " 已打开", true,
                              this);
 
-      m_btnOpenClose->setText(QChar(0xe88c));
+      m_btnOpenClose->setText(QChar(0xe855));
       m_btnOpenClose->setChecked(true);
       m_lblStatusIcon->setPixmap(
           QPixmap(":/icons/ONOFF/ON2.png")
@@ -1838,7 +1875,7 @@ void SerialSession::openClosePort() {
 
       // 更新垂直标签页的串口设置图标为打开状态
       if (m_leftTabWidget) {
-        m_leftTabWidget->updateTabIcon(0, QString(QChar(0xe88e)));
+        m_leftTabWidget->updateTabIcon(0, QString(QChar(0xe88f)));
       }
 
       updateStatusInfo();
@@ -1879,9 +1916,10 @@ void SerialSession::onReadyRead() {
   m_rxCount += data.size();
   m_lblRxCount->setText(QString::number(m_rxCount));
 
-  // 将数据转发给控件设计器中的示波器组件
+  // 将数据转发给控件设计器中的组件
   if (m_widgetDesigner) {
     emit m_widgetDesigner->scopeDataReceived(data);
+    emit m_widgetDesigner->ledDataReceived(data);
   }
 
   if (!m_btnStopRx->isChecked()) {
@@ -1930,8 +1968,11 @@ void SerialSession::onReadyRead() {
 }
 
 void SerialSession::onWaveformEnabled(bool checked) {
-  m_waveformPage->setVisible(checked);
-  if (checked) {
+  const bool inDesigner =
+      m_leftTabWidget &&
+      (m_leftTabWidget->currentIndex() == m_designerTabIndex);
+  m_waveformPage->setVisible(checked && !inDesigner);
+  if (checked && !inDesigner) {
     m_customPlot->replot();
   }
 }
@@ -3417,6 +3458,9 @@ SerialPortContainer::SerialPortContainer(QWidget *parent) : QWidget(parent) {
       // menuView->addAction(session->m_dockPort->toggleViewAction());
       menuView->addAction(session->m_dockRx->toggleViewAction());
       menuView->addAction(session->m_dockTx->toggleViewAction());
+      menuView->addSeparator();
+      menuView->addAction(session->m_dockReceive->toggleViewAction());
+      menuView->addAction(session->m_dockSend->toggleViewAction());
       // menuView->addAction(session->m_dockScopeSettings->toggleViewAction());
     } else {
       menuView->addAction("当前无活动会话")->setEnabled(false);

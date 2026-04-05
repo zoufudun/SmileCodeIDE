@@ -3,6 +3,21 @@
 #include "../qcustomplot/qcustomplot.h"
 #include <QApplication>
 #include <QCheckBox>
+#include <QComboBox>
+#include <QDrag>
+#include <QDragEnterEvent>
+#include <QFormLayout>
+#include <QGridLayout>
+#include <QGroupBox>
+#include <QLabel>
+#include <QLineEdit>
+#include <QMenu>
+#include <QMimeData>
+#include <QMouseEvent>
+#include <QPainter>
+#include <QPushButton>
+#include <QApplication>
+#include <QCheckBox>
 #include <QDrag>
 #include <QDragEnterEvent>
 #include <QFormLayout>
@@ -21,16 +36,12 @@
 // ============ WidgetDesignerArea 实现 ============
 
 WidgetDesignerArea::WidgetDesignerArea(QWidget *parent) : QWidget(parent) {
-  setMinimumSize(600, 400);
+  setMinimumSize(400, 300);
+  // Light grid background
   setStyleSheet("WidgetDesignerArea {"
-                "  background: qlineargradient(x1:0, y1:0, x2:1, y2:1,"
-                "    stop:0 #f5f5f5, stop:1 #e0e0e0);"
-                "  border: 2px dashed #9E9E9E;"
-                "  border-radius: 8px;"
+                "  background-color: #F8F9FA;"
+                "  border: none;"
                 "}");
-
-  // 使用网格布局实现可自由拖动的控件放置
-  // 不设置固定布局，允许控件自由定位
   setAcceptDrops(true);
 }
 
@@ -83,6 +94,24 @@ void WidgetDesignerArea::addScopeWidget(const QPoint &pos) {
           &CustomScopeWidget::onDataReceived);
 }
 
+void WidgetDesignerArea::addLedWidget(const QPoint &pos) {
+  CustomLedWidget *led = new CustomLedWidget(this);
+  led->setName(QString("LED灯 %1").arg(m_nextLedId++));
+
+  if (pos.isNull()) {
+    int row = (m_protocolButtons.size() + m_scopeWidgets.size() + 1) / 2;
+    led->move(20, 20 + row * 80 + m_ledWidgets.size() * 120);
+  } else {
+    led->move(pos);
+  }
+
+  led->show();
+  m_ledWidgets.append(led);
+
+  connect(this, &WidgetDesignerArea::ledDataReceived, led,
+          &CustomLedWidget::onDataReceived);
+}
+
 void WidgetDesignerArea::dragEnterEvent(QDragEnterEvent *event) {
   if (event->mimeData()->hasText()) {
     event->acceptProposedAction();
@@ -101,6 +130,8 @@ void WidgetDesignerArea::dropEvent(QDropEvent *event) {
     addProtocolButton(pos);
   } else if (widgetType == "ScopeWidget") {
     addScopeWidget(pos);
+  } else if (widgetType == "LedWidget") {
+    addLedWidget(pos);
   }
 
   event->acceptProposedAction();
@@ -109,10 +140,24 @@ void WidgetDesignerArea::dropEvent(QDropEvent *event) {
 void WidgetDesignerArea::paintEvent(QPaintEvent *event) {
   QWidget::paintEvent(event);
 
-  if (m_protocolButtons.isEmpty() && m_scopeWidgets.isEmpty()) {
+  // Subtle light dot-grid overlay
+  QPainter gridPainter(this);
+  gridPainter.setRenderHint(QPainter::Antialiasing, false);
+  gridPainter.setPen(Qt::NoPen);
+  gridPainter.setBrush(QColor(180, 190, 200, 80));
+  const int gridStep = 24;
+  for (int x = gridStep; x < width(); x += gridStep) {
+    for (int y = gridStep; y < height(); y += gridStep) {
+      gridPainter.drawEllipse(QPoint(x, y), 1, 1);
+    }
+  }
+
+  if (m_protocolButtons.isEmpty() && m_scopeWidgets.isEmpty() && m_ledWidgets.isEmpty()) {
     QPainter painter(this);
-    painter.setPen(QColor(158, 158, 158));
-    painter.setFont(QFont("Arial", 12));
+    painter.setPen(QColor(156, 163, 175));
+    QFont hintFont = font();
+    hintFont.setPointSize(11);
+    painter.setFont(hintFont);
     painter.drawText(rect(), Qt::AlignCenter,
                      "从左侧工具箱拖放控件到此处\n或点击工具箱按钮添加控件");
   }
@@ -121,84 +166,98 @@ void WidgetDesignerArea::paintEvent(QPaintEvent *event) {
 // ============ WidgetToolbox 实现 ============
 
 WidgetToolbox::WidgetToolbox(QWidget *parent) : QWidget(parent) {
-  setFixedWidth(200);
+  setMinimumWidth(180);
+  setMaximumWidth(320);
+  // Clean sidebar: light gray, border on the right
   setStyleSheet("WidgetToolbox {"
-                "  background: qlineargradient(x1:0, y1:0, x2:0, y2:1,"
-                "    stop:0 #FAFAFA, stop:1 #F5F5F5);"
-                "  border-right: 2px solid #E0E0E0;"
+                "  background: #F1F3F4;"
+                "  border-right: 1px solid #DADCE0;"
                 "}");
 
   QVBoxLayout *layout = new QVBoxLayout(this);
-  layout->setContentsMargins(15, 15, 15, 15);
-  layout->setSpacing(15);
+  layout->setContentsMargins(14, 18, 14, 18);
+  layout->setSpacing(18);
 
+  // Title
   QLabel *title = new QLabel("控件库");
-  title->setStyleSheet("font-weight: bold; font-size: 16px; color: #424242;");
+  title->setStyleSheet(
+      "font-weight: 700; font-size: 14px; color: #3C4043; letter-spacing: 0.5px;");
   layout->addWidget(title);
 
-  // 协议按钮
-  m_btnProtocol = new QPushButton("协议按钮");
-  m_btnProtocol->setMinimumHeight(80);
-  m_btnProtocol->setStyleSheet(
-      "QPushButton {"
-      "  background: qlineargradient(x1:0, y1:0, x2:0, y2:1,"
-      "    stop:0 #667eea, stop:1 #764ba2);"
-      "  color: white;"
-      "  border: none;"
-      "  border-radius: 8px;"
-      "  padding: 15px;"
-      "  font-size: 14pt;"
-      "  font-weight: bold;"
-      "}"
-      "QPushButton:hover {"
-      "  background: qlineargradient(x1:0, y1:0, x2:0, y2:1,"
-      "    stop:0 #7b8ff0, stop:1 #8a5cb8);"
-      "}");
+  // Helper to build keyboard-style buttons
+  auto makeKeyBtn = [](const QString &text, const QString &icon,
+                       const QString &color) -> QPushButton * {
+    QPushButton *btn = new QPushButton();
+    btn->setMinimumHeight(62);
+    btn->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
+    btn->setCursor(Qt::OpenHandCursor);
+    btn->setToolTip(text);
+
+    // Label inside: icon + text stacked
+    QString label = icon.isEmpty() ? text : icon + "\n" + text;
+    btn->setText(label);
+    btn->setStyleSheet(QString(
+        "QPushButton {"
+        "  background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #FFFFFF, stop:1 #E8EAED);"
+        "  color: #3C4043;"
+        "  border: 1px solid #C5C8CE;"
+        "  border-bottom: 3px solid %1;"
+        "  border-radius: 8px;"
+        "  padding: 8px;"
+        "  font-size: 12px;"
+        "  font-weight: 600;"
+        "  text-align: center;"
+        "}"
+        "QPushButton:hover {"
+        "  background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #F8F9FA, stop:1 #DFE1E5);"
+        "  border-bottom-color: %1;"
+        "}"
+        "QPushButton:pressed {"
+        "  background: #E8EAED;"
+        "  border-bottom-width: 1px;"
+        "  margin-top: 2px;"
+        "}").arg(color));
+    return btn;
+  };
+
+  // 协议按钮 (keyboard key style)
+  m_btnProtocol = makeKeyBtn("命令控件", "📡", "#1A73E8");
   layout->addWidget(m_btnProtocol);
 
-  // 示波器组件
-  m_btnScope = new QPushButton("示波器");
-  m_btnScope->setMinimumHeight(80);
-  m_btnScope->setStyleSheet(
-      "QPushButton {"
-      "  background: qlineargradient(x1:0, y1:0, x2:0, y2:1,"
-      "    stop:0 #11998e, stop:1 #38ef7d);"
-      "  color: white;"
-      "  border: none;"
-      "  border-radius: 8px;"
-      "  padding: 15px;"
-      "  font-size: 14pt;"
-      "  font-weight: bold;"
-      "}"
-      "QPushButton:hover {"
-      "  background: qlineargradient(x1:0, y1:0, x2:0, y2:1,"
-      "    stop:0 #1aaa9e, stop:1 #48ff8d);"
-      "}");
+  // 示波器组件 (keyboard key style)
+  m_btnScope = makeKeyBtn("波形控件", "📈", "#188038");
   layout->addWidget(m_btnScope);
+
+  // LED控件
+  m_btnLed = makeKeyBtn("LED控件", "💡", "#F44336");
+  layout->addWidget(m_btnLed);
 
   layout->addStretch();
 
-  QLabel *hint = new QLabel("点击按钮添加控件\n或拖放到右侧设计区");
-  hint->setStyleSheet("color: #757575; font-size: 11px;");
+  // Hint
+  QLabel *hint = new QLabel("拖放到右侧放置区");
+  hint->setStyleSheet("color: #9AA0A6; font-size: 11px;");
   hint->setWordWrap(true);
   hint->setAlignment(Qt::AlignCenter);
   layout->addWidget(hint);
 
-  // 连接点击信号
-  connect(m_btnProtocol, &QPushButton::clicked, this,
-          &WidgetToolbox::addProtocolButton);
-  connect(m_btnScope, &QPushButton::clicked, this,
-          &WidgetToolbox::addScopeWidget);
+  connect(m_btnScope, &QPushButton::clicked, this, &WidgetToolbox::addScopeWidget);
+  connect(m_btnProtocol, &QPushButton::clicked, this, &WidgetToolbox::addProtocolButton);
+  connect(m_btnLed, &QPushButton::clicked, this, &WidgetToolbox::addLedWidget);
 }
 
 void WidgetToolbox::mousePressEvent(QMouseEvent *event) {
   if (event->button() == Qt::LeftButton) {
     m_dragStartPos = event->pos();
+    m_draggedButton = nullptr;
 
-    // 检查点击的是哪个按钮
-    QWidget *child = childAt(event->pos());
-    if (child == m_btnProtocol || child == m_btnScope) {
-      m_draggedButton = qobject_cast<QPushButton *>(child);
+    // Check which button was clicked using geometry
+    if (m_btnProtocol && m_btnProtocol->geometry().contains(event->pos())) {
+      m_draggedButton = m_btnProtocol;
+    } else if (m_btnScope && m_btnScope->geometry().contains(event->pos())) {
+      m_draggedButton = m_btnScope;
+    } else if (m_btnLed && m_btnLed->geometry().contains(event->pos())) {
+      m_draggedButton = m_btnLed;
     }
   }
   QWidget::mousePressEvent(event);
@@ -209,8 +268,7 @@ void WidgetToolbox::mouseMoveEvent(QMouseEvent *event) {
     return;
   }
 
-  if ((event->pos() - m_dragStartPos).manhattanLength() <
-      QApplication::startDragDistance()) {
+  if ((event->pos() - m_dragStartPos).manhattanLength() < QApplication::startDragDistance()) {
     return;
   }
 
@@ -218,7 +276,7 @@ void WidgetToolbox::mouseMoveEvent(QMouseEvent *event) {
     return;
   }
 
-  // 创建拖放操作
+  // Create drag operation
   QDrag *drag = new QDrag(this);
   QMimeData *mimeData = new QMimeData();
 
@@ -226,11 +284,13 @@ void WidgetToolbox::mouseMoveEvent(QMouseEvent *event) {
     mimeData->setText("ProtocolButton");
   } else if (m_draggedButton == m_btnScope) {
     mimeData->setText("ScopeWidget");
+  } else if (m_draggedButton == m_btnLed) {
+    mimeData->setText("LedWidget");
   }
 
   drag->setMimeData(mimeData);
 
-  // 创建拖放预览图
+  // Drag preview pixmap
   QPixmap pixmap(m_draggedButton->size());
   m_draggedButton->render(&pixmap);
   drag->setPixmap(pixmap);
@@ -240,7 +300,7 @@ void WidgetToolbox::mouseMoveEvent(QMouseEvent *event) {
   m_draggedButton = nullptr;
 }
 
-// ============ CustomScopeWidget 实现 ============
+// ============ CustomScopeWidget Implementation ============
 
 CustomScopeWidget::CustomScopeWidget(QWidget *parent) : QWidget(parent) {
   setFixedSize(400, 200);
@@ -253,23 +313,22 @@ CustomScopeWidget::CustomScopeWidget(QWidget *parent) : QWidget(parent) {
   QVBoxLayout *layout = new QVBoxLayout(this);
   layout->setContentsMargins(5, 5, 5, 5);
 
-  // 标题栏
+  // Title bar
   QLabel *titleLabel = new QLabel(m_name);
-  titleLabel->setStyleSheet(
-      "background: #2196F3; color: white; padding: 4px; border-radius: 3px;");
+  titleLabel->setStyleSheet("background: #2196F3; color: white; padding: 4px; border-radius: 3px; font-weight: bold;");
   layout->addWidget(titleLabel);
 
-  // 图表
+  // Plot
   m_plot = new QCustomPlot(this);
   m_plot->setMinimumHeight(150);
   m_plot->addGraph();
   m_plot->graph(0)->setPen(QPen(QColor(33, 150, 243), 2));
-  m_plot->xAxis->setLabel("时间");
-  m_plot->yAxis->setLabel("数值");
+  m_plot->xAxis->setLabel("Time");
+  m_plot->yAxis->setLabel("Value");
   m_plot->xAxis->setRange(0, 100);
   m_plot->yAxis->setRange(0, 255);
 
-  // 设置暗黑主题
+  // Dark theme for plot
   m_plot->setBackground(QColor(30, 30, 30));
   m_plot->xAxis->setBasePen(QPen(Qt::white));
   m_plot->yAxis->setBasePen(QPen(Qt::white));
@@ -295,8 +354,7 @@ void CustomScopeWidget::setName(const QString &name) {
   }
 }
 
-void CustomScopeWidget::setFrameConfig(const QByteArray &header,
-                                        const QByteArray &tail) {
+void CustomScopeWidget::setFrameConfig(const QByteArray &header, const QByteArray &tail) {
   m_frameHeader = header;
   m_frameTail = tail;
 }
@@ -446,4 +504,214 @@ QByteArray ScopeConfigDialog::getFrameHeader() const {
 
 QByteArray ScopeConfigDialog::getFrameTail() const {
   return QByteArray::fromHex(m_editFrameTail->text().toLatin1());
+}
+
+// ============ CustomLedWidget Implementation ============
+
+CustomLedWidget::CustomLedWidget(QWidget *parent) : QWidget(parent) {
+  setFixedSize(100, 120);
+  setStyleSheet("CustomLedWidget { background: transparent; }");
+}
+
+void CustomLedWidget::setConfig(const QByteArray &onData, const QByteArray &offData, const QString &color) {
+  m_onData = onData;
+  m_offData = offData;
+  m_color = color;
+  update();
+}
+
+void CustomLedWidget::bindData(const QByteArray &data) {
+  onDataReceived(data);
+}
+
+void CustomLedWidget::setName(const QString &name) {
+  m_name = name;
+  update();
+}
+
+void CustomLedWidget::onDataReceived(const QByteArray &data) {
+  if (!m_onData.isEmpty() && data.contains(m_onData)) {
+    if (!m_isOn) {
+      m_isOn = true;
+      update();
+    }
+  } else if (!m_offData.isEmpty() && data.contains(m_offData)) {
+    if (m_isOn) {
+      m_isOn = false;
+      update();
+    }
+  }
+}
+
+void CustomLedWidget::contextMenuEvent(QContextMenuEvent *event) {
+  QMenu menu(this);
+  QAction *configAction = menu.addAction("配置");
+  QAction *toggleAction = menu.addAction(m_isOn ? "切换状态(强制熄灭)" : "切换状态(强制点亮)");
+  menu.addSeparator();
+  QAction *deleteAction = menu.addAction("删除");
+
+  QAction *selected = menu.exec(event->globalPos());
+  if (selected == configAction) {
+    showConfigDialog();
+  } else if (selected == toggleAction) {
+    m_isOn = !m_isOn;
+    update();
+  } else if (selected == deleteAction) {
+    deleteLater();
+  }
+}
+
+void CustomLedWidget::showConfigDialog() {
+  LedConfigDialog dialog(this);
+  dialog.setName(m_name);
+  dialog.setOnData(m_onData);
+  dialog.setOffData(m_offData);
+  dialog.setColor(m_color);
+
+  if (dialog.exec() == QDialog::Accepted) {
+    setName(dialog.getName());
+    setConfig(dialog.getOnData(), dialog.getOffData(), dialog.getColor());
+  }
+}
+
+void CustomLedWidget::paintEvent(QPaintEvent *event) {
+  Q_UNUSED(event);
+  QPainter painter(this);
+  painter.setRenderHint(QPainter::Antialiasing);
+
+  int ledSize = 60;
+  QRect ledRect((width() - ledSize) / 2, 10, ledSize, ledSize);
+
+  QColor baseColor(m_color);
+  if (!m_isOn) {
+    // 熄灭状态变暗
+    baseColor = baseColor.darker(300);
+  }
+
+  // 绘制发光光晕
+  if (m_isOn) {
+    for (int i = 0; i < 3; ++i) {
+      int glowSize = ledSize + (i * 10);
+      QRect glowRect((width() - glowSize) / 2, 10 - (i * 5), glowSize, glowSize);
+      QColor glowColor = baseColor;
+      glowColor.setAlpha(50 - (i * 15));
+      painter.setPen(Qt::NoPen);
+      painter.setBrush(glowColor);
+      painter.drawEllipse(glowRect);
+    }
+  }
+
+  // 绘制LED本体
+  QRadialGradient gradient(ledRect.center(), ledSize / 2, ledRect.topLeft() + QPoint(ledSize/3, ledSize/3));
+  if (m_isOn) {
+    gradient.setColorAt(0, baseColor.lighter(150));
+    gradient.setColorAt(0.7, baseColor);
+    gradient.setColorAt(1, baseColor.darker(150));
+  } else {
+    gradient.setColorAt(0, baseColor.lighter(120));
+    gradient.setColorAt(1, baseColor.darker(200));
+  }
+
+  painter.setPen(QPen(baseColor.darker(300), 2));
+  painter.setBrush(gradient);
+  painter.drawEllipse(ledRect);
+
+  // 绘制高光边缘
+  if (!m_isOn) {
+    QPainterPath highlight;
+    highlight.addEllipse(ledRect.adjusted(3, 3, -3, -3));
+    painter.setPen(QPen(QColor(255, 255, 255, 40), 2));
+    painter.setBrush(Qt::NoBrush);
+    painter.drawPath(highlight);
+  }
+
+  // 绘制文本
+  painter.setPen(QPen(QColor(60, 64, 67)));
+  QFont f = font();
+  f.setPointSize(10);
+  f.setBold(true);
+  painter.setFont(f);
+  painter.drawText(QRect(0, ledRect.bottom() + 10, width(), 30), Qt::AlignCenter | Qt::TextWordWrap, m_name);
+}
+
+// ============ LedConfigDialog Implementation ============
+
+LedConfigDialog::LedConfigDialog(QWidget *parent) : QDialog(parent) {
+  setWindowTitle("LED配置");
+  setMinimumWidth(350);
+
+  QVBoxLayout *mainLayout = new QVBoxLayout(this);
+
+  QGroupBox *basicGroup = new QGroupBox("配置");
+  QFormLayout *formLayout = new QFormLayout(basicGroup);
+
+  m_editName = new QLineEdit();
+  formLayout->addRow("名称:", m_editName);
+
+  m_comboColor = new QComboBox();
+  m_comboColor->addItem("红色", "#F44336");
+  m_comboColor->addItem("绿色", "#4CAF50");
+  m_comboColor->addItem("蓝色", "#2196F3");
+  m_comboColor->addItem("黄色", "#FFEB3B");
+  m_comboColor->addItem("橙色", "#FF9800");
+  m_comboColor->addItem("紫色", "#9C27B0");
+  formLayout->addRow("颜色:", m_comboColor);
+
+  m_editOnData = new QLineEdit();
+  m_editOnData->setPlaceholderText("HEX格式，如: 01");
+  formLayout->addRow("点亮匹配数据(HEX):", m_editOnData);
+
+  m_editOffData = new QLineEdit();
+  m_editOffData->setPlaceholderText("HEX格式，如: 00");
+  formLayout->addRow("熄灭匹配数据(HEX):", m_editOffData);
+
+  mainLayout->addWidget(basicGroup);
+
+  QHBoxLayout *buttonLayout = new QHBoxLayout();
+  buttonLayout->addStretch();
+  QPushButton *btnOk = new QPushButton("确定");
+  QPushButton *btnCancel = new QPushButton("取消");
+  buttonLayout->addWidget(btnOk);
+  buttonLayout->addWidget(btnCancel);
+  mainLayout->addLayout(buttonLayout);
+
+  connect(btnOk, &QPushButton::clicked, this, &QDialog::accept);
+  connect(btnCancel, &QPushButton::clicked, this, &QDialog::reject);
+}
+
+void LedConfigDialog::setOnData(const QByteArray &data) {
+  m_editOnData->setText(data.toHex(' ').toUpper());
+}
+
+void LedConfigDialog::setOffData(const QByteArray &data) {
+  m_editOffData->setText(data.toHex(' ').toUpper());
+}
+
+void LedConfigDialog::setColor(const QString &color) {
+  for (int i = 0; i < m_comboColor->count(); ++i) {
+    if (m_comboColor->itemData(i).toString().toUpper() == color.toUpper()) {
+      m_comboColor->setCurrentIndex(i);
+      return;
+    }
+  }
+}
+
+void LedConfigDialog::setName(const QString &name) {
+  m_editName->setText(name);
+}
+
+QByteArray LedConfigDialog::getOnData() const {
+  return QByteArray::fromHex(m_editOnData->text().toLatin1());
+}
+
+QByteArray LedConfigDialog::getOffData() const {
+  return QByteArray::fromHex(m_editOffData->text().toLatin1());
+}
+
+QString LedConfigDialog::getColor() const {
+  return m_comboColor->currentData().toString();
+}
+
+QString LedConfigDialog::getName() const {
+  return m_editName->text();
 }

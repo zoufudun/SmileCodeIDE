@@ -1,6 +1,7 @@
 #ifndef TOASTWIDGET_H
 #define TOASTWIDGET_H
 
+#include <QColor>
 #include <QEvent>
 #include <QGuiApplication>
 #include <QLabel>
@@ -40,6 +41,9 @@ private:
   QPropertyAnimation *m_opacityAnim;
   double m_rippleRadius;
   double m_rippleOpacity;
+  double m_borderAngle;
+  QColor m_accentColor;
+  QColor m_borderBaseColor;
 
   // Static list to manage stacking
   static QList<ToastWidget *> s_activeToasts;

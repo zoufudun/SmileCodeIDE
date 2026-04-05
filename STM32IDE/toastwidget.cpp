@@ -7,6 +7,7 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QPainter>
+#include <QPainterPath>
 #include <QPixmap>
 #include <QScreen>
 #include <QStyleOption>
@@ -15,7 +16,12 @@ QList<ToastWidget *> ToastWidget::s_activeToasts;
 
 ToastWidget::ToastWidget(QWidget *parent, const QString &message,
                          bool isSuccess)
-    : QWidget(parent) {
+    : QWidget(parent), m_label(nullptr), m_lifeTimer(nullptr),
+      m_rippleTimer(nullptr), m_opacityAnim(nullptr), m_rippleRadius(0.0),
+      m_rippleOpacity(0.4), m_borderAngle(0.0),
+      m_accentColor(isSuccess ? QColor(32, 201, 151) : QColor(255, 179, 71)),
+      m_borderBaseColor(isSuccess ? QColor(32, 201, 151, 90)
+                                  : QColor(255, 179, 71, 95)) {
   // Child widget overlay, frameless, on top
   // Qt::Dialog or Qt::ToolTip might be useful but Qt::SubWindow works well for
   // MDI-like or just overlay Actually, just default flags + Frameless is often
@@ -67,22 +73,27 @@ ToastWidget::ToastWidget(QWidget *parent, const QString &message,
   iconLabel->setPixmap(iconPixmap);
   iconLabel->setFixedSize(24, 24);
 
-  QLabel *textLabel = new QLabel(message, this);
-  textLabel->setStyleSheet("color: #333333; font-family: 'Microsoft YaHei'; "
-                           "font-size: 14px; font-weight: bold; background: "
-                           "transparent;");
+  m_label = new QLabel(message, this);
+  m_label->setStyleSheet("color: #333333; font-family: 'Microsoft YaHei'; "
+                         "font-size: 14px; font-weight: bold; background: "
+                         "transparent;");
 
   layout->addWidget(iconLabel);
-  layout->addWidget(textLabel);
+  layout->addWidget(m_label);
 
   // Background Styling on Main Widget
   // Solid white background with rounded corners
   this->setObjectName("ToastWidget");
-  this->setStyleSheet("#ToastWidget {"
-                      "   background-color: #FFFFFF;" // Solid White
-                      "   border: 1px solid #D0D0D0;"
-                      "   border-radius: 10px;" // Rounded Corners
-                      "}");
+  this->setStyleSheet(
+      QStringLiteral("#ToastWidget {"
+                     "   background-color: rgba(255, 255, 255, 245);"
+                     "   border: 1px solid rgba(%1, %2, %3, %4);"
+                     "   border-radius: 10px;"
+                     "}")
+          .arg(m_borderBaseColor.red())
+          .arg(m_borderBaseColor.green())
+          .arg(m_borderBaseColor.blue())
+          .arg(m_borderBaseColor.alpha()));
 
   // Add shadow
   QGraphicsDropShadowEffect *shadow = new QGraphicsDropShadowEffect(this);
@@ -93,7 +104,7 @@ ToastWidget::ToastWidget(QWidget *parent, const QString &message,
 
   // Layout Size
   // Adjust resize based on content - add extra padding for complete text
-  QFontMetrics fm(textLabel->font());
+  QFontMetrics fm(m_label->font());
   int textWidth = fm.horizontalAdvance(message);
   int totalWidth = 15 + 24 + 10 + textWidth + 40; // Extra padding
   resize(totalWidth + 20, 54 + 10); // +Shadow margin + extra width
@@ -105,8 +116,6 @@ ToastWidget::ToastWidget(QWidget *parent, const QString &message,
   m_lifeTimer->start(5000); // 5 Seconds
 
   // Ripple Animation Setup - continuous loop while visible
-  m_rippleRadius = 0;
-  m_rippleOpacity = 0.4;
   m_rippleTimer = new QTimer(this);
   connect(m_rippleTimer, &QTimer::timeout, this, [this]() {
     m_rippleRadius += 6;
@@ -115,6 +124,10 @@ ToastWidget::ToastWidget(QWidget *parent, const QString &message,
       // Restart ripple
       m_rippleRadius = 0;
       m_rippleOpacity = 0.4;
+    }
+    m_borderAngle += 1.0;
+    if (m_borderAngle >= 360.0) {
+      m_borderAngle -= 360.0;
     }
     update(); // Trigger repaint
   });
@@ -169,7 +182,6 @@ void ToastWidget::repositionToasts(QWidget *parent) {
 
   QRect parentRect = parent->rect();
   // Position Top Right of PARENT
-  int startX = parentRect.width();
   int startY = 20; // Top padding
 
   int spacing = 10;
@@ -217,14 +229,16 @@ void ToastWidget::onAnimationFinished() {
 }
 
 void ToastWidget::paintEvent(QPaintEvent *event) {
+  Q_UNUSED(event);
+
   QStyleOption opt;
   opt.init(this);
   QPainter p(this);
+  p.setRenderHint(QPainter::Antialiasing);
   style()->drawPrimitive(QStyle::PE_Widget, &opt, &p, this);
 
   // Draw water ripple effect
   if (m_rippleRadius > 0 && m_rippleOpacity > 0) {
-    p.setRenderHint(QPainter::Antialiasing);
     QColor rippleColor(100, 180, 255,
                        static_cast<int>(m_rippleOpacity * 255)); // Light blue
     p.setPen(Qt::NoPen);
@@ -234,6 +248,49 @@ void ToastWidget::paintEvent(QPaintEvent *event) {
     p.drawEllipse(center, static_cast<int>(m_rippleRadius),
                   static_cast<int>(m_rippleRadius / 2));
   }
+
+  const QRectF borderRect = rect().adjusted(2.5, 2.5, -2.5, -2.5);
+  QPainterPath borderPath;
+  borderPath.addRoundedRect(borderRect, 10.0, 10.0);
+
+  QColor staticBorder = m_borderBaseColor;
+  staticBorder.setAlpha(145);
+  p.setBrush(Qt::NoBrush);
+  p.setPen(QPen(staticBorder, 2.2, Qt::SolidLine, Qt::RoundCap,
+                Qt::RoundJoin));
+  p.drawPath(borderPath);
+
+  // Draw one continuous rotating highlight strip instead of dashed segments.
+  auto makeOrbitGradient = [&](int strongAlpha, int midAlpha,
+                               int tailAlpha) -> QConicalGradient {
+    QConicalGradient gradient(borderRect.center(), m_borderAngle);
+    QColor strong = m_accentColor;
+    strong.setAlpha(strongAlpha);
+    QColor medium = m_accentColor;
+    medium.setAlpha(midAlpha);
+    QColor tail = m_accentColor;
+    tail.setAlpha(tailAlpha);
+    QColor clear = m_accentColor;
+    clear.setAlpha(0);
+
+    gradient.setColorAt(0.00, strong);
+    gradient.setColorAt(0.08, strong);
+    gradient.setColorAt(0.16, medium);
+    gradient.setColorAt(0.24, tail);
+    gradient.setColorAt(0.32, clear);
+    gradient.setColorAt(1.00, clear);
+    return gradient;
+  };
+
+  QPen orbitGlowPen(QBrush(makeOrbitGradient(126, 72, 24)), 9.5,
+                    Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin);
+  p.setPen(orbitGlowPen);
+  p.drawPath(borderPath);
+
+  QPen orbitCorePen(QBrush(makeOrbitGradient(255, 210, 96)), 4.8,
+                    Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin);
+  p.setPen(orbitCorePen);
+  p.drawPath(borderPath);
 }
 
 void ToastWidget::enterEvent(QEvent *) {

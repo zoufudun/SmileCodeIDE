@@ -18,9 +18,13 @@ public:
   // 添加示波器组件
   void addScopeWidget(const QPoint &pos = QPoint());
 
+  // 添加LED组件
+  void addLedWidget(const QPoint &pos = QPoint());
+
 signals:
   void sendData(const QByteArray &data);
   void scopeDataReceived(const QByteArray &data);
+  void ledDataReceived(const QByteArray &data);
 
 protected:
   void dragEnterEvent(QDragEnterEvent *event) override;
@@ -31,8 +35,10 @@ protected:
 private:
   QVector<CustomProtocolButton *> m_protocolButtons;
   QVector<class CustomScopeWidget *> m_scopeWidgets;
+  QVector<class CustomLedWidget *> m_ledWidgets;
   int m_nextButtonId = 1;
   int m_nextScopeId = 1;
+  int m_nextLedId = 1;
 };
 
 // 控件工具箱 - 提供可拖放的控件模板
@@ -45,6 +51,7 @@ public:
 signals:
   void addProtocolButton();
   void addScopeWidget();
+  void addLedWidget();
 
 protected:
   void mousePressEvent(QMouseEvent *event) override;
@@ -53,6 +60,7 @@ protected:
 private:
   class QPushButton *m_btnProtocol;
   class QPushButton *m_btnScope;
+  class QPushButton *m_btnLed;
   QPoint m_dragStartPos;
   QPushButton *m_draggedButton = nullptr;
 };
@@ -111,6 +119,60 @@ private:
   class QLineEdit *m_editFrameHeader;
   class QLineEdit *m_editFrameTail;
   class QSpinBox *m_spinMaxPoints;
+};
+
+// 自定义LED控件
+class CustomLedWidget : public QWidget {
+  Q_OBJECT
+
+public:
+  explicit CustomLedWidget(QWidget *parent = nullptr);
+
+  void setConfig(const QByteArray &onData, const QByteArray &offData, const QString &color);
+  void bindData(const QByteArray &data);
+
+  QString getName() const { return m_name; }
+  void setName(const QString &name);
+
+public slots:
+  void onDataReceived(const QByteArray &data);
+
+protected:
+  void contextMenuEvent(QContextMenuEvent *event) override;
+  void paintEvent(QPaintEvent *event) override;
+
+private:
+  void showConfigDialog();
+
+  QString m_name = "LED灯";
+  QByteArray m_onData = QByteArray::fromHex("01");
+  QByteArray m_offData = QByteArray::fromHex("00");
+  QString m_color = "#F44336"; // 默认红色
+  bool m_isOn = false;
+};
+
+// LED配置对话框
+class LedConfigDialog : public QDialog {
+  Q_OBJECT
+
+public:
+  explicit LedConfigDialog(QWidget *parent = nullptr);
+
+  void setOnData(const QByteArray &data);
+  void setOffData(const QByteArray &data);
+  void setColor(const QString &color);
+  void setName(const QString &name);
+
+  QByteArray getOnData() const;
+  QByteArray getOffData() const;
+  QString getColor() const;
+  QString getName() const;
+
+private:
+  class QLineEdit *m_editName;
+  class QLineEdit *m_editOnData;
+  class QLineEdit *m_editOffData;
+  class QComboBox *m_comboColor;
 };
 
 #endif // WIDGETDESIGNER_H
