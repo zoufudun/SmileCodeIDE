@@ -25,6 +25,7 @@ signals:
   void sendData(const QByteArray &data);
   void scopeDataReceived(const QByteArray &data);
   void ledDataReceived(const QByteArray &data);
+  void ledStatesReceived(const QVector<int> &states);
 
 protected:
   void dragEnterEvent(QDragEnterEvent *event) override;
@@ -133,9 +134,13 @@ public:
 
   QString getName() const { return m_name; }
   void setName(const QString &name);
+  
+  int getBindChannel() const { return m_bindChannel; }
+  void setBindChannel(int channel);
 
 public slots:
   void onDataReceived(const QByteArray &data);
+  void onLedStatesReceived(const QVector<int> &states);
 
 protected:
   void contextMenuEvent(QContextMenuEvent *event) override;
@@ -149,6 +154,7 @@ private:
   QByteArray m_offData = QByteArray::fromHex("00");
   QString m_color = "#F44336"; // 默认红色
   bool m_isOn = false;
+  int m_bindChannel = -1; // -1表示未绑定通道
 };
 
 // LED配置对话框
@@ -162,17 +168,20 @@ public:
   void setOffData(const QByteArray &data);
   void setColor(const QString &color);
   void setName(const QString &name);
+  void setBindChannel(int channel);
 
   QByteArray getOnData() const;
   QByteArray getOffData() const;
   QString getColor() const;
   QString getName() const;
+  int getBindChannel() const;
 
 private:
   class QLineEdit *m_editName;
   class QLineEdit *m_editOnData;
   class QLineEdit *m_editOffData;
   class QComboBox *m_comboColor;
+  class QSpinBox *m_spinBindChannel;
 };
 
 #endif // WIDGETDESIGNER_H

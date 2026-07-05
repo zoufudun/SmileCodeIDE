@@ -237,6 +237,10 @@ public:
   double m_xAxisScale;
   int m_viewWidthPoints;
   QDoubleSpinBox *m_spinPoints;
+  QByteArray m_frameHeader;
+  QByteArray m_frameTail;
+  QLineEdit *m_editFrameHeader;
+  QLineEdit *m_editFrameTail;
   QSpinBox *m_spinBufferLimit;
   QDoubleSpinBox *m_spinSampleInterval;
   QComboBox *m_comboTimeUnit;

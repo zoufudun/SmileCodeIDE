@@ -9,6 +9,9 @@ release/serialportplot.o
 release/iaptool.o
 release/toolchaindialog.o
 release/cantool.o
+release/caninterface.o
+release/canopenmaster.o
+release/candevicedialog.o
 release/toastwidget.o
 release/scrollinglabel.o
 release/terminalwidget.o
@@ -19,6 +22,7 @@ release/editorwidget.o
 release/mcuprofilemanager.o
 release/verticaltabwidget.o
 release/qrc_resources.o
+release/qrc_darkstyle.o
 release/moc_qcustomplot.o
 release/moc_CIconFont.o
 release/moc_buildsystem.o
@@ -28,6 +32,9 @@ release/moc_serialportplot.o
 release/moc_iaptool.o
 release/moc_toolchaindialog.o
 release/moc_cantool.o
+release/moc_caninterface.o
+release/moc_canopenmaster.o
+release/moc_candevicedialog.o
 release/moc_toastwidget.o
 release/moc_scrollinglabel.o
 release/moc_terminalwidget.o

@@ -1,0 +1,22 @@
+{
+	"folders": [
+		{
+			"path": ".."
+		},
+		{
+			"name": "MDK-ARM(AC6)",
+			"path": "../../../ARM/New/FreeRTOS All In One(2026-01-04)/FreeRTOS All In One(2026-01-04)/Project/MDK-ARM(AC6)"
+		},
+		{
+			"name": "RVMDK（uv5）",
+			"path": "../../../ARM/H743/H743XI-V/GPIOLED/Project/RVMDK（uv5）"
+		}
+	],
+	"settings": {
+		"debug.hideSlowPreLaunchWarning": true,
+		"debug.showInStatusBar": "never",
+		"clangd.arguments": [
+			"--compile-commands-dir=i:\\ARM\\New\\FreeRTOS All In One(2026-01-04)\\FreeRTOS All In One(2026-01-04)\\Project\\MDK-ARM(AC6)\\out\\project\\Flash"
+		]
+	}
+}

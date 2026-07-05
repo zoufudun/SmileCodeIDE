@@ -110,6 +110,8 @@ void WidgetDesignerArea::addLedWidget(const QPoint &pos) {
 
   connect(this, &WidgetDesignerArea::ledDataReceived, led,
           &CustomLedWidget::onDataReceived);
+  connect(this, &WidgetDesignerArea::ledStatesReceived, led,
+          &CustomLedWidget::onLedStatesReceived);
 }
 
 void WidgetDesignerArea::dragEnterEvent(QDragEnterEvent *event) {
@@ -520,6 +522,10 @@ void CustomLedWidget::setConfig(const QByteArray &onData, const QByteArray &offD
   update();
 }
 
+void CustomLedWidget::setBindChannel(int channel) {
+  m_bindChannel = channel;
+}
+
 void CustomLedWidget::bindData(const QByteArray &data) {
   onDataReceived(data);
 }
@@ -530,6 +536,7 @@ void CustomLedWidget::setName(const QString &name) {
 }
 
 void CustomLedWidget::onDataReceived(const QByteArray &data) {
+  if (m_bindChannel != -1) return; // If channel bound, skip raw byte content match
   if (!m_onData.isEmpty() && data.contains(m_onData)) {
     if (!m_isOn) {
       m_isOn = true;
@@ -538,6 +545,16 @@ void CustomLedWidget::onDataReceived(const QByteArray &data) {
   } else if (!m_offData.isEmpty() && data.contains(m_offData)) {
     if (m_isOn) {
       m_isOn = false;
+      update();
+    }
+  }
+}
+
+void CustomLedWidget::onLedStatesReceived(const QVector<int> &states) {
+  if (m_bindChannel >= 0 && m_bindChannel < states.size()) {
+    bool newState = (states[m_bindChannel] != 0);
+    if (m_isOn != newState) {
+      m_isOn = newState;
       update();
     }
   }
@@ -567,10 +584,12 @@ void CustomLedWidget::showConfigDialog() {
   dialog.setOnData(m_onData);
   dialog.setOffData(m_offData);
   dialog.setColor(m_color);
+  dialog.setBindChannel(m_bindChannel);
 
   if (dialog.exec() == QDialog::Accepted) {
     setName(dialog.getName());
     setConfig(dialog.getOnData(), dialog.getOffData(), dialog.getColor());
+    setBindChannel(dialog.getBindChannel());
   }
 }
 
@@ -665,6 +684,12 @@ LedConfigDialog::LedConfigDialog(QWidget *parent) : QDialog(parent) {
   m_editOffData->setPlaceholderText("HEX格式，如: 00");
   formLayout->addRow("熄灭匹配数据(HEX):", m_editOffData);
 
+  m_spinBindChannel = new QSpinBox();
+  m_spinBindChannel->setRange(-1, 255);
+  m_spinBindChannel->setValue(-1);
+  m_spinBindChannel->setSpecialValueText("未绑定 (-1)");
+  formLayout->addRow("绑定通道:", m_spinBindChannel);
+
   mainLayout->addWidget(basicGroup);
 
   QHBoxLayout *buttonLayout = new QHBoxLayout();
@@ -700,6 +725,10 @@ void LedConfigDialog::setName(const QString &name) {
   m_editName->setText(name);
 }
 
+void LedConfigDialog::setBindChannel(int channel) {
+  m_spinBindChannel->setValue(channel);
+}
+
 QByteArray LedConfigDialog::getOnData() const {
   return QByteArray::fromHex(m_editOnData->text().toLatin1());
 }
@@ -714,4 +743,8 @@ QString LedConfigDialog::getColor() const {
 
 QString LedConfigDialog::getName() const {
   return m_editName->text();
+}
+
+int LedConfigDialog::getBindChannel() const {
+  return m_spinBindChannel->value();
 }

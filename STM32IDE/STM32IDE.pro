@@ -8,6 +8,24 @@ CONFIG += c++11
 LIBS += -L"D:/Soft/Qt/5.15.2/mingw81_64/lib" -lqscintilla2_qt5
 INCLUDEPATH += "D:/Soft/Qt/5.15.2/mingw81_64/include/Qsci"
 
+# ZLG zlgcan SDK 头文件（zlgcan.dll 运行时通过 QLibrary 动态加载，无需链接 .lib）
+INCLUDEPATH += $$PWD/USBCANFD
+
+# 将 zlgcan.dll 与 kerneldlls 拷贝到生成目录（与可执行文件同级），便于运行时加载。
+# 使用显式的 release/debug 子目录，避免 $(DESTDIR) 末尾空格导致 xcopy 参数错误。
+win32 {
+    ZLG_SRC = $$PWD/USBCANFD
+    CONFIG(debug, debug|release) {
+        ZLG_OUT = $$OUT_PWD/debug
+    } else {
+        ZLG_OUT = $$OUT_PWD/release
+    }
+    ZLG_SRC ~= s,/,\\,g
+    ZLG_OUT ~= s,/,\\,g
+    QMAKE_POST_LINK += $$quote(cmd /c copy /y "$${ZLG_SRC}\zlgcan.dll" "$${ZLG_OUT}"$$escape_expand(\n\t))
+    QMAKE_POST_LINK += $$quote(cmd /c xcopy /e /i /y "$${ZLG_SRC}\kerneldlls" "$${ZLG_OUT}\kerneldlls"$$escape_expand(\n\t))
+}
+
 # 添加QCodeEditor
 # include(QCodeEditor/QCodeEditor.pri)
 
@@ -28,6 +46,9 @@ SOURCES += \
     iaptool.cpp \
     toolchaindialog.cpp \
     cantool.cpp \
+    caninterface.cpp \
+    canopenmaster.cpp \
+    candevicedialog.cpp \
     toastwidget.cpp \
     scrollinglabel.cpp \
     terminalwidget.cpp \
@@ -50,6 +71,10 @@ HEADERS += \
     iaptool.h \
     toolchaindialog.h \
     cantool.h \
+    caninterface.h \
+    canopenmaster.h \
+    candevicedialog.h \
+    cantheme.h \
     toastwidget.h \
     scrollinglabel.h \
     terminalwidget.h \
@@ -76,4 +101,5 @@ unix {
 
 # 资源文件
 # 添加资源文件
-RESOURCES += resources.qrc
+RESOURCES += resources.qrc \
+    ../dark/darkstyle.qrc

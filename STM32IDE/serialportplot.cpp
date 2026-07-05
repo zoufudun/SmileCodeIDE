@@ -1,11 +1,11 @@
 #include "serialportplot.h"
 #include "TOOLS/CIconFont.h"
 #include "curvesettings.h"
+#include "customwidget.h"
 #include "mainwindow.h"
 #include "toastwidget.h"
-#include "widgetdesigner.h"
-#include "customwidget.h"
 #include "verticaltabwidget.h"
+#include "widgetdesigner.h"
 #include <QApplication>
 #include <QClipboard>
 #include <QDateTime>
@@ -20,8 +20,8 @@
 #include <QMessageBox>
 #include <QPlainTextEdit>
 #include <QRegularExpression>
-#include <QSignalBlocker>
 #include <QScrollBar>
+#include <QSignalBlocker>
 #include <QSize>
 #include <QSplitter>
 #include <QTextStream>
@@ -29,15 +29,15 @@
 #include <QToolTip>
 #include <QVBoxLayout>
 
+
 namespace {
 QString unifiedToolTipStyleSheet() {
-  return QStringLiteral(
-      "QToolTip {"
-      " color: #263238;"
-      " background-color: #FFF8E1;"
-      " border: 1px solid #FFCC80;"
-      " padding: 4px 8px;"
-      "}");
+  return QStringLiteral("QToolTip {"
+                        " color: #263238;"
+                        " background-color: #FFF8E1;"
+                        " border: 1px solid #FFCC80;"
+                        " padding: 4px 8px;"
+                        "}");
 }
 
 void ensureUnifiedToolTipStyle() {
@@ -137,7 +137,8 @@ private:
 SerialSession::SerialSession(QWidget *parent)
     : QWidget(parent), m_lastPortCount(0), m_rxCount(0), m_txCount(0),
       m_xValue(0), m_xAxisScale(1.0), m_viewWidthPoints(100),
-      m_widgetDesigner(nullptr), m_widgetToolbox(nullptr), m_leftTabWidget(nullptr) {
+      m_widgetDesigner(nullptr), m_widgetToolbox(nullptr),
+      m_leftTabWidget(nullptr) {
   ensureUnifiedToolTipStyle();
   m_serial = new QSerialPort(this);
   m_autoSendTimer = new QTimer(this);
@@ -155,6 +156,8 @@ SerialSession::SerialSession(QWidget *parent)
   m_needsReplot = false;
   m_replotTimer = new QTimer(this);
   m_replotTimer->setInterval(33); // ~30 FPS limit for QCustomPlot
+
+  m_frameTail = "\n";
 
   setupUi();
   setupChart();
@@ -199,7 +202,8 @@ void SerialSession::setupUi() {
   dataDockHost->setDockOptions(QMainWindow::AnimatedDocks |
                                QMainWindow::AllowNestedDocks |
                                QMainWindow::AllowTabbedDocks);
-  dataDockHost->setStyleSheet("QMainWindow { background: transparent; border: none; }");
+  dataDockHost->setStyleSheet(
+      "QMainWindow { background: transparent; border: none; }");
   QWidget *dataDockPlaceholder = new QWidget(dataDockHost);
   dataDockPlaceholder->setMinimumSize(0, 0);
   dataDockPlaceholder->setSizePolicy(QSizePolicy::Ignored,
@@ -432,51 +436,48 @@ void SerialSession::setupUi() {
 
   const QFont scopeIconFont = CIconFont::instance()->getIconFont(50);
   auto setupScopeIconCheck = [&scopeIconFont](QCheckBox *check,
-                                               const QString &icon,
-                                               const QString &tooltip) {
+                                              const QString &icon,
+                                              const QString &tooltip) {
     check->setFont(scopeIconFont);
     check->setText(icon);
     check->setToolTip(tooltip);
     check->setCursor(Qt::PointingHandCursor);
-    check->setStyleSheet(
-        "QCheckBox {"
-        "  background: transparent;"
-        "  border: none;"
-        "  color: #546E7A;"
-        "  font-size: 50px;"
-        "  padding: 0px;"
-        "  margin: 0px;"
-        "}"
-        "QCheckBox:hover { color: #42A5F5; }"
-        "QCheckBox:checked { color: #1976D2; }"
-        "QCheckBox::indicator { width: 0px; height: 0px; }");
+    check->setStyleSheet("QCheckBox {"
+                         "  background: transparent;"
+                         "  border: none;"
+                         "  color: #546E7A;"
+                         "  font-size: 50px;"
+                         "  padding: 0px;"
+                         "  margin: 0px;"
+                         "}"
+                         "QCheckBox:hover { color: #42A5F5; }"
+                         "QCheckBox:checked { color: #1976D2; }"
+                         "QCheckBox::indicator { width: 0px; height: 0px; }");
     check->setFixedSize(62, 62);
   };
 
-  auto setupScopeIconButton = [&scopeIconFont](QPushButton *button,
-                                                const QString &icon,
-                                                const QString &tooltip,
-                                                bool checkable) {
-    button->setFont(scopeIconFont);
-    button->setText(icon);
-    button->setToolTip(tooltip);
-    button->setCheckable(checkable);
-    button->setCursor(Qt::PointingHandCursor);
-    button->setFlat(true);
-    button->setFixedSize(62, 62);
-    button->setStyleSheet(
-        "QPushButton {"
-        "  background: transparent;"
-        "  border: none;"
-        "  color: #546E7A;"
-        "  font-size: 50px;"
-        "  padding: 0px;"
-        "  margin: 0px;"
-        "}"
-        "QPushButton:hover { color: #42A5F5; }"
-        "QPushButton:pressed { color: #1E88E5; }"
-        "QPushButton:checked { color: #1976D2; }");
-  };
+  auto setupScopeIconButton =
+      [&scopeIconFont](QPushButton *button, const QString &icon,
+                       const QString &tooltip, bool checkable) {
+        button->setFont(scopeIconFont);
+        button->setText(icon);
+        button->setToolTip(tooltip);
+        button->setCheckable(checkable);
+        button->setCursor(Qt::PointingHandCursor);
+        button->setFlat(true);
+        button->setFixedSize(62, 62);
+        button->setStyleSheet("QPushButton {"
+                              "  background: transparent;"
+                              "  border: none;"
+                              "  color: #546E7A;"
+                              "  font-size: 50px;"
+                              "  padding: 0px;"
+                              "  margin: 0px;"
+                              "}"
+                              "QPushButton:hover { color: #42A5F5; }"
+                              "QPushButton:pressed { color: #1E88E5; }"
+                              "QPushButton:checked { color: #1976D2; }");
+      };
 
   m_chkEnableWaveform = new QCheckBox();
   setupScopeIconCheck(m_chkEnableWaveform, "\ue86e", "启用/关闭波形显示");
@@ -505,8 +506,7 @@ void SerialSession::setupUi() {
   setupScopeIconButton(m_btnResetChart, "\ue85d", "重置图表设置", false);
 
   m_btnStopWaveform = new QPushButton();
-  setupScopeIconButton(m_btnStopWaveform, "\ue87c", "暂停/继续波形显示",
-                       true);
+  setupScopeIconButton(m_btnStopWaveform, "\ue87c", "暂停/继续波形显示", true);
 
   m_btnCurveSettings = new QPushButton();
   setupScopeIconButton(m_btnCurveSettings, "\ue872", "查看/修改曲线样式",
@@ -629,6 +629,24 @@ void SerialSession::setupUi() {
       "padding: 0px; }");
   grpScopeLayout->addWidget(m_groupYAxis);
 
+  QGroupBox *grpFrame = new QGroupBox("数据帧配置");
+  QGridLayout *frameLayout = new QGridLayout(grpFrame);
+  frameLayout->setContentsMargins(4, 8, 4, 4);
+  frameLayout->setHorizontalSpacing(8);
+  frameLayout->setVerticalSpacing(10);
+
+  frameLayout->addWidget(new QLabel("帧尾:"), 0, 0);
+  m_editFrameTail = new QLineEdit("\\n");
+  frameLayout->addWidget(m_editFrameTail, 0, 1);
+
+  grpFrame->setFlat(true);
+  grpFrame->setStyleSheet(
+      "QGroupBox { border: none; margin-top: 0px; font-weight: 600; color: "
+      "#455A64; }"
+      "QGroupBox::title { subcontrol-origin: margin; left: 0px; top: 0px; "
+      "padding: 0px; }");
+  grpScopeLayout->addWidget(grpFrame);
+
   QGroupBox *grpChannels = new QGroupBox("通道管理");
   m_channelsLayout = new QVBoxLayout(grpChannels);
   m_channelsLayout->setContentsMargins(4, 4, 4, 4);
@@ -648,13 +666,12 @@ void SerialSession::setupUi() {
   designerSplitter->setObjectName("designerSplitter");
   designerSplitter->setChildrenCollapsible(false);
   designerSplitter->setHandleWidth(6);
-  designerSplitter->setStyleSheet(
-      "QSplitter#designerSplitter::handle {"
-      "  background: #DADCE0;"
-      "}"
-      "QSplitter#designerSplitter::handle:hover {"
-      "  background: #BDC1C6;"
-      "}");
+  designerSplitter->setStyleSheet("QSplitter#designerSplitter::handle {"
+                                  "  background: #DADCE0;"
+                                  "}"
+                                  "QSplitter#designerSplitter::handle:hover {"
+                                  "  background: #BDC1C6;"
+                                  "}");
 
   // 左侧：工具箱（控件库）
   m_widgetToolbox = new WidgetToolbox(designerSplitter);
@@ -671,14 +688,16 @@ void SerialSession::setupUi() {
   designerSplitter->setSizes({240, 600});
 
   // 将控件设计器添加到垂直标签页（第三个标签）
-  m_designerTabIndex = m_leftTabWidget->addTab(
-      designerSplitter, "控件设计器", QString(QChar(0xe88b)));
+  m_designerTabIndex = m_leftTabWidget->addTab(designerSplitter, "控件设计器",
+                                               QString(QChar(0xe88b)));
 
   // 连接工具箱按钮信号到设计器
   connect(m_widgetToolbox, &WidgetToolbox::addProtocolButton, m_widgetDesigner,
           [this]() { m_widgetDesigner->addProtocolButton(QPoint()); });
   connect(m_widgetToolbox, &WidgetToolbox::addScopeWidget, m_widgetDesigner,
           [this]() { m_widgetDesigner->addScopeWidget(QPoint()); });
+  connect(m_widgetToolbox, &WidgetToolbox::addLedWidget, m_widgetDesigner,
+          [this]() { m_widgetDesigner->addLedWidget(QPoint()); });
 
   // 连接设计器的发送数据信号
   connect(m_widgetDesigner, &WidgetDesignerArea::sendData, this,
@@ -772,8 +791,8 @@ void SerialSession::setupUi() {
   m_dockReceive = new QDockWidget("接收数据", dataDockHost);
   m_dockReceive->setObjectName("dataDock");
   m_dockReceive->setFeatures(QDockWidget::DockWidgetMovable |
-                              QDockWidget::DockWidgetFloatable |
-                              QDockWidget::DockWidgetClosable);
+                             QDockWidget::DockWidgetFloatable |
+                             QDockWidget::DockWidgetClosable);
   m_dockReceive->setAllowedAreas(Qt::AllDockWidgetAreas);
   m_dockReceive->setWidget(grpData);
   m_dockReceive->setStyleSheet(neutralDataDockStyleSheet());
@@ -1154,8 +1173,7 @@ void SerialSession::setupUi() {
   m_dockSend->setStyleSheet(neutralDataDockStyleSheet());
   dataDockHost->addDockWidget(Qt::TopDockWidgetArea, m_dockSend);
   dataDockHost->splitDockWidget(m_dockReceive, m_dockSend, Qt::Vertical);
-  dataDockHost->resizeDocks({m_dockReceive, m_dockSend}, {3, 2},
-                            Qt::Vertical);
+  dataDockHost->resizeDocks({m_dockReceive, m_dockSend}, {3, 2}, Qt::Vertical);
 
   // Lastly, add our main internal window to the actual top-level layout
   mainLayout->addWidget(m_innerMainWindow);
@@ -1511,8 +1529,7 @@ void SerialSession::setupConnections() {
                 m_dataSplitter->setVisible(!m_chkHideRxTx->isChecked());
               }
               if (m_waveformPage) {
-                m_waveformPage->setVisible(
-                    m_chkEnableWaveform->isChecked());
+                m_waveformPage->setVisible(m_chkEnableWaveform->isChecked());
               }
             }
           });
@@ -1593,8 +1610,7 @@ void SerialSession::setupConnections() {
   });
   // Scope Settings Toggles
   connect(m_chkHideRxTx, &QCheckBox::toggled, [this](bool checked) {
-    const int index =
-        m_leftTabWidget ? m_leftTabWidget->currentIndex() : -1;
+    const int index = m_leftTabWidget ? m_leftTabWidget->currentIndex() : -1;
     if (!m_dataSplitter) {
       return;
     }
@@ -1702,9 +1718,10 @@ void SerialSession::setupConnections() {
           &SerialSession::onWaveformScroll);
   connect(m_comboTimeUnit, QOverload<int>::of(&QComboBox::currentIndexChanged),
           this, &SerialSession::onTimeUnitChanged);
-  connect(m_spinSampleInterval,
-          QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
-          [this](double) { onTimeUnitChanged(m_comboTimeUnit->currentIndex()); });
+  connect(
+      m_spinSampleInterval,
+      QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
+      [this](double) { onTimeUnitChanged(m_comboTimeUnit->currentIndex()); });
   connect(m_comboChartTheme,
           QOverload<int>::of(&QComboBox::currentIndexChanged), this,
           &SerialSession::onChartThemeChanged);
@@ -1715,6 +1732,14 @@ void SerialSession::setupConnections() {
             }
             refreshViewWidthSpin();
             updateChartSettings();
+          });
+
+  connect(m_editFrameTail, &QLineEdit::textChanged, this,
+          [this](const QString &text) { 
+             QString parsed = text;
+             parsed.replace("\\n", "\n");
+             parsed.replace("\\r", "\r");
+             m_frameTail = parsed.toUtf8(); 
           });
 
   // 注释掉DockWidget相关的连接，因为已改为标签页
@@ -1947,9 +1972,8 @@ void SerialSession::onReadyRead() {
                      .arg(rxTag)
                      .arg(rawStr.toHtmlEscaped());
     } else {
-      htmlLine = QString("<span>%1 %2</span>")
-                     .arg(rxTag)
-                     .arg(rawStr.toHtmlEscaped());
+      htmlLine =
+          QString("<span>%1 %2</span>").arg(rxTag).arg(rawStr.toHtmlEscaped());
     }
 
     if (!m_chkHideRxData->isChecked()) {
@@ -1968,9 +1992,8 @@ void SerialSession::onReadyRead() {
 }
 
 void SerialSession::onWaveformEnabled(bool checked) {
-  const bool inDesigner =
-      m_leftTabWidget &&
-      (m_leftTabWidget->currentIndex() == m_designerTabIndex);
+  const bool inDesigner = m_leftTabWidget && (m_leftTabWidget->currentIndex() ==
+                                              m_designerTabIndex);
   m_waveformPage->setVisible(checked && !inDesigner);
   if (checked && !inDesigner) {
     m_customPlot->replot();
@@ -2031,8 +2054,9 @@ int SerialSession::displayWidthToPoints(double displayWidth) const {
     return 1;
   }
 
-  const int bufferLimit =
-      m_spinBufferLimit ? qMax(1, m_spinBufferLimit->value()) : qMax(1, m_viewWidthPoints);
+  const int bufferLimit = m_spinBufferLimit
+                              ? qMax(1, m_spinBufferLimit->value())
+                              : qMax(1, m_viewWidthPoints);
   return qBound(1, qRound(displayWidth / scale), bufferLimit);
 }
 
@@ -2045,8 +2069,9 @@ void SerialSession::refreshViewWidthSpin() {
     return;
   }
 
-  const int bufferLimit =
-      m_spinBufferLimit ? qMax(1, m_spinBufferLimit->value()) : qMax(1, m_viewWidthPoints);
+  const int bufferLimit = m_spinBufferLimit
+                              ? qMax(1, m_spinBufferLimit->value())
+                              : qMax(1, m_viewWidthPoints);
   m_viewWidthPoints = qBound(1, m_viewWidthPoints, bufferLimit);
 
   const int unitIndex = m_comboTimeUnit ? m_comboTimeUnit->currentIndex() : 0;
@@ -2202,34 +2227,52 @@ void SerialSession::updateWaveform(const QByteArray &data) {
   QVector<QVector<double>> channelKeysBatch;
 
   while (true) {
-    int startIdx = m_rxBuffer.indexOf('$');
-    if (startIdx == -1) {
-      if (m_rxBuffer.size() > 4096)
-        m_rxBuffer.clear(); // Safety check
+    if (m_frameTail.isEmpty()) {
       break;
     }
 
-    int endIdx = m_rxBuffer.indexOf(';', startIdx);
+    int endIdx = m_rxBuffer.indexOf(m_frameTail);
     if (endIdx == -1) {
-      if (m_rxBuffer.size() > 4096) {
-        m_rxBuffer = m_rxBuffer.mid(startIdx);
-        if (m_rxBuffer.size() > 4096)
-          m_rxBuffer.clear(); // Safety clear
-      }
+      if (m_rxBuffer.size() > 4096)
+        m_rxBuffer.clear(); // Safety clear
       break; // Need more data
     }
 
-    // Found complete frame: "$ ... ;"
-    QByteArray payloadBytes =
-        m_rxBuffer.mid(startIdx + 1, endIdx - startIdx - 1).trimmed();
-    m_rxBuffer.remove(0, endIdx + 1); // Remove processed frame
+    // Found complete frame:
+    QByteArray payloadBytes = m_rxBuffer.mid(0, endIdx).trimmed();
+    m_rxBuffer.remove(0, endIdx + m_frameTail.size()); // Remove processed frame
 
     if (payloadBytes.isEmpty())
       continue;
 
     QString payload = QString::fromLatin1(payloadBytes);
 
-    // 勾选「显示原始数据」时，显示去掉帧头帧尾后的 Payload
+    int colonIdx = payload.indexOf(':');
+    QString prefix = "";
+    QString dataPart = payload;
+
+    if (colonIdx != -1) {
+      prefix = payload.left(colonIdx).trimmed();
+      dataPart = payload.mid(colonIdx + 1).trimmed();
+    }
+
+    if (prefix == "image") {
+      continue;
+    }
+
+    if (prefix == "LED") {
+      QStringList ledParts = dataPart.split(QRegularExpression("[,\\s]+"), Qt::SkipEmptyParts);
+      QVector<int> ledStates;
+      for (const QString &p : ledParts) {
+        ledStates.append(p.toInt());
+      }
+      if (m_widgetDesigner) {
+        emit m_widgetDesigner->ledStatesReceived(ledStates);
+      }
+      continue;
+    }
+
+    // 勾选「显示原始数据」时，显示去掉帧尾后的 Payload
     if (m_chkShowRawData->isChecked()) {
       m_textReceive->append("<span style='color: #4CAF50;'>[Payload] " +
                             payload.toHtmlEscaped() + "</span>");
@@ -2243,7 +2286,7 @@ void SerialSession::updateWaveform(const QByteArray &data) {
     }
 
     QStringList parts =
-        payload.split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
+        dataPart.split(QRegularExpression("[,\\s]+"), Qt::SkipEmptyParts);
     if (parts.isEmpty())
       continue;
 
@@ -2336,8 +2379,8 @@ void SerialSession::updateWaveform(const QByteArray &data) {
         // Only trim when it exceeds limit significantly (e.g. by one screen
         // width)
         if (m_customPlot->graph(i)->dataCount() > removalThreshold) {
-          m_customPlot->graph(i)->data()->removeBefore((m_xValue - bufferLimit) *
-                                                       m_xAxisScale);
+          m_customPlot->graph(i)->data()->removeBefore(
+              (m_xValue - bufferLimit) * m_xAxisScale);
         }
       }
     }
@@ -2403,7 +2446,8 @@ void SerialSession::onTimeUnitChanged(int index) {
   m_xAxisScale = scale;
   rescaleXAxisData(oldScale, m_xAxisScale);
 
-  m_customPlot->xAxis->setTicker(QSharedPointer<QCPAxisTicker>(new QCPAxisTicker));
+  m_customPlot->xAxis->setTicker(
+      QSharedPointer<QCPAxisTicker>(new QCPAxisTicker));
   m_customPlot->xAxis->setNumberFormat("f");
   m_customPlot->xAxis->setNumberPrecision(precision);
   m_customPlot->xAxis->setLabel(label);
@@ -2500,9 +2544,8 @@ bool SerialSession::eventFilter(QObject *watched, QEvent *event) {
         m_btnFloatingPlay->hide();
       }
     }
-  } else if (watched == m_textReceive &&
-             (event->type() == QEvent::Resize ||
-              event->type() == QEvent::Show)) {
+  } else if (watched == m_textReceive && (event->type() == QEvent::Resize ||
+                                          event->type() == QEvent::Show)) {
     QSize size = m_textReceive->size();
     if (event->type() == QEvent::Resize) {
       QResizeEvent *re = static_cast<QResizeEvent *>(event);
@@ -2514,9 +2557,8 @@ bool SerialSession::eventFilter(QObject *watched, QEvent *event) {
       rxFloat->move(qMax(4, size.width() - rxFloat->width() - 10),
                     qMax(4, size.height() - rxFloat->height() - 10));
     }
-  } else if (watched == m_textSend &&
-             (event->type() == QEvent::Resize ||
-              event->type() == QEvent::Show)) {
+  } else if (watched == m_textSend && (event->type() == QEvent::Resize ||
+                                       event->type() == QEvent::Show)) {
     QSize size = m_textSend->size();
     if (event->type() == QEvent::Resize) {
       QResizeEvent *re = static_cast<QResizeEvent *>(event);
@@ -2584,9 +2626,8 @@ void SerialSession::sendData() {
                      .arg(txTag)
                      .arg(txRawStr.toHtmlEscaped());
   } else {
-    txHtmlLine = QString("<span>%1 %2</span>")
-                     .arg(txTag)
-                     .arg(txRawStr.toHtmlEscaped());
+    txHtmlLine =
+        QString("<span>%1 %2</span>").arg(txTag).arg(txRawStr.toHtmlEscaped());
   }
 
   m_textReceive->append(txHtmlLine);
@@ -3591,4 +3632,3 @@ void SerialPortContainer::handleCloseSplit(SerialPortPlot *plotToClose) {
     m_plotHistory.removeAll(plotToClose);
   }
 }
-

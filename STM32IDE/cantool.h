@@ -4,34 +4,98 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDialog>
-#include <QGridLayout>
-#include <QGroupBox>
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
 #include <QRadioButton>
 #include <QSpinBox>
+#include <QTabWidget>
 #include <QTreeWidget>
-#include <QVBoxLayout>
 
+#include "caninterface.h"
+#include "canopenmaster.h"
+
+class QPlainTextEdit;
+class CanDeviceDialog;
 
 class CANTool : public QDialog {
   Q_OBJECT
 public:
   explicit CANTool(QWidget *parent = nullptr);
+  ~CANTool() override;
+
+private slots:
+  void onDeviceManage();
+  void onSendClicked();
+  void onClearReceive();
+
+  void onCanConnected();
+  void onCanDisconnected();
+  void onCanError(const QString &message);
+  void onFrameReceived(const CanFrame &frame);
+  void onFrameSent(const CanFrame &frame);
+
+  // CANopen 操作
+  void onNmtSend();
+  void onSdoRead();
+  void onSdoWrite();
+  void onSyncSend();
+  void onHeartbeat(quint8 nodeId, NmtState state);
+  void onEmcy(quint8 nodeId, quint16 errorCode, quint8 errorRegister,
+              const QByteArray &manufacturer);
+  void onPdo(quint8 nodeId, int pdoNumber, bool isTpdo,
+             const QByteArray &data);
+  void onSdoReadFinished(bool success, quint16 index, quint8 subIndex,
+                         quint32 value, quint32 abortCode);
+  void onSdoWriteFinished(bool success, quint16 index, quint8 subIndex,
+                          quint32 abortCode);
+  void onCanOpenLog(const QString &message);
 
 private:
   void setupUi();
+  QWidget *createConnectionPanel();
+  QWidget *createMonitorPanel();
+  QWidget *createCanOpenPanel();
+  void appendFrameRow(const CanFrame &frame, bool tx);
+  void setControlsEnabled(bool connected);
+  void appendCanOpenLog(const QString &text);
+  void applyTheme(const QString &name);
 
-  QComboBox *m_baudRateComboBox;
-  QComboBox *m_modeComboBox;
-  QPushButton *m_connectButton;
+  CanInterface *m_can;
+  CanOpenMaster *m_co;
+
+  // 连接 / 设备管理
+  QPushButton *m_deviceButton;
+  QComboBox *m_themeCombo;
+  QLabel *m_statusLabel;
+  CanDeviceDialog *m_deviceDialog = nullptr;
+  QString m_currentStyle;
+
+  // 报文监视/发送
   QTreeWidget *m_receiveTreeWidget;
   QLineEdit *m_idLineEdit;
   QLineEdit *m_dataLineEdit;
   QPushButton *m_sendButton;
+  QPushButton *m_clearButton;
   QRadioButton *m_stdFrameBtn;
   QRadioButton *m_extFrameBtn;
+  QCheckBox *m_remoteCheckBox;
+  QCheckBox *m_fdFrameCheckBox;
+  QCheckBox *m_brsCheckBox;
+
+  // CANopen
+  QSpinBox *m_nodeIdSpin;
+  QComboBox *m_nmtCommandCombo;
+  QPushButton *m_nmtSendButton;
+  QPushButton *m_syncButton;
+  QLineEdit *m_sdoIndexEdit;
+  QLineEdit *m_sdoSubIndexEdit;
+  QLineEdit *m_sdoValueEdit;
+  QComboBox *m_sdoSizeCombo;
+  QPushButton *m_sdoReadButton;
+  QPushButton *m_sdoWriteButton;
+  QTreeWidget *m_nodeTreeWidget;
+  QPlainTextEdit *m_canOpenLog;
 };
 
 #endif // CANTOOL_H
