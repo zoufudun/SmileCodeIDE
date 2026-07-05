@@ -9,6 +9,7 @@ release/serialportplot.o
 release/iaptool.o
 release/toolchaindialog.o
 release/cantool.o
+release/normalsenddialog.o
 release/caninterface.o
 release/canopenmaster.o
 release/candevicedialog.o
@@ -32,6 +33,7 @@ release/moc_serialportplot.o
 release/moc_iaptool.o
 release/moc_toolchaindialog.o
 release/moc_cantool.o
+release/moc_normalsenddialog.o
 release/moc_caninterface.o
 release/moc_canopenmaster.o
 release/moc_candevicedialog.o

@@ -19,6 +19,7 @@ struct CanFrame {
   bool errorFrame = false; // 错误帧
   QByteArray data;         // 数据负载（经典 CAN 最多 8 字节，FD 最多 64 字节）
   qint64 timestamp = 0;    // 接收/发送时间戳（ms，主机时钟）
+  int channel = 0;         // 通道索引 (0 或 1)
 
   int dlc() const { return data.size(); }
 };
@@ -29,9 +30,22 @@ enum class CanMode {
   ListenOnly // 静默监听
 };
 
+// CAN 通道参数结构
+struct CanChannelConfig {
+  bool isFd = false;
+  int abitBaud = 500000;
+  int dbitBaud = 2000000;
+  bool isIso = true;
+  bool enableBrs = true;
+  CanMode mode = CanMode::Normal;
+  bool terminalRes = true;
+  bool reportBusUsage = false;
+  int busUsagePeriod = 100;
+  int retrySend = 1; // 1: 发送到总线关闭, 3: 重试3次, 0: 不重试
+  bool enableFilter = false;
+};
+
 // 基于周立功(ZLG) zlgcan 动态库的 CAN/CAN FD 收发后端。
-// 默认面向 USBCANFD-200U，运行时通过 QLibrary 动态加载 zlgcan.dll，
-// 避免 MinGW 与 MSVC 导入库不兼容的问题，并在缺少驱动时优雅降级。
 class CanInterface : public QObject {
   Q_OBJECT
 public:
@@ -42,23 +56,33 @@ public:
   bool libraryLoaded() const;
   QString libraryError() const { return m_libError; }
 
-  bool isOpen() const { return m_open; }
+  // 兼容旧版，检查是否有任何通道正在运行
+  bool isOpen() const;
   bool fdEnabled() const { return m_fdEnabled; }
+  int channel() const { return m_channel; }
 
-  // 打开并启动指定设备通道。
-  //   deviceType : ZLG 设备类型号，USBCANFD-200U 为 41
-  //   deviceIndex: 同型号设备索引，从 0 开始
-  //   channel    : 通道号（200U 为 0/1）
-  //   abitBaud   : 仲裁域(标称)波特率 bps
-  //   enableFd   : 是否启用 CAN FD
-  //   dbitBaud   : CAN FD 数据域波特率 bps
-  //   mode       : 工作模式
-  //   terminalRes: 是否启用内部终端电阻
+  // 设备层面控制
+  bool openDevice(quint32 deviceType, int deviceIndex);
+  void closeDevice();
+  bool isDeviceOpen() const;
+
+  // 通道层面控制
+  bool startChannel(int channel, const CanChannelConfig &cfg);
+  bool stopChannel(int channel);
+  bool isChannelRunning(int channel) const;
+
+  // 获取连接中的设备信息 (Image 4 需求)
+  bool getDeviceInformation(QString *hwVer, QString *fwVer, QString *drVer,
+                            QString *libVer, int *canNum, QString *serial,
+                            QString *typeStr) const;
+
+  // 兼容旧接口的打开方式（打开设备并启动指定通道）
   bool open(quint32 deviceType, int deviceIndex, int channel, int abitBaud,
             bool enableFd, int dbitBaud, CanMode mode, bool terminalRes);
   void close();
 
-  // 发送一帧报文
+  // 发送一帧报文 (支持指定通道与兼容老接口的默认通道)
+  bool sendFrame(int channel, const CanFrame &frame);
   bool sendFrame(const CanFrame &frame);
 
   static quint32 defaultDeviceType(); // ZCAN_USBCANFD_200U
@@ -77,13 +101,13 @@ private slots:
 
 private:
   bool loadLibrary();
-  bool setDeviceBaud(int channel, int abitBaud, int dbitBaud, bool terminalRes);
+  bool setDeviceBaud(int channel, const CanChannelConfig &cfg);
 
   struct Impl;     // 隐藏 zlgcan 相关类型与函数指针
   Impl *m_d;       // PIMPL
   QTimer *m_timer; // 接收轮询定时器
 
-  bool m_open = false;
+  bool m_open = false; // 用于兼容旧的开启状态
   bool m_fdEnabled = false;
   int m_channel = 0;
   QString m_libError;

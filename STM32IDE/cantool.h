@@ -12,7 +12,7 @@
 #include <QTabWidget>
 #include <QTreeWidget>
 
-#include "caninterface.h"
+#include "normalsenddialog.h"
 #include "canopenmaster.h"
 
 class QPlainTextEdit;
@@ -28,6 +28,14 @@ private slots:
   void onDeviceManage();
   void onSendClicked();
   void onClearReceive();
+
+  // Toolbar slots
+  void onNewViewTriggered(QAction *action);
+  void onSendDataTriggered(QAction *action);
+  void onChannelUtilization();
+  void onAdvancedFeaturesTriggered(QAction *action);
+  void onToolsTriggered(QAction *action);
+  void onSettingsHelpTriggered(QAction *action);
 
   void onCanConnected();
   void onCanDisconnected();
@@ -53,6 +61,8 @@ private slots:
 
 private:
   void setupUi();
+  void createToolbar();
+  QIcon createToolbarIcon(int type);
   QWidget *createConnectionPanel();
   QWidget *createMonitorPanel();
   QWidget *createCanOpenPanel();
@@ -96,6 +106,10 @@ private:
   QPushButton *m_sdoWriteButton;
   QTreeWidget *m_nodeTreeWidget;
   QPlainTextEdit *m_canOpenLog;
+
+  QWidget *m_toolbar = nullptr;
+  QPointer<NormalSendDialog> m_sendDialog = nullptr;
+  QTabWidget *m_tabs = nullptr;
 };
 
 #endif // CANTOOL_H

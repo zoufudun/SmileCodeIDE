@@ -2,46 +2,55 @@
 #define CANDEVICEDIALOG_H
 
 #include <QDialog>
+#include <QMap>
 
 class QComboBox;
 class QSpinBox;
-class QCheckBox;
 class QPushButton;
-class QLabel;
+class QTreeWidget;
+class QTreeWidgetItem;
 class CanInterface;
 
-// 设备管理窗口：配置 ZLG USBCANFD 设备型号、通道、波特率等参数，
-// 并完成设备的打开/启动与关闭。操作共享的 CanInterface 实例，
-// 设备状态变化通过 CanInterface 的信号反馈到主界面。
+// 重新设计的设备管理窗口，支持树状图设备管理及独立的通道参数启动配置。
 class CanDeviceDialog : public QDialog {
   Q_OBJECT
 public:
   explicit CanDeviceDialog(CanInterface *can, QWidget *parent = nullptr);
 
 private slots:
-  void onOpenCloseClicked();
-  void onDiagnoseClicked();
-  void onDeviceConnected();
-  void onDeviceDisconnected();
-  void onDeviceError(const QString &message);
+  void onOpenDeviceClicked();
+  void onCloseDeviceClicked();
+  void onStartChannelClicked(int channel);
+  void onStopChannelClicked(int channel);
+  void onStartAllChannels();
+  void onStopAllChannels();
+  void onShowDeviceInfoClicked();
+  void onCloudDeviceClicked();
 
 private:
   void setupUi();
-  void refreshState();
+  void refreshDeviceTree();
+  void updateButtonStates();
 
   CanInterface *m_can;
 
   QComboBox *m_deviceTypeCombo;
   QSpinBox *m_deviceIndexSpin;
-  QComboBox *m_channelCombo;
-  QComboBox *m_baudCombo;
-  QCheckBox *m_fdCheck;
-  QComboBox *m_dataBaudCombo;
-  QComboBox *m_modeCombo;
-  QCheckBox *m_termResCheck;
   QPushButton *m_openButton;
-  QPushButton *m_diagButton;
-  QLabel *m_statusLabel;
+  QPushButton *m_cloudButton;
+  QPushButton *m_closeButton;
+
+  QTreeWidget *m_deviceTree;
+
+  // 跟踪各通道的控制按钮
+  QMap<int, QPushButton*> m_startButtons;
+  QMap<int, QPushButton*> m_stopButtons;
+
+  // 跟踪设备的控制按钮
+  QPushButton *m_deviceStartButton;
+  QPushButton *m_deviceStopButton;
+  QPushButton *m_deviceCloseButton;
+  QPushButton *m_deviceInfoButton;
 };
 
 #endif // CANDEVICEDIALOG_H

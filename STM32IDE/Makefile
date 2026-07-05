@@ -142,10 +142,6 @@ Makefile: STM32IDE.pro D:/Soft/Qt/5.15.2/mingw81_64/mkspecs/win32-g++/qmake.conf
 		D:/Soft/Qt/5.15.2/mingw81_64/mkspecs/modules/qt_lib_gui_private.pri \
 		D:/Soft/Qt/5.15.2/mingw81_64/mkspecs/modules/qt_lib_help.pri \
 		D:/Soft/Qt/5.15.2/mingw81_64/mkspecs/modules/qt_lib_help_private.pri \
-		D:/Soft/Qt/5.15.2/mingw81_64/mkspecs/modules/qt_lib_insighttracker.pri \
-		D:/Soft/Qt/5.15.2/mingw81_64/mkspecs/modules/qt_lib_insighttracker_private.pri \
-		D:/Soft/Qt/5.15.2/mingw81_64/mkspecs/modules/qt_lib_insighttrackerqml.pri \
-		D:/Soft/Qt/5.15.2/mingw81_64/mkspecs/modules/qt_lib_insighttrackerqml_private.pri \
 		D:/Soft/Qt/5.15.2/mingw81_64/mkspecs/modules/qt_lib_location.pri \
 		D:/Soft/Qt/5.15.2/mingw81_64/mkspecs/modules/qt_lib_location_private.pri \
 		D:/Soft/Qt/5.15.2/mingw81_64/mkspecs/modules/qt_lib_multimedia.pri \
@@ -360,10 +356,6 @@ D:/Soft/Qt/5.15.2/mingw81_64/mkspecs/modules/qt_lib_gui.pri:
 D:/Soft/Qt/5.15.2/mingw81_64/mkspecs/modules/qt_lib_gui_private.pri:
 D:/Soft/Qt/5.15.2/mingw81_64/mkspecs/modules/qt_lib_help.pri:
 D:/Soft/Qt/5.15.2/mingw81_64/mkspecs/modules/qt_lib_help_private.pri:
-D:/Soft/Qt/5.15.2/mingw81_64/mkspecs/modules/qt_lib_insighttracker.pri:
-D:/Soft/Qt/5.15.2/mingw81_64/mkspecs/modules/qt_lib_insighttracker_private.pri:
-D:/Soft/Qt/5.15.2/mingw81_64/mkspecs/modules/qt_lib_insighttrackerqml.pri:
-D:/Soft/Qt/5.15.2/mingw81_64/mkspecs/modules/qt_lib_insighttrackerqml_private.pri:
 D:/Soft/Qt/5.15.2/mingw81_64/mkspecs/modules/qt_lib_location.pri:
 D:/Soft/Qt/5.15.2/mingw81_64/mkspecs/modules/qt_lib_location_private.pri:
 D:/Soft/Qt/5.15.2/mingw81_64/mkspecs/modules/qt_lib_multimedia.pri:

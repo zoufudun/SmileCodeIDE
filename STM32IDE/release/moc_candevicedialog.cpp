@@ -22,8 +22,8 @@ QT_BEGIN_MOC_NAMESPACE
 QT_WARNING_PUSH
 QT_WARNING_DISABLE_DEPRECATED
 struct qt_meta_stringdata_CanDeviceDialog_t {
-    QByteArrayData data[8];
-    char stringdata0[115];
+    QByteArrayData data[11];
+    char stringdata0[191];
 };
 #define QT_MOC_LITERAL(idx, ofs, len) \
     Q_STATIC_BYTE_ARRAY_DATA_HEADER_INITIALIZER_WITH_OFFSET(len, \
@@ -33,19 +33,23 @@ struct qt_meta_stringdata_CanDeviceDialog_t {
 static const qt_meta_stringdata_CanDeviceDialog_t qt_meta_stringdata_CanDeviceDialog = {
     {
 QT_MOC_LITERAL(0, 0, 15), // "CanDeviceDialog"
-QT_MOC_LITERAL(1, 16, 18), // "onOpenCloseClicked"
-QT_MOC_LITERAL(2, 35, 0), // ""
-QT_MOC_LITERAL(3, 36, 17), // "onDiagnoseClicked"
-QT_MOC_LITERAL(4, 54, 17), // "onDeviceConnected"
-QT_MOC_LITERAL(5, 72, 20), // "onDeviceDisconnected"
-QT_MOC_LITERAL(6, 93, 13), // "onDeviceError"
-QT_MOC_LITERAL(7, 107, 7) // "message"
+QT_MOC_LITERAL(1, 16, 19), // "onOpenDeviceClicked"
+QT_MOC_LITERAL(2, 36, 0), // ""
+QT_MOC_LITERAL(3, 37, 20), // "onCloseDeviceClicked"
+QT_MOC_LITERAL(4, 58, 21), // "onStartChannelClicked"
+QT_MOC_LITERAL(5, 80, 7), // "channel"
+QT_MOC_LITERAL(6, 88, 20), // "onStopChannelClicked"
+QT_MOC_LITERAL(7, 109, 18), // "onStartAllChannels"
+QT_MOC_LITERAL(8, 128, 17), // "onStopAllChannels"
+QT_MOC_LITERAL(9, 146, 23), // "onShowDeviceInfoClicked"
+QT_MOC_LITERAL(10, 170, 20) // "onCloudDeviceClicked"
 
     },
-    "CanDeviceDialog\0onOpenCloseClicked\0\0"
-    "onDiagnoseClicked\0onDeviceConnected\0"
-    "onDeviceDisconnected\0onDeviceError\0"
-    "message"
+    "CanDeviceDialog\0onOpenDeviceClicked\0"
+    "\0onCloseDeviceClicked\0onStartChannelClicked\0"
+    "channel\0onStopChannelClicked\0"
+    "onStartAllChannels\0onStopAllChannels\0"
+    "onShowDeviceInfoClicked\0onCloudDeviceClicked"
 };
 #undef QT_MOC_LITERAL
 
@@ -55,7 +59,7 @@ static const uint qt_meta_data_CanDeviceDialog[] = {
        8,       // revision
        0,       // classname
        0,    0, // classinfo
-       5,   14, // methods
+       8,   14, // methods
        0,    0, // properties
        0,    0, // enums/sets
        0,    0, // constructors
@@ -63,18 +67,24 @@ static const uint qt_meta_data_CanDeviceDialog[] = {
        0,       // signalCount
 
  // slots: name, argc, parameters, tag, flags
-       1,    0,   39,    2, 0x08 /* Private */,
-       3,    0,   40,    2, 0x08 /* Private */,
-       4,    0,   41,    2, 0x08 /* Private */,
-       5,    0,   42,    2, 0x08 /* Private */,
-       6,    1,   43,    2, 0x08 /* Private */,
+       1,    0,   54,    2, 0x08 /* Private */,
+       3,    0,   55,    2, 0x08 /* Private */,
+       4,    1,   56,    2, 0x08 /* Private */,
+       6,    1,   59,    2, 0x08 /* Private */,
+       7,    0,   62,    2, 0x08 /* Private */,
+       8,    0,   63,    2, 0x08 /* Private */,
+       9,    0,   64,    2, 0x08 /* Private */,
+      10,    0,   65,    2, 0x08 /* Private */,
 
  // slots: parameters
     QMetaType::Void,
     QMetaType::Void,
+    QMetaType::Void, QMetaType::Int,    5,
+    QMetaType::Void, QMetaType::Int,    5,
     QMetaType::Void,
     QMetaType::Void,
-    QMetaType::Void, QMetaType::QString,    7,
+    QMetaType::Void,
+    QMetaType::Void,
 
        0        // eod
 };
@@ -85,11 +95,14 @@ void CanDeviceDialog::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int 
         auto *_t = static_cast<CanDeviceDialog *>(_o);
         Q_UNUSED(_t)
         switch (_id) {
-        case 0: _t->onOpenCloseClicked(); break;
-        case 1: _t->onDiagnoseClicked(); break;
-        case 2: _t->onDeviceConnected(); break;
-        case 3: _t->onDeviceDisconnected(); break;
-        case 4: _t->onDeviceError((*reinterpret_cast< const QString(*)>(_a[1]))); break;
+        case 0: _t->onOpenDeviceClicked(); break;
+        case 1: _t->onCloseDeviceClicked(); break;
+        case 2: _t->onStartChannelClicked((*reinterpret_cast< int(*)>(_a[1]))); break;
+        case 3: _t->onStopChannelClicked((*reinterpret_cast< int(*)>(_a[1]))); break;
+        case 4: _t->onStartAllChannels(); break;
+        case 5: _t->onStopAllChannels(); break;
+        case 6: _t->onShowDeviceInfoClicked(); break;
+        case 7: _t->onCloudDeviceClicked(); break;
         default: ;
         }
     }
@@ -124,13 +137,13 @@ int CanDeviceDialog::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 5)
+        if (_id < 8)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 5;
+        _id -= 8;
     } else if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
-        if (_id < 5)
+        if (_id < 8)
             *reinterpret_cast<int*>(_a[0]) = -1;
-        _id -= 5;
+        _id -= 8;
     }
     return _id;
 }

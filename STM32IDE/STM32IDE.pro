@@ -46,6 +46,7 @@ SOURCES += \
     iaptool.cpp \
     toolchaindialog.cpp \
     cantool.cpp \
+    normalsenddialog.cpp \
     caninterface.cpp \
     canopenmaster.cpp \
     candevicedialog.cpp \
@@ -71,6 +72,7 @@ HEADERS += \
     iaptool.h \
     toolchaindialog.h \
     cantool.h \
+    normalsenddialog.h \
     caninterface.h \
     canopenmaster.h \
     candevicedialog.h \
