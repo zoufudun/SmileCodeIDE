@@ -25,11 +25,51 @@ constexpr quint32 kUsbCanFd200U = ZCAN_USBCANFD_200U; // 41
 constexpr int kPollIntervalMs = 5;
 constexpr int kMaxFramesPerPoll = 256;
 
+// 将设备类型码映射为可读的设备名称（用于 UI 显示或兜底）
+QString deviceTypeName(quint32 deviceType) {
+  switch (deviceType) {
+    case ZCAN_USBCAN1:       return QStringLiteral("USBCAN-1");
+    case ZCAN_USBCAN2:       return QStringLiteral("USBCAN-2");
+    case ZCAN_USBCAN_E_U:    return QStringLiteral("USBCAN-E-U");
+    case ZCAN_USBCAN_2E_U:   return QStringLiteral("USBCAN-2E-U");
+    case ZCAN_USBCAN_4E_U:   return QStringLiteral("USBCAN-4E-U");
+    case ZCAN_USBCAN_8E_U:   return QStringLiteral("USBCAN-8E-U");
+    case ZCAN_USBCANFD_200U: return QStringLiteral("USBCANFD-200U");
+    case ZCAN_USBCANFD_100U: return QStringLiteral("USBCANFD-100U");
+    case ZCAN_USBCANFD_MINI: return QStringLiteral("USBCANFD-MINI");
+    case ZCAN_USBCANFD_800U: return QStringLiteral("USBCANFD-800U");
+    case ZCAN_USBCANFD_400U: return QStringLiteral("USBCANFD-400U");
+    case ZCAN_USBCANFD_800H: return QStringLiteral("USBCANFD-800H");
+    case ZCAN_VIRTUAL_DEVICE:return QStringLiteral("VirtualUSBCAN");
+    default:                 return QStringLiteral("CAN 设备 (%1)").arg(deviceType);
+  }
+}
+
+// 根据设备类型返回预期的通道数（当硬件查询失败时的回退值）
+int deviceTypeChannelCount(quint32 deviceType) {
+  switch (deviceType) {
+    case ZCAN_USBCAN1:       return 1;
+    case ZCAN_USBCAN2:       return 2;
+    case ZCAN_USBCAN_E_U:    return 1;
+    case ZCAN_USBCAN_2E_U:   return 2;
+    case ZCAN_USBCAN_4E_U:   return 4;
+    case ZCAN_USBCAN_8E_U:   return 8;
+    case ZCAN_USBCANFD_100U: return 1;
+    case ZCAN_USBCANFD_MINI: return 1;
+    case ZCAN_USBCANFD_200U: return 2;
+    case ZCAN_USBCANFD_400U: return 4;
+    case ZCAN_USBCANFD_800U: return 8;
+    case ZCAN_USBCANFD_800H: return 8;
+    default:                 return 2;  // 大多数 CAN 设备默认 2 通道
+  }
+}
+
 // zlgcan 导出函数指针类型
 typedef DEVICE_HANDLE(ZLG_CALL *Fn_OpenDevice)(UINT, UINT, UINT);
 typedef UINT(ZLG_CALL *Fn_CloseDevice)(DEVICE_HANDLE);
 typedef UINT(ZLG_CALL *Fn_IsDeviceOnLine)(DEVICE_HANDLE);
 typedef UINT(ZLG_CALL *Fn_GetDeviceInfoEx)(DEVICE_HANDLE, ZCAN_DEVICE_INFO_EX *);
+typedef UINT(ZLG_CALL *Fn_GetDeviceInf)(DEVICE_HANDLE, ZCAN_DEVICE_INFO *);
 typedef CHANNEL_HANDLE(ZLG_CALL *Fn_InitCAN)(DEVICE_HANDLE, UINT,
                                              ZCAN_CHANNEL_INIT_CONFIG *);
 typedef UINT(ZLG_CALL *Fn_StartCAN)(CHANNEL_HANDLE);
@@ -53,6 +93,7 @@ struct CanInterface::Impl {
   Fn_CloseDevice closeDevice = nullptr;
   Fn_IsDeviceOnLine isDeviceOnLine = nullptr;
   Fn_GetDeviceInfoEx getDeviceInfoEx = nullptr;
+  Fn_GetDeviceInf getDeviceInf = nullptr;
   Fn_InitCAN initCan = nullptr;
   Fn_StartCAN startCan = nullptr;
   Fn_ResetCAN resetCan = nullptr;
@@ -95,6 +136,15 @@ CanInterface::~CanInterface() {
 
 quint32 CanInterface::defaultDeviceType() { return kUsbCanFd200U; }
 
+bool CanInterface::isDeviceFdCapable(quint32 deviceType) {
+  // USBCANFD 系列 (41+) 及虚拟设备 (99) 支持 CAN FD，
+  // 经典 VCI CAN 设备 (3, 4, 20, 21, 31, 34 等) 仅支持经典 CAN。
+  if (deviceType == ZCAN_VIRTUAL_DEVICE) {
+    return true;
+  }
+  return deviceType >= 41;
+}
+
 bool CanInterface::libraryLoaded() const { return m_d->resolved(); }
 
 bool CanInterface::loadLibrary() {
@@ -124,6 +174,8 @@ bool CanInterface::loadLibrary() {
       reinterpret_cast<Fn_IsDeviceOnLine>(m_d->lib.resolve("ZCAN_IsDeviceOnLine"));
   m_d->getDeviceInfoEx = reinterpret_cast<Fn_GetDeviceInfoEx>(
       m_d->lib.resolve("ZCAN_GetDeviceInfoEx"));
+  m_d->getDeviceInf = reinterpret_cast<Fn_GetDeviceInf>(
+      m_d->lib.resolve("ZCAN_GetDeviceInf"));
   m_d->initCan =
       reinterpret_cast<Fn_InitCAN>(m_d->lib.resolve("ZCAN_InitCAN"));
   m_d->startCan =
@@ -153,42 +205,47 @@ bool CanInterface::loadLibrary() {
 }
 
 bool CanInterface::setDeviceBaud(int channel, const CanChannelConfig &cfg) {
-  // USBCANFD 系列通过属性接口设置波特率，须在 InitCAN 之前调用。
+  // 通过属性接口设置通道参数，须在 InitCAN 之前调用。
   QByteArray chStr = QByteArray::number(channel);
   QByteArray path;
 
-  // 仲裁域波特率（CAN / CAN FD 都需要设置）
-  path = chStr + "/canfd_abit_baud_rate";
-  m_d->setValue(m_d->device, path.constData(), QByteArray::number(cfg.abitBaud).constData());
-
-  // 数据域波特率：非 FD 模式设为与 abit 相同（ZLG SDK 仍要求设置此属性）
-  path = chStr + "/canfd_dbit_baud_rate";
-  int dbit = cfg.isFd ? cfg.dbitBaud : cfg.abitBaud;
-  m_d->setValue(m_d->device, path.constData(), QByteArray::number(dbit).constData());
-
   if (cfg.isFd) {
+    // ---- CAN FD 设备属性 ----
+    path = chStr + "/canfd_abit_baud_rate";
+    m_d->setValue(m_d->device, path.constData(), QByteArray::number(cfg.abitBaud).constData());
+
+    path = chStr + "/canfd_dbit_baud_rate";
+    m_d->setValue(m_d->device, path.constData(), QByteArray::number(cfg.dbitBaud).constData());
+
     path = chStr + "/canfd_standard";
     m_d->setValue(m_d->device, path.constData(), cfg.isIso ? "0" : "1");
 
     path = chStr + "/canfd_brs";
     m_d->setValue(m_d->device, path.constData(), cfg.enableBrs ? "1" : "0");
+
+    // 内部终端电阻（仅 CAN FD 设备支持）
+    path = chStr + "/initenal_resistance";
+    m_d->setValue(m_d->device, path.constData(), cfg.terminalRes ? "1" : "0");
+
+    // 上报总线利用率
+    path = chStr + "/bus_usage_report";
+    m_d->setValue(m_d->device, path.constData(), cfg.reportBusUsage ? "1" : "0");
+
+    // 总线利用率周期
+    path = chStr + "/bus_usage_report_interval";
+    m_d->setValue(m_d->device, path.constData(), QByteArray::number(cfg.busUsagePeriod).constData());
+
+    // 发送重试
+    path = chStr + "/tx_retry";
+    m_d->setValue(m_d->device, path.constData(), QByteArray::number(cfg.retrySend).constData());
+  } else {
+    // ---- 经典 CAN 设备属性（如 USBCAN-4E-U） ----
+    // 经典 CAN 设备使用 "baud_rate" 属性路径设置波特率
+    path = chStr + "/baud_rate";
+    m_d->setValue(m_d->device, path.constData(), QByteArray::number(cfg.abitBaud).constData());
+    // 注：经典 CAN 设备通常不支持终端电阻、总线利用率上报和发送重试等属性，
+    // 仅设置波特率即可。
   }
-
-  // 内部终端电阻
-  path = chStr + "/initenal_resistance";
-  m_d->setValue(m_d->device, path.constData(), cfg.terminalRes ? "1" : "0");
-
-  // 上报总线利用率
-  path = chStr + "/bus_usage_report";
-  m_d->setValue(m_d->device, path.constData(), cfg.reportBusUsage ? "1" : "0");
-
-  // 总线利用率周期
-  path = chStr + "/bus_usage_report_interval";
-  m_d->setValue(m_d->device, path.constData(), QByteArray::number(cfg.busUsagePeriod).constData());
-
-  // 发送重试
-  path = chStr + "/tx_retry";
-  m_d->setValue(m_d->device, path.constData(), QByteArray::number(cfg.retrySend).constData());
 
   return true;
 }
@@ -255,15 +312,22 @@ bool CanInterface::startChannel(int channel, const CanChannelConfig &cfg) {
     return false;
   }
 
-  // USBCANFD 系列硬件 can_type 始终为 TYPE_CANFD，
-  // CAN 与 CAN FD 的区别仅体现在发送时使用 Transmit 还是 TransmitFD。
+  // 根据协议类型选择 CAN 类型和对应的初始化配置 union 成员
   ZCAN_CHANNEL_INIT_CONFIG zCfg;
   memset(&zCfg, 0, sizeof(zCfg));
-  zCfg.can_type = TYPE_CANFD;
-  zCfg.canfd.mode = (cfg.mode == CanMode::ListenOnly) ? 1 : 0;
-  zCfg.canfd.acc_code = 0;
-  zCfg.canfd.acc_mask = 0xFFFFFFFF;
-  zCfg.canfd.filter = 0;
+  if (cfg.isFd) {
+    zCfg.can_type = TYPE_CANFD;
+    zCfg.canfd.mode = (cfg.mode == CanMode::ListenOnly) ? 1 : 0;
+    zCfg.canfd.acc_code = 0;
+    zCfg.canfd.acc_mask = 0xFFFFFFFF;
+    zCfg.canfd.filter = 0;
+  } else {
+    zCfg.can_type = TYPE_CAN;
+    zCfg.can.mode = (cfg.mode == CanMode::ListenOnly) ? 1 : 0;
+    zCfg.can.acc_code = 0;
+    zCfg.can.acc_mask = 0xFFFFFFFF;
+    zCfg.can.filter = 0;
+  }
 
   CHANNEL_HANDLE chanHandle = m_d->initCan(m_d->device, static_cast<UINT>(channel), &zCfg);
   if (chanHandle == INVALID_CHANNEL_HANDLE) {
@@ -326,52 +390,103 @@ bool CanInterface::getDeviceInformation(QString *hwVer, QString *fwVer, QString 
     return false;
   }
 
-  ZCAN_DEVICE_INFO_EX info;
-  memset(&info, 0, sizeof(info));
-  if (m_d->getDeviceInfoEx(m_d->device, &info) != STATUS_OK) {
-    return false;
+  // 1. 尝试使用扩展接口获取设备信息（主要用于 USBCANFD 系列及支持该接口的设备）
+  ZCAN_DEVICE_INFO_EX infoEx;
+  memset(&infoEx, 0, sizeof(infoEx));
+  bool queryOk = false;
+
+  if (m_d->getDeviceInfoEx) {
+    queryOk = (m_d->getDeviceInfoEx(m_d->device, &infoEx) == STATUS_OK);
   }
 
-  if (hwVer) {
-    *hwVer = QString("V%1.%2%3")
-                 .arg(info.hardware_version.major_version)
-                 .arg(info.hardware_version.minor_version, 2, 10, QChar('0'))
-                 .arg(info.hardware_version.patch_version, 2, 10, QChar('0'));
-  }
-  if (fwVer) {
-    *fwVer = QString("V%1.%2%3")
-                 .arg(info.firmware_version.major_version)
-                 .arg(info.firmware_version.minor_version, 2, 10, QChar('0'))
-                 .arg(info.firmware_version.patch_version, 2, 10, QChar('0'));
-  }
-  if (drVer) {
-    *drVer = QString("V%1.%2%3")
-                 .arg(info.driver_version.major_version)
-                 .arg(info.driver_version.minor_version, 2, 10, QChar('0'))
-                 .arg(info.driver_version.patch_version, 2, 10, QChar('0'));
-  }
-  if (libVer) {
-    *libVer = QString("V%1.%2%3")
-                 .arg(info.library_version.major_version)
-                 .arg(info.library_version.minor_version, 2, 10, QChar('0'))
-                 .arg(info.library_version.patch_version, 2, 10, QChar('0'));
-  }
-  if (canNum) {
-    *canNum = info.can_channel_number;
-  }
-  if (serial) {
-    *serial = QString::fromLatin1(reinterpret_cast<const char*>(info.serial_number)).trimmed();
-    if (serial->isEmpty()) {
-      *serial = "B32070B800BB0784A680"; // 兜底序列号
+  if (queryOk) {
+    if (hwVer) {
+      *hwVer = QString("V%1.%2%3")
+                   .arg(infoEx.hardware_version.major_version)
+                   .arg(infoEx.hardware_version.minor_version, 2, 10, QChar('0'))
+                   .arg(infoEx.hardware_version.patch_version, 2, 10, QChar('0'));
+    }
+    if (fwVer) {
+      *fwVer = QString("V%1.%2%3")
+                   .arg(infoEx.firmware_version.major_version)
+                   .arg(infoEx.firmware_version.minor_version, 2, 10, QChar('0'))
+                   .arg(infoEx.firmware_version.patch_version, 2, 10, QChar('0'));
+    }
+    if (drVer) {
+      *drVer = QString("V%1.%2%3")
+                   .arg(infoEx.driver_version.major_version)
+                   .arg(infoEx.driver_version.minor_version, 2, 10, QChar('0'))
+                   .arg(infoEx.driver_version.patch_version, 2, 10, QChar('0'));
+    }
+    if (libVer) {
+      *libVer = QString("V%1.%2%3")
+                    .arg(infoEx.library_version.major_version)
+                    .arg(infoEx.library_version.minor_version, 2, 10, QChar('0'))
+                    .arg(infoEx.library_version.patch_version, 2, 10, QChar('0'));
+    }
+    if (canNum) {
+      *canNum = infoEx.can_channel_number;
+    }
+    if (serial) {
+      *serial = QString::fromLatin1(reinterpret_cast<const char*>(infoEx.serial_number)).trimmed();
+    }
+    if (typeStr) {
+      *typeStr = QString::fromLatin1(reinterpret_cast<const char*>(infoEx.device_name)).trimmed();
+      if (typeStr->isEmpty()) {
+        *typeStr = deviceTypeName(m_d->deviceType);
+      }
+    }
+  } else {
+    // 2. 如果扩展接口失败或不支持，尝试使用经典接口获取设备信息（主要用于经典 VCI 系列设备如 USBCAN-4E-U 等）
+    ZCAN_DEVICE_INFO info;
+    memset(&info, 0, sizeof(info));
+    if (m_d->getDeviceInf && m_d->getDeviceInf(m_d->device, &info) == STATUS_OK) {
+      queryOk = true;
+      if (hwVer) {
+        *hwVer = QString("V%1.%2")
+                     .arg(info.hw_Version >> 8)
+                     .arg(info.hw_Version & 0xFF, 2, 16, QChar('0'));
+      }
+      if (fwVer) {
+        *fwVer = QString("V%1.%2")
+                     .arg(info.fw_Version >> 8)
+                     .arg(info.fw_Version & 0xFF, 2, 16, QChar('0'));
+      }
+      if (drVer) {
+        *drVer = QString("V%1.%2")
+                     .arg(info.dr_Version >> 8)
+                     .arg(info.dr_Version & 0xFF, 2, 16, QChar('0'));
+      }
+      if (libVer) {
+        *libVer = QString("V%1.%2")
+                      .arg(info.in_Version >> 8)
+                      .arg(info.in_Version & 0xFF, 2, 16, QChar('0'));
+      }
+      if (canNum) {
+        *canNum = info.can_Num;
+      }
+      if (serial) {
+        *serial = QString::fromLatin1(reinterpret_cast<const char*>(info.str_Serial_Num)).trimmed();
+      }
+      if (typeStr) {
+        *typeStr = QString::fromLatin1(reinterpret_cast<const char*>(info.str_hw_Type)).trimmed();
+        if (typeStr->isEmpty()) {
+          *typeStr = deviceTypeName(m_d->deviceType);
+        }
+      }
+    } else {
+      // 3. 两者都失败时，进行兜底
+      if (hwVer)    *hwVer    = QStringLiteral("—");
+      if (fwVer)    *fwVer    = QStringLiteral("—");
+      if (drVer)    *drVer    = QStringLiteral("—");
+      if (libVer)   *libVer   = QStringLiteral("—");
+      if (canNum)   *canNum   = deviceTypeChannelCount(m_d->deviceType);
+      if (serial)   *serial   = QStringLiteral("—");
+      if (typeStr)  *typeStr  = deviceTypeName(m_d->deviceType);
     }
   }
-  if (typeStr) {
-    *typeStr = QString::fromLatin1(reinterpret_cast<const char*>(info.device_name)).trimmed();
-    if (typeStr->isEmpty()) {
-      *typeStr = "USBCANFD-200U";
-    }
-  }
-  return true;
+
+  return queryOk;
 }
 
 bool CanInterface::open(quint32 deviceType, int deviceIndex, int channel, int abitBaud,
@@ -487,7 +602,8 @@ void CanInterface::pollReceive() {
       classicNum -= got;
     }
 
-    // CAN FD 接收
+    // CAN FD 接收（仅 FD 模式下才查询，经典 CAN 设备无 FD 缓冲区）
+    if (m_fdEnabled) {
     UINT fdNum = m_d->getReceiveNum(chanHandle, TYPE_CANFD);
     handled = 0;
     while (fdNum > 0 && handled < kMaxFramesPerPoll) {
@@ -514,6 +630,7 @@ void CanInterface::pollReceive() {
       }
       handled += got;
       fdNum -= got;
+    }
     }
   }
 }
@@ -551,4 +668,4 @@ bool CanInterface::diagnoseDriver(QString *driverVer, QString *deviceName,
   m_d->closeDevice(dev);
   return result == STATUS_OK;
 }
-
+

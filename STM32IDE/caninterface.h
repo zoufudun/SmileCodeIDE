@@ -86,6 +86,10 @@ public:
   bool sendFrame(const CanFrame &frame);
 
   static quint32 defaultDeviceType(); // ZCAN_USBCANFD_200U
+
+  // 判断设备类型是否支持 CAN FD（41+ 的 USBCANFD 系列及虚拟设备）
+  static bool isDeviceFdCapable(quint32 deviceType);
+
   // 诊断：获取驱动版本和设备状态（需在 open 前调用）
   bool diagnoseDriver(QString *driverVer, QString *deviceName, bool *online) const;
 

@@ -63,7 +63,8 @@ void setActionButtonStyle(QPushButton *btn, bool active) {
 // --- 启动通道参数配置对话框 ---
 class StartChannelDialog : public QDialog {
 public:
-  explicit StartChannelDialog(QWidget *parent = nullptr) : QDialog(parent) {
+  explicit StartChannelDialog(bool fdCapable, QWidget *parent = nullptr)
+      : QDialog(parent), m_fdCapable(fdCapable) {
     setWindowTitle("启动");
     setMinimumSize(420, 500);
     setStyleSheet("QDialog { background-color: white; }");
@@ -84,15 +85,21 @@ public:
     QScrollArea *scroll = new QScrollArea();
     scroll->setWidgetResizable(true);
     scroll->setStyleSheet("QScrollArea { border: 1px solid #E0E0E0; background-color: #FAFAFA; border-radius: 4px; }");
-    
+
     QWidget *scrollWidget = new QWidget();
     scrollWidget->setStyleSheet("QWidget { background: transparent; }");
     QFormLayout *form = new QFormLayout(scrollWidget);
     form->setSpacing(10);
     form->setContentsMargins(15, 15, 15, 15);
 
+    // 协议选择：非 FD 设备仅可选 CAN
     m_protocolCombo = new QComboBox();
-    m_protocolCombo->addItems({"CAN FD", "CAN"});
+    if (m_fdCapable) {
+      m_protocolCombo->addItems({"CAN FD", "CAN"});
+    } else {
+      m_protocolCombo->addItem("CAN");
+      m_protocolCombo->setEnabled(false);
+    }
 
     m_standardCombo = new QComboBox();
     m_standardCombo->addItems({"CAN FD ISO", "CAN FD Non-ISO"});
@@ -154,6 +161,7 @@ public:
     m_customBaudEdit->setStyleSheet(editStyle);
     m_busPeriodEdit->setStyleSheet(editStyle);
 
+    // 添加表单行，同时记录 FD 专用行的 label 以便后续隐藏
     form->addRow("协议", m_protocolCombo);
     form->addRow("CANFD标准", m_standardCombo);
     form->addRow("CANFD加速", m_accelCombo);
@@ -166,18 +174,31 @@ public:
     form->addRow("总线利用率周期(ms)", m_busPeriodEdit);
     form->addRow("发送重试", m_retryCombo);
 
+    // 非 FD 设备：隐藏不支持的配置行
+    if (!m_fdCapable) {
+      hideFormRow(form, m_standardCombo);
+      hideFormRow(form, m_accelCombo);
+      hideFormRow(form, m_dbitBaudCombo);
+      hideFormRow(form, m_terminalResCombo);
+      hideFormRow(form, m_reportBusCombo);
+      hideFormRow(form, m_busPeriodEdit);
+      hideFormRow(form, m_retryCombo);
+    }
+
     scroll->setWidget(scrollWidget);
     mainLayout->addWidget(scroll);
 
-    // 协议切换联动显示
-    auto onProtocolChanged = [this]() {
-      bool isFD = m_protocolCombo->currentText() == "CAN FD";
-      m_standardCombo->setEnabled(isFD);
-      m_accelCombo->setEnabled(isFD);
-      m_dbitBaudCombo->setEnabled(isFD);
-    };
-    connect(m_protocolCombo, &QComboBox::currentTextChanged, this, onProtocolChanged);
-    onProtocolChanged();
+    // 协议切换联动显示（仅 FD 设备有意义）
+    if (m_fdCapable) {
+      auto onProtocolChanged = [this]() {
+        bool isFD = m_protocolCombo->currentText() == "CAN FD";
+        m_standardCombo->setEnabled(isFD);
+        m_accelCombo->setEnabled(isFD);
+        m_dbitBaudCombo->setEnabled(isFD);
+      };
+      connect(m_protocolCombo, &QComboBox::currentTextChanged, this, onProtocolChanged);
+      onProtocolChanged();
+    }
 
     // 滤波设置区域
     QHBoxLayout *filterLayout = new QHBoxLayout();
@@ -220,17 +241,17 @@ public:
 
   CanChannelConfig getConfig() const {
     CanChannelConfig cfg;
-    cfg.isFd = m_protocolCombo->currentText() == "CAN FD";
+    cfg.isFd = m_fdCapable && m_protocolCombo->currentText() == "CAN FD";
     cfg.isIso = m_standardCombo->currentText() == "CAN FD ISO";
     cfg.enableBrs = m_accelCombo->currentText() == "是";
-    
+
     QString customBaud = m_customBaudEdit->text().trimmed();
     if (!customBaud.isEmpty()) {
       cfg.abitBaud = customBaud.toInt();
     } else {
       cfg.abitBaud = m_abitBaudCombo->currentData().toInt();
     }
-    
+
     cfg.dbitBaud = m_dbitBaudCombo->currentData().toInt();
     cfg.mode = m_workModeCombo->currentText() == "只听模式" ? CanMode::ListenOnly : CanMode::Normal;
     cfg.terminalRes = m_terminalResCombo->currentText() == "使能";
@@ -242,6 +263,15 @@ public:
   }
 
 private:
+  // 隐藏 QFormLayout 中的一行（label + widget）
+  static void hideFormRow(QFormLayout *form, QWidget *field) {
+    if (QLabel *label = qobject_cast<QLabel *>(form->labelForField(field))) {
+      label->setVisible(false);
+    }
+    field->setVisible(false);
+  }
+
+  bool m_fdCapable;
   QComboBox *m_protocolCombo;
   QComboBox *m_standardCombo;
   QComboBox *m_accelCombo;
@@ -283,6 +313,7 @@ void CanDeviceDialog::setupUi() {
   m_deviceTypeCombo->addItem("USBCANFD-100U", ZCAN_USBCANFD_100U);
   m_deviceTypeCombo->addItem("USBCANFD-MINI", ZCAN_USBCANFD_MINI);
   m_deviceTypeCombo->addItem("USBCANFD-800U", ZCAN_USBCANFD_800U);
+  m_deviceTypeCombo->addItem("USBCAN-4E-U", ZCAN_USBCAN_4E_U);
   m_deviceTypeCombo->setStyleSheet("QComboBox { border: 1px solid #CCCCCC; padding: 4px 8px; border-radius: 4px; background: white; min-width: 140px; }"
                                    "QComboBox::drop-down { border: none; width: 20px; }"
                                    "QComboBox::down-arrow { border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 5px solid #FF5A5F; margin-top: 2px; }");
@@ -353,10 +384,18 @@ void CanDeviceDialog::refreshDeviceTree() {
     return;
   }
 
-  // 1. 获取设备名称与通道数量
+  // 1. 获取设备名称与通道数量（从实际硬件读取；VCI 设备查询失败时使用设备类型回退值）
   QString hw, fw, dr, lib, serial, typeStr;
-  int canNum = 2;
-  m_can->getDeviceInformation(&hw, &fw, &dr, &lib, &canNum, &serial, &typeStr);
+  int canNum = 0;
+  const bool infoOk = m_can->getDeviceInformation(&hw, &fw, &dr, &lib, &canNum, &serial, &typeStr);
+  if (canNum <= 0) {
+    // 极端兜底：确保至少显示设备节点
+    canNum = 2;
+  }
+  if (typeStr.isEmpty()) {
+    typeStr = m_deviceTypeCombo->currentText();
+  }
+  Q_UNUSED(infoOk);  // 返回值仅用于日志/诊断，通道数与名称已保证有效
 
   // 2. 创建设备节点
   QTreeWidgetItem *devItem = new QTreeWidgetItem(m_deviceTree);
@@ -442,7 +481,8 @@ void CanDeviceDialog::onCloseDeviceClicked() {
 }
 
 void CanDeviceDialog::onStartChannelClicked(int channel) {
-  StartChannelDialog dlg(this);
+  const quint32 devType = static_cast<quint32>(m_deviceTypeCombo->currentData().toUInt());
+  StartChannelDialog dlg(CanInterface::isDeviceFdCapable(devType), this);
   if (dlg.exec() == QDialog::Accepted) {
     CanChannelConfig cfg = dlg.getConfig();
     if (m_can->startChannel(channel, cfg)) {
@@ -459,7 +499,8 @@ void CanDeviceDialog::onStopChannelClicked(int channel) {
 }
 
 void CanDeviceDialog::onStartAllChannels() {
-  StartChannelDialog dlg(this);
+  const quint32 devType = static_cast<quint32>(m_deviceTypeCombo->currentData().toUInt());
+  StartChannelDialog dlg(CanInterface::isDeviceFdCapable(devType), this);
   if (dlg.exec() == QDialog::Accepted) {
     CanChannelConfig cfg = dlg.getConfig();
     int count = m_startButtons.size();
@@ -501,13 +542,14 @@ void CanDeviceDialog::onShowDeviceInfoClicked() {
   QString hw, fw, dr, lib, serial, typeStr;
   int canNum = 2;
   if (!m_can->getDeviceInformation(&hw, &fw, &dr, &lib, &canNum, &serial, &typeStr)) {
-    hw = "V3.00";
-    fw = "V2.09";
-    dr = "V1.00";
-    lib = "V0.00";
-    canNum = 2;
-    serial = "B32070B800BB0784A680";
-    typeStr = "USBCANFD-200U";
+    // 硬件查询失败时，使用当前选中的设备类型作为兜底显示
+    typeStr = m_deviceTypeCombo->currentText();
+    hw = QStringLiteral("—");
+    fw = QStringLiteral("—");
+    dr = QStringLiteral("—");
+    lib = QStringLiteral("—");
+    serial = QStringLiteral("—");
+    // canNum 保持默认值，由调用方结合实际设备判断
   }
 
   QDialog infoDlg(this);
