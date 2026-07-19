@@ -54,6 +54,7 @@ private:
   QPushButton *m_btnImport;
   QPushButton *m_btnExport;
   QPushButton *m_btnDelete;
+  QPushButton *m_btnClearAll;
   QPushButton *m_btnOk;
   QPushButton *m_btnCancel;
 

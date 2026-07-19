@@ -1,5 +1,6 @@
 #include "devicemonitorpanel.h"
 
+#include <QComboBox>
 #include <QDateTime>
 #include <QFile>
 #include <QFileDialog>
@@ -12,14 +13,20 @@
 #include <QLabel>
 #include <QMessageBox>
 #include <QPainter>
+#include <QPainterPath>
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QScrollArea>
 #include <QScrollBar>
 #include <QSettings>
+#include <QWheelEvent>
 #include <QSplitter>
 #include <QTextBlock>
 #include <QTextCursor>
+#include <QDragEnterEvent>
+#include <QDragMoveEvent>
+#include <QDropEvent>
+#include <QMimeData>
 #include <QVBoxLayout>
 
 #include "caninterface.h"
@@ -27,57 +34,100 @@
 #include "devicestatuswidget.h"
 #include "roomwidget.h"
 
-// ========== 科技风顶部标题栏 (自定义绘制) ==========
+// ========== 布局模板背景轮廓图 ==========
 
-class MonitorHeader : public QWidget {
+class TemplateBackground : public QWidget {
 public:
-  explicit MonitorHeader(QWidget *parent = nullptr) : QWidget(parent) {
-    setFixedHeight(52);
+  QString tpl;
+  explicit TemplateBackground(QWidget *parent = nullptr) : QWidget(parent) {
+    setAttribute(Qt::WA_TransparentForMouseEvents);
+    setAttribute(Qt::WA_NoSystemBackground);
   }
-
 protected:
   void paintEvent(QPaintEvent *) override {
+    if (tpl.isEmpty()) return;
     QPainter p(this);
     p.setRenderHint(QPainter::Antialiasing);
+    QColor c(0x00, 0xD4, 0xFF, 15);
+    QPen pen(c, 1.5, Qt::DotLine);
+    p.setPen(pen);
+    p.setBrush(QColor(0x00, 0xD4, 0xFF, 8));
 
-    // 渐变背景
-    QLinearGradient bg(0, 0, 0, height());
-    bg.setColorAt(0, QColor(0x14, 0x1C, 0x2C));
-    bg.setColorAt(1, QColor(0x0D, 0x12, 0x1E));
-    p.fillRect(rect(), bg);
+    if (tpl == QStringLiteral("submarine")) {
+      // 核潜艇外形
+      QPainterPath hull;
+      hull.moveTo(120, 350); hull.cubicTo(50, 200, 300, 180, 500, 180);
+      hull.lineTo(1400, 180); hull.cubicTo(1550, 180, 1580, 300, 1580, 350);
+      hull.cubicTo(1580, 420, 1550, 540, 1400, 540);
+      hull.lineTo(500, 540); hull.cubicTo(300, 540, 50, 500, 120, 350);
+      p.drawPath(hull);
+      // 指挥塔
+      p.drawRect(400, 100, 150, 80);
+      // 螺旋桨
+      p.setPen(QPen(c, 2));
+      p.drawLine(1560, 350, 1600, 310); p.drawLine(1560, 350, 1600, 350); p.drawLine(1560, 350, 1600, 390);
+      // 隔舱
+      p.setPen(pen);
+      p.drawLine(350, 200, 350, 520); p.drawLine(650, 200, 650, 520);
+      p.drawLine(900, 200, 900, 520); p.drawLine(1150, 200, 1150, 520);
+    } else if (tpl == QStringLiteral("building")) {
+      p.drawRoundedRect(80, 80, 640, 400, 8, 8);
+      p.drawLine(80, 215, 720, 215); p.drawLine(80, 350, 720, 350);
+      for (int x = 160; x < 720; x += 120) p.drawLine(x, 80, x, 480);
+      p.drawLine(400, 80, 400, 40); p.drawEllipse(QPoint(400, 40), 6, 6);
+    } else if (tpl == QStringLiteral("warship")) {
+      QPainterPath ship;
+      ship.moveTo(80, 250); ship.lineTo(150, 180); ship.lineTo(350, 180);
+      ship.lineTo(400, 130); ship.lineTo(500, 130); ship.lineTo(550, 180);
+      ship.lineTo(700, 180); ship.lineTo(750, 160); ship.lineTo(800, 160);
+      ship.lineTo(850, 200); ship.lineTo(980, 200); ship.lineTo(1020, 250); ship.closeSubpath();
+      p.drawPath(ship);
+      p.drawLine(80, 250, 1020, 250);
+      p.drawRect(200, 170, 50, 30);
+      p.drawLine(450, 130, 450, 60); p.drawEllipse(QPoint(450, 55), 8, 5);
+    } else if (tpl == QStringLiteral("carrier")) {
+      QPainterPath deck;
+      deck.moveTo(30, 220); deck.lineTo(30, 170); deck.lineTo(280, 100);
+      deck.lineTo(550, 100); deck.lineTo(1010, 170); deck.lineTo(1010, 220); deck.closeSubpath();
+      p.drawPath(deck);
+      p.drawRect(590, 60, 160, 130);
+      p.drawLine(30, 220, 1010, 220);
+      for (int x = 100; x < 500; x += 80) { p.drawLine(x, 120, x - 30, 180); p.drawLine(x + 40, 120, x + 10, 180); }
+    }
+  }
+};
 
-    // 底部发光分割线
-    QLinearGradient line(0, height() - 1, width(), height() - 1);
+// ========== 底部状态栏 (自定义绘制) ==========
+
+class BottomStatusBar : public QWidget {
+public:
+  QLabel *lblClock, *lblTitle;
+  explicit BottomStatusBar(QWidget *parent = nullptr) : QWidget(parent) {
+    setFixedHeight(30);
+    auto *lay = new QHBoxLayout(this);
+    lay->setContentsMargins(12, 2, 12, 2);
+    lay->setSpacing(10);
+
+    lblTitle = new QLabel(QStringLiteral("CAN2.0B Status Monitor  |  v2.0  |  Phudon"));
+    lblTitle->setStyleSheet("color:#00D4FF;font-size:10px;font-weight:bold;font-family:'Consolas';");
+    lay->addWidget(lblTitle);
+    lay->addStretch();
+    lblClock = new QLabel();
+    lblClock->setStyleSheet("color:#64748B;font-size:10px;font-family:'Consolas';");
+    lay->addWidget(lblClock);
+  }
+
+  void paintEvent(QPaintEvent *) override {
+    QPainter p(this);
+    QLinearGradient line(0, 0, width(), 0);
     line.setColorAt(0, QColor(0x00, 0xD4, 0xFF, 0));
-    line.setColorAt(0.3, QColor(0x00, 0xD4, 0xFF, 80));
-    line.setColorAt(0.5, QColor(0x00, 0xD4, 0xFF, 120));
-    line.setColorAt(0.7, QColor(0x00, 0xD4, 0xFF, 80));
+    line.setColorAt(0.3, QColor(0x00, 0xD4, 0xFF, 60));
+    line.setColorAt(0.5, QColor(0x00, 0xD4, 0xFF, 100));
+    line.setColorAt(0.7, QColor(0x00, 0xD4, 0xFF, 60));
     line.setColorAt(1, QColor(0x00, 0xD4, 0xFF, 0));
     p.setPen(QPen(line, 1));
-    p.drawLine(0, height() - 1, width(), height() - 1);
-
-    // 左侧装饰竖线
-    p.fillRect(0, 0, 3, height(), QColor(0x00, 0xD4, 0xFF));
-
-    // 标题文字
-    p.setPen(QColor(0xE2, 0xE8, 0xF0));
-    QFont f("Microsoft YaHei", 12, QFont::Bold);
-    f.setLetterSpacing(QFont::AbsoluteSpacing, 2);
-    p.setFont(f);
-    p.drawText(14, 4, width() - 28, height() - 8,
-               Qt::AlignVCenter | Qt::AlignLeft,
-               QStringLiteral("设备状态监控"));
-
-    // 右侧状态点 + 文字
-    p.setPen(Qt::NoPen);
-    p.setBrush(QColor(0x10, 0xB9, 0x81));
-    p.drawEllipse(QPoint(width() - 60, height() / 2), 4, 4);
-
-    p.setPen(QColor(0x7C, 0x87, 0x9A));
-    p.setFont(QFont("Consolas", 8));
-    p.drawText(width() - 130, 4, 110, height() - 8,
-               Qt::AlignVCenter | Qt::AlignRight,
-               QStringLiteral("MONITOR  v1.0"));
+    p.drawLine(0, 0, width(), 0);
+    p.fillRect(rect().adjusted(0, 1, 0, 0), QColor(0x0D, 0x12, 0x1E));
   }
 };
 
@@ -117,9 +167,6 @@ void DeviceMonitorPanel::setupUi() {
   mainLayout->setContentsMargins(0, 0, 0, 0);
   mainLayout->setSpacing(0);
 
-  // ---- 科技风顶部标题栏 ----
-  auto *header = new MonitorHeader(this);
-  mainLayout->addWidget(header);
 
   // ---- 工具栏 ----
   auto *toolbar = new QWidget();
@@ -164,7 +211,7 @@ void DeviceMonitorPanel::setupUi() {
   tbLayout->addWidget(m_btnReset);
 
   // Room 模式按钮
-  m_btnToggleRoom = new QPushButton(QStringLiteral("⊞ 分区模式"));
+  m_btnToggleRoom = new QPushButton(QStringLiteral("⊞ 布局"));
   m_btnToggleRoom->setCheckable(true);
   m_btnToggleRoom->setStyleSheet(techBtn +
       "QPushButton { color: #10B981; background: #1A2720; "
@@ -182,21 +229,65 @@ void DeviceMonitorPanel::setupUi() {
       "QPushButton:hover { background: #1E3A5F; }");
   tbLayout->addWidget(m_btnAddRoom);
 
-  m_btnRenameRoom = new QPushButton(QStringLiteral("✎ 重命名"));
-  m_btnRenameRoom->setVisible(false);
-  m_btnRenameRoom->setStyleSheet(techBtn +
-      "QPushButton { color: #FBBF24; background: #1A251A; "
-      "border: 1px solid #2E351E; } "
-      "QPushButton:hover { background: #2E351E; }");
-  tbLayout->addWidget(m_btnRenameRoom);
+  // 图标风格选择器
+  auto *iconStyleCombo = new QComboBox();
+  iconStyleCombo->setStyleSheet(
+      "QComboBox{color:#C084FC;background:#1A1A2E;border:1px solid #2E1E3E;padding:3px 8px;font-size:10px;font-family:'Microsoft YaHei';border-radius:3px;}"
+      "QComboBox:hover{border-color:#C084FC;}"
+      "QComboBox QAbstractItemView{background:#111827;color:#E2E8F0;selection-background:#1E3A5F;}"
+      "QComboBox::drop-down{border:none;}");
+  iconStyleCombo->addItem(QStringLiteral("🎨 图标风格: 默认"), 0);
+  iconStyleCombo->addItem(QStringLiteral("🎨 图标风格: 简约"), 1);
+  iconStyleCombo->addItem(QStringLiteral("🎨 图标风格: 复古"), 2);
+  tbLayout->addWidget(iconStyleCombo);
+  connect(iconStyleCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int idx) {
+    DeviceStatusWidget::setIconStyle(idx);
+    for (auto *w : m_deviceWidgets) w->update();
+  });
 
-  m_btnDeleteRoom = new QPushButton(QStringLiteral("✕ 删除房间"));
-  m_btnDeleteRoom->setVisible(false);
-  m_btnDeleteRoom->setStyleSheet(techBtn +
-      "QPushButton { color: #F87171; background: #271A1A; "
-      "border: 1px solid #3E1E1E; } "
-      "QPushButton:hover { background: #3E1E1E; }");
-  tbLayout->addWidget(m_btnDeleteRoom);
+  // 布局模板下拉
+  m_templateCombo = new QComboBox();
+  m_templateCombo->setVisible(false);
+  m_templateCombo->setStyleSheet(
+      "QComboBox{color:#FBBF24;background:#1A251A;border:1px solid #2E351E;padding:3px 8px;font-size:10px;font-family:'Microsoft YaHei';border-radius:3px;}"
+      "QComboBox:hover{border-color:#FBBF24;}"
+      "QComboBox QAbstractItemView{background:#111827;color:#E2E8F0;selection-background:#1E3A5F;}"
+      "QComboBox::drop-down{border:none;}");
+  m_templateCombo->addItem(QStringLiteral("📐 选择布局模板..."), QString());
+  m_templateCombo->addItem(QStringLiteral("🚢 核潜艇布局"), QStringLiteral("submarine"));
+  m_templateCombo->addItem(QStringLiteral("🏢 写字楼布局"), QStringLiteral("building"));
+  m_templateCombo->addItem(QStringLiteral("🛥️ 水面舰船布局"), QStringLiteral("warship"));
+  m_templateCombo->addItem(QStringLiteral("🛫 航母布局"), QStringLiteral("carrier"));
+  tbLayout->addWidget(m_templateCombo);
+
+  // 缩放控制
+  auto *btnZoomOut = new QPushButton(QStringLiteral("🔍−"));
+  btnZoomOut->setFixedWidth(50);
+  btnZoomOut->setStyleSheet(techBtn + "QPushButton{color:#7C879A;background:#1A2235;border:1px solid #1E293E;}QPushButton:hover{color:#00D4FF;}");
+  tbLayout->addWidget(btnZoomOut);
+  auto *btnZoomIn = new QPushButton(QStringLiteral("🔍+"));
+  btnZoomIn->setFixedWidth(50);
+  btnZoomIn->setStyleSheet(techBtn + "QPushButton{color:#7C879A;background:#1A2235;border:1px solid #1E293E;}QPushButton:hover{color:#00D4FF;}");
+  tbLayout->addWidget(btnZoomIn);
+  auto *btnZoomFit = new QPushButton(QStringLiteral("⊡ 适中"));
+  btnZoomFit->setFixedWidth(58);
+  btnZoomFit->setStyleSheet(techBtn + "QPushButton{color:#7C879A;background:#1A2235;border:1px solid #1E293E;}QPushButton:hover{color:#10B981;}");
+  tbLayout->addWidget(btnZoomFit);
+
+  // 保存布局按钮
+  auto *btnSaveLayout = new QPushButton(QStringLiteral("💾 保存布局"));
+  btnSaveLayout->setStyleSheet(techBtn + "QPushButton{color:#10B981;background:#1A2720;border:1px solid #1E3E2E;}QPushButton:hover{background:#1E3E2E;}");
+  tbLayout->addWidget(btnSaveLayout);
+
+  // 信息日志按钮
+  auto *btnInfoLog = new QPushButton(QStringLiteral("📟 信息日志"));
+  btnInfoLog->setCheckable(true);
+  btnInfoLog->setChecked(true);
+  btnInfoLog->setStyleSheet(techBtn +
+      "QPushButton{color:#7C879A;background:#1A2235;border:1px solid #1E293E;}"
+      "QPushButton:hover{color:#00D4FF;border-color:#00D4FF;}"
+      "QPushButton:checked{color:#00D4FF;border-color:#00D4FF;}");
+  tbLayout->addWidget(btnInfoLog);
 
   tbLayout->addStretch();
 
@@ -208,6 +299,47 @@ void DeviceMonitorPanel::setupUi() {
 
   mainLayout->addWidget(toolbar);
 
+  // ---- 未摆放设备停靠区 (仅布局模式可见) ----
+  m_unplacedDock = new QWidget();
+  m_unplacedDock->setVisible(false);
+  m_unplacedDock->setStyleSheet(
+      "background: rgba(15, 23, 42, 0.85);"
+      "border: 1px solid #1E293E;"
+      "border-radius: 8px;"
+      "margin: 2px 6px;");
+  auto *dockVLayout = new QVBoxLayout(m_unplacedDock);
+  dockVLayout->setContentsMargins(12, 8, 12, 8);
+  dockVLayout->setSpacing(6);
+
+  auto *dockLabel = new QLabel(QStringLiteral("未摆放设备："));
+  dockLabel->setStyleSheet(
+      "color: #64748B; font-size: 11px; font-weight: bold;"
+      "font-family: 'Microsoft YaHei'; background: transparent; border: none;");
+  dockVLayout->addWidget(dockLabel);
+
+  auto *dockScroll = new QScrollArea();
+  dockScroll->setFrameShape(QFrame::NoFrame);
+  dockScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+  dockScroll->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+  dockScroll->setWidgetResizable(true);
+  dockScroll->setFixedHeight(175);
+  dockScroll->setStyleSheet(
+      "QScrollArea { background: transparent; border: none; }"
+      "QScrollBar:horizontal { background: #0D1117; height: 6px; }"
+      "QScrollBar::handle:horizontal { background: #1E293E; border-radius: 3px; min-width: 20px; }"
+      "QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { width: 0px; }");
+
+  m_unplacedContainer = new QWidget();
+  m_unplacedContainer->setStyleSheet("background: transparent; border: none;");
+  auto *dockHLayout = new QHBoxLayout(m_unplacedContainer);
+  dockHLayout->setContentsMargins(4, 4, 4, 4);
+  dockHLayout->setSpacing(14);
+  dockHLayout->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+
+  dockScroll->setWidget(m_unplacedContainer);
+  dockVLayout->addWidget(dockScroll);
+  mainLayout->addWidget(m_unplacedDock);
+
   // ---- 页面主体 (采用分割器以支持日志高度拖动调节) ----
   QSplitter *splitter = new QSplitter(Qt::Vertical, this);
   splitter->setChildrenCollapsible(false);
@@ -215,17 +347,20 @@ void DeviceMonitorPanel::setupUi() {
 
   // ---- 设备网格区域 (可滚动) ----
   m_scrollArea = new QScrollArea();
-  m_scrollArea->setWidgetResizable(true);
+  m_scrollArea->setWidgetResizable(true); // 默认网格模式：自动扩展填充视口
   m_scrollArea->setFrameShape(QFrame::NoFrame);
   m_scrollArea->setStyleSheet(
       "QScrollArea { background-color: #0D1117; border: none; }"
       "QScrollBar:vertical { background: #0D1117; width: 8px; }"
-      "QScrollBar::handle:vertical { background: #1E293E; border-radius: 4px; "
-      "min-height: 30px; }"
-      "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { "
-      "height: 0px; }");
+      "QScrollBar::handle:vertical { background: #1E293E; border-radius: 4px; min-height: 30px; }"
+      "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0px; }"
+      "QScrollBar:horizontal { background: #0D1117; height: 8px; }"
+      "QScrollBar::handle:horizontal { background: #1E293E; border-radius: 4px; min-width: 30px; }"
+      "QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { width: 0px; }");
 
   m_gridContainer = new QWidget();
+  m_gridContainer->setAcceptDrops(true);
+  m_gridContainer->installEventFilter(this);
   m_gridContainer->setStyleSheet("background-color: #0D1117;");
   m_gridLayout = new QGridLayout(m_gridContainer);
   m_gridLayout->setContentsMargins(20, 20, 20, 20);
@@ -235,22 +370,78 @@ void DeviceMonitorPanel::setupUi() {
   m_scrollArea->setWidget(m_gridContainer);
   splitter->addWidget(m_scrollArea);
 
-  // ---- 事件日志 ----
+  // ---- 事件日志（带右上角清除/关闭按钮） ----
+  auto *logWrapper = new QWidget();
+  auto *logWLayout = new QVBoxLayout(logWrapper);
+  logWLayout->setContentsMargins(0, 0, 0, 0);
+  logWLayout->setSpacing(0);
+
+  // 日志标题栏
+  auto *logTitleBar = new QWidget();
+  logTitleBar->setFixedHeight(26);
+  logTitleBar->setStyleSheet("background:#0F1620;border-bottom:1px solid #1E293E;");
+  auto *ltLayout = new QHBoxLayout(logTitleBar);
+  ltLayout->setContentsMargins(10, 0, 4, 0);
+  auto *logTitleLbl = new QLabel(QStringLiteral("📋 事件日志"));
+  logTitleLbl->setStyleSheet("color:#7C879A;font-size:10px;font-weight:bold;font-family:'Microsoft YaHei';");
+  ltLayout->addWidget(logTitleLbl);
+  ltLayout->addStretch();
+  auto *btnClearLog = new QPushButton(QStringLiteral("🗑"));
+  btnClearLog->setFixedSize(22, 22);
+  btnClearLog->setToolTip(QStringLiteral("清除日志"));
+  btnClearLog->setStyleSheet("QPushButton{color:#64748B;background:transparent;border:none;font-size:12px;}QPushButton:hover{color:#F87171;}");
+  ltLayout->addWidget(btnClearLog);
+  auto *btnCloseLog = new QPushButton(QStringLiteral("✕"));
+  btnCloseLog->setFixedSize(22, 22);
+  btnCloseLog->setToolTip(QStringLiteral("关闭日志"));
+  btnCloseLog->setStyleSheet("QPushButton{color:#64748B;background:transparent;border:none;font-size:11px;}QPushButton:hover{color:#EF4444;}");
+  ltLayout->addWidget(btnCloseLog);
+  logWLayout->addWidget(logTitleBar);
+
   m_log = new QPlainTextEdit();
   m_log->setReadOnly(true);
   m_log->setFrameShape(QFrame::NoFrame);
   m_log->setStyleSheet(
       "QPlainTextEdit { background-color: #0A0E14; color: #7C879A; "
       "font-size: 11px; font-family: 'Microsoft YaHei', 'Consolas', monospace; "
-      "padding: 6px; border-top: 1px solid #1E293E; }");
-  m_log->setPlaceholderText(QStringLiteral("告警事件日志…"));
-  splitter->addWidget(m_log);
+      "padding: 6px; border: none; }");
+  m_log->setPlaceholderText(QStringLiteral("事件日志 — 设备状态变更记录"));
+  logWLayout->addWidget(m_log);
+  splitter->addWidget(logWrapper);
+
+  // 日志面板清除/关闭按钮
+  connect(btnClearLog, &QPushButton::clicked, this, [this]() {
+    m_log->clear();
+  });
+  connect(btnCloseLog, &QPushButton::clicked, this, [this, logWrapper]() {
+    logWrapper->setVisible(false);
+  });
+  // 工具栏信息日志按钮 — 重新打开日志面板
+  connect(btnInfoLog, &QPushButton::toggled, this, [logWrapper](bool checked) {
+    logWrapper->setVisible(checked);
+  });
+  // logWrapper 隐藏时同步按钮状态
+  // (close 按钮点击后通过 btnCloseLog 连接处理)
 
   // 设置分割器初始拉伸比例
   splitter->setStretchFactor(0, 5); // 监控区域占5份
   splitter->setStretchFactor(1, 1); // 日志区域占1份
 
   mainLayout->addWidget(splitter, 1);
+
+  // ---- 底部状态栏 ----
+  auto *bottomBar = new BottomStatusBar(this);
+  mainLayout->addWidget(bottomBar);
+
+  // 系统时钟定时器
+  auto *clockTimer = new QTimer(this);
+  connect(clockTimer, &QTimer::timeout, this, [bottomBar]() {
+    bottomBar->lblClock->setText(
+        QDateTime::currentDateTime().toString("yyyy-MM-dd  HH:mm:ss"));
+  });
+  clockTimer->start(1000);
+  bottomBar->lblClock->setText(
+      QDateTime::currentDateTime().toString("yyyy-MM-dd  HH:mm:ss"));
 
   // ---- 信号连接 ----
   connect(m_btnConfig, &QPushButton::clicked, this,
@@ -267,10 +458,21 @@ void DeviceMonitorPanel::setupUi() {
           &DeviceMonitorPanel::onToggleRoomMode);
   connect(m_btnAddRoom, &QPushButton::clicked, this,
           &DeviceMonitorPanel::onAddRoom);
-  connect(m_btnRenameRoom, &QPushButton::clicked, this,
-          &DeviceMonitorPanel::onRenameRoom);
-  connect(m_btnDeleteRoom, &QPushButton::clicked, this,
-          &DeviceMonitorPanel::onDeleteRoom);
+  connect(btnZoomIn, &QPushButton::clicked, this, &DeviceMonitorPanel::zoomIn);
+  connect(btnZoomOut, &QPushButton::clicked, this, &DeviceMonitorPanel::zoomOut);
+  connect(btnZoomFit, &QPushButton::clicked, this, &DeviceMonitorPanel::zoomFit);
+  connect(btnSaveLayout, &QPushButton::clicked, this, [this]() {
+    saveRoomLayout();
+    appendLog(QStringLiteral("💾 布局已保存"), false);
+  });
+  connect(m_templateCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+          this, [this](int idx) {
+    QString tpl = m_templateCombo->itemData(idx).toString();
+    if (!tpl.isEmpty()) {
+      applyLayoutTemplate(tpl);
+      m_templateCombo->setCurrentIndex(0);
+    }
+  });
 
   loadRoomLayout();
 
@@ -299,16 +501,38 @@ void DeviceMonitorPanel::onFrameReceived(const CanFrame &frame) {
     widget->setStatus(bitVal);
 
     if (bitVal != prev) {
-      QString dir = bitVal ? QStringLiteral(">> 报警") : QStringLiteral("<< 恢复");
-      if (mapping.deviceType == QStringLiteral("valve")) {
-        dir = bitVal ? QStringLiteral(">> 开启") : QStringLiteral("<< 关闭");
-      }
-      appendLog(QStringLiteral("%1  ID=0x%2 B%3.b%4  %5")
-                    .arg(mapping.label)
-                    .arg(frame.id, 3, 16, QChar('0'))
-                    .arg(mapping.byteIndex)
-                    .arg(mapping.bitIndex)
-                    .arg(dir),
+      // 设备类型中文名
+      QString typeName;
+      if (mapping.deviceType == QStringLiteral("detector")) typeName = QStringLiteral("烟温探测器");
+      else if (mapping.deviceType == QStringLiteral("valve")) typeName = QStringLiteral("控制分配阀");
+      else if (mapping.deviceType == QStringLiteral("valve_distributor")) typeName = QStringLiteral("分配阀");
+      else if (mapping.deviceType == QStringLiteral("valve_zone")) typeName = QStringLiteral("区域阀");
+      else if (mapping.deviceType == QStringLiteral("valve_main_isolation")) typeName = QStringLiteral("总管隔离阀");
+      else if (mapping.deviceType == QStringLiteral("manual_alarm")) typeName = QStringLiteral("手动报警按钮");
+      else if (mapping.deviceType == QStringLiteral("gas_cylinder")) typeName = QStringLiteral("1301气体钢瓶");
+      else if (mapping.deviceType == QStringLiteral("water_pump")) typeName = QStringLiteral("水泵");
+      else if (mapping.deviceType == QStringLiteral("pressure_switch")) typeName = QStringLiteral("压力开关");
+      else if (mapping.deviceType == QStringLiteral("mobile_spray_gun")) typeName = QStringLiteral("移动喷枪");
+      else typeName = mapping.deviceType;
+
+      // 状态文字
+      QString stText;
+      if (mapping.deviceType == QStringLiteral("valve") ||
+          mapping.deviceType == QStringLiteral("valve_distributor") ||
+          mapping.deviceType == QStringLiteral("valve_zone") ||
+          mapping.deviceType == QStringLiteral("valve_main_isolation"))
+        stText = bitVal ? QStringLiteral("开启") : QStringLiteral("关闭");
+      else if (mapping.deviceType == QStringLiteral("water_pump"))
+        stText = bitVal ? QStringLiteral("运转") : QStringLiteral("停止");
+      else if (mapping.deviceType == QStringLiteral("pressure_switch"))
+        stText = bitVal ? QStringLiteral("开启") : QStringLiteral("关闭");
+      else if (mapping.deviceType == QStringLiteral("mobile_spray_gun"))
+        stText = bitVal ? QStringLiteral("喷射") : QStringLiteral("停止");
+      else
+        stText = bitVal ? QStringLiteral("报警") : QStringLiteral("正常");
+
+      appendLog(QStringLiteral("%1 [%2]  状态变为：%3")
+                    .arg(mapping.label, typeName, stText),
                 bitVal);
 
       // 向所有连接的 WebSocket 客户端广播状态更新
@@ -328,6 +552,10 @@ void DeviceMonitorPanel::onFrameReceived(const CanFrame &frame) {
 // ========== 网格重建 ==========
 
 void DeviceMonitorPanel::rebuildGrid() {
+  // 网格模式：清除固定尺寸，允许容器自适应填充视口
+  m_gridContainer->setMinimumSize(0, 0);
+  m_gridContainer->setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
+
   if (m_mappings.isEmpty()) {
     qDeleteAll(m_deviceWidgets);
     m_deviceWidgets.clear();
@@ -335,17 +563,6 @@ void DeviceMonitorPanel::rebuildGrid() {
       QLayoutItem *item = m_gridLayout->takeAt(0);
       delete item;
     }
-    auto *ph = new QLabel(
-        QStringLiteral("  ⚊  暂无设备配置  ⚊\n\n"
-                       "点击「⚙ 设备配置」添加 CAN 设备位映射\n"
-                       "收到匹配的 CAN 帧后将自动更新设备状态"));
-    ph->setAlignment(Qt::AlignCenter);
-    ph->setStyleSheet(
-        "color: #374151; font-size: 15px; padding: 80px; "
-        "background: transparent; "
-        "font-family: 'Microsoft YaHei';");
-    ph->setMinimumHeight(300);
-    m_gridLayout->addWidget(ph, 0, 0, 1, m_gridCols, Qt::AlignCenter);
   } else {
     // 如果配置数量发生变化，则重新创建控件
     if (m_deviceWidgets.size() != m_mappings.size()) {
@@ -409,12 +626,17 @@ void DeviceMonitorPanel::resizeEvent(QResizeEvent *event) {
   QWidget::resizeEvent(event);
   if (!m_scrollArea || m_mappings.isEmpty()) return;
 
-  // 根据视口宽度动态计算列数 (卡片宽度约150px)
-  int areaW = m_scrollArea->viewport()->width();
-  int cols = qMax(1, areaW / 150);
-  if (cols != m_gridCols) {
-    m_gridCols = cols;
-    rebuildGrid();
+  if (m_roomMode) {
+    // 布局模式：确保画布始终不小于视口
+    updateZoom();
+  } else {
+    // 根据视口宽度动态计算列数 (卡片宽度约150px)
+    int areaW = m_scrollArea->viewport()->width();
+    int cols = qMax(1, areaW / 150);
+    if (cols != m_gridCols) {
+      m_gridCols = cols;
+      rebuildGrid();
+    }
   }
 }
 
@@ -634,7 +856,9 @@ void DeviceMonitorPanel::appendLog(const QString &text, bool isAlarm) {
 
 
 void DeviceMonitorPanel::onDeviceDragged(int deviceId, const QPoint &newPos) {
-  m_deviceRoomPos[deviceId] = newPos;
+  // 存储基础坐标（除以当前缩放）
+  m_deviceRoomPos[deviceId] = QPoint(newPos.x() / m_zoomLevel, newPos.y() / m_zoomLevel);
+  saveRoomLayout();
 
   // 更新房间设备计数
   for (auto *rw : m_roomWidgets) {
@@ -651,14 +875,22 @@ void DeviceMonitorPanel::onDeviceDragged(int deviceId, const QPoint &newPos) {
 
 void DeviceMonitorPanel::onRoomMoved(const QString &id, const QRect &newGeom) {
   for (auto &r : m_rooms) {
-    if (r.id == id) { r.geom = newGeom; break; }
+    if (r.id == id) {
+      r.geom = QRect(newGeom.x() / m_zoomLevel, newGeom.y() / m_zoomLevel,
+                     newGeom.width() / m_zoomLevel, newGeom.height() / m_zoomLevel);
+      break;
+    }
   }
   saveRoomLayout();
 }
 
 void DeviceMonitorPanel::onRoomResized(const QString &id, const QRect &newGeom) {
   for (auto &r : m_rooms) {
-    if (r.id == id) { r.geom = newGeom; break; }
+    if (r.id == id) {
+      r.geom = QRect(newGeom.x() / m_zoomLevel, newGeom.y() / m_zoomLevel,
+                     newGeom.width() / m_zoomLevel, newGeom.height() / m_zoomLevel);
+      break;
+    }
   }
   saveRoomLayout();
 }
@@ -666,32 +898,196 @@ void DeviceMonitorPanel::onRoomResized(const QString &id, const QRect &newGeom) 
 void DeviceMonitorPanel::onToggleRoomMode() {
   m_roomMode = m_btnToggleRoom->isChecked();
   m_btnAddRoom->setVisible(m_roomMode);
-  m_btnRenameRoom->setVisible(m_roomMode);
-  m_btnDeleteRoom->setVisible(m_roomMode);
+  m_templateCombo->setVisible(m_roomMode);
 
   if (m_roomMode) {
+    m_scrollArea->setWidgetResizable(false); // 布局模式：画布可大于视口
     if (m_rooms.isEmpty()) {
+      // 创建默认房间（不自动放入设备，让设备留在停靠区供用户手动拖入）
+      int vpW = m_scrollArea->viewport()->width() - 40;
+      int vpH = m_scrollArea->viewport()->height() - 40;
+      m_baseCanvasW = qMax(vpW, 1000);
+      m_baseCanvasH = qMax(vpH, 800);
       RoomRegion r;
-      r.id = QStringLiteral("room_1");
-      r.name = QStringLiteral("1区");
-      r.geom = QRect(30, 30, 400, 300);
+      r.id = QStringLiteral("room_1"); r.name = QStringLiteral("1区");
+      r.geom = QRect(20, 20, m_baseCanvasW / 2 - 30, m_baseCanvasH - 40);
       m_rooms.append(r);
       RoomRegion r2;
-      r2.id = QStringLiteral("room_2");
-      r2.name = QStringLiteral("2区");
-      r2.geom = QRect(470, 30, 400, 300);
+      r2.id = QStringLiteral("room_2"); r2.name = QStringLiteral("2区");
+      r2.geom = QRect(m_baseCanvasW / 2 + 10, 20, m_baseCanvasW / 2 - 30, m_baseCanvasH - 40);
       m_rooms.append(r2);
+      // 不再自动分散设备到房间，设备默认在"未摆放"停靠区
     }
     rebuildRoomCanvas();
+    zoomFit();
+    updateZoom();
   } else {
+    m_unplacedDock->setVisible(false);
+    m_scrollArea->setWidgetResizable(true); // 网格模式：自动填充视口
     qDeleteAll(m_roomWidgets);
     m_roomWidgets.clear();
     rebuildGrid();
   }
 }
 
+// ===== 缩放 =====
+
+void DeviceMonitorPanel::zoomIn() { m_zoomLevel = qMin(2.0, m_zoomLevel + 0.25); updateZoom(); }
+void DeviceMonitorPanel::zoomOut() { m_zoomLevel = qMax(0.25, m_zoomLevel - 0.25); updateZoom(); }
+
+void DeviceMonitorPanel::zoomFit() {
+  int vpW = m_scrollArea->viewport()->width() - 40;
+  int vpH = m_scrollArea->viewport()->height() - 40;
+  m_zoomLevel = qMin((qreal)vpW / m_baseCanvasW, (qreal)vpH / m_baseCanvasH);
+  m_zoomLevel = qBound(0.25, m_zoomLevel, 2.0);
+  updateZoom();
+}
+
+void DeviceMonitorPanel::updateZoom() {
+  // 画布始终不小于视口，放大时可超出视口（出现滚动条）
+  int vpW = m_scrollArea->viewport()->width();
+  int vpH = m_scrollArea->viewport()->height();
+  int canvasW = qMax(vpW, (int)(m_baseCanvasW * m_zoomLevel));
+  int canvasH = qMax(vpH, (int)(m_baseCanvasH * m_zoomLevel));
+  m_gridContainer->setFixedSize(canvasW, canvasH);
+
+  // 重新缩放所有已摆放的设备和房间
+  for (auto *w : m_deviceWidgets) {
+    int devId = w->deviceId();
+    if (m_deviceRoomPos.contains(devId)) {
+      QPoint pos = m_deviceRoomPos.value(devId);
+      w->setGeometry(pos.x() * m_zoomLevel, pos.y() * m_zoomLevel,
+                     128 * m_zoomLevel, 155 * m_zoomLevel);
+    }
+    w->update();
+  }
+  for (int i = 0; i < m_roomWidgets.size() && i < m_rooms.size(); ++i) {
+    const auto &r = m_rooms[i];
+    m_roomWidgets[i]->setGeometry(r.geom.x() * m_zoomLevel, r.geom.y() * m_zoomLevel,
+                                   r.geom.width() * m_zoomLevel, r.geom.height() * m_zoomLevel);
+  }
+  if (m_lblCount)
+    m_lblCount->setText(QStringLiteral("缩放: %1% | %2 房间 | %3 设备")
+        .arg((int)(m_zoomLevel * 100)).arg(m_rooms.size()).arg(m_mappings.size()));
+}
+
+// Ctrl+滚轮缩放
+void DeviceMonitorPanel::wheelEvent(QWheelEvent *e) {
+  if (e->modifiers() & Qt::ControlModifier) {
+    if (e->angleDelta().y() > 0) zoomIn(); else zoomOut();
+    e->accept();
+  } else {
+    QWidget::wheelEvent(e);
+  }
+}
+
+bool DeviceMonitorPanel::eventFilter(QObject *watched, QEvent *event) {
+  if (watched == m_gridContainer) {
+    if (event->type() == QEvent::DragEnter) {
+      QDragEnterEvent *dee = static_cast<QDragEnterEvent *>(event);
+      if (dee->mimeData()->hasText() && dee->mimeData()->text().startsWith(QStringLiteral("device:"))) {
+        dee->acceptProposedAction();
+        return true;
+      }
+    } else if (event->type() == QEvent::DragMove) {
+      QDragMoveEvent *dme = static_cast<QDragMoveEvent *>(event);
+      dme->acceptProposedAction();
+      return true;
+    } else if (event->type() == QEvent::Drop) {
+      QDropEvent *de = static_cast<QDropEvent *>(event);
+      QString text = de->mimeData()->text();
+      if (text.startsWith(QStringLiteral("device:"))) {
+        int deviceId = text.mid(7).toInt();
+        QPoint localPos = de->pos();
+        
+        // 使卡片中心对齐鼠标光标，并扣除当前的 zoomLevel 缩放
+        QPoint canvasPos;
+        canvasPos.setX((localPos.x() - 64) / m_zoomLevel);
+        canvasPos.setY((localPos.y() - 77) / m_zoomLevel);
+        
+        m_deviceRoomPos[deviceId] = canvasPos;
+        saveRoomLayout();
+        
+        rebuildRoomCanvas();
+        updateZoom();
+        
+        de->acceptProposedAction();
+        return true;
+      }
+    }
+  }
+  return QWidget::eventFilter(watched, event);
+}
+
+void DeviceMonitorPanel::applyLayoutTemplate(const QString &tpl) {
+  m_activeTemplate = tpl;
+  m_rooms.clear();
+  qDeleteAll(m_roomWidgets);
+  m_roomWidgets.clear();
+  m_deviceRoomPos.clear();
+
+  // 核潜艇布局
+  if (tpl == QStringLiteral("submarine")) {
+    m_rooms.append({"sub_1", QStringLiteral("舱首/鱼雷舱"), QRect(150, 300, 180, 220)});
+    m_rooms.append({"sub_2", QStringLiteral("指挥与战术中心"), QRect(400, 220, 220, 300)});
+    m_rooms.append({"sub_3", QStringLiteral("生活休息舱"), QRect(680, 300, 180, 220)});
+    m_rooms.append({"sub_4", QStringLiteral("反应堆舱区"), QRect(900, 280, 180, 240)});
+    m_rooms.append({"sub_5", QStringLiteral("动力/推进舱"), QRect(1120, 300, 180, 220)});
+    m_gridContainer->setFixedSize(2000, 800);
+  }
+  // 写字楼布局
+  else if (tpl == QStringLiteral("building")) {
+    m_rooms.append({"bld_3", QStringLiteral("3F - 云数据机房"), QRect(100, 110, 600, 100)});
+    m_rooms.append({"bld_2", QStringLiteral("2F - 行政与会议中心"), QRect(100, 225, 600, 100)});
+    m_rooms.append({"bld_1", QStringLiteral("1F - 研发测试中心"), QRect(100, 340, 600, 100)});
+    m_gridContainer->setFixedSize(800, 550);
+  }
+  // 水面舰船布局
+  else if (tpl == QStringLiteral("warship")) {
+    m_rooms.append({"ship_1", QStringLiteral("舰艏武器库区"), QRect(60, 180, 200, 180)});
+    m_rooms.append({"ship_2", QStringLiteral("舰桥驾驶控制舱"), QRect(280, 100, 240, 260)});
+    m_rooms.append({"ship_3", QStringLiteral("舰舯机电舱室"), QRect(540, 180, 200, 180)});
+    m_rooms.append({"ship_4", QStringLiteral("舰艉直升机库"), QRect(760, 160, 200, 200)});
+    m_gridContainer->setFixedSize(1100, 550);
+  }
+  // 航母布局
+  else if (tpl == QStringLiteral("carrier")) {
+    m_rooms.append({"car_1", QStringLiteral("飞行甲板/舰载机区"), QRect(50, 50, 500, 200)});
+    m_rooms.append({"car_2", QStringLiteral("舰岛/指挥塔"), QRect(560, 50, 200, 180)});
+    m_rooms.append({"car_3", QStringLiteral("机库/维修区"), QRect(50, 260, 500, 180)});
+    m_rooms.append({"car_4", QStringLiteral("动力/推进舱"), QRect(560, 240, 200, 200)});
+    m_rooms.append({"car_5", QStringLiteral("武器/防御区"), QRect(770, 50, 200, 390)});
+    m_gridContainer->setFixedSize(1050, 550);
+  }
+
+  // 自动分配设备到房间
+  int idx = 0;
+  for (auto it = m_deviceWidgets.begin(); it != m_deviceWidgets.end(); ++it, ++idx) {
+    int devId = it.key();
+    if (idx < m_rooms.size()) {
+      const auto &r = m_rooms[idx];
+      m_deviceRoomPos[devId] = QPoint(r.geom.x() + 30, r.geom.y() + 40);
+    }
+  }
+
+  m_baseCanvasW = m_gridContainer->width();
+  m_baseCanvasH = m_gridContainer->height();
+  rebuildRoomCanvas();
+  saveRoomLayout();
+  zoomFit();
+  updateZoom();
+  appendLog(QStringLiteral("✓ 已应用布局模板: %1").arg(tpl), false);
+}
+
 void DeviceMonitorPanel::onAddRoom() {
+  // 形状选择
+  QStringList shapes = {QStringLiteral("矩形"), QStringLiteral("圆形"), QStringLiteral("菱形")};
   bool ok;
+  QString shapeStr = QInputDialog::getItem(this, QStringLiteral("新建房间 — 选择形状"),
+      QStringLiteral("房间形状:"), shapes, 0, false, &ok);
+  if (!ok) return;
+
+  int shape = shapes.indexOf(shapeStr);
   QString name = QInputDialog::getText(this, QStringLiteral("新建房间"),
       QStringLiteral("房间名称:"), QLineEdit::Normal,
       QStringLiteral("房间 %1").arg(m_rooms.size() + 1), &ok);
@@ -700,20 +1096,12 @@ void DeviceMonitorPanel::onAddRoom() {
   RoomRegion r;
   r.id = QStringLiteral("room_%1").arg(QDateTime::currentMSecsSinceEpoch());
   r.name = name.trimmed();
+  r.shape = shape;
   r.geom = QRect(50 + m_rooms.size() * 40, 50 + m_rooms.size() * 40, 320, 240);
   m_rooms.append(r);
 
-  // 创建对应的 RoomWidget
-  auto *rw = new RoomWidget(r.id, r.name, r.geom, m_gridContainer);
-  connect(rw, &RoomWidget::roomMoved, this, &DeviceMonitorPanel::onRoomMoved);
-  connect(rw, &RoomWidget::roomResized, this, &DeviceMonitorPanel::onRoomResized);
-  m_roomWidgets.append(rw);
-  rw->show();
-
-  // 重新放置设备
-  for (auto it = m_deviceWidgets.begin(); it != m_deviceWidgets.end(); ++it) {
-    it.value()->raise();
-  }
+  rebuildRoomCanvas();
+  updateZoom();
 
   appendLog(QStringLiteral("✓ 已创建房间: %1").arg(r.name), false);
   saveRoomLayout();
@@ -724,40 +1112,7 @@ void DeviceMonitorPanel::onAddRoom() {
   }
 }
 
-void DeviceMonitorPanel::onRenameRoom() {
-  if (m_rooms.isEmpty() || m_roomWidgets.isEmpty()) return;
-  auto *rw = m_roomWidgets.first();
-  bool ok;
-  QString name = QInputDialog::getText(this, QStringLiteral("重命名房间"),
-      QStringLiteral("新名称:"), QLineEdit::Normal, rw->roomName(), &ok);
-  if (!ok || name.trimmed().isEmpty()) return;
-
-  rw->setRoomName(name.trimmed());
-  for (auto &r : m_rooms) {
-    if (r.id == rw->roomId()) { r.name = name.trimmed(); break; }
-  }
-  appendLog(QStringLiteral("✓ 房间已重命名为: %1").arg(name.trimmed()), false);
-  saveRoomLayout();
-}
-
-void DeviceMonitorPanel::onDeleteRoom() {
-  if (m_rooms.isEmpty()) return;
-  auto *rw = m_roomWidgets.first();
-  auto btn = QMessageBox::question(this, QStringLiteral("删除房间"),
-      QStringLiteral("确定要删除房间「%1」吗？设备不会被删除。").arg(rw->roomName()));
-  if (btn != QMessageBox::Yes) return;
-
-  appendLog(QStringLiteral("✕ 已删除房间: %1").arg(rw->roomName()), true);
-  m_rooms.removeFirst();
-  m_roomWidgets.removeFirst();
-  delete rw;
-  saveRoomLayout();
-
-  if (m_lblCount) {
-    m_lblCount->setText(QStringLiteral("分区模式 | %1 个房间 | %2 个设备")
-        .arg(m_rooms.size()).arg(m_mappings.size()));
-  }
-}
+// (rename/delete 功能已移至 RoomWidget 右上角按钮)
 
 // ===== Room 布局持久化 =====
 void DeviceMonitorPanel::saveRoomLayout() {
@@ -767,6 +1122,7 @@ void DeviceMonitorPanel::saveRoomLayout() {
     QJsonObject ro;
     ro["id"] = r.id;
     ro["name"] = r.name;
+    ro["shape"] = r.shape;
     ro["x"] = r.geom.x();
     ro["y"] = r.geom.y();
     ro["w"] = r.geom.width();
@@ -804,6 +1160,7 @@ void DeviceMonitorPanel::loadRoomLayout() {
     RoomRegion r;
     r.id = ro["id"].toString();
     r.name = ro["name"].toString();
+    r.shape = ro["shape"].toInt(0);
     r.geom = QRect(ro["x"].toInt(), ro["y"].toInt(),
                    ro["w"].toInt(), ro["h"].toInt());
     m_rooms.append(r);
@@ -859,41 +1216,107 @@ void DeviceMonitorPanel::rebuildRoomCanvas() {
       w->setDraggable(true);
       connect(w, &DeviceStatusWidget::deviceDragged, this,
               &DeviceMonitorPanel::onDeviceDragged);
+      connect(w, &DeviceStatusWidget::dragStartedFromDock, this,
+              [this](int deviceId, const QPoint &) {
+                placeDeviceOnCanvas(deviceId);
+              });
       m_deviceWidgets[m.deviceId] = w;
     }
   }
 
-  // 画布尺寸
-  m_gridContainer->setFixedSize(1600, 1200);
+  // 画布样式
   m_gridContainer->setStyleSheet("background-color: #0D1117;");
 
   // 创建 RoomWidget
   for (const auto &r : m_rooms) {
-    auto *rw = new RoomWidget(r.id, r.name, r.geom, m_gridContainer);
+    auto *rw = new RoomWidget(r.id, r.name, r.geom, r.shape, m_gridContainer);
     connect(rw, &RoomWidget::roomMoved, this, &DeviceMonitorPanel::onRoomMoved);
     connect(rw, &RoomWidget::roomResized, this, &DeviceMonitorPanel::onRoomResized);
+    connect(rw, &RoomWidget::roomRenameRequested, this, [this](const QString &rid) {
+      for (auto *w : m_roomWidgets) {
+        if (w->roomId() == rid) {
+          bool ok;
+          QString name = QInputDialog::getText(this, QStringLiteral("重命名房间"), QStringLiteral("新名称:"),
+              QLineEdit::Normal, w->roomName(), &ok);
+          if (ok && !name.trimmed().isEmpty()) {
+            w->setRoomName(name.trimmed());
+            for (auto &r : m_rooms) { if (r.id == rid) { r.name = name.trimmed(); break; } }
+            saveRoomLayout();
+            appendLog(QStringLiteral("✓ 房间已重命名为: %1").arg(name.trimmed()), false);
+          }
+          return;
+        }
+      }
+    });
+    connect(rw, &RoomWidget::roomDeleteRequested, this, [this](const QString &rid) {
+      auto btn = QMessageBox::question(this, QStringLiteral("删除房间"), QStringLiteral("确定要删除此房间吗？"));
+      if (btn == QMessageBox::Yes) {
+        for (int i = 0; i < m_roomWidgets.size(); ++i) {
+          if (m_roomWidgets[i]->roomId() == rid) {
+            appendLog(QStringLiteral("✕ 已删除房间: %1").arg(m_roomWidgets[i]->roomName()), true);
+            m_rooms.removeAt(i);
+            delete m_roomWidgets.takeAt(i);
+            saveRoomLayout();
+            break;
+          }
+        }
+      }
+    });
     m_roomWidgets.append(rw);
     rw->show();
   }
 
-  // 放置 device widgets 到画布上
+  // 自适应画布基准尺寸（不含缩放，以最远设备/房间边界为准）
+  int maxX = 800, maxY = 600;
+  for (const auto &r : m_rooms) { maxX = qMax(maxX, r.geom.right() + 50); maxY = qMax(maxY, r.geom.bottom() + 50); }
+  for (auto it = m_deviceRoomPos.begin(); it != m_deviceRoomPos.end(); ++it) {
+    maxX = qMax(maxX, it.value().x() + 180);
+    maxY = qMax(maxY, it.value().y() + 200);
+  }
+  m_baseCanvasW = maxX;
+  m_baseCanvasH = maxY;
+  // 画布尺寸 = max(视口, 基准*缩放)，保证始终填满视口
+  int vpW = m_scrollArea->viewport()->width();
+  int vpH = m_scrollArea->viewport()->height();
+  m_gridContainer->setFixedSize(qMax(vpW, (int)(m_baseCanvasW * m_zoomLevel)),
+                                qMax(vpH, (int)(m_baseCanvasH * m_zoomLevel)));
+
+  // 模板背景轮廓
+  if (!m_activeTemplate.isEmpty()) {
+    auto *bg = new TemplateBackground(m_gridContainer);
+    bg->tpl = m_activeTemplate;
+    bg->setGeometry(0, 0, maxX, maxY);
+    bg->lower();
+    bg->show();
+  }
+
+  // ===== 分流设备：已摆放的放画布，未摆放的放停靠区 =====
   for (auto it = m_deviceWidgets.begin(); it != m_deviceWidgets.end(); ++it) {
     int devId = it.key();
     auto *w = it.value();
-    w->setParent(m_gridContainer);
-    w->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 
-    QPoint pos = m_deviceRoomPos.value(devId, QPoint(40 + devId * 25, 40 + devId * 25));
-    w->setGeometry(pos.x(), pos.y(), 128, 155);
-    w->setDraggable(true);
-    w->show();
-    w->raise();
+    if (m_deviceRoomPos.contains(devId)) {
+      // 已摆放 → 放到画布上
+      w->setParent(m_gridContainer);
+      w->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+      QPoint pos = m_deviceRoomPos.value(devId);
+      w->setGeometry(pos.x() * m_zoomLevel, pos.y() * m_zoomLevel,
+                     128 * m_zoomLevel, 155 * m_zoomLevel);
+      w->setDraggable(true);
+      w->show();
+      w->raise();
+    }
+    // 未摆放的设备会在 updateUnplacedDock() 中处理
   }
 
-  // 更新房间设备计数
+  // 更新未摆放停靠区
+  updateUnplacedDock();
+
+  // 更新房间设备计数（仅计算已摆放的设备）
   for (auto *rw : m_roomWidgets) {
     int cnt = 0;
     for (auto it = m_deviceWidgets.begin(); it != m_deviceWidgets.end(); ++it) {
+      if (!m_deviceRoomPos.contains(it.key())) continue;
       QRect devGeom(it.value()->pos(), it.value()->size());
       if (rw->geometry().contains(devGeom.center())) ++cnt;
     }
@@ -901,7 +1324,100 @@ void DeviceMonitorPanel::rebuildRoomCanvas() {
   }
 
   if (m_lblCount) {
-    m_lblCount->setText(QStringLiteral("分区模式 | %1 个房间 | %2 个设备")
-        .arg(m_rooms.size()).arg(m_mappings.size()));
+    int placed = 0;
+    for (const auto &mapping : m_mappings) {
+      if (m_deviceRoomPos.contains(mapping.deviceId)) ++placed;
+    }
+    m_lblCount->setText(QStringLiteral("分区模式 | %1 个房间 | %2/%3 设备已摆放")
+        .arg(m_rooms.size()).arg(placed).arg(m_mappings.size()));
   }
 }
+
+// ===== 未摆放设备停靠区管理 =====
+
+void DeviceMonitorPanel::updateUnplacedDock() {
+  if (!m_unplacedContainer) return;
+
+  // 清空停靠区布局（解除控件父级但不删除）
+  QLayout *lay = m_unplacedContainer->layout();
+  if (lay) {
+    while (lay->count() > 0) {
+      QLayoutItem *item = lay->takeAt(0);
+      if (item->widget()) {
+        item->widget()->setParent(nullptr);
+      }
+      delete item;
+    }
+  }
+
+  // 收集未摆放的设备（没有在 m_deviceRoomPos 中的）
+  QList<int> unplacedIds;
+  for (const auto &mapping : m_mappings) {
+    if (!m_deviceRoomPos.contains(mapping.deviceId)) {
+      unplacedIds.append(mapping.deviceId);
+    }
+  }
+
+  if (unplacedIds.isEmpty()) {
+    // 所有设备已摆放，隐藏停靠区
+    m_unplacedDock->setVisible(false);
+    return;
+  }
+
+  // 显示停靠区并填充设备
+  m_unplacedDock->setVisible(true);
+
+  for (int devId : unplacedIds) {
+    auto *w = m_deviceWidgets.value(devId, nullptr);
+    if (!w) continue;
+
+    w->setParent(m_unplacedContainer);
+    w->setFixedSize(128, 155);
+    w->setDraggable(false); // 在停靠区不可拖拽
+    w->setCursor(Qt::PointingHandCursor);
+    w->show();
+
+    // 添加到水平布局
+    m_unplacedContainer->layout()->addWidget(w);
+  }
+}
+
+void DeviceMonitorPanel::placeDeviceOnCanvas(int deviceId) {
+  auto *w = m_deviceWidgets.value(deviceId, nullptr);
+  if (!w) return;
+
+  // 找到第一个房间的中心作为默认放置位置
+  QPoint placePos(60, 60);
+  if (!m_rooms.isEmpty()) {
+    const auto &firstRoom = m_rooms.first();
+    // 计算该房间中已有设备数量，用于排列新设备
+    int existing = 0;
+    for (auto it = m_deviceRoomPos.begin(); it != m_deviceRoomPos.end(); ++it) {
+      QPoint p = it.value();
+      if (firstRoom.geom.contains(p)) existing++;
+    }
+    int col = existing % 4;
+    int row = existing / 4;
+    placePos = QPoint(firstRoom.geom.x() + 30 + col * 140,
+                      firstRoom.geom.y() + 50 + row * 170);
+    // 确保在房间边界内
+    if (placePos.x() + 128 > firstRoom.geom.right())
+      placePos.setX(firstRoom.geom.x() + 30);
+    if (placePos.y() + 155 > firstRoom.geom.bottom())
+      placePos.setY(firstRoom.geom.y() + 50);
+  }
+
+  // 保存设备位置
+  m_deviceRoomPos[deviceId] = placePos;
+  saveRoomLayout();
+
+  // 重建画布
+  rebuildRoomCanvas();
+  updateZoom();
+
+  appendLog(QStringLiteral("✓ 设备 %1 已摆放到画布").arg(w->label()), false);
+}
+
+
+
+

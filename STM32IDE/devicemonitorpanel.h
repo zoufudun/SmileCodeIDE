@@ -19,16 +19,23 @@ class QGridLayout;
 class QLabel;
 class QPlainTextEdit;
 class QPushButton;
+class QComboBox;
 class QScrollArea;
 class CanInterface;
 class DeviceStatusWidget;
 class RoomWidget;
 
 // ===== 房间区域数据结构 =====
+enum RoomShape { ShapeRectangle = 0, ShapeCircle, ShapeDiamond, ShapeIrregular };
 struct RoomRegion {
   QString id;
   QString name;
-  QRect geom; // x, y, w, h (画布坐标)
+  QRect geom;
+  int shape = ShapeRectangle; // 0=矩形, 1=圆形, 2=菱形, 3=不规则
+
+  RoomRegion() = default;
+  RoomRegion(const QString &i, const QString &n, const QRect &g, int s = ShapeRectangle)
+      : id(i), name(n), geom(g), shape(s) {}
 };
 
 // 科技风设备状态监控面板 —— 嵌入 CANTool 标签页。
@@ -55,14 +62,14 @@ private slots:
   // Room 模式
   void onToggleRoomMode();
   void onAddRoom();
-  void onRenameRoom();
-  void onDeleteRoom();
   void onDeviceDragged(int deviceId, const QPoint &newPos);
   void onRoomMoved(const QString &id, const QRect &newGeom);
   void onRoomResized(const QString &id, const QRect &newGeom);
 
 protected:
   void resizeEvent(QResizeEvent *event) override;
+  void wheelEvent(QWheelEvent *event) override;
+  bool eventFilter(QObject *watched, QEvent *event) override;
 
 private:
   void rebuildGrid();
@@ -77,6 +84,13 @@ private:
   // Room 辅助
   void saveRoomLayout();
   void loadRoomLayout();
+  void applyLayoutTemplate(const QString &tpl);
+  void zoomIn();
+  void zoomOut();
+  void zoomFit();
+  void updateZoom();
+  void updateUnplacedDock();
+  void placeDeviceOnCanvas(int deviceId);
   RoomRegion *roomAtPos(const QPoint &pos);
 
   CanInterface *m_can;
@@ -89,13 +103,16 @@ private:
   QPushButton *m_btnReset;
   QPushButton *m_btnToggleRoom;
   QPushButton *m_btnAddRoom;
-  QPushButton *m_btnRenameRoom;
-  QPushButton *m_btnDeleteRoom;
+  QComboBox *m_templateCombo;
   QScrollArea *m_scrollArea;
   QWidget *m_gridContainer;
   QGridLayout *m_gridLayout;
   QPlainTextEdit *m_log;
   QLabel *m_lblCount = nullptr;
+
+  // 未摆放设备停靠区
+  QWidget *m_unplacedDock = nullptr;
+  QWidget *m_unplacedContainer = nullptr;
 
   QHash<int, DeviceStatusWidget *> m_deviceWidgets;
   int m_gridCols = 5;
@@ -105,7 +122,10 @@ private:
   bool m_roomMode = false;
   QList<RoomRegion> m_rooms;
   QList<RoomWidget *> m_roomWidgets;
-  QHash<int, QPoint> m_deviceRoomPos; // deviceId → 画布坐标
+  QHash<int, QPoint> m_deviceRoomPos;
+  QString m_activeTemplate;
+  qreal m_zoomLevel = 1.0;
+  int m_baseCanvasW = 1600, m_baseCanvasH = 1200; // deviceId → 画布坐标
 
   // WebSocket
   QWebSocketServer *m_wsServer = nullptr;

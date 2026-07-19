@@ -113,6 +113,14 @@ CanProtocolConfigDialog::CanProtocolConfigDialog(QWidget *parent)
   m_btnDelete->setCursor(Qt::PointingHandCursor);
   m_btnDelete->setEnabled(false);
 
+  m_btnClearAll = new QPushButton(QStringLiteral("🗑 清空"), this);
+  m_btnClearAll->setObjectName("clearAllButton");
+  m_btnClearAll->setCursor(Qt::PointingHandCursor);
+  m_btnClearAll->setStyleSheet(
+      "QPushButton { color: #F87171; background: #271A1A; border: 1px solid #3E1E1E; "
+      "padding: 4px 12px; border-radius: 3px; font-weight: bold; } "
+      "QPushButton:hover { background: #3E1E1E; border-color: #EF4444; }");
+
   m_btnImport = new QPushButton(QStringLiteral("导入 JSON"), this);
   m_btnImport->setCursor(Qt::PointingHandCursor);
   m_btnExport = new QPushButton(QStringLiteral("导出 JSON"), this);
@@ -121,6 +129,7 @@ CanProtocolConfigDialog::CanProtocolConfigDialog(QWidget *parent)
   btnLayout->addWidget(m_btnAdd);
   btnLayout->addWidget(m_btnModify);
   btnLayout->addWidget(m_btnDelete);
+  btnLayout->addWidget(m_btnClearAll);
   btnLayout->addStretch();
   btnLayout->addWidget(m_btnImport);
   btnLayout->addWidget(m_btnExport);
@@ -144,6 +153,12 @@ CanProtocolConfigDialog::CanProtocolConfigDialog(QWidget *parent)
   connect(m_btnAdd, &QPushButton::clicked, this, &CanProtocolConfigDialog::onAddRow);
   connect(m_btnModify, &QPushButton::clicked, this, &CanProtocolConfigDialog::onModifyRow);
   connect(m_btnDelete, &QPushButton::clicked, this, &CanProtocolConfigDialog::onDeleteRow);
+  connect(m_btnClearAll, &QPushButton::clicked, this, [this]() {
+    if (QMessageBox::question(this, QStringLiteral("清空全部"),
+          QStringLiteral("确定要清空所有设备映射吗？此操作不可撤销。")) == QMessageBox::Yes) {
+      m_table->setRowCount(0);
+    }
+  });
   connect(m_btnImport, &QPushButton::clicked, this, &CanProtocolConfigDialog::onImportJson);
   connect(m_btnExport, &QPushButton::clicked, this, &CanProtocolConfigDialog::onExportJson);
   connect(m_btnOk, &QPushButton::clicked, this, &QDialog::accept);

@@ -1,22 +1,42 @@
 #include "roomwidget.h"
 
 #include <QHBoxLayout>
+#include <QPainter>
+#include <QPainterPath>
+#include <QPushButton>
 #include <QVBoxLayout>
 
 RoomWidget::RoomWidget(const QString &id, const QString &name,
-                       const QRect &geom, QWidget *parent)
-    : QWidget(parent), m_id(id) {
+                       const QRect &geom, int shape, QWidget *parent)
+    : QWidget(parent), m_id(id), m_shape(shape) {
   setGeometry(geom);
   setMouseTracking(true);
 
-  // 标题栏
+  // 标题栏 (留出右侧按钮空间)
   m_titleLabel = new QLabel(name, this);
   m_titleLabel->setStyleSheet(
       "QLabel { color: #00D4FF; font-size: 11px; font-weight: bold; "
       "font-family: 'Microsoft YaHei'; background: rgba(13,17,23,180); "
       "padding: 3px 8px; border-radius: 4px; }");
   m_titleLabel->move(8, 6);
-  m_titleLabel->setFixedHeight(22);
+  m_titleLabel->setFixedSize(qMax(80, width() - 60), 22);
+
+  // 右上角改名/删除按钮
+  auto *btnRename = new QPushButton(QStringLiteral("✎"), this);
+  btnRename->setFixedSize(20, 20);
+  btnRename->move(width() - 48, 7);
+  btnRename->setToolTip(QStringLiteral("重命名房间"));
+  btnRename->setStyleSheet("QPushButton{color:#00D4FF;background:rgba(13,17,23,180);border:1px solid #1E3A5F;border-radius:3px;font-size:10px;}QPushButton:hover{background:#1E3A5F;}");
+  btnRename->raise();
+  connect(btnRename, &QPushButton::clicked, this, [this]() { emit roomRenameRequested(m_id); });
+
+  auto *btnDelete = new QPushButton(QStringLiteral("✕"), this);
+  btnDelete->setFixedSize(20, 20);
+  btnDelete->move(width() - 25, 7);
+  btnDelete->setToolTip(QStringLiteral("删除房间"));
+  btnDelete->setStyleSheet("QPushButton{color:#F87171;background:rgba(13,17,23,180);border:1px solid #3E1E1E;border-radius:3px;font-size:10px;}QPushButton:hover{background:#3E1E1E;}");
+  btnDelete->raise();
+  connect(btnDelete, &QPushButton::clicked, this, [this]() { emit roomDeleteRequested(m_id); });
 
   m_countLabel = new QLabel("0", this);
   m_countLabel->setStyleSheet(
@@ -42,9 +62,28 @@ void RoomWidget::paintEvent(QPaintEvent *) {
   p.setRenderHint(QPainter::Antialiasing);
 
   QRect r = rect().adjusted(1, 1, -1, -1);
-  p.setPen(QPen(QColor(0x00, 0xD4, 0xFF, 60), 1.5, Qt::DashLine));
-  p.setBrush(QColor(0x00, 0xD4, 0xFF, 10));
-  p.drawRoundedRect(r, 6, 6);
+  QPen dashPen(QColor(0x00, 0xD4, 0xFF, 60), 1.5, Qt::DashLine);
+  QBrush fillBrush(QColor(0x00, 0xD4, 0xFF, 10));
+  p.setPen(dashPen);
+  p.setBrush(fillBrush);
+
+  if (m_shape == 1) {
+    // 圆形
+    QRect sq(r.left(), r.top(), qMin(r.width(), r.height()), qMin(r.width(), r.height()));
+    p.drawEllipse(sq);
+  } else if (m_shape == 2) {
+    // 菱形
+    QPainterPath diamond;
+    diamond.moveTo(r.center().x(), r.top());
+    diamond.lineTo(r.right(), r.center().y());
+    diamond.lineTo(r.center().x(), r.bottom());
+    diamond.lineTo(r.left(), r.center().y());
+    diamond.closeSubpath();
+    p.drawPath(diamond);
+  } else {
+    // 矩形
+    p.drawRoundedRect(r, 6, 6);
+  }
 
   // 缩放手柄指示点
   p.setBrush(QColor(0x00, 0xD4, 0xFF, 100));

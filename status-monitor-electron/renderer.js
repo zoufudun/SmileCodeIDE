@@ -82,6 +82,12 @@ const btnModalCancel = document.getElementById("btn-modal-cancel");
 const btnModalCancelX = document.getElementById("btn-modal-cancel-x");
 const btnModalConfirm = document.getElementById("btn-modal-confirm");
 
+const modalRenameRoom = document.getElementById("modal-rename-room");
+const inputRenameRoomName = document.getElementById("input-rename-room-name");
+const btnRenameCancel = document.getElementById("btn-modal-rename-cancel");
+const btnRenameCancelX = document.getElementById("btn-modal-rename-cancel-x");
+const btnRenameConfirm = document.getElementById("btn-modal-rename-confirm");
+
 // Footer Resizing & Closing Elements
 const appFooter = document.getElementById("app-footer");
 const resizeHandle = document.getElementById("resize-handle");
@@ -108,14 +114,14 @@ updateClock();
 function loadLayoutSlots() {
   if (!selectLayoutSlot) return;
   selectLayoutSlot.innerHTML = `<option value="" disabled selected>💾 选择已存布局...</option>`;
-  
+
   let slots = [];
   try {
     slots = JSON.parse(localStorage.getItem("smile_code_layout_slots") || "[]");
   } catch (e) {
     console.error(e);
   }
-  
+
   slots.forEach(name => {
     const opt = document.createElement("option");
     opt.value = name;
@@ -149,17 +155,17 @@ function translateRawMessage(rawData) {
     if (msg.type === "update") {
       const label = msg.label || `ID: #${msg.deviceId}`;
       const typeName = getDeviceTypeName(msg.deviceType);
-      
+
       let stateDesc = "";
       if (msg.deviceType === "detector") {
         stateDesc = msg.status ? "(异常报警 🚨) 状态变更为: 报警" : "(复位正常 💚) 状态变更为: 复位";
       } else if (msg.deviceType === "valve" ||
-                 msg.deviceType === "valve_distributor" ||
-                 msg.deviceType === "selector_valve" ||
-                 msg.deviceType === "valve_zone" ||
-                 msg.deviceType === "zone_valve" ||
-                 msg.deviceType === "valve_main_isolation" ||
-                 msg.deviceType === "main_isolation_valve") {
+        msg.deviceType === "valve_distributor" ||
+        msg.deviceType === "selector_valve" ||
+        msg.deviceType === "valve_zone" ||
+        msg.deviceType === "zone_valve" ||
+        msg.deviceType === "valve_main_isolation" ||
+        msg.deviceType === "main_isolation_valve") {
         stateDesc = msg.status ? "(开启 🟢) 状态变更为: 开启" : "(关闭 🟠) 状态变更为: 关闭";
       } else if (msg.deviceType === "manual_alarm") {
         stateDesc = msg.status ? "(异常报警 🚨) 状态变更为: 报警" : "(复位正常 💚) 状态变更为: 复位";
@@ -174,7 +180,7 @@ function translateRawMessage(rawData) {
       } else {
         stateDesc = msg.status ? "(异常 🚨) 状态变更为: 动作" : "(正常 💚) 状态变更为: 复位";
       }
-      
+
       return `📡 设备变化：${typeName} [${label}] ${stateDesc}`;
     }
     return `📩 报文数据: ${rawData}`;
@@ -206,7 +212,7 @@ function connect() {
     connStatus.className = "connection-status disconnected";
     connStatus.querySelector(".status-text").textContent = "未连接 (重试中...)";
     appendLog("与服务器断开连接，准备进行自动重连...", "warning");
-    
+
     deviceGrid.style.display = "none";
     unplacedDock.style.display = "none";
     emptyState.style.display = "flex";
@@ -270,25 +276,16 @@ function createRoomElement(room) {
 
   const titleEl = el.querySelector(".room-title");
 
-  // Double click rename action (Only active during Edit/Layout Mode)
-  titleEl.addEventListener("dblclick", () => {
-    if (!isEditMode) return;
-    const newName = prompt("请输入房间新名称:", room.name);
-    if (newName && newName.trim() !== "") {
-      room.name = newName.trim();
-      titleEl.textContent = room.name;
-      appendLog(`✓ 房间名称修改为: "${room.name}"`, "system");
-    }
+  // Double click rename action (Enabled under all modes)
+  titleEl.addEventListener("dblclick", (e) => {
+    e.stopPropagation();
+    showRenameModal(room, titleEl);
   });
 
   // Rename button action
-  el.querySelector(".btn-room-rename").addEventListener("click", () => {
-    const newName = prompt("请输入房间新名称:", room.name);
-    if (newName && newName.trim() !== "") {
-      room.name = newName.trim();
-      titleEl.textContent = room.name;
-      appendLog(`✓ 房间名称修改为: "${room.name}"`, "system");
-    }
+  el.querySelector(".btn-room-rename").addEventListener("click", (e) => {
+    e.stopPropagation();
+    showRenameModal(room, titleEl);
   });
 
   // Delete action
@@ -361,7 +358,7 @@ function getSubmarineBg() {
     </svg>
   `;
 }
- 
+
 function getWarshipBg() {
   return `
     <svg viewBox="0 0 1100 500" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
@@ -409,9 +406,9 @@ function renderWorkspace() {
   }
 
   emptyState.style.display = "none";
-  
+
   const hasSavedLayout = currentLayout.rooms.length > 0 || Object.keys(currentLayout.devices).length > 0;
-  
+
   if (hasSavedLayout || isEditMode) {
     deviceGrid.className = "device-grid canvas-mode";
     deviceGrid.style.display = "block";
@@ -419,7 +416,7 @@ function renderWorkspace() {
     deviceGrid.className = "device-grid";
     deviceGrid.style.display = "grid";
   }
-  
+
   deviceGrid.innerHTML = "";
   unplacedContainer.innerHTML = "";
 
@@ -487,7 +484,7 @@ function renderWorkspace() {
 
   checkDockVisibility();
   checkRegionContainment();
-  
+
   appendLog(`监控画布渲染完成，共加载 ${latestMappings.length} 个设备。`, "system");
 }
 
@@ -535,32 +532,32 @@ function setupDraggable(element, isCard) {
   handle.addEventListener("mousedown", (e) => {
     if (!isEditMode) return;
     if (e.target.tagName.toLowerCase() === "button" || e.target.classList.contains("room-title") || e.target.classList.contains("room-badge")) return;
-    
+
     e.preventDefault();
     activeDragItem = element;
-    
+
     dragStartX = e.clientX;
     dragStartY = e.clientY;
-    
+
     const isInDock = element.parentNode.id === "unplaced-container";
     if (isInDock) {
       const rect = element.getBoundingClientRect();
       const canvasRect = deviceGrid.getBoundingClientRect();
-      itemStartX = rect.left - canvasRect.left + deviceGrid.scrollLeft;
-      itemStartY = rect.top - canvasRect.top + deviceGrid.scrollTop;
-      
+      itemStartX = (rect.left - canvasRect.left) / zoomLevel + deviceGrid.scrollLeft;
+      itemStartY = (rect.top - canvasRect.top) / zoomLevel + deviceGrid.scrollTop;
+
       unplacedContainer.removeChild(element);
       deviceGrid.appendChild(element);
       element.style.position = "absolute";
       element.style.left = itemStartX + "px";
       element.style.top = itemStartY + "px";
-      
+
       checkDockVisibility();
     } else {
       itemStartX = parseInt(element.style.left) || 0;
       itemStartY = parseInt(element.style.top) || 0;
     }
-    
+
     document.addEventListener("mousemove", onMouseMove);
     document.addEventListener("mouseup", onMouseUp);
   });
@@ -568,29 +565,29 @@ function setupDraggable(element, isCard) {
 
 function onMouseMove(e) {
   if (!activeDragItem) return;
-  const dx = e.clientX - dragStartX;
-  const dy = e.clientY - dragStartY;
-  
+  const dx = (e.clientX - dragStartX) / zoomLevel;
+  const dy = (e.clientY - dragStartY) / zoomLevel;
+
   let newX = itemStartX + dx;
   let newY = itemStartY + dy;
-  
+
   // Snap to configured grid
   if (gridSnapSize > 1) {
     newX = Math.round(newX / gridSnapSize) * gridSnapSize;
     newY = Math.round(newY / gridSnapSize) * gridSnapSize;
   }
-  
+
   const canvasWidth = deviceGrid.clientWidth;
   const canvasHeight = deviceGrid.clientHeight;
   const itemWidth = activeDragItem.offsetWidth;
   const itemHeight = activeDragItem.offsetHeight;
-  
+
   newX = Math.max(0, Math.min(newX, canvasWidth - itemWidth));
   newY = Math.max(0, Math.min(newY, canvasHeight - itemHeight));
-  
+
   activeDragItem.style.left = newX + "px";
   activeDragItem.style.top = newY + "px";
-  
+
   checkRegionContainment();
 }
 
@@ -600,7 +597,7 @@ function onMouseUp() {
     const id = activeDragItem.dataset.id;
     const x = parseInt(activeDragItem.style.left);
     const y = parseInt(activeDragItem.style.top);
-    
+
     if (isCard) {
       currentLayout.devices[id] = { x, y };
     } else {
@@ -640,8 +637,8 @@ function setupResizable(roomElement) {
       const startMouseY = e.clientY;
 
       function onResizeMouseMove(moveEvent) {
-        const dx = moveEvent.clientX - startMouseX;
-        const dy = moveEvent.clientY - startMouseY;
+        const dx = (moveEvent.clientX - startMouseX) / zoomLevel;
+        const dy = (moveEvent.clientY - startMouseY) / zoomLevel;
 
         let newW = startWidth;
         let newH = startHeight;
@@ -712,15 +709,15 @@ function setupResizable(roomElement) {
 function checkRegionContainment() {
   const rooms = document.querySelectorAll(".room-box");
   const cards = document.querySelectorAll(".device-grid .device-card");
-  
+
   const roomCounts = {};
   const roomAlarms = {};
-  
+
   currentLayout.rooms.forEach(r => {
     roomCounts[r.id] = 0;
     roomAlarms[r.id] = false;
   });
-  
+
   cards.forEach(card => {
     const cardId = card.dataset.id;
     const cardX = parseInt(card.style.left) || 0;
@@ -729,19 +726,19 @@ function checkRegionContainment() {
     const cardH = card.offsetHeight || 155;
     const cx = cardX + cardW / 2;
     const cy = cardY + cardH / 2;
-    
+
     let containerRoomId = null;
     currentLayout.rooms.forEach(room => {
       const rx = room.x;
       const ry = room.y;
       const rw = room.w;
       const rh = room.h;
-      
+
       if (cx >= rx && cx <= rx + rw && cy >= ry && cy <= ry + rh) {
         containerRoomId = room.id;
       }
     });
-    
+
     if (containerRoomId) {
       roomCounts[containerRoomId]++;
       if (card.classList.contains("status-1")) {
@@ -894,13 +891,14 @@ function getValveSvg() {
       <rect x="0" y="21" width="12" height="6" rx="2" fill="url(#pipe-grad)"/>
       <!-- 右管道 -->
       <rect x="36" y="21" width="12" height="6" rx="2" fill="url(#pipe-grad)"/>
-      <!-- 水流（开启时绿色+动画虚线流动） -->
-      <line class="svg-flow-path" x1="2" y1="24" x2="46" y2="24" stroke="#475569" stroke-width="3" stroke-linecap="round"/>
+      <!-- 水流（双向流动：开启时绿色/青色+动画虚线流动） -->
+      <line class="svg-flow-path svg-flow-forward" x1="2" y1="22.5" x2="46" y2="22.5" stroke="#475569" stroke-width="2.2" stroke-linecap="round"/>
+      <line class="svg-flow-path svg-flow-backward" x1="2" y1="25.5" x2="46" y2="25.5" stroke="#475569" stroke-width="2.2" stroke-linecap="round"/>
       <!-- 流动粒子 (开启时可见) -->
-      <circle class="svg-flow-dot svg-flow-dot1" cx="8" cy="24" r="1.5" fill="#10b981" opacity="0"/>
-      <circle class="svg-flow-dot svg-flow-dot2" cx="20" cy="24" r="1.5" fill="#10b981" opacity="0"/>
-      <circle class="svg-flow-dot svg-flow-dot3" cx="32" cy="24" r="1.5" fill="#10b981" opacity="0"/>
-      <circle class="svg-flow-dot svg-flow-dot4" cx="42" cy="24" r="1.5" fill="#10b981" opacity="0"/>
+      <circle class="svg-flow-dot svg-flow-dot-fwd svg-flow-dot-fwd1" cx="8" cy="22.5" r="1.2" fill="#10b981" opacity="0"/>
+      <circle class="svg-flow-dot svg-flow-dot-fwd svg-flow-dot-fwd2" cx="24" cy="22.5" r="1.2" fill="#10b981" opacity="0"/>
+      <circle class="svg-flow-dot svg-flow-dot-bwd svg-flow-dot-bwd1" cx="40" cy="25.5" r="1.2" fill="#10b981" opacity="0"/>
+      <circle class="svg-flow-dot svg-flow-dot-bwd svg-flow-dot-bwd2" cx="24" cy="25.5" r="1.2" fill="#10b981" opacity="0"/>
       <!-- 左法兰 -->
       <rect x="12" y="18" width="3" height="12" rx="1" fill="#64748b" stroke="#475569" stroke-width="0.5"/>
       <!-- 右法兰 -->
@@ -1115,15 +1113,39 @@ function getZoneValveSvg() {
   return `
     <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
       <defs>
+        <!-- 管道金属渐变 -->
+        <linearGradient id="pipe-grad-zone" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#475569"/>
+          <stop offset="30%" stop-color="#64748b"/>
+          <stop offset="70%" stop-color="#475569"/>
+          <stop offset="100%" stop-color="#334155"/>
+        </linearGradient>
         <linearGradient id="zone-grad" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stop-color="#475569"/>
           <stop offset="100%" stop-color="#1e293b"/>
         </linearGradient>
+        <!-- 流动发光 -->
+        <filter id="flow-glow">
+          <feGaussianBlur stdDeviation="1.5" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
       </defs>
-      <line class="svg-flow-path" x1="2" y1="24" x2="46" y2="24" stroke="#475569" stroke-width="3" stroke-linecap="round"/>
-      <!-- Flow particles -->
-      <circle class="svg-flow-dot svg-flow-dot1" cx="8" cy="24" r="1.5" fill="#10b981" opacity="0"/>
-      <circle class="svg-flow-dot svg-flow-dot2" cx="40" cy="24" r="1.5" fill="#10b981" opacity="0"/>
+      <!-- 左管道 -->
+      <rect x="0" y="21" width="12" height="6" rx="2" fill="url(#pipe-grad-zone)"/>
+      <!-- 右管道 -->
+      <rect x="36" y="21" width="12" height="6" rx="2" fill="url(#pipe-grad-zone)"/>
+      <!-- 水流管道路径 (双向流动 / 回流) -->
+      <line class="svg-flow-path svg-flow-forward" x1="2" y1="22.5" x2="46" y2="22.5" stroke="#475569" stroke-width="2.2" stroke-linecap="round"/>
+      <line class="svg-flow-path svg-flow-backward" x1="2" y1="25.5" x2="46" y2="25.5" stroke="#475569" stroke-width="2.2" stroke-linecap="round"/>
+      <!-- 流动水粒子 -->
+      <circle class="svg-flow-dot svg-flow-dot-fwd svg-flow-dot-fwd1" cx="8" cy="22.5" r="1.2" fill="#10b981" opacity="0"/>
+      <circle class="svg-flow-dot svg-flow-dot-fwd svg-flow-dot-fwd2" cx="24" cy="22.5" r="1.2" fill="#10b981" opacity="0"/>
+      <circle class="svg-flow-dot svg-flow-dot-bwd svg-flow-dot-bwd1" cx="40" cy="25.5" r="1.2" fill="#10b981" opacity="0"/>
+      <circle class="svg-flow-dot svg-flow-dot-bwd svg-flow-dot-bwd2" cx="24" cy="25.5" r="1.2" fill="#10b981" opacity="0"/>
+      <!-- 左法兰 -->
+      <rect x="12" y="18" width="3" height="12" rx="1" fill="#64748b" stroke="#475569" stroke-width="0.5"/>
+      <!-- 右法兰 -->
+      <rect x="33" y="18" width="3" height="12" rx="1" fill="#64748b" stroke="#475569" stroke-width="0.5"/>
       <!-- Valve rectangular base shell -->
       <rect x="15" y="15" width="18" height="18" rx="2" fill="url(#zone-grad)" stroke="#475569" stroke-width="1.5"/>
       <!-- Handwheel -->
@@ -1142,15 +1164,39 @@ function getSelectorValveSvg() {
   return `
     <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
       <defs>
+        <!-- 管道金属渐变 -->
+        <linearGradient id="pipe-grad-sel" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#475569"/>
+          <stop offset="30%" stop-color="#64748b"/>
+          <stop offset="70%" stop-color="#475569"/>
+          <stop offset="100%" stop-color="#334155"/>
+        </linearGradient>
         <linearGradient id="sel-grad" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stop-color="#334155"/>
           <stop offset="100%" stop-color="#1e293b"/>
         </linearGradient>
+        <!-- 流动发光 -->
+        <filter id="flow-glow">
+          <feGaussianBlur stdDeviation="1.5" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
       </defs>
-      <line class="svg-flow-path" x1="2" y1="24" x2="46" y2="24" stroke="#475569" stroke-width="3" stroke-linecap="round"/>
-      <!-- Flow particles -->
-      <circle class="svg-flow-dot svg-flow-dot1" cx="8" cy="24" r="1.5" fill="#10b981" opacity="0"/>
-      <circle class="svg-flow-dot svg-flow-dot2" cx="40" cy="24" r="1.5" fill="#10b981" opacity="0"/>
+      <!-- 左管道 -->
+      <rect x="0" y="21" width="12" height="6" rx="2" fill="url(#pipe-grad-sel)"/>
+      <!-- 右管道 -->
+      <rect x="36" y="21" width="12" height="6" rx="2" fill="url(#pipe-grad-sel)"/>
+      <!-- 水流管道路径 (双向流动 / 回流) -->
+      <line class="svg-flow-path svg-flow-forward" x1="2" y1="22.5" x2="46" y2="22.5" stroke="#475569" stroke-width="2.2" stroke-linecap="round"/>
+      <line class="svg-flow-path svg-flow-backward" x1="2" y1="25.5" x2="46" y2="25.5" stroke="#475569" stroke-width="2.2" stroke-linecap="round"/>
+      <!-- 流动水粒子 -->
+      <circle class="svg-flow-dot svg-flow-dot-fwd svg-flow-dot-fwd1" cx="8" cy="22.5" r="1.2" fill="#10b981" opacity="0"/>
+      <circle class="svg-flow-dot svg-flow-dot-fwd svg-flow-dot-fwd2" cx="24" cy="22.5" r="1.2" fill="#10b981" opacity="0"/>
+      <circle class="svg-flow-dot svg-flow-dot-bwd svg-flow-dot-bwd1" cx="40" cy="25.5" r="1.2" fill="#10b981" opacity="0"/>
+      <circle class="svg-flow-dot svg-flow-dot-bwd svg-flow-dot-bwd2" cx="24" cy="25.5" r="1.2" fill="#10b981" opacity="0"/>
+      <!-- 左法兰 -->
+      <rect x="12" y="18" width="3" height="12" rx="1" fill="#64748b" stroke="#475569" stroke-width="0.5"/>
+      <!-- 右法兰 -->
+      <rect x="33" y="18" width="3" height="12" rx="1" fill="#64748b" stroke="#475569" stroke-width="0.5"/>
       <!-- Valve circular casing -->
       <circle cx="24" cy="24" r="10" fill="url(#sel-grad)" stroke="#475569" stroke-width="1.5"/>
       <!-- Rotating handle -->
@@ -1166,20 +1212,39 @@ function getMainIsolationValveSvg() {
   return `
     <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
       <defs>
+        <!-- 管道金属渐变 (较粗) -->
+        <linearGradient id="pipe-grad-main" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#334155"/>
+          <stop offset="30%" stop-color="#475569"/>
+          <stop offset="70%" stop-color="#334155"/>
+          <stop offset="100%" stop-color="#1e293b"/>
+        </linearGradient>
         <linearGradient id="main-grad" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stop-color="#1e293b"/>
           <stop offset="50%" stop-color="#475569"/>
           <stop offset="100%" stop-color="#0f172a"/>
         </linearGradient>
+        <!-- 流动发光 -->
+        <filter id="flow-glow">
+          <feGaussianBlur stdDeviation="1.5" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
       </defs>
-      <!-- Heavy pipe -->
-      <line class="svg-flow-path" x1="2" y1="24" x2="46" y2="24" stroke="#475569" stroke-width="5.5" stroke-linecap="square"/>
+      <!-- 左管道 (较粗) -->
+      <rect x="0" y="20" width="12" height="8" rx="2" fill="url(#pipe-grad-main)"/>
+      <!-- 右管道 (较粗) -->
+      <rect x="36" y="20" width="12" height="8" rx="2" fill="url(#pipe-grad-main)"/>
+      <!-- Heavy pipe flow path (双向流动 / 回流) -->
+      <line class="svg-flow-path svg-flow-forward" x1="2" y1="22.0" x2="46" y2="22.0" stroke="#475569" stroke-width="3" stroke-linecap="square"/>
+      <line class="svg-flow-path svg-flow-backward" x1="2" y1="26.0" x2="46" y2="26.0" stroke="#475569" stroke-width="3" stroke-linecap="square"/>
       <!-- Double flanges on sides -->
       <rect x="10" y="16" width="3" height="16" rx="0.5" fill="#64748b"/>
       <rect x="35" y="16" width="3" height="16" rx="0.5" fill="#64748b"/>
       <!-- Flow particles -->
-      <circle class="svg-flow-dot svg-flow-dot1" cx="8" cy="24" r="2" fill="#10b981" opacity="0"/>
-      <circle class="svg-flow-dot svg-flow-dot2" cx="40" cy="24" r="2" fill="#10b981" opacity="0"/>
+      <circle class="svg-flow-dot svg-flow-dot-fwd svg-flow-dot-fwd1" cx="8" cy="22.0" r="1.5" fill="#10b981" opacity="0"/>
+      <circle class="svg-flow-dot svg-flow-dot-fwd svg-flow-dot-fwd2" cx="24" cy="22.0" r="1.5" fill="#10b981" opacity="0"/>
+      <circle class="svg-flow-dot svg-flow-dot-bwd svg-flow-dot-bwd1" cx="40" cy="26.0" r="1.5" fill="#10b981" opacity="0"/>
+      <circle class="svg-flow-dot svg-flow-dot-bwd svg-flow-dot-bwd2" cx="24" cy="26.0" r="1.5" fill="#10b981" opacity="0"/>
       <!-- Large valve body -->
       <circle cx="24" cy="24" r="11" fill="url(#main-grad)" stroke="#475569" stroke-width="1.8"/>
       <!-- Massive handwheel -->
@@ -1256,12 +1321,12 @@ function getStatusText(deviceType, status) {
 btnMonitorMode.addEventListener("click", () => {
   if (!isEditMode) return;
   isEditMode = false;
-  
+
   btnMonitorMode.classList.add("active");
   btnLayoutMode.classList.remove("active");
   layoutToolbar.style.display = "none";
   document.body.classList.remove("edit-mode");
-  
+
   loadLayoutFromStorage();
   renderWorkspace();
 });
@@ -1269,12 +1334,12 @@ btnMonitorMode.addEventListener("click", () => {
 btnLayoutMode.addEventListener("click", () => {
   if (isEditMode) return;
   isEditMode = true;
-  
+
   btnLayoutMode.classList.add("active");
   btnMonitorMode.classList.remove("active");
   layoutToolbar.style.display = "flex";
   document.body.classList.add("edit-mode");
-  
+
   renderWorkspace();
 });
 
@@ -1383,11 +1448,60 @@ inputRoomName.addEventListener("keydown", (e) => {
   }
 });
 
+// Custom Modal for Room Renaming
+let activeRenameRoom = null;
+let activeRenameTitleEl = null;
+
+function showRenameModal(room, titleEl) {
+  activeRenameRoom = room;
+  activeRenameTitleEl = titleEl;
+  inputRenameRoomName.value = room.name;
+  modalRenameRoom.classList.add("show");
+  setTimeout(() => {
+    inputRenameRoomName.focus();
+    inputRenameRoomName.select();
+  }, 100);
+}
+
+function hideRenameModal() {
+  modalRenameRoom.classList.remove("show");
+  activeRenameRoom = null;
+  activeRenameTitleEl = null;
+}
+
+btnRenameCancel.addEventListener("click", hideRenameModal);
+btnRenameCancelX.addEventListener("click", hideRenameModal);
+
+btnRenameConfirm.addEventListener("click", () => {
+  if (!activeRenameRoom || !activeRenameTitleEl) return;
+  const newName = inputRenameRoomName.value.trim();
+  if (newName === "") {
+    alert("请输入有效的房间名称！");
+    return;
+  }
+  const oldName = activeRenameRoom.name;
+  if (newName !== oldName) {
+    activeRenameRoom.name = newName;
+    activeRenameTitleEl.textContent = newName;
+    appendLog(`✓ 房间 "${oldName}" 重命名为: "${newName}"`, "system");
+    saveLayoutsToLocalStorage();
+  }
+  hideRenameModal();
+});
+
+inputRenameRoomName.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    btnRenameConfirm.click();
+  } else if (e.key === "Escape") {
+    hideRenameModal();
+  }
+});
+
 // Load Custom Named Slot
 selectLayoutSlot.addEventListener("change", () => {
   const slotName = selectLayoutSlot.value;
   if (!slotName) return;
-  
+
   const saved = localStorage.getItem(`smile_code_layout_slot_${slotName}`);
   if (saved) {
     try {
@@ -1395,7 +1509,7 @@ selectLayoutSlot.addEventListener("change", () => {
       if (!currentLayout.rooms) currentLayout.rooms = currentLayout.regions || [];
       if (!currentLayout.devices) currentLayout.devices = {};
       if (!currentLayout.backgroundTemplate) currentLayout.backgroundTemplate = "";
-      
+
       renderWorkspace();
       appendLog(`✓ 已成功载入已存布局: "${slotName}"`, "system");
     } catch (e) {
@@ -1403,7 +1517,7 @@ selectLayoutSlot.addEventListener("change", () => {
       appendLog(`❌ 载入已存布局 "${slotName}" 失败`, "warning");
     }
   }
-  
+
   selectLayoutSlot.selectedIndex = 0;
 });
 
@@ -1430,7 +1544,7 @@ if (fileImportInput) {
   fileImportInput.addEventListener("change", (event) => {
     const file = event.target.files[0];
     if (!file) return;
-    
+
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
@@ -1440,7 +1554,7 @@ if (fileImportInput) {
           if (!currentLayout.rooms) currentLayout.rooms = currentLayout.regions || [];
           if (!currentLayout.devices) currentLayout.devices = {};
           if (!currentLayout.backgroundTemplate) currentLayout.backgroundTemplate = "";
-          
+
           renderWorkspace();
           appendLog(`✓ 成功从文件导入布局，当前处于编辑状态，请点击保存当前。`, "system");
         } else {
@@ -1504,7 +1618,7 @@ selectTemplate.addEventListener("change", () => {
       appendLog(`✓ 成功载入模版，建议在此基础上进行手动拖拽划分，完成后点击“保存当前”。`, "system");
     }
   }
-  
+
   selectTemplate.selectedIndex = 0;
 });
 
@@ -1512,7 +1626,7 @@ selectTemplate.addEventListener("change", () => {
 btnSaveLayout.addEventListener("click", () => {
   localStorage.setItem("smile_code_layout_v1", JSON.stringify(currentLayout));
   appendLog("✓ 布局和房间划分已成功保存到默认配置！", "system");
-  
+
   isEditMode = false;
   btnMonitorMode.classList.add("active");
   btnLayoutMode.classList.remove("active");
@@ -1584,9 +1698,52 @@ if (btnClearLogs) {
   });
 }
 
+// Canvas Zoom Controller (Buttons + Ctrl + Wheel)
+const btnZoomOut = document.getElementById("btn-zoom-out");
+const zoomText = document.getElementById("zoom-text");
+const btnZoomIn = document.getElementById("btn-zoom-in");
+const btnZoomReset = document.getElementById("btn-zoom-reset");
+
+let zoomLevel = 1.0;
+const ZOOM_MIN = 0.4;
+const ZOOM_MAX = 2.0;
+
+function setZoom(level) {
+  zoomLevel = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, parseFloat(level)));
+  if (deviceGrid) {
+    deviceGrid.style.zoom = zoomLevel;
+  }
+  if (zoomText) {
+    zoomText.textContent = `${Math.round(zoomLevel * 100)}%`;
+  }
+  localStorage.setItem("canvas_zoom_level", zoomLevel);
+}
+
+if (btnZoomIn) {
+  btnZoomIn.addEventListener("click", () => setZoom(zoomLevel + 0.1));
+}
+if (btnZoomOut) {
+  btnZoomOut.addEventListener("click", () => setZoom(zoomLevel - 0.1));
+}
+if (btnZoomReset) {
+  btnZoomReset.addEventListener("click", () => setZoom(1.0));
+}
+
+// Mouse Wheel zoom with Ctrl key (intercepted globally)
+window.addEventListener("wheel", (e) => {
+  if (e.ctrlKey) {
+    e.preventDefault();
+    const delta = e.deltaY < 0 ? 0.05 : -0.05;
+    setZoom(zoomLevel + delta);
+  }
+}, { passive: false });
+
 // Run Init
 const savedTheme = localStorage.getItem("smile_code_theme") || "cyber";
 applyTheme(savedTheme);
+
+const savedZoom = parseFloat(localStorage.getItem("canvas_zoom_level")) || 1.0;
+setZoom(savedZoom);
 
 loadLayoutFromStorage();
 loadLayoutSlots();

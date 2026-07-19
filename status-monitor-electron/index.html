@@ -1,13 +1,17 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
   <meta charset="UTF-8">
   <title>Status Monitor - CAN 2.0B Web版</title>
   <link rel="stylesheet" href="style.css">
   <!-- Google Fonts: Orbitron(科技标题) + Rajdhani(炫酷数字) + Inter(正文) + Noto Sans SC(中文) -->
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@500;600;700&family=Inter:wght@300;400;600;700;800&family=Noto+Sans+SC:wght@400;500;700&family=Share+Tech+Mono&display=swap" media="print" onload="this.media='all'">
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@500;600;700&family=Inter:wght@300;400;600;700;800&family=Noto+Sans+SC:wght@400;500;700&family=Share+Tech+Mono&display=swap"
+    media="print" onload="this.media='all'">
   <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
 </head>
+
 <body>
   <div class="app-container">
     <!-- Header / Navigation Bar -->
@@ -19,7 +23,7 @@
           <span class="subtitle">CAN 2.0B 自定义协议监控网关</span>
         </div>
       </div>
-      
+
       <!-- Top Navigation Menu -->
       <nav class="app-nav">
         <button id="btn-monitor-mode" class="nav-item active">📊 实时监控</button>
@@ -36,7 +40,7 @@
           <option value="amber"> Amber 琥珀金</option>
           <option value="ruby">🔴 烈焰红</option>
         </select>
-        
+
         <div class="system-clock" id="system-clock">2026-07-18 22:04:00</div>
         <div class="connection-status" id="conn-status">
           <span class="status-dot"></span>
@@ -59,7 +63,7 @@
           <option value="" disabled selected>载入已存布局...</option>
         </select>
       </div>
-      
+
       <div class="toolbar-divider"></div>
 
       <!-- Grid Snap Spacing Selector -->
@@ -72,15 +76,25 @@
           <option value="20">20 px</option>
         </select>
       </div>
-      
+
       <div class="toolbar-divider"></div>
-      
+
       <div class="toolbar-group">
         <span class="toolbar-label">⚙️ 布局编辑:</span>
         <button id="btn-import-file" class="btn-layout-action secondary" title="从JSON文件导入布局">📥 导入</button>
         <input type="file" id="file-import-input" accept=".json" style="display: none;">
         <button id="btn-export-file" class="btn-layout-action secondary" title="导出布局为JSON文件">📤 导出</button>
         <button id="btn-add-region" class="btn-layout-action">＋ 新建房间</button>
+      </div>
+
+      <div class="toolbar-divider"></div>
+
+      <div class="toolbar-group">
+        <span class="toolbar-label">🔍 视图缩放:</span>
+        <button id="btn-zoom-out" class="btn-layout-action secondary" title="缩小 (Ctrl + 滚轮向下)">－ 缩小</button>
+        <span id="zoom-text" class="zoom-percent-text">100%</span>
+        <button id="btn-zoom-in" class="btn-layout-action secondary" title="放大 (Ctrl + 滚轮向上)">＋ 放大</button>
+        <button id="btn-zoom-reset" class="btn-layout-action secondary" title="重置为100%">适中</button>
       </div>
 
       <div class="toolbar-group end">
@@ -124,7 +138,7 @@
           <button class="btn-close-footer" id="btn-close-footer" title="关闭面板">✕</button>
         </div>
       </div>
-      
+
       <!-- Alarm Event Logs -->
       <div class="log-list" id="log-list-alarm">
         <div class="log-item system">
@@ -173,8 +187,29 @@
         </div>
       </div>
     </div>
+
+    <!-- Custom Modal Dialog for Rename Room -->
+    <div id="modal-rename-room" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>✎ 修改房间名称</h3>
+          <button class="btn-modal-close" id="btn-modal-rename-cancel-x">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="input-rename-room-name">房间名称</label>
+            <input type="text" id="input-rename-room-name" placeholder="例如：1F - 研发测试中心" autocomplete="off">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-modal-action secondary" id="btn-modal-rename-cancel">取消</button>
+          <button class="btn-modal-action primary" id="btn-modal-rename-confirm">保存</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script src="renderer.js"></script>
 </body>
+
 </html>

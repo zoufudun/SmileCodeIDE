@@ -33,9 +33,15 @@ public:
   quint32 canId() const { return m_canId; }
 
   void setDraggable(bool enable) { m_draggable = enable; }
+  void startDragging(const QPoint &globalPos);
+
+  // 图标风格选择（全局静态，所有 widget 共享）
+  static int iconStyle() { return s_iconStyle; }
+  static void setIconStyle(int style) { s_iconStyle = style; }
 
 signals:
   void deviceDragged(int deviceId, const QPoint &newPos);
+  void dragStartedFromDock(int deviceId, const QPoint &globalPos);
 
 public slots:
   void setStatus(bool value);
@@ -61,14 +67,23 @@ private:
   void drawWaterPump(QPainter &p, const QRect &area);
   void drawPressureSwitch(QPainter &p, const QRect &area);
   void drawMobileSprayGun(QPainter &p, const QRect &area);
+  // 简约风格备选图标
+  void drawDetectorSimple(QPainter &p, const QRect &area);
+  void drawValveSimple(QPainter &p, const QRect &area);
+  void drawManualAlarmSimple(QPainter &p, const QRect &area);
+  void drawGasCylinderSimple(QPainter &p, const QRect &area);
+  void drawWaterPumpSimple(QPainter &p, const QRect &area);
+  void drawPressureSwitchSimple(QPainter &p, const QRect &area);
+  void drawMobileSprayGunSimple(QPainter &p, const QRect &area);
   QColor accentColor() const;
   QColor glowColor() const;
 
   int m_deviceId;
   DeviceKind m_kind;
   QString m_label;
-  quint32 m_canId;              // CAN ID
+  quint32 m_canId;
   bool m_status = false;
+  static int s_iconStyle;
   bool m_alarmPhase = false;
   bool m_hovered = false;
   qreal m_animProgress = 0.0;

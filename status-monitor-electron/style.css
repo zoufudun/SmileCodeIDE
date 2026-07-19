@@ -587,20 +587,33 @@ body {
   transform: rotate(90deg);
   transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-/* 管道水流路径 */
-.device-card.kind-valve.status-1 .svg-flow-path,
-.device-card.kind-valve_distributor.status-1 .svg-flow-path,
-.device-card.kind-selector_valve.status-1 .svg-flow-path,
-.device-card.kind-valve_zone.status-1 .svg-flow-path,
-.device-card.kind-zone_valve.status-1 .svg-flow-path,
-.device-card.kind-valve_main_isolation.status-1 .svg-flow-path,
-.device-card.kind-main_isolation_valve.status-1 .svg-flow-path {
+/* 管道水流路径 (自左向右流动) */
+.device-card.kind-valve.status-1 .svg-flow-forward,
+.device-card.kind-valve_distributor.status-1 .svg-flow-forward,
+.device-card.kind-selector_valve.status-1 .svg-flow-forward,
+.device-card.kind-valve_zone.status-1 .svg-flow-forward,
+.device-card.kind-zone_valve.status-1 .svg-flow-forward,
+.device-card.kind-valve_main_isolation.status-1 .svg-flow-forward,
+.device-card.kind-main_isolation_valve.status-1 .svg-flow-forward {
   stroke: #10b981 !important;
-  stroke-width: 3.5;
-  stroke-dasharray: 6 4;
-  animation: fluid-flow 0.8s infinite linear;
+  stroke-dasharray: 5 3;
+  animation: fluid-flow-fwd 0.8s infinite linear;
   filter: url(#flow-glow);
 }
+
+.device-card.kind-valve.status-1 .svg-flow-backward,
+.device-card.kind-valve_distributor.status-1 .svg-flow-backward,
+.device-card.kind-selector_valve.status-1 .svg-flow-backward,
+.device-card.kind-valve_zone.status-1 .svg-flow-backward,
+.device-card.kind-zone_valve.status-1 .svg-flow-backward,
+.device-card.kind-valve_main_isolation.status-1 .svg-flow-backward,
+.device-card.kind-main_isolation_valve.status-1 .svg-flow-backward {
+  stroke: #10b981 !important;
+  stroke-dasharray: 5 3;
+  animation: fluid-flow-fwd 0.8s infinite linear;
+  filter: url(#flow-glow);
+}
+
 /* 流动粒子 */
 .device-card.kind-valve.status-1 .svg-flow-dot,
 .device-card.kind-valve_distributor.status-1 .svg-flow-dot,
@@ -608,39 +621,73 @@ body {
 .device-card.kind-valve_zone.status-1 .svg-flow-dot,
 .device-card.kind-zone_valve.status-1 .svg-flow-dot,
 .device-card.kind-valve_main_isolation.status-1 .svg-flow-dot,
-.device-card.kind-main_isolation_valve.status-1 .svg-flow-dot { opacity: 1 !important; }
+.device-card.kind-main_isolation_valve.status-1 .svg-flow-dot {
+  opacity: 1 !important;
+}
 
-.device-card.kind-valve.status-1 .svg-flow-dot1,
-.device-card.kind-valve_distributor.status-1 .svg-flow-dot1,
-.device-card.kind-selector_valve.status-1 .svg-flow-dot1,
-.device-card.kind-valve_zone.status-1 .svg-flow-dot1,
-.device-card.kind-zone_valve.status-1 .svg-flow-dot1,
-.device-card.kind-valve_main_isolation.status-1 .svg-flow-dot1,
-.device-card.kind-main_isolation_valve.status-1 .svg-flow-dot1 { animation: flow-particle 1.6s infinite 0s linear; }
+.device-card.kind-valve.status-1 .svg-flow-dot-fwd1,
+.device-card.kind-valve_distributor.status-1 .svg-flow-dot-fwd1,
+.device-card.kind-selector_valve.status-1 .svg-flow-dot-fwd1,
+.device-card.kind-valve_zone.status-1 .svg-flow-dot-fwd1,
+.device-card.kind-zone_valve.status-1 .svg-flow-dot-fwd1,
+.device-card.kind-valve_main_isolation.status-1 .svg-flow-dot-fwd1,
+.device-card.kind-main_isolation_valve.status-1 .svg-flow-dot-fwd1 {
+  animation: flow-particle-fwd 1.6s infinite 0s linear;
+}
 
-.device-card.kind-valve.status-1 .svg-flow-dot2,
-.device-card.kind-valve_distributor.status-1 .svg-flow-dot2,
-.device-card.kind-selector_valve.status-1 .svg-flow-dot2,
-.device-card.kind-valve_zone.status-1 .svg-flow-dot2,
-.device-card.kind-zone_valve.status-1 .svg-flow-dot2,
-.device-card.kind-valve_main_isolation.status-1 .svg-flow-dot2,
-.device-card.kind-main_isolation_valve.status-1 .svg-flow-dot2 { animation: flow-particle 1.6s infinite 0.4s linear; }
+.device-card.kind-valve.status-1 .svg-flow-dot-fwd2,
+.device-card.kind-valve_distributor.status-1 .svg-flow-dot-fwd2,
+.device-card.kind-selector_valve.status-1 .svg-flow-dot-fwd2,
+.device-card.kind-valve_zone.status-1 .svg-flow-dot-fwd2,
+.device-card.kind-zone_valve.status-1 .svg-flow-dot-fwd2,
+.device-card.kind-valve_main_isolation.status-1 .svg-flow-dot-fwd2,
+.device-card.kind-main_isolation_valve.status-1 .svg-flow-dot-fwd2 {
+  animation: flow-particle-fwd 1.6s infinite 0.8s linear;
+}
 
-.device-card.kind-valve.status-1 .svg-flow-dot3,
-.device-card.kind-valve_distributor.status-1 .svg-flow-dot3,
-.device-card.kind-selector_valve.status-1 .svg-flow-dot3,
-.device-card.kind-valve_zone.status-1 .svg-flow-dot3,
-.device-card.kind-zone_valve.status-1 .svg-flow-dot3,
-.device-card.kind-valve_main_isolation.status-1 .svg-flow-dot3,
-.device-card.kind-main_isolation_valve.status-1 .svg-flow-dot3 { animation: flow-particle 1.6s infinite 0.8s linear; }
+.device-card.kind-valve.status-1 .svg-flow-dot-bwd1,
+.device-card.kind-valve_distributor.status-1 .svg-flow-dot-bwd1,
+.device-card.kind-selector_valve.status-1 .svg-flow-dot-bwd1,
+.device-card.kind-valve_zone.status-1 .svg-flow-dot-bwd1,
+.device-card.kind-zone_valve.status-1 .svg-flow-dot-bwd1,
+.device-card.kind-valve_main_isolation.status-1 .svg-flow-dot-bwd1,
+.device-card.kind-main_isolation_valve.status-1 .svg-flow-dot-bwd1 {
+  animation: flow-particle-fwd 1.6s infinite 0.4s linear;
+}
 
-.device-card.kind-valve.status-1 .svg-flow-dot4,
-.device-card.kind-valve_distributor.status-1 .svg-flow-dot4,
-.device-card.kind-selector_valve.status-1 .svg-flow-dot4,
-.device-card.kind-valve_zone.status-1 .svg-flow-dot4,
-.device-card.kind-zone_valve.status-1 .svg-flow-dot4,
-.device-card.kind-valve_main_isolation.status-1 .svg-flow-dot4,
-.device-card.kind-main_isolation_valve.status-1 .svg-flow-dot4 { animation: flow-particle 1.6s infinite 1.2s linear; }
+.device-card.kind-valve.status-1 .svg-flow-dot-bwd2,
+.device-card.kind-valve_distributor.status-1 .svg-flow-dot-bwd2,
+.device-card.kind-selector_valve.status-1 .svg-flow-dot-bwd2,
+.device-card.kind-valve_zone.status-1 .svg-flow-dot-bwd2,
+.device-card.kind-zone_valve.status-1 .svg-flow-dot-bwd2,
+.device-card.kind-valve_main_isolation.status-1 .svg-flow-dot-bwd2,
+.device-card.kind-main_isolation_valve.status-1 .svg-flow-dot-bwd2 {
+  animation: flow-particle-fwd 1.6s infinite 1.2s linear;
+}
+
+@keyframes fluid-flow-fwd {
+  0% { stroke-dashoffset: 0; }
+  100% { stroke-dashoffset: -12; }
+}
+
+@keyframes fluid-flow-bwd {
+  0% { stroke-dashoffset: 0; }
+  100% { stroke-dashoffset: 12; }
+}
+
+@keyframes flow-particle-fwd {
+  0%   { transform: translateX(-8px); opacity: 0; }
+  20%  { opacity: 1; }
+  80%  { opacity: 1; }
+  100% { transform: translateX(8px); opacity: 0; }
+}
+
+@keyframes flow-particle-bwd {
+  0%   { transform: translateX(8px); opacity: 0; }
+  20%  { opacity: 1; }
+  80%  { opacity: 1; }
+  100% { transform: translateX(-8px); opacity: 0; }
+}
 
 /* 阀门卡片 hover 不旋转整个 SVG */
 .device-card.kind-valve:hover .device-icon-container svg,
@@ -1673,4 +1720,32 @@ body.edit-mode .canvas-background {
   font-family: 'Share Tech Mono', monospace;
   color: #94a3b8;
   border-left-color: #475569;
+}
+
+/* Room Title Input (Inline Rename) */
+.room-title-input {
+  background: rgba(15, 23, 42, 0.95);
+  border: 1px solid var(--primary-color);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 4px;
+  outline: none;
+  box-shadow: 0 0 6px var(--primary-glow);
+  z-index: 100;
+}
+
+/* Zoom Percent Text styling */
+.zoom-percent-text {
+  color: var(--primary-color);
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 12px;
+  font-weight: bold;
+  padding: 0 8px;
+  min-width: 45px;
+  text-align: center;
+  user-select: none;
+  text-shadow: 0 0 5px var(--primary-glow);
 }

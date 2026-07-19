@@ -5,6 +5,11 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QtMath>
+#include <QDrag>
+#include <QMimeData>
+
+// 全局图标风格
+int DeviceStatusWidget::s_iconStyle = 0;
 
 namespace TechColors {
   const QColor bg(0x0F, 0x17, 0x2A);
@@ -154,18 +159,34 @@ void DeviceStatusWidget::paintEvent(QPaintEvent *) {
     p.drawPath(arc);
   }
 
-  // 设备图标
-  switch (m_kind) {
-    case Detector:            drawDetector(p, iconArea); break;
-    case ValveDistributor:    drawValveDistributor(p, iconArea); break;
-    case ValveZone:           drawValveZone(p, iconArea); break;
-    case ValveMainIsolation:  drawValveMainIsolation(p, iconArea); break;
-    case Valve:               drawValve(p, iconArea); break;
-    case ManualAlarm:         drawManualAlarm(p, iconArea); break;
-    case GasCylinder:         drawGasCylinder(p, iconArea); break;
-    case WaterPump:           drawWaterPump(p, iconArea); break;
-    case PressureSwitch:      drawPressureSwitch(p, iconArea); break;
-    case MobileSprayGun:      drawMobileSprayGun(p, iconArea); break;
+  // 设备图标 — 根据全局风格路由
+  if (s_iconStyle == 0) {
+    switch (m_kind) {
+      case Detector:            drawDetector(p, iconArea); break;
+      case ValveDistributor:    drawValveDistributor(p, iconArea); break;
+      case ValveZone:           drawValveZone(p, iconArea); break;
+      case ValveMainIsolation:  drawValveMainIsolation(p, iconArea); break;
+      case Valve:               drawValve(p, iconArea); break;
+      case ManualAlarm:         drawManualAlarm(p, iconArea); break;
+      case GasCylinder:         drawGasCylinder(p, iconArea); break;
+      case WaterPump:           drawWaterPump(p, iconArea); break;
+      case PressureSwitch:      drawPressureSwitch(p, iconArea); break;
+      case MobileSprayGun:      drawMobileSprayGun(p, iconArea); break;
+    }
+  } else {
+    // 风格1/2：统一使用简化版图标
+    switch (m_kind) {
+      case Detector:            drawDetectorSimple(p, iconArea); break;
+      case ValveDistributor:
+      case ValveZone:
+      case ValveMainIsolation:
+      case Valve:               drawValveSimple(p, iconArea); break;
+      case ManualAlarm:         drawManualAlarmSimple(p, iconArea); break;
+      case GasCylinder:         drawGasCylinderSimple(p, iconArea); break;
+      case WaterPump:           drawWaterPumpSimple(p, iconArea); break;
+      case PressureSwitch:      drawPressureSwitchSimple(p, iconArea); break;
+      case MobileSprayGun:      drawMobileSprayGunSimple(p, iconArea); break;
+    }
   }
 
   // ---- LED 指示灯 ----
@@ -710,40 +731,145 @@ void DeviceStatusWidget::drawMobileSprayGun(QPainter &p, const QRect &area) {
 void DeviceStatusWidget::enterEvent(QEvent *) { m_hovered = true; update(); }
 void DeviceStatusWidget::leaveEvent(QEvent *) { m_hovered = false; update(); }
 
+// ===== 简约风格备选图标 (风格1) =====
+
+void DeviceStatusWidget::drawDetectorSimple(QPainter &p, const QRect &area) {
+  int cx=area.center().x(), cy=area.center().y();
+  qreal s=area.height()/85.0;
+  QColor c=m_status?TechColors::red:TechColors::green;
+  p.setPen(QPen(c,2.5*s)); p.setBrush(Qt::NoBrush);
+  p.drawEllipse(QPointF(cx,cy),20*s,20*s);
+  p.setPen(Qt::NoPen); p.setBrush(c);
+  p.drawEllipse(QPointF(cx,cy),6*s,6*s);
+}
+void DeviceStatusWidget::drawValveSimple(QPainter &p, const QRect &area) {
+  int cx=area.center().x(), cy=area.center().y();
+  qreal s=area.height()/85.0;
+  QColor c=m_status?TechColors::green:TechColors::amber;
+  p.setPen(QPen(QColor(0x64,0x74,0x8B),4*s)); p.setBrush(Qt::NoBrush);
+  p.drawLine(cx-22*s,cy,cx+22*s,cy);
+  p.setPen(Qt::NoPen);
+  p.setBrush(c);
+  if(m_status){p.drawRoundedRect(cx-8*s,cy-2*s,16*s,4*s,2,2);}
+  else{p.drawRoundedRect(cx-2*s,cy-8*s,4*s,16*s,2,2);}
+}
+void DeviceStatusWidget::drawManualAlarmSimple(QPainter &p, const QRect &area) {
+  int cx=area.center().x(), cy=area.center().y();
+  qreal s=area.height()/85.0;
+  QColor c=m_status?TechColors::red:TechColors::green;
+  p.setBrush(c.darker(140));p.setPen(QPen(c,2*s));
+  p.drawRoundedRect(cx-16*s,cy-16*s,32*s,32*s,4,4);
+  p.setPen(Qt::NoPen);p.setBrush(c);
+  p.drawEllipse(QPointF(cx,cy),8*s,8*s);
+}
+void DeviceStatusWidget::drawGasCylinderSimple(QPainter &p, const QRect &area) {
+  int cx=area.center().x(), cy=area.center().y();
+  qreal s=area.height()/85.0;
+  QColor c=m_status?TechColors::red:TechColors::accentCyan;
+  p.setBrush(c);p.setPen(Qt::NoPen);
+  p.drawRoundedRect(cx-8*s,cy-18*s,16*s,36*s,4,4);
+  p.setBrush(QColor(0x94,0xA3,0xB8));
+  p.drawRect(cx-3*s,cy-22*s,6*s,4*s);
+}
+void DeviceStatusWidget::drawWaterPumpSimple(QPainter &p, const QRect &area) {
+  int cx=area.center().x(), cy=area.center().y();
+  qreal s=area.height()/85.0;
+  QColor c=m_status?TechColors::green:TechColors::amber;
+  p.setBrush(c);p.setPen(QPen(QColor(0x47,0x55,0x69),1.5*s));
+  p.drawEllipse(QPointF(cx,cy),16*s,16*s);
+  p.setPen(Qt::NoPen);p.setBrush(TechColors::bg);
+  QPainterPath tri;tri.moveTo(cx-5*s,cy-8*s);tri.lineTo(cx+10*s,cy);tri.lineTo(cx-5*s,cy+8*s);tri.closeSubpath();
+  p.drawPath(tri);
+}
+void DeviceStatusWidget::drawPressureSwitchSimple(QPainter &p, const QRect &area) {
+  int cx=area.center().x(), cy=area.center().y();
+  qreal s=area.height()/85.0;
+  QColor c=m_status?TechColors::accentCyan:TechColors::gray;
+  p.setPen(QPen(c,2*s));p.setBrush(QColor(0x1E,0x29,0x3B,120));
+  p.drawRoundedRect(cx-12*s,cy-16*s,24*s,24*s,3,3);
+  p.setPen(QPen(c,1.8*s));p.drawLine(cx,cy-12*s,cx+6*s,cy-12*s);
+}
+void DeviceStatusWidget::drawMobileSprayGunSimple(QPainter &p, const QRect &area) {
+  int cx=area.center().x(), cy=area.center().y();
+  qreal s=area.height()/85.0;
+  QColor c=m_status?TechColors::green:TechColors::gray;
+  p.setPen(QPen(c,4*s));p.setBrush(Qt::NoBrush);
+  p.drawLine(cx-12*s,cy+6*s,cx+10*s,cy-8*s);
+  p.setPen(Qt::NoPen);p.setBrush(c);
+  p.drawEllipse(QPointF(cx+12*s,cy-9*s),3*s,3*s);
+}
+
 // ===== 拖拽功能 =====
 void DeviceStatusWidget::mousePressEvent(QMouseEvent *e) {
-  if (!m_draggable || e->button() != Qt::LeftButton) {
+  if (e->button() != Qt::LeftButton) {
     QWidget::mousePressEvent(e);
     return;
   }
-  m_dragActive = true;
   m_dragStartPos = e->globalPos();
   m_dragWidgetStart = pos();
-  raise();
-  setCursor(Qt::ClosedHandCursor);
+
+  if (m_draggable) {
+    m_dragActive = true;
+    raise();
+    setCursor(Qt::ClosedHandCursor);
+  } else {
+    // 未摆放的卡片，在 mousePressEvent 中只记录起点，在 mouseMoveEvent 中触发拖动
+    QWidget::mousePressEvent(e);
+  }
 }
 
 void DeviceStatusWidget::mouseMoveEvent(QMouseEvent *e) {
-  if (!m_dragActive) {
+  if (m_dragActive) {
+    QPoint delta = e->globalPos() - m_dragStartPos;
+    QPoint newPos = m_dragWidgetStart + delta;
+    // 限制在父控件内
+    if (parentWidget()) {
+      newPos.setX(qMax(0, qMin(newPos.x(), parentWidget()->width() - width())));
+      newPos.setY(qMax(0, qMin(newPos.y(), parentWidget()->height() - height())));
+    }
+    move(newPos);
+  } else if (!m_draggable && (e->buttons() & Qt::LeftButton)) {
+    // 拖动距离阈值
+    if ((e->globalPos() - m_dragStartPos).manhattanLength() > 10) {
+      QDrag *drag = new QDrag(this);
+      QMimeData *mimeData = new QMimeData;
+      mimeData->setText(QString("device:%1").arg(m_deviceId));
+      drag->setMimeData(mimeData);
+      
+      QPixmap pixmap = grab();
+      drag->setPixmap(pixmap);
+      drag->setHotSpot(QPoint(64, 77)); // 使拖拽阴影中心对齐鼠标
+      
+      drag->exec(Qt::MoveAction);
+      setCursor(Qt::ArrowCursor);
+    }
+  } else {
     QWidget::mouseMoveEvent(e);
-    return;
   }
-  QPoint delta = e->globalPos() - m_dragStartPos;
-  QPoint newPos = m_dragWidgetStart + delta;
-  // 限制在父控件内
-  if (parentWidget()) {
-    newPos.setX(qMax(0, qMin(newPos.x(), parentWidget()->width() - width())));
-    newPos.setY(qMax(0, qMin(newPos.y(), parentWidget()->height() - height())));
-  }
-  move(newPos);
 }
 
 void DeviceStatusWidget::mouseReleaseEvent(QMouseEvent *e) {
-  if (!m_dragActive) {
+  if (m_dragActive) {
+    m_dragActive = false;
+    releaseMouse();
+    setCursor(Qt::ArrowCursor);
+    emit deviceDragged(m_deviceId, pos());
+  } else if (!m_draggable && e->button() == Qt::LeftButton) {
+    // 如果没有拖拽，只是单纯点击释放，则执行点击摆放
+    if ((e->globalPos() - m_dragStartPos).manhattanLength() < 5) {
+      emit dragStartedFromDock(m_deviceId, e->globalPos());
+    }
+  } else {
     QWidget::mouseReleaseEvent(e);
-    return;
   }
-  m_dragActive = false;
-  setCursor(Qt::ArrowCursor);
-  emit deviceDragged(m_deviceId, pos());
+}
+
+void DeviceStatusWidget::startDragging(const QPoint &globalPos) {
+  m_draggable = true;
+  m_dragActive = true;
+  m_dragStartPos = globalPos;
+  m_dragWidgetStart = pos();
+  raise();
+  setCursor(Qt::ClosedHandCursor);
+  grabMouse(); // 抓取鼠标事件，实现无缝连续拖拽
 }
