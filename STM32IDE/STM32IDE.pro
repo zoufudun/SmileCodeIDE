@@ -54,6 +54,7 @@ SOURCES += \
     canprotocolconfigdialog.cpp \
     devicestatuswidget.cpp \
     devicemonitorpanel.cpp \
+    roomwidget.cpp \
     toastwidget.cpp \
     scrollinglabel.cpp \
     terminalwidget.cpp \
@@ -88,6 +89,7 @@ HEADERS += \
     canprotocolconfigdialog.h \
     devicestatuswidget.h \
     devicemonitorpanel.h \
+    roomwidget.h \
     cantheme.h \
     toastwidget.h \
     scrollinglabel.h \

@@ -195,6 +195,12 @@ void CanProtocolMonitor::rebuildGrid() {
     DeviceStatusWidget::DeviceKind kind = DeviceStatusWidget::Detector;
     if (mapping.deviceType == QStringLiteral("valve")) {
       kind = DeviceStatusWidget::Valve;
+    } else if (mapping.deviceType == QStringLiteral("valve_distributor")) {
+      kind = DeviceStatusWidget::ValveDistributor;
+    } else if (mapping.deviceType == QStringLiteral("valve_zone")) {
+      kind = DeviceStatusWidget::ValveZone;
+    } else if (mapping.deviceType == QStringLiteral("valve_main_isolation")) {
+      kind = DeviceStatusWidget::ValveMainIsolation;
     } else if (mapping.deviceType == QStringLiteral("manual_alarm")) {
       kind = DeviceStatusWidget::ManualAlarm;
     } else if (mapping.deviceType == QStringLiteral("gas_cylinder")) {

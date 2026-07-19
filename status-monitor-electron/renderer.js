@@ -153,7 +153,13 @@ function translateRawMessage(rawData) {
       let stateDesc = "";
       if (msg.deviceType === "detector") {
         stateDesc = msg.status ? "(异常报警 🚨) 状态变更为: 报警" : "(复位正常 💚) 状态变更为: 复位";
-      } else if (msg.deviceType === "valve") {
+      } else if (msg.deviceType === "valve" ||
+                 msg.deviceType === "valve_distributor" ||
+                 msg.deviceType === "selector_valve" ||
+                 msg.deviceType === "valve_zone" ||
+                 msg.deviceType === "zone_valve" ||
+                 msg.deviceType === "valve_main_isolation" ||
+                 msg.deviceType === "main_isolation_valve") {
         stateDesc = msg.status ? "(开启 🟢) 状态变更为: 开启" : "(关闭 🟠) 状态变更为: 关闭";
       } else if (msg.deviceType === "manual_alarm") {
         stateDesc = msg.status ? "(异常报警 🚨) 状态变更为: 报警" : "(复位正常 💚) 状态变更为: 复位";
@@ -932,6 +938,15 @@ function getCylinderSvg() {
           <stop offset="100%" stop-color="rgba(255,255,255,0.0)"/>
         </linearGradient>
       </defs>
+      
+      <!-- Gas spraying particles (active only during status-1) -->
+      <g class="svg-gas-spray" opacity="0">
+        <circle class="svg-gas-particle svg-gas-p1" cx="24" cy="-2" r="1.5" fill="#f1f5f9"/>
+        <circle class="svg-gas-particle svg-gas-p2" cx="20" cy="-6" r="2.0" fill="#cbd5e1"/>
+        <circle class="svg-gas-particle svg-gas-p3" cx="28" cy="-6" r="1.8" fill="#e2e8f0"/>
+        <path class="svg-gas-cloud" d="M 18 -4 Q 24 -14 30 -4" stroke="#cbd5e1" stroke-width="1.2" stroke-linecap="round" fill="none"/>
+      </g>
+
       <!-- 1301 标签 -->
       <rect x="20" y="12" width="8" height="4" rx="1" fill="#1e293b"/>
       <text x="24" y="15" text-anchor="middle" font-family="sans-serif" font-size="3" font-weight="bold" fill="#fbbf24">1301</text>
@@ -1095,11 +1110,100 @@ function getPressureSwitchSvg() {
   `;
 }
 
+// 区域阀 SVG
+function getZoneValveSvg() {
+  return `
+    <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="zone-grad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#475569"/>
+          <stop offset="100%" stop-color="#1e293b"/>
+        </linearGradient>
+      </defs>
+      <line class="svg-flow-path" x1="2" y1="24" x2="46" y2="24" stroke="#475569" stroke-width="3" stroke-linecap="round"/>
+      <!-- Flow particles -->
+      <circle class="svg-flow-dot svg-flow-dot1" cx="8" cy="24" r="1.5" fill="#10b981" opacity="0"/>
+      <circle class="svg-flow-dot svg-flow-dot2" cx="40" cy="24" r="1.5" fill="#10b981" opacity="0"/>
+      <!-- Valve rectangular base shell -->
+      <rect x="15" y="15" width="18" height="18" rx="2" fill="url(#zone-grad)" stroke="#475569" stroke-width="1.5"/>
+      <!-- Handwheel -->
+      <ellipse cx="24" cy="11" rx="5" ry="2" fill="none" stroke="#94a3b8" stroke-width="1"/>
+      <line x1="24" y1="13" x2="24" y2="15" stroke="#94a3b8" stroke-width="1"/>
+      <!-- Gate slider -->
+      <rect class="svg-wheel" x="22.5" y="16" width="3" height="16" rx="1.5" fill="#f59e0b" stroke="#d97706" stroke-width="0.5"/>
+      <!-- Status LED -->
+      <circle class="svg-led" cx="24" cy="41" r="2.2" fill="#64748b"/>
+    </svg>
+  `;
+}
+
+// 分配阀 SVG
+function getSelectorValveSvg() {
+  return `
+    <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="sel-grad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#334155"/>
+          <stop offset="100%" stop-color="#1e293b"/>
+        </linearGradient>
+      </defs>
+      <line class="svg-flow-path" x1="2" y1="24" x2="46" y2="24" stroke="#475569" stroke-width="3" stroke-linecap="round"/>
+      <!-- Flow particles -->
+      <circle class="svg-flow-dot svg-flow-dot1" cx="8" cy="24" r="1.5" fill="#10b981" opacity="0"/>
+      <circle class="svg-flow-dot svg-flow-dot2" cx="40" cy="24" r="1.5" fill="#10b981" opacity="0"/>
+      <!-- Valve circular casing -->
+      <circle cx="24" cy="24" r="10" fill="url(#sel-grad)" stroke="#475569" stroke-width="1.5"/>
+      <!-- Rotating handle -->
+      <rect class="svg-wheel" x="22.5" y="16" width="3" height="16" rx="1.5" fill="#f59e0b" stroke="#d97706" stroke-width="0.5"/>
+      <!-- Status LED -->
+      <circle class="svg-led" cx="24" cy="41" r="2.2" fill="#64748b"/>
+    </svg>
+  `;
+}
+
+// 总管隔离阀 SVG
+function getMainIsolationValveSvg() {
+  return `
+    <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="main-grad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#1e293b"/>
+          <stop offset="50%" stop-color="#475569"/>
+          <stop offset="100%" stop-color="#0f172a"/>
+        </linearGradient>
+      </defs>
+      <!-- Heavy pipe -->
+      <line class="svg-flow-path" x1="2" y1="24" x2="46" y2="24" stroke="#475569" stroke-width="5.5" stroke-linecap="square"/>
+      <!-- Double flanges on sides -->
+      <rect x="10" y="16" width="3" height="16" rx="0.5" fill="#64748b"/>
+      <rect x="35" y="16" width="3" height="16" rx="0.5" fill="#64748b"/>
+      <!-- Flow particles -->
+      <circle class="svg-flow-dot svg-flow-dot1" cx="8" cy="24" r="2" fill="#10b981" opacity="0"/>
+      <circle class="svg-flow-dot svg-flow-dot2" cx="40" cy="24" r="2" fill="#10b981" opacity="0"/>
+      <!-- Large valve body -->
+      <circle cx="24" cy="24" r="11" fill="url(#main-grad)" stroke="#475569" stroke-width="1.8"/>
+      <!-- Massive handwheel -->
+      <ellipse cx="24" cy="10" rx="7" ry="2.5" fill="none" stroke="#94a3b8" stroke-width="1.5"/>
+      <line x1="24" y1="12.5" x2="24" y2="16" stroke="#94a3b8" stroke-width="1.5"/>
+      <!-- Heavy slider -->
+      <rect class="svg-wheel" x="22" y="15" width="4" height="18" rx="2" fill="#f59e0b" stroke="#d97706" stroke-width="0.8"/>
+      <!-- Status LED -->
+      <circle class="svg-led" cx="24" cy="41" r="2.2" fill="#64748b"/>
+    </svg>
+  `;
+}
+
 // 统一 SVG 获取函数（deviceType 对齐 Qt 后端）
 function getDeviceSvg(deviceType) {
   switch (deviceType) {
     case "detector": return getDetectorSvg();
     case "valve": return getValveSvg();
+    case "valve_distributor":
+    case "selector_valve": return getSelectorValveSvg();
+    case "valve_zone":
+    case "zone_valve": return getZoneValveSvg();
+    case "valve_main_isolation":
+    case "main_isolation_valve": return getMainIsolationValveSvg();
     case "manual_alarm": return getManualCallPointSvg();
     case "gas_cylinder": return getCylinderSvg();
     case "water_pump": return getPumpSvg();
@@ -1114,6 +1218,12 @@ function getDeviceTypeName(deviceType) {
   const names = {
     detector: "烟温探测器",
     valve: "控制分配阀",
+    valve_distributor: "分配阀",
+    selector_valve: "分配阀",
+    valve_zone: "区域阀",
+    zone_valve: "区域阀",
+    valve_main_isolation: "总管隔离阀",
+    main_isolation_valve: "总管隔离阀",
     manual_alarm: "手动报警按钮",
     gas_cylinder: "1301气体钢瓶",
     water_pump: "水泵",
@@ -1127,6 +1237,12 @@ function getStatusText(deviceType, status) {
   const map = {
     detector: { 0: "NORMAL", 1: "ALARM" },
     valve: { 0: "CLOSED", 1: "OPEN" },
+    valve_distributor: { 0: "CLOSED", 1: "OPEN" },
+    selector_valve: { 0: "CLOSED", 1: "OPEN" },
+    valve_zone: { 0: "CLOSED", 1: "OPEN" },
+    zone_valve: { 0: "CLOSED", 1: "OPEN" },
+    valve_main_isolation: { 0: "CLOSED", 1: "OPEN" },
+    main_isolation_valve: { 0: "CLOSED", 1: "OPEN" },
     manual_alarm: { 0: "NORMAL", 1: "ALARM" },
     gas_cylinder: { 0: "NORMAL", 1: "LEAK" },
     water_pump: { 0: "STOPPED", 1: "RUNNING" },

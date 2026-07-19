@@ -17,6 +17,7 @@ release/canprotocolmonitor.o
 release/canprotocolconfigdialog.o
 release/devicestatuswidget.o
 release/devicemonitorpanel.o
+release/roomwidget.o
 release/toastwidget.o
 release/scrollinglabel.o
 release/terminalwidget.o
@@ -49,6 +50,7 @@ release/moc_canprotocolmonitor.o
 release/moc_canprotocolconfigdialog.o
 release/moc_devicestatuswidget.o
 release/moc_devicemonitorpanel.o
+release/moc_roomwidget.o
 release/moc_toastwidget.o
 release/moc_scrollinglabel.o
 release/moc_terminalwidget.o

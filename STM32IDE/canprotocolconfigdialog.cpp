@@ -62,6 +62,9 @@ CanProtocolConfigDialog::CanProtocolConfigDialog(QWidget *parent)
   editLayout->addWidget(new QLabel(QStringLiteral("类型:"), this));
   m_defaultTypeCombo = new QComboBox(this);
   m_defaultTypeCombo->addItem(QStringLiteral("烟温探测器"), QStringLiteral("detector"));
+  m_defaultTypeCombo->addItem(QStringLiteral("分配阀(蝶阀)"), QStringLiteral("valve_distributor"));
+  m_defaultTypeCombo->addItem(QStringLiteral("区域阀(闸阀)"), QStringLiteral("valve_zone"));
+  m_defaultTypeCombo->addItem(QStringLiteral("总管隔离阀(截止阀)"), QStringLiteral("valve_main_isolation"));
   m_defaultTypeCombo->addItem(QStringLiteral("控制分配阀"), QStringLiteral("valve"));
   m_defaultTypeCombo->addItem(QStringLiteral("手动报警按钮"), QStringLiteral("manual_alarm"));
   m_defaultTypeCombo->addItem(QStringLiteral("1301气体钢瓶"), QStringLiteral("gas_cylinder"));
@@ -177,6 +180,9 @@ void CanProtocolConfigDialog::addTableRow(int deviceId, const QString &label,
   // 类型 (下拉)
   auto *typeCombo = new QComboBox(m_table);
   typeCombo->addItem(QStringLiteral("烟温探测器"), QStringLiteral("detector"));
+  typeCombo->addItem(QStringLiteral("分配阀(蝶阀)"), QStringLiteral("valve_distributor"));
+  typeCombo->addItem(QStringLiteral("区域阀(闸阀)"), QStringLiteral("valve_zone"));
+  typeCombo->addItem(QStringLiteral("总管隔离阀(截止阀)"), QStringLiteral("valve_main_isolation"));
   typeCombo->addItem(QStringLiteral("控制分配阀"), QStringLiteral("valve"));
   typeCombo->addItem(QStringLiteral("手动报警按钮"), QStringLiteral("manual_alarm"));
   typeCombo->addItem(QStringLiteral("1301气体钢瓶"), QStringLiteral("gas_cylinder"));

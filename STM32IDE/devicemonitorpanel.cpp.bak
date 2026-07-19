@@ -200,11 +200,11 @@ void DeviceMonitorPanel::setupUi() {
 
   tbLayout->addStretch();
 
-  m_lblCount = new QLabel(QStringLiteral("CAN 2.0B Protocol Monitor"));
-  m_lblCount->setStyleSheet(
+  auto *statusLabel = new QLabel(QStringLiteral("CAN 2.0B Protocol Monitor"));
+  statusLabel->setStyleSheet(
       "color: #475569; font-size: 10px; "
       "font-family: 'Consolas', monospace; padding-right: 4px;");
-  tbLayout->addWidget(m_lblCount);
+  tbLayout->addWidget(statusLabel);
 
   mainLayout->addWidget(toolbar);
 
@@ -632,6 +632,117 @@ void DeviceMonitorPanel::appendLog(const QString &text, bool isAlarm) {
       m_log->verticalScrollBar()->maximum());
 }
 
+// ========== Room 分区模式 ==========
+
+void DeviceMonitorPanel::onToggleRoomMode() {
+  m_roomMode = m_btnToggleRoom->isChecked();
+  m_btnAddRoom->setVisible(m_roomMode);
+  m_btnRenameRoom->setVisible(m_roomMode);
+  m_btnDeleteRoom->setVisible(m_roomMode);
+
+  if (m_roomMode) {
+    if (m_rooms.isEmpty()) {
+      // 默认创建一个全区域房间
+      RoomRegion r;
+      r.id = QStringLiteral("room_default");
+      r.name = QStringLiteral("全区域");
+      r.geom = QRect(20, 20, 800, 600);
+      m_rooms.append(r);
+    }
+    rebuildRoomCanvas();
+  } else {
+    rebuildGrid();
+  }
+}
+
+void DeviceMonitorPanel::rebuildRoomCanvas() {
+  // 清理 grid layout
+  while (m_gridLayout->count() > 0) {
+    QLayoutItem *item = m_gridLayout->takeAt(0);
+    delete item;
+  }
+
+  // 清理旧 RoomWidget
+  qDeleteAll(m_roomWidgets);
+  m_roomWidgets.clear();
+
+  // 确保所有设备 widget 已创建
+  if (m_deviceWidgets.size() != m_mappings.size()) {
+    qDeleteAll(m_deviceWidgets);
+    m_deviceWidgets.clear();
+    for (int i = 0; i < m_mappings.size(); ++i) {
+      const auto &m = m_mappings[i];
+      auto kind = DeviceStatusWidget::Detector;
+      if (m.deviceType == QStringLiteral("valve"))
+        kind = DeviceStatusWidget::Valve;
+      else if (m.deviceType == QStringLiteral("valve_distributor"))
+        kind = DeviceStatusWidget::ValveDistributor;
+      else if (m.deviceType == QStringLiteral("valve_zone"))
+        kind = DeviceStatusWidget::ValveZone;
+      else if (m.deviceType == QStringLiteral("valve_main_isolation"))
+        kind = DeviceStatusWidget::ValveMainIsolation;
+      else if (m.deviceType == QStringLiteral("manual_alarm"))
+        kind = DeviceStatusWidget::ManualAlarm;
+      else if (m.deviceType == QStringLiteral("gas_cylinder"))
+        kind = DeviceStatusWidget::GasCylinder;
+      else if (m.deviceType == QStringLiteral("water_pump"))
+        kind = DeviceStatusWidget::WaterPump;
+      else if (m.deviceType == QStringLiteral("pressure_switch"))
+        kind = DeviceStatusWidget::PressureSwitch;
+      else if (m.deviceType == QStringLiteral("mobile_spray_gun"))
+        kind = DeviceStatusWidget::MobileSprayGun;
+
+      auto *w = new DeviceStatusWidget(m.deviceId, kind, m.label, m.canId);
+      w->setStatus(m.defaultVal);
+      w->setDraggable(true);
+      connect(w, &DeviceStatusWidget::deviceDragged, this,
+              &DeviceMonitorPanel::onDeviceDragged);
+      m_deviceWidgets[m.deviceId] = w;
+    }
+  }
+
+  // 画布尺寸
+  m_gridContainer->setFixedSize(1600, 1200);
+  m_gridContainer->setStyleSheet("background-color: #0D1117;");
+
+  // 创建 RoomWidget
+  for (const auto &r : m_rooms) {
+    auto *rw = new RoomWidget(r.id, r.name, r.geom, m_gridContainer);
+    connect(rw, &RoomWidget::roomMoved, this, &DeviceMonitorPanel::onRoomMoved);
+    connect(rw, &RoomWidget::roomResized, this, &DeviceMonitorPanel::onRoomResized);
+    m_roomWidgets.append(rw);
+    rw->show();
+  }
+
+  // 放置 device widgets 到画布上
+  for (auto it = m_deviceWidgets.begin(); it != m_deviceWidgets.end(); ++it) {
+    int devId = it.key();
+    auto *w = it.value();
+    w->setParent(m_gridContainer);
+    w->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+
+    QPoint pos = m_deviceRoomPos.value(devId, QPoint(40 + devId * 25, 40 + devId * 25));
+    w->setGeometry(pos.x(), pos.y(), 128, 155);
+    w->setDraggable(true);
+    w->show();
+    w->raise();
+  }
+
+  // 更新房间设备计数
+  for (auto *rw : m_roomWidgets) {
+    int cnt = 0;
+    for (auto it = m_deviceWidgets.begin(); it != m_deviceWidgets.end(); ++it) {
+      QRect devGeom(it.value()->pos(), it.value()->size());
+      if (rw->geometry().contains(devGeom.center())) ++cnt;
+    }
+    rw->setDeviceCount(cnt);
+  }
+
+  if (m_lblCount) {
+    m_lblCount->setText(QStringLiteral("分区模式 | %1 个房间 | %2 个设备")
+        .arg(m_rooms.size()).arg(m_mappings.size()));
+  }
+}
 
 void DeviceMonitorPanel::onDeviceDragged(int deviceId, const QPoint &newPos) {
   m_deviceRoomPos[deviceId] = newPos;
@@ -814,94 +925,5 @@ void DeviceMonitorPanel::loadRoomLayout() {
   for (auto it = devPos.begin(); it != devPos.end(); ++it) {
     QJsonObject dp = it.value().toObject();
     m_deviceRoomPos[it.key().toInt()] = QPoint(dp["x"].toInt(), dp["y"].toInt());
-  }
-}
-
-void DeviceMonitorPanel::rebuildRoomCanvas() {
-  // 清理 grid layout
-  while (m_gridLayout->count() > 0) {
-    QLayoutItem *item = m_gridLayout->takeAt(0);
-    delete item;
-  }
-
-  // 清理旧 RoomWidget
-  qDeleteAll(m_roomWidgets);
-  m_roomWidgets.clear();
-
-  // 确保所有设备 widget 已创建
-  if (m_deviceWidgets.size() != m_mappings.size()) {
-    qDeleteAll(m_deviceWidgets);
-    m_deviceWidgets.clear();
-    for (int i = 0; i < m_mappings.size(); ++i) {
-      const auto &m = m_mappings[i];
-      auto kind = DeviceStatusWidget::Detector;
-      if (m.deviceType == QStringLiteral("valve"))
-        kind = DeviceStatusWidget::Valve;
-      else if (m.deviceType == QStringLiteral("valve_distributor"))
-        kind = DeviceStatusWidget::ValveDistributor;
-      else if (m.deviceType == QStringLiteral("valve_zone"))
-        kind = DeviceStatusWidget::ValveZone;
-      else if (m.deviceType == QStringLiteral("valve_main_isolation"))
-        kind = DeviceStatusWidget::ValveMainIsolation;
-      else if (m.deviceType == QStringLiteral("manual_alarm"))
-        kind = DeviceStatusWidget::ManualAlarm;
-      else if (m.deviceType == QStringLiteral("gas_cylinder"))
-        kind = DeviceStatusWidget::GasCylinder;
-      else if (m.deviceType == QStringLiteral("water_pump"))
-        kind = DeviceStatusWidget::WaterPump;
-      else if (m.deviceType == QStringLiteral("pressure_switch"))
-        kind = DeviceStatusWidget::PressureSwitch;
-      else if (m.deviceType == QStringLiteral("mobile_spray_gun"))
-        kind = DeviceStatusWidget::MobileSprayGun;
-
-      auto *w = new DeviceStatusWidget(m.deviceId, kind, m.label, m.canId);
-      w->setStatus(m.defaultVal);
-      w->setDraggable(true);
-      connect(w, &DeviceStatusWidget::deviceDragged, this,
-              &DeviceMonitorPanel::onDeviceDragged);
-      m_deviceWidgets[m.deviceId] = w;
-    }
-  }
-
-  // 画布尺寸
-  m_gridContainer->setFixedSize(1600, 1200);
-  m_gridContainer->setStyleSheet("background-color: #0D1117;");
-
-  // 创建 RoomWidget
-  for (const auto &r : m_rooms) {
-    auto *rw = new RoomWidget(r.id, r.name, r.geom, m_gridContainer);
-    connect(rw, &RoomWidget::roomMoved, this, &DeviceMonitorPanel::onRoomMoved);
-    connect(rw, &RoomWidget::roomResized, this, &DeviceMonitorPanel::onRoomResized);
-    m_roomWidgets.append(rw);
-    rw->show();
-  }
-
-  // 放置 device widgets 到画布上
-  for (auto it = m_deviceWidgets.begin(); it != m_deviceWidgets.end(); ++it) {
-    int devId = it.key();
-    auto *w = it.value();
-    w->setParent(m_gridContainer);
-    w->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-
-    QPoint pos = m_deviceRoomPos.value(devId, QPoint(40 + devId * 25, 40 + devId * 25));
-    w->setGeometry(pos.x(), pos.y(), 128, 155);
-    w->setDraggable(true);
-    w->show();
-    w->raise();
-  }
-
-  // 更新房间设备计数
-  for (auto *rw : m_roomWidgets) {
-    int cnt = 0;
-    for (auto it = m_deviceWidgets.begin(); it != m_deviceWidgets.end(); ++it) {
-      QRect devGeom(it.value()->pos(), it.value()->size());
-      if (rw->geometry().contains(devGeom.center())) ++cnt;
-    }
-    rw->setDeviceCount(cnt);
-  }
-
-  if (m_lblCount) {
-    m_lblCount->setText(QStringLiteral("分区模式 | %1 个房间 | %2 个设备")
-        .arg(m_rooms.size()).arg(m_mappings.size()));
   }
 }

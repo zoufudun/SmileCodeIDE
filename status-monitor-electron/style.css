@@ -496,18 +496,34 @@ body {
 /* ===== 阀门状态 ===== */
 
 /* 关闭 (status-0) — 琥珀黄 + 垂直阀芯 */
-.device-card.kind-valve.status-0::before { background: #f59e0b; }
-.device-card.kind-valve.status-0 .device-status {
+.device-card.kind-valve.status-0::before,
+.device-card.kind-valve_distributor.status-0::before,
+.device-card.kind-selector_valve.status-0::before,
+.device-card.kind-valve_zone.status-0::before,
+.device-card.kind-zone_valve.status-0::before,
+.device-card.kind-valve_main_isolation.status-0::before,
+.device-card.kind-main_isolation_valve.status-0::before { background: #f59e0b; }
+
+.device-card.kind-valve.status-0 .device-status,
+.device-card.kind-valve_distributor.status-0 .device-status,
+.device-card.kind-selector_valve.status-0 .device-status,
+.device-card.kind-valve_zone.status-0 .device-status,
+.device-card.kind-zone_valve.status-0 .device-status,
+.device-card.kind-valve_main_isolation.status-0 .device-status,
+.device-card.kind-main_isolation_valve.status-0 .device-status {
   background: rgba(245, 158, 11, 0.12);
   color: #f59e0b;
   border: 1px solid rgba(245, 158, 11, 0.3);
 }
-.device-card.kind-valve.status-0 .device-status-desc {
-  color: #fbbf24;
-  background: rgba(245, 158, 11, 0.08);
-}
+
 /* 阀芯垂直(关闭) */
-.device-card.kind-valve.status-0 .svg-wheel {
+.device-card.kind-valve.status-0 .svg-wheel,
+.device-card.kind-valve_distributor.status-0 .svg-wheel,
+.device-card.kind-selector_valve.status-0 .svg-wheel,
+.device-card.kind-valve_zone.status-0 .svg-wheel,
+.device-card.kind-zone_valve.status-0 .svg-wheel,
+.device-card.kind-valve_main_isolation.status-0 .svg-wheel,
+.device-card.kind-main_isolation_valve.status-0 .svg-wheel {
   fill: #f59e0b;
   stroke: #d97706;
   transform-origin: 24px 24px;
@@ -515,27 +531,56 @@ body {
   transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 /* 流动粒子隐藏 */
-.device-card.kind-valve.status-0 .svg-flow-dot { opacity: 0 !important; }
-.device-card.kind-valve.status-0 .svg-flow-path {
+.device-card.kind-valve.status-0 .svg-flow-dot,
+.device-card.kind-valve_distributor.status-0 .svg-flow-dot,
+.device-card.kind-selector_valve.status-0 .svg-flow-dot,
+.device-card.kind-valve_zone.status-0 .svg-flow-dot,
+.device-card.kind-zone_valve.status-0 .svg-flow-dot,
+.device-card.kind-valve_main_isolation.status-0 .svg-flow-dot,
+.device-card.kind-main_isolation_valve.status-0 .svg-flow-dot { opacity: 0 !important; }
+
+.device-card.kind-valve.status-0 .svg-flow-path,
+.device-card.kind-valve_distributor.status-0 .svg-flow-path,
+.device-card.kind-selector_valve.status-0 .svg-flow-path,
+.device-card.kind-valve_zone.status-0 .svg-flow-path,
+.device-card.kind-zone_valve.status-0 .svg-flow-path,
+.device-card.kind-valve_main_isolation.status-0 .svg-flow-path,
+.device-card.kind-main_isolation_valve.status-0 .svg-flow-path {
   stroke: #475569 !important;
   stroke-dasharray: none;
   animation: none;
 }
 
 /* 开启 (status-1) — 绿色水平 + 水流动画 */
-.device-card.kind-valve.status-1::before { background: #10b981; }
-.device-card.kind-valve.status-1 .device-status {
+.device-card.kind-valve.status-1::before,
+.device-card.kind-valve_distributor.status-1::before,
+.device-card.kind-selector_valve.status-1::before,
+.device-card.kind-valve_zone.status-1::before,
+.device-card.kind-zone_valve.status-1::before,
+.device-card.kind-valve_main_isolation.status-1::before,
+.device-card.kind-main_isolation_valve.status-1::before { background: #10b981; }
+
+.device-card.kind-valve.status-1 .device-status,
+.device-card.kind-valve_distributor.status-1 .device-status,
+.device-card.kind-selector_valve.status-1 .device-status,
+.device-card.kind-valve_zone.status-1 .device-status,
+.device-card.kind-zone_valve.status-1 .device-status,
+.device-card.kind-valve_main_isolation.status-1 .device-status,
+.device-card.kind-main_isolation_valve.status-1 .device-status {
   background: rgba(16, 185, 129, 0.15);
   color: #00e676;
   border: 1px solid rgba(16, 185, 129, 0.4);
   text-shadow: 0 0 6px rgba(16, 185, 129, 0.4);
 }
-.device-card.kind-valve.status-1 .device-status-desc {
-  color: #34d399;
-  background: rgba(16, 185, 129, 0.1);
-}
+
 /* 阀芯水平(开启) */
-.device-card.kind-valve.status-1 .svg-wheel {
+.device-card.kind-valve.status-1 .svg-wheel,
+.device-card.kind-valve_distributor.status-1 .svg-wheel,
+.device-card.kind-selector_valve.status-1 .svg-wheel,
+.device-card.kind-valve_zone.status-1 .svg-wheel,
+.device-card.kind-zone_valve.status-1 .svg-wheel,
+.device-card.kind-valve_main_isolation.status-1 .svg-wheel,
+.device-card.kind-main_isolation_valve.status-1 .svg-wheel {
   fill: #10b981;
   stroke: #059669;
   transform-origin: 24px 24px;
@@ -543,7 +588,13 @@ body {
   transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 /* 管道水流路径 */
-.device-card.kind-valve.status-1 .svg-flow-path {
+.device-card.kind-valve.status-1 .svg-flow-path,
+.device-card.kind-valve_distributor.status-1 .svg-flow-path,
+.device-card.kind-selector_valve.status-1 .svg-flow-path,
+.device-card.kind-valve_zone.status-1 .svg-flow-path,
+.device-card.kind-zone_valve.status-1 .svg-flow-path,
+.device-card.kind-valve_main_isolation.status-1 .svg-flow-path,
+.device-card.kind-main_isolation_valve.status-1 .svg-flow-path {
   stroke: #10b981 !important;
   stroke-width: 3.5;
   stroke-dasharray: 6 4;
@@ -551,24 +602,54 @@ body {
   filter: url(#flow-glow);
 }
 /* 流动粒子 */
-.device-card.kind-valve.status-1 .svg-flow-dot { opacity: 1 !important; }
-.device-card.kind-valve.status-1 .svg-flow-dot1 { animation: flow-particle 1.6s infinite 0s linear; }
-.device-card.kind-valve.status-1 .svg-flow-dot2 { animation: flow-particle 1.6s infinite 0.4s linear; }
-.device-card.kind-valve.status-1 .svg-flow-dot3 { animation: flow-particle 1.6s infinite 0.8s linear; }
-.device-card.kind-valve.status-1 .svg-flow-dot4 { animation: flow-particle 1.6s infinite 1.2s linear; }
+.device-card.kind-valve.status-1 .svg-flow-dot,
+.device-card.kind-valve_distributor.status-1 .svg-flow-dot,
+.device-card.kind-selector_valve.status-1 .svg-flow-dot,
+.device-card.kind-valve_zone.status-1 .svg-flow-dot,
+.device-card.kind-zone_valve.status-1 .svg-flow-dot,
+.device-card.kind-valve_main_isolation.status-1 .svg-flow-dot,
+.device-card.kind-main_isolation_valve.status-1 .svg-flow-dot { opacity: 1 !important; }
 
-@keyframes flow-particle {
-  0%   { transform: translateX(-6px); opacity: 0; }
-  20%  { opacity: 1; }
-  80%  { opacity: 1; }
-  100% { transform: translateX(6px); opacity: 0; }
-}
+.device-card.kind-valve.status-1 .svg-flow-dot1,
+.device-card.kind-valve_distributor.status-1 .svg-flow-dot1,
+.device-card.kind-selector_valve.status-1 .svg-flow-dot1,
+.device-card.kind-valve_zone.status-1 .svg-flow-dot1,
+.device-card.kind-zone_valve.status-1 .svg-flow-dot1,
+.device-card.kind-valve_main_isolation.status-1 .svg-flow-dot1,
+.device-card.kind-main_isolation_valve.status-1 .svg-flow-dot1 { animation: flow-particle 1.6s infinite 0s linear; }
+
+.device-card.kind-valve.status-1 .svg-flow-dot2,
+.device-card.kind-valve_distributor.status-1 .svg-flow-dot2,
+.device-card.kind-selector_valve.status-1 .svg-flow-dot2,
+.device-card.kind-valve_zone.status-1 .svg-flow-dot2,
+.device-card.kind-zone_valve.status-1 .svg-flow-dot2,
+.device-card.kind-valve_main_isolation.status-1 .svg-flow-dot2,
+.device-card.kind-main_isolation_valve.status-1 .svg-flow-dot2 { animation: flow-particle 1.6s infinite 0.4s linear; }
+
+.device-card.kind-valve.status-1 .svg-flow-dot3,
+.device-card.kind-valve_distributor.status-1 .svg-flow-dot3,
+.device-card.kind-selector_valve.status-1 .svg-flow-dot3,
+.device-card.kind-valve_zone.status-1 .svg-flow-dot3,
+.device-card.kind-zone_valve.status-1 .svg-flow-dot3,
+.device-card.kind-valve_main_isolation.status-1 .svg-flow-dot3,
+.device-card.kind-main_isolation_valve.status-1 .svg-flow-dot3 { animation: flow-particle 1.6s infinite 0.8s linear; }
+
+.device-card.kind-valve.status-1 .svg-flow-dot4,
+.device-card.kind-valve_distributor.status-1 .svg-flow-dot4,
+.device-card.kind-selector_valve.status-1 .svg-flow-dot4,
+.device-card.kind-valve_zone.status-1 .svg-flow-dot4,
+.device-card.kind-zone_valve.status-1 .svg-flow-dot4,
+.device-card.kind-valve_main_isolation.status-1 .svg-flow-dot4,
+.device-card.kind-main_isolation_valve.status-1 .svg-flow-dot4 { animation: flow-particle 1.6s infinite 1.2s linear; }
 
 /* 阀门卡片 hover 不旋转整个 SVG */
-.device-card.kind-valve.status-1:hover .device-icon-container svg {
-  transform: scale(1.08);
-}
-.device-card.kind-valve.status-0:hover .device-icon-container svg {
+.device-card.kind-valve:hover .device-icon-container svg,
+.device-card.kind-valve_distributor:hover .device-icon-container svg,
+.device-card.kind-selector_valve:hover .device-icon-container svg,
+.device-card.kind-valve_zone:hover .device-icon-container svg,
+.device-card.kind-zone_valve:hover .device-icon-container svg,
+.device-card.kind-valve_main_isolation:hover .device-icon-container svg,
+.device-card.kind-main_isolation_valve:hover .device-icon-container svg {
   transform: scale(1.08);
 }
 
@@ -576,16 +657,55 @@ body {
 .device-card.kind-gas_cylinder.status-0::before { background: #10b981; }
 .device-card.kind-gas_cylinder.status-0 .device-status { background: rgba(16,185,129,0.12); color: #10b981; border: 1px solid rgba(16,185,129,0.25); }
 .device-card.kind-gas_cylinder.status-0 .svg-led { fill: #10b981; }
-.device-card.kind-gas_cylinder.status-0 .svg-gauge-needle { stroke: #10b981; transform: rotate(-45deg); }
+.device-card.kind-gas_cylinder.status-0 .svg-gauge-needle {
+  stroke: #10b981;
+  transform-origin: 24px 27px;
+  transform: rotate(45deg);
+  transition: transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.device-card.kind-gas_cylinder.status-0 .svg-gas-spray { opacity: 0 !important; }
+
 .device-card.kind-gas_cylinder.status-1 { animation: card-alert 1.2s infinite alternate; border-color: rgba(239,68,68,0.5); }
 .device-card.kind-gas_cylinder.status-1::before { background: #ef4444; }
 .device-card.kind-gas_cylinder.status-1 .device-status { background: rgba(239,68,68,0.2); color: #ff3131; border: 1px solid rgba(239,68,68,0.5); animation: text-blink 0.8s infinite alternate; text-shadow: 0 0 8px rgba(239,68,68,0.6); }
 .device-card.kind-gas_cylinder.status-1 .svg-led { fill: #ff3131; animation: led-blink 0.4s infinite alternate; }
-.device-card.kind-gas_cylinder.status-1 .svg-gauge-needle { stroke: #ef4444; transform: rotate(30deg); animation: gauge-swing 0.5s infinite alternate ease-in-out; }
+.device-card.kind-gas_cylinder.status-1 .svg-gauge-needle {
+  stroke: #ef4444;
+  transform-origin: 24px 27px;
+  transform: rotate(-135deg);
+  transition: transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.device-card.kind-gas_cylinder.status-1 .svg-gas-spray {
+  opacity: 0.85 !important;
+}
+.device-card.kind-gas_cylinder.status-1 .svg-gas-p1 {
+  animation: gas-drift-1 1.2s infinite linear;
+}
+.device-card.kind-gas_cylinder.status-1 .svg-gas-p2 {
+  animation: gas-drift-2 1.2s infinite 0.4s linear;
+}
+.device-card.kind-gas_cylinder.status-1 .svg-gas-p3 {
+  animation: gas-drift-3 1.2s infinite 0.8s linear;
+}
+.device-card.kind-gas_cylinder.status-1 .svg-gas-cloud {
+  animation: gas-cloud-rise 1.5s infinite ease-out;
+}
 
-@keyframes gauge-swing {
-  0% { transform: rotate(-20deg); }
-  100% { transform: rotate(50deg); }
+@keyframes gas-drift-1 {
+  0% { transform: translateY(0) scale(0.5); opacity: 0.8; }
+  100% { transform: translateY(-12px) translateX(-4px) scale(1.5); opacity: 0; }
+}
+@keyframes gas-drift-2 {
+  0% { transform: translateY(0) scale(0.5); opacity: 0.8; }
+  100% { transform: translateY(-14px) translateX(3px) scale(1.8); opacity: 0; }
+}
+@keyframes gas-drift-3 {
+  0% { transform: translateY(0) scale(0.5); opacity: 0.8; }
+  100% { transform: translateY(-10px) translateX(-1px) scale(1.4); opacity: 0; }
+}
+@keyframes gas-cloud-rise {
+  0% { transform: translateY(0) scale(0.8); opacity: 0.6; }
+  100% { transform: translateY(-15px) scale(1.6); opacity: 0; }
 }
 
 /* ===== 水泵 (water_pump) — 叶轮旋转 + 水流粒子 ===== */

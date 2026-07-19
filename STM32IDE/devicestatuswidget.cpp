@@ -1,6 +1,7 @@
 #include "devicestatuswidget.h"
 
 #include <QFontMetrics>
+#include <QMouseEvent>
 #include <QPainter>
 #include <QPainterPath>
 #include <QtMath>
@@ -155,13 +156,16 @@ void DeviceStatusWidget::paintEvent(QPaintEvent *) {
 
   // 设备图标
   switch (m_kind) {
-    case Detector:       drawDetector(p, iconArea); break;
-    case Valve:          drawValve(p, iconArea); break;
-    case ManualAlarm:    drawManualAlarm(p, iconArea); break;
-    case GasCylinder:    drawGasCylinder(p, iconArea); break;
-    case WaterPump:      drawWaterPump(p, iconArea); break;
-    case PressureSwitch: drawPressureSwitch(p, iconArea); break;
-    case MobileSprayGun: drawMobileSprayGun(p, iconArea); break;
+    case Detector:            drawDetector(p, iconArea); break;
+    case ValveDistributor:    drawValveDistributor(p, iconArea); break;
+    case ValveZone:           drawValveZone(p, iconArea); break;
+    case ValveMainIsolation:  drawValveMainIsolation(p, iconArea); break;
+    case Valve:               drawValve(p, iconArea); break;
+    case ManualAlarm:         drawManualAlarm(p, iconArea); break;
+    case GasCylinder:         drawGasCylinder(p, iconArea); break;
+    case WaterPump:           drawWaterPump(p, iconArea); break;
+    case PressureSwitch:      drawPressureSwitch(p, iconArea); break;
+    case MobileSprayGun:      drawMobileSprayGun(p, iconArea); break;
   }
 
   // ---- LED 指示灯 ----
@@ -194,13 +198,16 @@ void DeviceStatusWidget::paintEvent(QPaintEvent *) {
   QString stText;
   QColor stColor = m_status ? TechColors::red : TechColors::green;
   switch (m_kind) {
-    case Detector:       stText = m_status ? QStringLiteral("报警") : QStringLiteral("正常"); break;
-    case Valve:          stText = m_status ? QStringLiteral("开")   : QStringLiteral("关");   stColor = m_status ? TechColors::green : TechColors::amber; break;
-    case ManualAlarm:    stText = m_status ? QStringLiteral("按下") : QStringLiteral("正常"); break;
-    case GasCylinder:    stText = m_status ? QStringLiteral("泄漏") : QStringLiteral("正常"); break;
-    case WaterPump:      stText = m_status ? QStringLiteral("运转") : QStringLiteral("停止"); stColor = m_status ? TechColors::greenBright : TechColors::amber; break;
-    case PressureSwitch: stText = m_status ? QStringLiteral("开启") : QStringLiteral("关闭"); stColor = m_status ? TechColors::accentCyan : TechColors::gray; break;
-    case MobileSprayGun: stText = m_status ? QStringLiteral("喷射") : QStringLiteral("停止"); stColor = m_status ? TechColors::green : TechColors::gray; break;
+    case Detector:            stText = m_status ? QStringLiteral("报警") : QStringLiteral("正常"); break;
+    case Valve:               // fallthrough
+    case ValveDistributor:    // fallthrough
+    case ValveZone:           // fallthrough
+    case ValveMainIsolation:  stText = m_status ? QStringLiteral("开") : QStringLiteral("关"); stColor = m_status ? TechColors::green : TechColors::amber; break;
+    case ManualAlarm:         stText = m_status ? QStringLiteral("按下") : QStringLiteral("正常"); break;
+    case GasCylinder:         stText = m_status ? QStringLiteral("泄漏") : QStringLiteral("正常"); break;
+    case WaterPump:           stText = m_status ? QStringLiteral("运转") : QStringLiteral("停止"); stColor = m_status ? TechColors::greenBright : TechColors::amber; break;
+    case PressureSwitch:      stText = m_status ? QStringLiteral("开启") : QStringLiteral("关闭"); stColor = m_status ? TechColors::accentCyan : TechColors::gray; break;
+    case MobileSprayGun:      stText = m_status ? QStringLiteral("喷射") : QStringLiteral("停止"); stColor = m_status ? TechColors::green : TechColors::gray; break;
   }
 
   // 便利贴背景
@@ -308,6 +315,188 @@ void DeviceStatusWidget::drawValve(QPainter &p, const QRect &area) {
   }
 }
 
+// ===== 分配阀 (蝶阀) — 薄型蝶板 + 大法兰 =====
+void DeviceStatusWidget::drawValveDistributor(QPainter &p, const QRect &area) {
+  int cx = area.center().x(), cy = area.center().y();
+  qreal s = area.height() / 85.0;
+
+  // 管道
+  QLinearGradient pg(cx - 26 * s, 0, cx + 26 * s, 0);
+  pg.setColorAt(0, QColor(0x33, 0x41, 0x55));
+  pg.setColorAt(0.5, QColor(0x64, 0x74, 0x8B));
+  pg.setColorAt(1, QColor(0x33, 0x41, 0x55));
+  p.setPen(Qt::NoPen); p.setBrush(pg);
+  p.drawRoundedRect(cx - 24 * s, cy - 3 * s, 48 * s, 6 * s, 2, 2);
+
+  // 大法兰盘
+  p.setBrush(QColor(0x47, 0x55, 0x69));
+  p.setPen(QPen(QColor(0x64, 0x74, 0x8B), 1.0));
+  p.drawRoundedRect(cx - 26 * s, cy - 6 * s, 4 * s, 12 * s, 1, 1);
+  p.drawRoundedRect(cx + 22 * s, cy - 6 * s, 4 * s, 12 * s, 1, 1);
+  // 法兰螺栓
+  p.setPen(Qt::NoPen);
+  p.setBrush(QColor(0x94, 0xA3, 0xB8));
+  p.drawEllipse(QPointF(cx - 24 * s, cy - 3 * s), 1.2 * s, 1.2 * s);
+  p.drawEllipse(QPointF(cx - 24 * s, cy + 3 * s), 1.2 * s, 1.2 * s);
+  p.drawEllipse(QPointF(cx + 24 * s, cy - 3 * s), 1.2 * s, 1.2 * s);
+  p.drawEllipse(QPointF(cx + 24 * s, cy + 3 * s), 1.2 * s, 1.2 * s);
+
+  // 阀体 (较薄)
+  QRadialGradient vg(cx - 1, cy - 1, 7 * s);
+  vg.setColorAt(0, QColor(0x64, 0x74, 0x8B));
+  vg.setColorAt(0.5, QColor(0x37, 0x41, 0x51));
+  vg.setColorAt(1, QColor(0x1E, 0x29, 0x3B));
+  p.setBrush(vg);
+  p.setPen(QPen(QColor(0x47, 0x55, 0x69), 0.8));
+  p.drawEllipse(QPointF(cx, cy), 7 * s, 7 * s);
+
+  // 阀芯 — 蝶板
+  p.setPen(Qt::NoPen);
+  if (m_status) {
+    // 开启 → 水平薄蝶板 + 水流
+    p.setBrush(QColor(0x10, 0xB9, 0x81));
+    p.drawRoundedRect(cx - 6 * s, cy - 1 * s, 12 * s, 2 * s, 0.5, 0.5);
+    for (int i = 0; i < 3; ++i) {
+      qreal offset = fmod(m_animProgress + i * 0.33, 1.0);
+      qreal dx = -18 * s + offset * 36 * s;
+      qreal alpha = (1.0 - qAbs(offset - 0.5) * 2.0);
+      p.setBrush(QColor(0x10, 0xB9, 0x81, qRound(alpha * 200)));
+      p.drawEllipse(QPointF(cx + dx, cy - 4.5 * s), 1.8 * s * alpha, 1.8 * s * alpha);
+    }
+  } else {
+    // 关闭 → 垂直蝶板
+    p.setBrush(TechColors::amber);
+    p.drawRoundedRect(cx - 1 * s, cy - 6 * s, 2 * s, 12 * s, 0.5, 0.5);
+  }
+}
+
+// ===== 区域阀 (闸阀) — 大型闸板 + 手轮 =====
+void DeviceStatusWidget::drawValveZone(QPainter &p, const QRect &area) {
+  int cx = area.center().x(), cy = area.center().y();
+  qreal s = area.height() / 85.0;
+
+  // 管道
+  QLinearGradient pg(cx - 26 * s, 0, cx + 26 * s, 0);
+  pg.setColorAt(0, QColor(0x2D, 0x3B, 0x4F));
+  pg.setColorAt(0.3, QColor(0x5B, 0x6A, 0x7E));
+  pg.setColorAt(0.7, QColor(0x5B, 0x6A, 0x7E));
+  pg.setColorAt(1, QColor(0x2D, 0x3B, 0x4F));
+  p.setPen(Qt::NoPen); p.setBrush(pg);
+  p.drawRoundedRect(cx - 26 * s, cy - 3.5 * s, 52 * s, 7 * s, 2, 2);
+
+  // 法兰
+  p.setBrush(QColor(0x47, 0x55, 0x69));
+  p.drawRect(cx - 26 * s, cy - 6 * s, 3 * s, 12 * s);
+  p.drawRect(cx + 23 * s, cy - 6 * s, 3 * s, 12 * s);
+
+  // 阀体 (方形闸阀壳体)
+  p.setPen(QPen(QColor(0x47, 0x55, 0x69), 1.2));
+  QLinearGradient bodyG(0, cy - 8 * s, 0, cy + 8 * s);
+  bodyG.setColorAt(0, QColor(0x47, 0x55, 0x69));
+  bodyG.setColorAt(0.5, QColor(0x37, 0x41, 0x51));
+  bodyG.setColorAt(1, QColor(0x2D, 0x3B, 0x4F));
+  p.setBrush(bodyG);
+  p.drawRoundedRect(cx - 9 * s, cy - 9 * s, 18 * s, 18 * s, 3, 3);
+
+  // 手轮 (顶部)
+  p.setPen(QPen(QColor(0x64, 0x74, 0x8B), 1.5 * s));
+  p.setBrush(Qt::NoBrush);
+  p.drawEllipse(QPointF(cx, cy - 12 * s), 5 * s, 2.5 * s);
+  p.setPen(QPen(QColor(0x94, 0xA3, 0xB8), 1.0));
+  p.drawLine(cx, cy - 14.5 * s, cx, cy - 9 * s);
+  // 手轮辐条
+  p.drawLine(cx - 5 * s, cy - 12 * s, cx + 5 * s, cy - 12 * s);
+
+  // 闸板
+  p.setPen(Qt::NoPen);
+  if (m_status) {
+    // 开启 → 闸板提升 + 水流
+    p.setBrush(QColor(0x10, 0xB9, 0x81));
+    p.drawRoundedRect(cx - 0.8 * s, cy - 5 * s, 1.6 * s, 3 * s, 0.5, 0.5);
+    for (int i = 0; i < 3; ++i) {
+      qreal offset = fmod(m_animProgress + i * 0.33, 1.0);
+      qreal dx = -18 * s + offset * 36 * s;
+      qreal alpha = (1.0 - qAbs(offset - 0.5) * 2.0);
+      p.setBrush(QColor(0x10, 0xB9, 0x81, qRound(alpha * 220)));
+      p.drawEllipse(QPointF(cx + dx, cy - 5.5 * s), 2 * s * alpha, 2 * s * alpha);
+    }
+  } else {
+    // 关闭 → 闸板落下
+    p.setBrush(TechColors::amber);
+    p.drawRoundedRect(cx - 0.8 * s, cy - 7 * s, 1.6 * s, 14 * s, 0.5, 0.5);
+  }
+}
+
+// ===== 总管隔离阀 (截止阀) — 大型阀体 + 大法兰 + 大水流 =====
+void DeviceStatusWidget::drawValveMainIsolation(QPainter &p, const QRect &area) {
+  int cx = area.center().x(), cy = area.center().y();
+  qreal s = area.height() / 85.0;
+
+  // 主管道（更粗）
+  QLinearGradient pg(cx - 30 * s, 0, cx + 30 * s, 0);
+  pg.setColorAt(0, QColor(0x25, 0x33, 0x45));
+  pg.setColorAt(0.3, QColor(0x55, 0x65, 0x78));
+  pg.setColorAt(0.5, QColor(0x6B, 0x7B, 0x8E));
+  pg.setColorAt(0.7, QColor(0x55, 0x65, 0x78));
+  pg.setColorAt(1, QColor(0x25, 0x33, 0x45));
+  p.setPen(Qt::NoPen); p.setBrush(pg);
+  p.drawRoundedRect(cx - 28 * s, cy - 4.5 * s, 56 * s, 9 * s, 3, 3);
+
+  // 大法兰盘 (六螺栓)
+  p.setBrush(QColor(0x47, 0x55, 0x69));
+  p.setPen(QPen(QColor(0x5B, 0x6A, 0x7E), 1.0));
+  p.drawRoundedRect(cx - 30 * s, cy - 7 * s, 5 * s, 14 * s, 2, 2);
+  p.drawRoundedRect(cx + 25 * s, cy - 7 * s, 5 * s, 14 * s, 2, 2);
+  // 螺栓
+  p.setPen(Qt::NoPen);
+  for (int y = -4; y <= 4; y += 4) {
+    p.setBrush(QColor(0x94, 0xA3, 0xB8));
+    p.drawEllipse(QPointF(cx - 27.5 * s, cy + y * s), 1.3 * s, 1.3 * s);
+  }
+  for (int y = -4; y <= 4; y += 4) {
+    p.setBrush(QColor(0x94, 0xA3, 0xB8));
+    p.drawEllipse(QPointF(cx + 27.5 * s, cy + y * s), 1.3 * s, 1.3 * s);
+  }
+
+  // 大型阀体
+  QRadialGradient vg(cx - 1, cy - 2, 10 * s);
+  vg.setColorAt(0, QColor(0x5B, 0x6A, 0x7E));
+  vg.setColorAt(0.4, QColor(0x47, 0x55, 0x69));
+  vg.setColorAt(0.7, QColor(0x2D, 0x3B, 0x4F));
+  vg.setColorAt(1, QColor(0x1A, 0x24, 0x35));
+  p.setBrush(vg);
+  p.setPen(QPen(QColor(0x47, 0x55, 0x69), 1.5));
+  p.drawEllipse(QPointF(cx, cy), 10 * s, 10 * s);
+
+  // 手轮
+  p.setPen(QPen(QColor(0x94, 0xA3, 0xB8), 1.8 * s));
+  p.setBrush(Qt::NoBrush);
+  p.drawEllipse(QPointF(cx, cy - 13 * s), 7 * s, 3 * s);
+  p.drawLine(cx, cy - 16 * s, cx, cy - 10 * s);
+  p.drawLine(cx - 7 * s, cy - 13 * s, cx + 7 * s, cy - 13 * s);
+  p.drawLine(cx - 4 * s, cy - 14.5 * s, cx + 4 * s, cy - 11.5 * s);
+
+  // 阀芯
+  p.setPen(Qt::NoPen);
+  if (m_status) {
+    // 开启 → 水平 + 大水流
+    p.setBrush(QColor(0x00, 0xE6, 0x76));
+    p.drawRoundedRect(cx - 7 * s, cy - 1.5 * s, 14 * s, 3 * s, 1, 1);
+    for (int i = 0; i < 4; ++i) {
+      qreal offset = fmod(m_animProgress + i * 0.25, 1.0);
+      qreal dx = -22 * s + offset * 44 * s;
+      qreal alpha = (1.0 - qAbs(offset - 0.5) * 2.0);
+      p.setBrush(QColor(0x00, 0xE6, 0x76, qRound(alpha * 230)));
+      qreal r = (2.0 + alpha * 1.5) * s;
+      p.drawEllipse(QPointF(cx + dx, cy - 6.5 * s), r, r);
+    }
+  } else {
+    // 关闭 → 垂直阀芯
+    p.setBrush(TechColors::amber);
+    p.drawRoundedRect(cx - 2 * s, cy - 9 * s, 4 * s, 18 * s, 1.5, 1.5);
+  }
+}
+
 // ===== 手动报警按钮 — 方形面板 + 红色按钮 =====
 void DeviceStatusWidget::drawManualAlarm(QPainter &p, const QRect &area) {
   int cx = area.center().x(), cy = area.center().y();
@@ -344,7 +533,22 @@ void DeviceStatusWidget::drawManualAlarm(QPainter &p, const QRect &area) {
 void DeviceStatusWidget::drawGasCylinder(QPainter &p, const QRect &area) {
   int cx = area.center().x(), cy = area.center().y();
   qreal s = area.height() / 85.0;
-  QColor bodyCol = m_status ? TechColors::red : TechColors::accentCyan;
+  QColor bodyCol = TechColors::red;
+
+  // 气体喷放动态效果 (只在 status 激活即释放状态显示)
+  if (m_status) {
+    p.setPen(Qt::NoPen);
+    for (int i = 0; i < 4; ++i) {
+      qreal offset = fmod(m_animProgress + i * 0.25, 1.0);
+      qreal dist = 5 * s + offset * 18 * s;
+      qreal sprayAngle = -M_PI_2 + (i - 1.5) * 0.22; // 朝上锥形喷射
+      qreal px = cx + dist * qCos(sprayAngle);
+      qreal py = cy - 26 * s + dist * qSin(sprayAngle);
+      qreal alpha = 1.0 - offset;
+      p.setBrush(QColor(0xE2, 0xE8, 0xF0, qRound(alpha * 180)));
+      p.drawEllipse(QPointF(px, py), (1.5 + offset * 2.2) * s, (1.5 + offset * 2.2) * s);
+    }
+  }
 
   // 瓶体
   QLinearGradient bg(cx - 10 * s, 0, cx + 10 * s, 0);
@@ -368,9 +572,9 @@ void DeviceStatusWidget::drawGasCylinder(QPainter &p, const QRect &area) {
   p.setBrush(TechColors::bg.darker(150));
   p.setPen(QPen(QColor(0x47, 0x55, 0x69), 1.0));
   p.drawEllipse(QPointF(cx, cy + 2 * s), 8 * s, 8 * s);
-  // 表针
-  p.setPen(QPen(bodyCol, 1.5 * s));
-  qreal angle = m_status ? (-M_PI_4 + qSin(m_animProgress * M_PI * 4) * 0.4) : -1.2;
+  // 表针 (正常为-M_PI_4，喷放为-M_PI * 3.0/4.0 零位)
+  p.setPen(QPen(m_status ? TechColors::red : TechColors::green, 1.5 * s));
+  qreal angle = m_status ? (-M_PI * 3.0 / 4.0) : -M_PI_4;
   p.drawLine(QPointF(cx, cy + 2 * s),
              QPointF(cx + 5 * s * qCos(angle), cy + 2 * s + 5 * s * qSin(angle)));
   p.setPen(Qt::NoPen);
@@ -505,3 +709,41 @@ void DeviceStatusWidget::drawMobileSprayGun(QPainter &p, const QRect &area) {
 
 void DeviceStatusWidget::enterEvent(QEvent *) { m_hovered = true; update(); }
 void DeviceStatusWidget::leaveEvent(QEvent *) { m_hovered = false; update(); }
+
+// ===== 拖拽功能 =====
+void DeviceStatusWidget::mousePressEvent(QMouseEvent *e) {
+  if (!m_draggable || e->button() != Qt::LeftButton) {
+    QWidget::mousePressEvent(e);
+    return;
+  }
+  m_dragActive = true;
+  m_dragStartPos = e->globalPos();
+  m_dragWidgetStart = pos();
+  raise();
+  setCursor(Qt::ClosedHandCursor);
+}
+
+void DeviceStatusWidget::mouseMoveEvent(QMouseEvent *e) {
+  if (!m_dragActive) {
+    QWidget::mouseMoveEvent(e);
+    return;
+  }
+  QPoint delta = e->globalPos() - m_dragStartPos;
+  QPoint newPos = m_dragWidgetStart + delta;
+  // 限制在父控件内
+  if (parentWidget()) {
+    newPos.setX(qMax(0, qMin(newPos.x(), parentWidget()->width() - width())));
+    newPos.setY(qMax(0, qMin(newPos.y(), parentWidget()->height() - height())));
+  }
+  move(newPos);
+}
+
+void DeviceStatusWidget::mouseReleaseEvent(QMouseEvent *e) {
+  if (!m_dragActive) {
+    QWidget::mouseReleaseEvent(e);
+    return;
+  }
+  m_dragActive = false;
+  setCursor(Qt::ArrowCursor);
+  emit deviceDragged(m_deviceId, pos());
+}
