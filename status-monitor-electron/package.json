@@ -1,0 +1,19 @@
+{
+  "name": "status-monitor-electron",
+  "version": "1.0.0",
+  "description": "科技风 CAN 设备状态监控面板",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "keywords": [
+    "CAN",
+    "Monitor",
+    "Electron"
+  ],
+  "author": "Antigravity",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^28.2.0"
+  }
+}

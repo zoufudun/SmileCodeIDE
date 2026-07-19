@@ -17,6 +17,9 @@
 #include <QTreeWidget>
 #include <QTreeWidgetItem>
 #include <QVBoxLayout>
+#include <QTableWidget>
+#include <QHeaderView>
+#include <QRegExpValidator>
 
 #include "caninterface.h"
 #include "USBCANFD/zlgcan.h"
@@ -51,23 +54,223 @@ QPixmap drawGreyDotIcon() {
 // 按钮统一样式设置助手
 void setActionButtonStyle(QPushButton *btn, bool active) {
   btn->setEnabled(active);
-  if (active) {
-    btn->setStyleSheet("QPushButton { background-color: #D6E8FC; border: 1px solid #ADC3E6; color: #2C3E50; font-size: 12px; padding: 4px 12px; border-radius: 4px; min-width: 60px; }"
-                       "QPushButton:hover { background-color: #C0DEFC; }");
-  } else {
-    btn->setStyleSheet("QPushButton { background-color: #ECEFF1; border: 1px solid #CFD8DC; color: #B0BEC5; font-size: 12px; padding: 4px 12px; border-radius: 4px; min-width: 60px; }");
+  btn->setStyleSheet("QPushButton { font-size: 11px; padding: 4px 10px; border-radius: 4px; min-width: 50px; font-family: 'Microsoft YaHei'; }");
+}
+
+QString getParentStyleSheet(QWidget *w) {
+  while (w) {
+    if (!w->styleSheet().isEmpty()) {
+      return w->styleSheet();
+    }
+    w = w->parentWidget();
   }
+  return "";
 }
 } // namespace
+
+// --- 通道滤波设置对话框 ---
+class FilterSettingsDialog : public QDialog {
+public:
+  FilterSettingsDialog(QList<CanFilterRule> *rules, int channel, QWidget *parent = nullptr)
+      : QDialog(parent), m_rules(rules), m_channel(channel) {
+    setWindowTitle(QString("通道%1 滤波设置").arg(channel));
+    setMinimumSize(480, 360);
+    setStyleSheet("");
+
+    QVBoxLayout *mainLayout = new QVBoxLayout(this);
+    mainLayout->setContentsMargins(15, 15, 15, 15);
+    mainLayout->setSpacing(10);
+
+    // 1. 过滤规则表格
+    m_table = new QTableWidget(0, 3, this);
+    m_table->setHorizontalHeaderLabels({"过滤格式", "起始帧ID", "结束帧ID"});
+    m_table->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+    m_table->setSelectionBehavior(QAbstractItemView::SelectRows);
+    m_table->setSelectionMode(QAbstractItemView::SingleSelection);
+    m_table->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    m_table->setStyleSheet("QTableWidget { gridline-color: palette(mid); }");
+    mainLayout->addWidget(m_table);
+
+    // 2. 规则控制栏
+    QHBoxLayout *ctrlLayout = new QHBoxLayout();
+    ctrlLayout->setSpacing(8);
+
+    ctrlLayout->addWidget(new QLabel("模式:"));
+    m_modeCombo = new QComboBox();
+    m_modeCombo->addItems({"标准帧明确ID", "扩展帧明确ID", "标准帧段ID", "扩展帧段ID"});
+    ctrlLayout->addWidget(m_modeCombo);
+
+    ctrlLayout->addWidget(new QLabel("起始ID: 0x"));
+    m_startIdEdit = new QLineEdit("0");
+    m_startIdEdit->setMaxLength(8);
+    m_startIdEdit->setValidator(new QRegExpValidator(QRegExp("[0-9a-fA-F]{1,8}"), this));
+    m_startIdEdit->setFixedWidth(70);
+    ctrlLayout->addWidget(m_startIdEdit);
+
+    ctrlLayout->addWidget(new QLabel("结束ID: 0x"));
+    m_endIdEdit = new QLineEdit("0");
+    m_endIdEdit->setMaxLength(8);
+    m_endIdEdit->setValidator(new QRegExpValidator(QRegExp("[0-9a-fA-F]{1,8}"), this));
+    m_endIdEdit->setFixedWidth(70);
+    m_endIdEdit->setEnabled(false);
+    ctrlLayout->addWidget(m_endIdEdit);
+
+    mainLayout->addLayout(ctrlLayout);
+
+    // 3. 按钮栏
+    QHBoxLayout *btnLayout = new QHBoxLayout();
+    m_btnAdd = new QPushButton("添加");
+    m_btnDelete = new QPushButton("删除");
+    m_btnOk = new QPushButton("确定");
+    m_btnCancel = new QPushButton("取消");
+
+    m_btnAdd->setStyleSheet("QPushButton { padding: 4px 12px; }");
+    m_btnDelete->setStyleSheet("QPushButton { padding: 4px 12px; }");
+    m_btnOk->setStyleSheet("QPushButton { padding: 5px 20px; }");
+    m_btnCancel->setStyleSheet("QPushButton { padding: 5px 20px; }");
+
+    m_btnDelete->setEnabled(false);
+
+    btnLayout->addWidget(m_btnAdd);
+    btnLayout->addWidget(m_btnDelete);
+    btnLayout->addStretch();
+    btnLayout->addWidget(m_btnOk);
+    btnLayout->addWidget(m_btnCancel);
+    mainLayout->addLayout(btnLayout);
+
+    // 4. 事件连接
+    connect(m_modeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &FilterSettingsDialog::onModeChanged);
+    connect(m_btnAdd, &QPushButton::clicked, this, &FilterSettingsDialog::onAddClicked);
+    connect(m_btnDelete, &QPushButton::clicked, this, &FilterSettingsDialog::onDeleteClicked);
+    connect(m_btnOk, &QPushButton::clicked, this, &FilterSettingsDialog::onOkClicked);
+    connect(m_btnCancel, &QPushButton::clicked, this, &QDialog::reject);
+    connect(m_table, &QTableWidget::itemSelectionChanged, this, [this]() {
+      m_btnDelete->setEnabled(!m_table->selectedItems().isEmpty());
+    });
+
+    // 加载已有滤波规则
+    loadFilters();
+  }
+
+private slots:
+  void onModeChanged(int idx) {
+    bool isSegment = (idx == 2 || idx == 3);
+    m_endIdEdit->setEnabled(isSegment);
+    if (!isSegment) {
+      m_endIdEdit->setText("0");
+    }
+  }
+
+  void onAddClicked() {
+    QString startStr = m_startIdEdit->text().trimmed();
+    QString endStr = m_endIdEdit->text().trimmed();
+    if (startStr.isEmpty()) startStr = "0";
+    if (endStr.isEmpty()) endStr = "0";
+
+    bool ok1, ok2;
+    quint32 startId = startStr.toUInt(&ok1, 16);
+    quint32 endId = endStr.toUInt(&ok2, 16);
+
+    if (!ok1 || !ok2) {
+      QMessageBox::warning(this, "警告", "帧ID输入格式不正确！");
+      return;
+    }
+
+    int modeIdx = m_modeCombo->currentIndex();
+    bool isExtended = (modeIdx == 1 || modeIdx == 3);
+    quint32 maxId = isExtended ? 0x1FFFFFFF : 0x7FF;
+
+    if (startId > maxId || endId > maxId) {
+      QMessageBox::warning(this, "警告", QString("帧ID超出范围！%1帧最大ID为 0x%2").arg(isExtended ? "扩展" : "标准").arg(maxId, 0, 16).toUpper());
+      return;
+    }
+
+    bool isSegment = (modeIdx == 2 || modeIdx == 3);
+    if (isSegment && startId > endId) {
+      QMessageBox::warning(this, "警告", "起始ID不能大于结束ID！");
+      return;
+    }
+
+    addTableRow(m_modeCombo->currentText(), "0x" + QString::number(startId, 16).toUpper(), isSegment ? "0x" + QString::number(endId, 16).toUpper() : "-");
+  }
+
+  void onDeleteClicked() {
+    int row = m_table->currentRow();
+    if (row >= 0) {
+      m_table->removeRow(row);
+    }
+  }
+
+  void onOkClicked() {
+    QList<CanFilterRule> rules;
+    for (int r = 0; r < m_table->rowCount(); ++r) {
+      CanFilterRule rule;
+      QString mStr = m_table->item(r, 0)->text();
+      if (mStr == "标准帧明确ID") rule.mode = 0;
+      else if (mStr == "扩展帧明确ID") rule.mode = 1;
+      else if (mStr == "标准帧段ID") rule.mode = 2;
+      else if (mStr == "扩展帧段ID") rule.mode = 3;
+
+      rule.startId = m_table->item(r, 1)->text().toUInt(nullptr, 16);
+      if (m_table->item(r, 2)->text() == "-") {
+        rule.endId = 0;
+      } else {
+        rule.endId = m_table->item(r, 2)->text().toUInt(nullptr, 16);
+      }
+      rules.append(rule);
+    }
+
+    *m_rules = rules;
+    accept();
+  }
+
+private:
+  void addTableRow(const QString &mode, const QString &start, const QString &end) {
+    int row = m_table->rowCount();
+    m_table->insertRow(row);
+    m_table->setItem(row, 0, new QTableWidgetItem(mode));
+    m_table->setItem(row, 1, new QTableWidgetItem(start));
+    m_table->setItem(row, 2, new QTableWidgetItem(end));
+    // Center items
+    m_table->item(row, 0)->setTextAlignment(Qt::AlignCenter);
+    m_table->item(row, 1)->setTextAlignment(Qt::AlignCenter);
+    m_table->item(row, 2)->setTextAlignment(Qt::AlignCenter);
+  }
+
+  void loadFilters() {
+    QList<CanFilterRule> rules = *m_rules;
+    for (const auto &rule : rules) {
+      QString modeStr;
+      if (rule.mode == 0) modeStr = "标准帧明确ID";
+      else if (rule.mode == 1) modeStr = "扩展帧明确ID";
+      else if (rule.mode == 2) modeStr = "标准帧段ID";
+      else if (rule.mode == 3) modeStr = "扩展帧段ID";
+
+      bool isSegment = (rule.mode == 2 || rule.mode == 3);
+      addTableRow(modeStr, "0x" + QString::number(rule.startId, 16).toUpper(), isSegment ? "0x" + QString::number(rule.endId, 16).toUpper() : "-");
+    }
+  }
+
+  QList<CanFilterRule> *m_rules;
+  int m_channel;
+  QTableWidget *m_table;
+  QComboBox *m_modeCombo;
+  QLineEdit *m_startIdEdit;
+  QLineEdit *m_endIdEdit;
+  QPushButton *m_btnAdd;
+  QPushButton *m_btnDelete;
+  QPushButton *m_btnOk;
+  QPushButton *m_btnCancel;
+};
 
 // --- 启动通道参数配置对话框 ---
 class StartChannelDialog : public QDialog {
 public:
-  explicit StartChannelDialog(bool fdCapable, QWidget *parent = nullptr)
-      : QDialog(parent), m_fdCapable(fdCapable) {
+  explicit StartChannelDialog(bool fdCapable, int channel, QWidget *parent = nullptr)
+      : QDialog(parent), m_fdCapable(fdCapable), m_channel(channel) {
     setWindowTitle("启动");
     setMinimumSize(420, 500);
-    setStyleSheet("QDialog { background-color: white; }");
+    setStyleSheet("");
 
     QVBoxLayout *mainLayout = new QVBoxLayout(this);
     mainLayout->setContentsMargins(20, 15, 20, 15);
@@ -77,14 +280,14 @@ public:
     QHBoxLayout *topLayout = new QHBoxLayout();
     topLayout->addStretch();
     QPushButton *btnCalc = new QPushButton("波特率计算器");
-    btnCalc->setStyleSheet("QPushButton { background-color: #E6F0FA; border: 1px solid #B0CBE6; color: #2C3E50; padding: 3px 10px; border-radius: 4px; font-size: 11px; }");
+    btnCalc->setStyleSheet("QPushButton { padding: 3px 10px; font-size: 11px; }");
     topLayout->addWidget(btnCalc);
     mainLayout->addLayout(topLayout);
 
     // 滚动区域放置配置项
     QScrollArea *scroll = new QScrollArea();
     scroll->setWidgetResizable(true);
-    scroll->setStyleSheet("QScrollArea { border: 1px solid #E0E0E0; background-color: #FAFAFA; border-radius: 4px; }");
+    scroll->setStyleSheet("QScrollArea { border: 1px solid palette(mid); background: transparent; }");
 
     QWidget *scrollWidget = new QWidget();
     scrollWidget->setStyleSheet("QWidget { background: transparent; }");
@@ -143,25 +346,7 @@ public:
     m_retryCombo->addItem("重试3次", 3);
     m_retryCombo->addItem("不重试", 0);
 
-    // 美化控件
-    QString comboStyle = "QComboBox { border: 1px solid #CCCCCC; padding: 3px 6px; border-radius: 3px; background: white; min-height: 22px; }"
-                         "QComboBox::drop-down { border: none; width: 18px; }"
-                         "QComboBox::down-arrow { border-left: 3px solid transparent; border-right: 3px solid transparent; border-top: 4px solid #FF5A5F; margin-top: 1px; }";
-    QString editStyle = "QLineEdit { border: 1px solid #CCCCCC; padding: 3px 6px; border-radius: 3px; background: white; min-height: 22px; }";
-
-    m_protocolCombo->setStyleSheet(comboStyle);
-    m_standardCombo->setStyleSheet(comboStyle);
-    m_accelCombo->setStyleSheet(comboStyle);
-    m_abitBaudCombo->setStyleSheet(comboStyle);
-    m_dbitBaudCombo->setStyleSheet(comboStyle);
-    m_workModeCombo->setStyleSheet(comboStyle);
-    m_terminalResCombo->setStyleSheet(comboStyle);
-    m_reportBusCombo->setStyleSheet(comboStyle);
-    m_retryCombo->setStyleSheet(comboStyle);
-    m_customBaudEdit->setStyleSheet(editStyle);
-    m_busPeriodEdit->setStyleSheet(editStyle);
-
-    // 添加表单行，同时记录 FD 专用行的 label 以便后续隐藏
+    // Form rows setup (will inherit the theme's inputs stylesheet)
     form->addRow("协议", m_protocolCombo);
     form->addRow("CANFD标准", m_standardCombo);
     form->addRow("CANFD加速", m_accelCombo);
@@ -205,14 +390,17 @@ public:
     m_filterCheck = new QCheckBox("滤波");
     m_filterSetupBtn = new QPushButton("滤波设置");
     m_filterSetupBtn->setEnabled(false);
-    m_filterSetupBtn->setStyleSheet("QPushButton { background-color: #ECEFF1; border: 1px solid #CFD8DC; color: #78909C; padding: 3px 8px; border-radius: 4px; font-size: 11px; }");
+    m_filterSetupBtn->setStyleSheet("QPushButton { padding: 3px 8px; font-size: 11px; }");
     connect(m_filterCheck, &QCheckBox::toggled, m_filterSetupBtn, [this](bool checked) {
       m_filterSetupBtn->setEnabled(checked);
-      if (checked) {
-        m_filterSetupBtn->setStyleSheet("QPushButton { background-color: #E6F0FA; border: 1px solid #B0CBE6; color: #2C3E50; padding: 3px 8px; border-radius: 4px; font-size: 11px; }");
-      } else {
-        m_filterSetupBtn->setStyleSheet("QPushButton { background-color: #ECEFF1; border: 1px solid #CFD8DC; color: #78909C; padding: 3px 8px; border-radius: 4px; font-size: 11px; }");
+    });
+    connect(m_filterSetupBtn, &QPushButton::clicked, this, [this]() {
+      FilterSettingsDialog dlg(&m_tempRules, m_channel, this);
+      QString currentQss = getParentStyleSheet(this);
+      if (!currentQss.isEmpty()) {
+        dlg.setStyleSheet(currentQss);
       }
+      dlg.exec();
     });
     filterLayout->addWidget(m_filterCheck);
     filterLayout->addWidget(m_filterSetupBtn);
@@ -225,9 +413,8 @@ public:
     QPushButton *btnOk = new QPushButton("确认");
     QPushButton *btnCancel = new QPushButton("取消");
 
-    QString actStyle = "QPushButton { border: 1px solid #ADC3E6; padding: 5px 25px; border-radius: 4px; font-weight: bold; }";
-    btnOk->setStyleSheet(actStyle + "QPushButton { background-color: #D6E8FC; color: #2C3E50; } QPushButton:hover { background-color: #C0DEFC; }");
-    btnCancel->setStyleSheet(actStyle + "QPushButton { background-color: #E8ECEF; color: #555555; } QPushButton:hover { background-color: #DFE3E6; }");
+    btnOk->setStyleSheet("QPushButton { padding: 5px 25px; }");
+    btnCancel->setStyleSheet("QPushButton { padding: 5px 25px; }");
 
     btnLayout->addStretch();
     btnLayout->addWidget(btnOk);
@@ -262,6 +449,8 @@ public:
     return cfg;
   }
 
+  QList<CanFilterRule> getFilterRules() const { return m_tempRules; }
+
 private:
   // 隐藏 QFormLayout 中的一行（label + widget）
   static void hideFormRow(QFormLayout *form, QWidget *field) {
@@ -272,6 +461,8 @@ private:
   }
 
   bool m_fdCapable;
+  int m_channel;
+  QList<CanFilterRule> m_tempRules;
   QComboBox *m_protocolCombo;
   QComboBox *m_standardCombo;
   QComboBox *m_accelCombo;
@@ -287,6 +478,8 @@ private:
   QPushButton *m_filterSetupBtn;
 };
 
+
+
 // --- 设备管理窗口实现 ---
 CanDeviceDialog::CanDeviceDialog(CanInterface *can, QWidget *parent)
     : QDialog(parent), m_can(can) {
@@ -297,7 +490,7 @@ CanDeviceDialog::CanDeviceDialog(CanInterface *can, QWidget *parent)
 void CanDeviceDialog::setupUi() {
   setWindowTitle("设备管理");
   setMinimumSize(680, 400);
-  setStyleSheet("QDialog { background-color: white; }");
+  setStyleSheet("");
 
   QVBoxLayout *mainLayout = new QVBoxLayout(this);
   mainLayout->setContentsMargins(15, 15, 15, 15);
@@ -314,15 +507,13 @@ void CanDeviceDialog::setupUi() {
   m_deviceTypeCombo->addItem("USBCANFD-MINI", ZCAN_USBCANFD_MINI);
   m_deviceTypeCombo->addItem("USBCANFD-800U", ZCAN_USBCANFD_800U);
   m_deviceTypeCombo->addItem("USBCAN-4E-U", ZCAN_USBCAN_4E_U);
-  m_deviceTypeCombo->setStyleSheet("QComboBox { border: 1px solid #CCCCCC; padding: 4px 8px; border-radius: 4px; background: white; min-width: 140px; }"
-                                   "QComboBox::drop-down { border: none; width: 20px; }"
-                                   "QComboBox::down-arrow { border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 5px solid #FF5A5F; margin-top: 2px; }");
+  m_deviceTypeCombo->setStyleSheet("QComboBox { min-width: 140px; }");
   topPanel->addWidget(m_deviceTypeCombo);
 
   topPanel->addWidget(new QLabel("索引"));
   m_deviceIndexSpin = new QSpinBox();
   m_deviceIndexSpin->setRange(0, 7);
-  m_deviceIndexSpin->setStyleSheet("QSpinBox { border: 1px solid #CCCCCC; padding: 4px 8px; border-radius: 4px; background: white; min-width: 50px; }");
+  m_deviceIndexSpin->setStyleSheet("QSpinBox { min-width: 50px; }");
   topPanel->addWidget(m_deviceIndexSpin);
 
   topPanel->addSpacing(10);
@@ -330,13 +521,6 @@ void CanDeviceDialog::setupUi() {
   m_openButton = new QPushButton("打开设备");
   m_cloudButton = new QPushButton("云设备");
   m_closeButton = new QPushButton("关闭窗口");
-
-  QString topBtnStyle = "QPushButton { border: 1px solid #ADC3E6; padding: 5px 15px; border-radius: 4px; font-weight: bold; background-color: #D6E8FC; color: #2C3E50; }"
-                        "QPushButton:hover { background-color: #C0DEFC; }";
-  m_openButton->setStyleSheet(topBtnStyle);
-  m_cloudButton->setStyleSheet(topBtnStyle);
-  m_closeButton->setStyleSheet("QPushButton { border: 1px solid #ADC3E6; padding: 5px 15px; border-radius: 4px; font-weight: bold; background-color: #E8ECEF; color: #555555; }"
-                               "QPushButton:hover { background-color: #DFE3E6; }");
 
   topPanel->addWidget(m_openButton);
   topPanel->addWidget(m_cloudButton);
@@ -353,8 +537,7 @@ void CanDeviceDialog::setupUi() {
   m_deviceTree->setColumnWidth(1, 400);
   m_deviceTree->setIndentation(20);
   m_deviceTree->setStyleSheet(
-      "QTreeWidget { border: 1px solid #E2E8F0; border-radius: 4px; background-color: white; }"
-      "QTreeWidget::item { height: 38px; border-bottom: 1px solid #F1F5F9; }"
+      "QTreeWidget::item { height: 38px; }"
   );
   
   mainLayout->addWidget(m_deviceTree);
@@ -369,6 +552,7 @@ void CanDeviceDialog::refreshDeviceTree() {
   m_deviceTree->clear();
   m_startButtons.clear();
   m_stopButtons.clear();
+  m_filterButtons.clear();
   m_deviceStartButton = nullptr;
   m_deviceStopButton = nullptr;
   m_deviceCloseButton = nullptr;
@@ -443,21 +627,26 @@ void CanDeviceDialog::refreshDeviceTree() {
 
     QPushButton *btnStart = new QPushButton("启动");
     QPushButton *btnStop = new QPushButton("停止");
+    QPushButton *btnFilter = new QPushButton("滤波");
 
     const bool isRunning = m_can->isChannelRunning(i);
     setActionButtonStyle(btnStart, !isRunning);
     setActionButtonStyle(btnStop, isRunning);
+    setActionButtonStyle(btnFilter, isRunning);
 
     chanBtnLayout->addWidget(btnStart);
     chanBtnLayout->addWidget(btnStop);
+    chanBtnLayout->addWidget(btnFilter);
     chanBtnLayout->addStretch();
     m_deviceTree->setItemWidget(chanItem, 1, chanBtnWidget);
 
     m_startButtons[i] = btnStart;
     m_stopButtons[i] = btnStop;
+    m_filterButtons[i] = btnFilter;
 
     connect(btnStart, &QPushButton::clicked, this, [this, i]() { onStartChannelClicked(i); });
     connect(btnStop, &QPushButton::clicked, this, [this, i]() { onStopChannelClicked(i); });
+    connect(btnFilter, &QPushButton::clicked, this, [this, i]() { onFilterSettingsClicked(i); });
   }
 
   m_deviceTree->expandItem(devItem);
@@ -482,9 +671,15 @@ void CanDeviceDialog::onCloseDeviceClicked() {
 
 void CanDeviceDialog::onStartChannelClicked(int channel) {
   const quint32 devType = static_cast<quint32>(m_deviceTypeCombo->currentData().toUInt());
-  StartChannelDialog dlg(CanInterface::isDeviceFdCapable(devType), this);
+  StartChannelDialog dlg(CanInterface::isDeviceFdCapable(devType), channel, this);
+  QString currentQss = getParentStyleSheet(this);
+  if (!currentQss.isEmpty()) {
+    dlg.setStyleSheet(currentQss);
+  }
   if (dlg.exec() == QDialog::Accepted) {
     CanChannelConfig cfg = dlg.getConfig();
+    QList<CanFilterRule> rules = dlg.getFilterRules();
+    m_can->setChannelFilters(channel, rules);
     if (m_can->startChannel(channel, cfg)) {
       updateButtonStates();
     } else {
@@ -498,13 +693,34 @@ void CanDeviceDialog::onStopChannelClicked(int channel) {
   updateButtonStates();
 }
 
+void CanDeviceDialog::onFilterSettingsClicked(int channel) {
+  QList<CanFilterRule> rules = m_can->channelFilters(channel);
+  FilterSettingsDialog dlg(&rules, channel, this);
+  QString currentQss = getParentStyleSheet(this);
+  if (!currentQss.isEmpty()) {
+    dlg.setStyleSheet(currentQss);
+  }
+  if (dlg.exec() == QDialog::Accepted) {
+    m_can->setChannelFilters(channel, rules);
+    CanChannelConfig cfg = m_can->channelConfig(channel);
+    cfg.enableFilter = true;
+    m_can->setChannelConfig(channel, cfg);
+  }
+}
+
 void CanDeviceDialog::onStartAllChannels() {
   const quint32 devType = static_cast<quint32>(m_deviceTypeCombo->currentData().toUInt());
-  StartChannelDialog dlg(CanInterface::isDeviceFdCapable(devType), this);
+  StartChannelDialog dlg(CanInterface::isDeviceFdCapable(devType), 0, this);
+  QString currentQss = getParentStyleSheet(this);
+  if (!currentQss.isEmpty()) {
+    dlg.setStyleSheet(currentQss);
+  }
   if (dlg.exec() == QDialog::Accepted) {
     CanChannelConfig cfg = dlg.getConfig();
+    QList<CanFilterRule> rules = dlg.getFilterRules();
     int count = m_startButtons.size();
     for (int i = 0; i < count; ++i) {
+      m_can->setChannelFilters(i, rules);
       m_can->startChannel(i, cfg);
     }
     updateButtonStates();
@@ -530,6 +746,9 @@ void CanDeviceDialog::updateButtonStates() {
     }
     setActionButtonStyle(m_startButtons[ch], !running);
     setActionButtonStyle(m_stopButtons[ch], running);
+    if (m_filterButtons.contains(ch)) {
+      setActionButtonStyle(m_filterButtons[ch], running);
+    }
   }
 
   if (m_deviceStartButton && m_deviceStopButton) {
@@ -604,4 +823,8 @@ void CanDeviceDialog::onShowDeviceInfoClicked() {
 
 void CanDeviceDialog::onCloudDeviceClicked() {
   QMessageBox::information(this, "云设备", "云设备连接中... (当前云设备服务不可用)");
+}
+
+void CanDeviceDialog::applyThemeStyle(const QString &qss) {
+  setStyleSheet(qss);
 }

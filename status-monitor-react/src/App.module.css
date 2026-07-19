@@ -1,0 +1,28 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  padding: 16px;
+  gap: 16px;
+}
+
+.main {
+  flex: 1;
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  position: relative;
+  overflow: auto;
+  padding: 20px;
+  min-height: 0;
+}
+
+.grid {
+  width: 100%;
+}
+
+/* ===== 编辑模式全局样式 ===== */
+:global(body.edit-mode) .main {
+  border-color: var(--primary-border);
+}

@@ -1,0 +1,48 @@
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  flex-shrink: 0;
+}
+
+.logoArea {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.logoIcon {
+  width: 24px;
+  height: 24px;
+  background: radial-gradient(circle, var(--primary-color) 30%, transparent 70%);
+  border: 2px solid var(--primary-color);
+  border-radius: 50%;
+  box-shadow: 0 0 10px var(--primary-glow);
+  animation: logo-rotate 4s linear infinite;
+}
+
+.logoTitle h1 {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  color: #ffffff;
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.1);
+}
+
+.subtitle {
+  font-size: 10px;
+  color: #64748b;
+  text-transform: uppercase;
+}
+
+.infoGroup {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}

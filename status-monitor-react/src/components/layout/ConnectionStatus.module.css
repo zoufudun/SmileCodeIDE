@@ -1,0 +1,43 @@
+.container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #64748b;
+}
+
+.text {
+  font-size: 11px;
+  font-weight: 600;
+  color: #94a3b8;
+  font-family: 'Share Tech Mono', monospace;
+}
+
+/* 已连接 */
+.connected .dot {
+  background-color: #10b981;
+  box-shadow: 0 0 10px #10b981;
+  animation: pulse-green 1.5s infinite;
+}
+.connected .text {
+  color: #10b981;
+}
+
+/* 已断开 */
+.disconnected .dot {
+  background-color: #ef4444;
+  box-shadow: 0 0 10px #ef4444;
+  animation: pulse-red 1.5s infinite;
+}
+.disconnected .text {
+  color: #ef4444;
+}

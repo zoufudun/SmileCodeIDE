@@ -1,0 +1,95 @@
+.card { position:relative; background:rgba(30,41,59,0.3); border:1px solid rgba(255,255,255,0.06); border-radius:14px; padding:10px 10px 12px; display:flex; flex-direction:column; align-items:center; gap:5px; transition:all 0.35s cubic-bezier(0.4,0,0.2,1); overflow:hidden; user-select:none; width:128px; height:155px; }
+.card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; background:transparent; transition:background 0.3s; z-index:1; }
+.card::after { content:''; position:absolute; top:3px; left:0; right:0; height:1px; background:linear-gradient(90deg,transparent,rgba(255,255,255,0.06),transparent); opacity:0; transition:opacity 0.3s; }
+.card:hover::after { opacity:1; }
+.card:hover { transform:translateY(-3px); background:rgba(30,41,59,0.45); box-shadow:0 10px 30px rgba(0,0,0,0.35),0 0 0 1px var(--primary-border); }
+.canId { position:absolute; top:5px; right:6px; font-family:'Share Tech Mono','Consolas',monospace; font-size:7.5px; font-weight:700; color:var(--primary-color); opacity:0.55; letter-spacing:0.3px; z-index:2; }
+.deviceIdBadge { position:absolute; top:5px; left:6px; font-family:'Share Tech Mono','Consolas',monospace; font-size:7px; font-weight:700; color:#475569; background:rgba(0,0,0,0.25); padding:1px 4px; border-radius:3px; z-index:2; }
+.iconContainer { width:54px; height:54px; display:flex; justify-content:center; align-items:center; flex-shrink:0; }
+.iconContainer svg { width:44px; height:44px; transition:transform 0.35s cubic-bezier(0.34,1.56,0.64,1); filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3)); }
+.card:hover .iconContainer svg { transform:scale(1.08); }
+.label { font-family:'Inter','Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif; font-size:10px; font-weight:700; color:#e2e8f0; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; width:100%; letter-spacing:0.2px; }
+.status { font-family:'Orbitron','Rajdhani','PingFang SC',sans-serif; font-size:10px; font-weight:900; padding:2px 10px; border-radius:4px; letter-spacing:1.5px; text-transform:uppercase; text-shadow:0 1px 2px rgba(0,0,0,0.5); backdrop-filter:blur(4px); }
+
+/* ===== 探测器 ===== */
+.kind-detector.status-0::before { background:#10b981; }
+.kind-detector.status-0 .status { background:rgba(16,185,129,0.12); color:#10b981; border:1px solid rgba(16,185,129,0.25); }
+.kind-detector.status-0 .svg-led { fill:#10b981; } .kind-detector.status-0 .svg-led-glow { stroke:#10b981; }
+.kind-detector.status-1 { animation:card-alert 1.2s infinite alternate; border-color:rgba(239,68,68,0.5); }
+.kind-detector.status-1::before { background:#ef4444; }
+.kind-detector.status-1 .status { background:rgba(239,68,68,0.2); color:#ff3131; border:1px solid rgba(239,68,68,0.5); animation:text-blink 0.8s infinite alternate; text-shadow:0 0 8px rgba(239,68,68,0.6); }
+.kind-detector.status-1 .svg-led { animation:led-blink 0.4s infinite alternate; fill:#ff3131!important; filter:drop-shadow(0 0 5px #ef4444); }
+.kind-detector.status-1 .svg-led-glow { stroke:#ef4444; opacity:0.6; animation:led-blink 0.4s infinite alternate; }
+.kind-detector.status-1 .svg-radar-pulse { transform-origin:24px 24px; animation:svg-radar-wave 1.4s infinite ease-out; }
+.kind-detector.status-1 .svg-radar-pulse2 { transform-origin:24px 24px; animation:svg-radar-wave 1.4s 0.7s infinite ease-out; }
+
+/* ===== 阀门 ===== */
+.kind-valve.status-0::before { background:#f59e0b; }
+.kind-valve.status-0 .status { background:rgba(245,158,11,0.12); color:#f59e0b; border:1px solid rgba(245,158,11,0.3); }
+.kind-valve.status-0 .svg-wheel { fill:#f59e0b; stroke:#d97706; transform-origin:24px 24px; transform:rotate(0deg); transition:all 0.5s cubic-bezier(0.34,1.56,0.64,1); }
+.kind-valve.status-0 .svg-flow-dot { opacity:0!important; } .kind-valve.status-0 .svg-flow-path { stroke:#475569!important; stroke-dasharray:none; animation:none; }
+.kind-valve.status-1::before { background:#10b981; }
+.kind-valve.status-1 .status { background:rgba(16,185,129,0.15); color:#00e676; border:1px solid rgba(16,185,129,0.4); text-shadow:0 0 6px rgba(16,185,129,0.4); }
+.kind-valve.status-1 .svg-wheel { fill:#10b981; stroke:#059669; transform-origin:24px 24px; transform:rotate(90deg); transition:all 0.5s cubic-bezier(0.34,1.56,0.64,1); }
+.kind-valve.status-1 .svg-flow-path { stroke:#10b981!important; stroke-dasharray:6 4; animation:fluid-flow 0.8s infinite linear; filter:url(#flow-glow); }
+.kind-valve.status-1 .svg-flow-dot { opacity:1!important; }
+.kind-valve.status-1 .svg-flow-dot1 { animation:flow-particle 1.6s infinite 0s linear; } .kind-valve.status-1 .svg-flow-dot2 { animation:flow-particle 1.6s infinite 0.4s linear; }
+.kind-valve.status-1 .svg-flow-dot3 { animation:flow-particle 1.6s infinite 0.8s linear; } .kind-valve.status-1 .svg-flow-dot4 { animation:flow-particle 1.6s infinite 1.2s linear; }
+.kind-valve.status-1:hover .iconContainer svg, .kind-valve.status-0:hover .iconContainer svg { transform:scale(1.08); }
+
+/* ===== 1301气体钢瓶 (gas_cylinder) — 红色瓶体 + 表针摆动 ===== */
+.kind-gas_cylinder.status-0::before { background:#10b981; }
+.kind-gas_cylinder.status-0 .status { background:rgba(16,185,129,0.12); color:#10b981; border:1px solid rgba(16,185,129,0.25); }
+.kind-gas_cylinder.status-0 .svg-led { fill:#10b981; } .kind-gas_cylinder.status-0 .svg-gauge-needle { stroke:#10b981; transform:rotate(-45deg); }
+.kind-gas_cylinder.status-1 { animation:card-alert 1.2s infinite alternate; border-color:rgba(239,68,68,0.5); }
+.kind-gas_cylinder.status-1::before { background:#ef4444; }
+.kind-gas_cylinder.status-1 .status { background:rgba(239,68,68,0.2); color:#ff3131; border:1px solid rgba(239,68,68,0.5); animation:text-blink 0.8s infinite alternate; text-shadow:0 0 8px rgba(239,68,68,0.6); }
+.kind-gas_cylinder.status-1 .svg-led { fill:#ff3131; animation:led-blink 0.4s infinite alternate; }
+.kind-gas_cylinder.status-1 .svg-gauge-needle { stroke:#ef4444; transform:rotate(30deg); animation:gauge-swing 0.5s infinite alternate ease-in-out; }
+
+/* ===== 水泵 (water_pump) — 叶轮旋转 + 水流粒子 + 运转闪烁 ===== */
+.kind-water_pump.status-0::before { background:#f59e0b; }
+.kind-water_pump.status-0 .status { background:rgba(245,158,11,0.12); color:#f59e0b; border:1px solid rgba(245,158,11,0.3); }
+.kind-water_pump.status-0 .svg-led { fill:#f59e0b; } .kind-water_pump.status-0 .svg-impeller { animation:none; }
+.kind-water_pump.status-0 .svg-flow-dot { opacity:0!important; } .kind-water_pump.status-0 .svg-flow-path { stroke:#475569!important; stroke-dasharray:none; animation:none; }
+.kind-water_pump.status-1::before { background:#10b981; }
+.kind-water_pump.status-1 .status { background:rgba(16,185,129,0.15); color:#00e676; border:1px solid rgba(16,185,129,0.4); text-shadow:0 0 6px rgba(16,185,129,0.4); animation:text-blink 0.8s infinite alternate; }
+.kind-water_pump.status-1 .svg-led { fill:#10b981; }
+.kind-water_pump.status-1 .svg-impeller { transform-origin:24px 24px; animation:impeller-spin 0.5s infinite linear; }
+.kind-water_pump.status-1 .svg-flow-path { stroke:#10b981!important; stroke-dasharray:6 4; animation:fluid-flow 0.8s infinite linear; }
+.kind-water_pump.status-1 .svg-flow-dot { opacity:1!important; }
+.kind-water_pump.status-1 .svg-flow-dot1 { animation:flow-particle 1.2s infinite 0s linear; } .kind-water_pump.status-1 .svg-flow-dot2 { animation:flow-particle 1.2s infinite 0.6s linear; }
+
+/* ===== 压力开关 (pressure_switch) — 关闭/开启，开启闪烁 ===== */
+.kind-pressure_switch.status-0::before { background:#475569; }
+.kind-pressure_switch.status-0 .status { background:rgba(71,85,105,0.12); color:#64748b; border:1px solid rgba(71,85,105,0.3); }
+.kind-pressure_switch.status-0 .svg-led { fill:#64748b; }
+.kind-pressure_switch.status-1::before { background:#00f0ff; }
+.kind-pressure_switch.status-1 .status { background:rgba(0,240,255,0.15); color:#00f0ff; border:1px solid rgba(0,240,255,0.4); text-shadow:0 0 8px rgba(0,240,255,0.6); animation:text-blink 0.6s infinite alternate; }
+.kind-pressure_switch.status-1 .svg-led { fill:#00f0ff; animation:led-cyan-blink 0.4s infinite alternate; }
+
+/* ===== 手动报警按钮 (manual_alarm) — 逼真消防按钮 ===== */
+.kind-manual_alarm.status-0::before { background:#10b981; }
+.kind-manual_alarm.status-0 .status { background:rgba(16,185,129,0.12); color:#10b981; border:1px solid rgba(16,185,129,0.25); }
+.kind-manual_alarm.status-0 .svg-led { fill:#10b981; }
+.kind-manual_alarm.status-1 { animation:card-alert 0.8s infinite alternate; border-color:rgba(239,68,68,0.6); }
+.kind-manual_alarm.status-1::before { background:#ef4444; }
+.kind-manual_alarm.status-1 .status { background:rgba(239,68,68,0.2); color:#ff3131; border:1px solid rgba(239,68,68,0.5); animation:text-blink 0.5s infinite alternate; text-shadow:0 0 8px rgba(239,68,68,0.6); }
+.kind-manual_alarm.status-1 .svg-led { fill:#ff3131; animation:led-blink 0.3s infinite alternate; }
+.kind-manual_alarm.status-1 .svg-mcp-button { fill:#ff3131; stroke:#ff4444; }
+
+/* ===== 移动喷枪 (mobile_spray_gun) — 喷射喷雾动画 + 闪烁 ===== */
+.kind-mobile_spray_gun.status-0::before { background:#475569; }
+.kind-mobile_spray_gun.status-0 .status { background:rgba(71,85,105,0.12); color:#64748b; border:1px solid rgba(71,85,105,0.3); }
+.kind-mobile_spray_gun.status-0 .svg-led { fill:#64748b; } .kind-mobile_spray_gun.status-0 .svg-spray-dot { opacity:0!important; }
+.kind-mobile_spray_gun.status-1::before { background:#10b981; }
+.kind-mobile_spray_gun.status-1 .status { background:rgba(16,185,129,0.15); color:#00e676; border:1px solid rgba(16,185,129,0.4); text-shadow:0 0 6px rgba(16,185,129,0.4); animation:text-blink 0.6s infinite alternate; }
+.kind-mobile_spray_gun.status-1 .svg-led { fill:#10b981; }
+.kind-mobile_spray_gun.status-1 .svg-spray-dot { opacity:1!important; }
+.kind-mobile_spray_gun.status-1 .svg-spray-dot1 { animation:spray-particle 0.5s infinite 0s linear; } .kind-mobile_spray_gun.status-1 .svg-spray-dot2 { animation:spray-particle 0.5s infinite 0.17s linear; } .kind-mobile_spray_gun.status-1 .svg-spray-dot3 { animation:spray-particle 0.5s infinite 0.33s linear; }
+
+@keyframes gauge-swing { 0%{transform:rotate(-20deg)} 100%{transform:rotate(50deg)} }
+@keyframes impeller-spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+@keyframes spray-particle { 0%{transform:translateX(0) translateY(0);opacity:1} 100%{transform:translateX(8px) translateY(-4px);opacity:0} }
+@keyframes flow-particle { 0%{transform:translateX(-6px);opacity:0} 20%{opacity:1} 80%{opacity:1} 100%{transform:translateX(6px);opacity:0} }
+@keyframes led-cyan-blink { 0%{fill:rgba(0,240,255,0.3);filter:drop-shadow(0 0 0px #00f0ff)} 100%{fill:#00f0ff;filter:drop-shadow(0 0 6px #00f0ff)} }

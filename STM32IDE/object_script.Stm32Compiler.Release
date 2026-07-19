@@ -13,6 +13,10 @@ release/normalsenddialog.o
 release/caninterface.o
 release/canopenmaster.o
 release/candevicedialog.o
+release/canprotocolmonitor.o
+release/canprotocolconfigdialog.o
+release/devicestatuswidget.o
+release/devicemonitorpanel.o
 release/toastwidget.o
 release/scrollinglabel.o
 release/terminalwidget.o
@@ -22,6 +26,10 @@ release/widgetdesigner.o
 release/editorwidget.o
 release/mcuprofilemanager.o
 release/verticaltabwidget.o
+release/canviewpanel.o
+release/canopenviewpanel.o
+release/devicemonitordialog.o
+release/canbusutilizationdialog.o
 release/qrc_resources.o
 release/qrc_darkstyle.o
 release/moc_qcustomplot.o
@@ -37,6 +45,10 @@ release/moc_normalsenddialog.o
 release/moc_caninterface.o
 release/moc_canopenmaster.o
 release/moc_candevicedialog.o
+release/moc_canprotocolmonitor.o
+release/moc_canprotocolconfigdialog.o
+release/moc_devicestatuswidget.o
+release/moc_devicemonitorpanel.o
 release/moc_toastwidget.o
 release/moc_scrollinglabel.o
 release/moc_terminalwidget.o
@@ -46,3 +58,7 @@ release/moc_widgetdesigner.o
 release/moc_editorwidget.o
 release/moc_mcuprofilemanager.o
 release/moc_verticaltabwidget.o
+release/moc_canviewpanel.o
+release/moc_canopenviewpanel.o
+release/moc_devicemonitordialog.o
+release/moc_canbusutilizationdialog.o

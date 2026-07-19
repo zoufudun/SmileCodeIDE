@@ -42,6 +42,21 @@ inline Palette paletteFor(const QString &name) {
             "#8b949e", "#30363d", "#238636", "#2ea043", "#ffffff",
             "#1f6feb"};
   }
+  if (name == QStringLiteral("One Dark")) {
+    return {"#282c34", "#21252b", "#1e222a", "#2c313c", "#abb2bf",
+            "#5c6370", "#3e4452", "#98c379", "#aed581", "#282c34",
+            "#3e4452"};
+  }
+  if (name == QStringLiteral("Monokai")) {
+    return {"#272822", "#1e1f1c", "#2d2e2c", "#3e3d32", "#f8f8f2",
+            "#75715e", "#49483e", "#a6e22e", "#b3e5fc", "#272822",
+            "#49483e"};
+  }
+  if (name == QStringLiteral("赛博朋克 (Cyberpunk)")) {
+    return {"#120424", "#1d0b3a", "#0d021a", "#2a0c4f", "#00f0ff",
+            "#ff007f", "#ff007f", "#ff007f", "#00f0ff", "#120424",
+            "#36136b"};
+  }
   // 默认：浅色 (Light)
   return {"#f5f6f8", "#ffffff", "#ffffff", "#f0f3f7", "#2c3e50",
           "#5b6b7b", "#d6dbe1", "#2d8cf0", "#57a3f3", "#ffffff",
@@ -51,13 +66,14 @@ inline Palette paletteFor(const QString &name) {
 inline QStringList names() {
   return {QStringLiteral("深色 (Dark)"), QStringLiteral("浅色 (Light)"),
           QStringLiteral("Dracula"), QStringLiteral("Nord"),
-          QStringLiteral("GitHub Dark")};
+          QStringLiteral("GitHub Dark"), QStringLiteral("One Dark"),
+          QStringLiteral("Monokai"), QStringLiteral("赛博朋克 (Cyberpunk)")};
 }
 
 inline QString styleSheet(const QString &name) {
   const Palette p = paletteFor(name);
   QString s = QStringLiteral(R"QSS(
-* { font-size: 13px; }
+* { font-family: "Microsoft YaHei", "Segoe UI", Arial; font-size: 13px; }
 QDialog, QWidget#canRoot { background: {WINDOW}; color: {TEXT}; }
 QLabel { color: {TEXT}; background: transparent; }
 QGroupBox {
@@ -95,10 +111,14 @@ QComboBox, QLineEdit, QSpinBox, QPlainTextEdit, QTextEdit {
   selection-background-color: {ACCENT};
   selection-color: {ACCENTTXT};
 }
+QComboBox:!editable {
+  background: {BASE};
+  color: {TEXT};
+}
 QComboBox:hover, QLineEdit:hover, QSpinBox:hover { border: 1px solid {ACCENT}; }
 QComboBox::drop-down { border: none; width: 20px; }
 QComboBox QAbstractItemView {
-  background: {PANEL};
+  background: {BASE};
   color: {TEXT};
   border: 1px solid {BORDER};
   selection-background-color: {ACCENT};

@@ -21,7 +21,7 @@ class RowSender : public QObject {
 public:
   RowSender(CanInterface *can, int channel, int rowId, quint32 id, bool ext, bool remote, bool fd, bool brs,
             const QByteArray &data, int framesPerSend, int sendCount, int intervalMs,
-            bool incId, bool incData, double speedMultiplier, QObject *parent = nullptr);
+            bool incId, bool incData, double speedMultiplier, int transmitType, QObject *parent = nullptr);
 
   void start();
   void stop();
@@ -52,6 +52,7 @@ private:
   bool m_incId;
   bool m_incData;
   double m_speedMultiplier;
+  int m_transmitType;
   QTimer *m_timer;
   int m_currentSend = 0;
 };
@@ -88,6 +89,7 @@ private slots:
   void onRowSenderFinished(int rowId, bool success);
   void onRowSenderStatus(int rowId, const QString &statusText);
   void onUIRefreshTimer();
+  void refreshChannels();
 
 private:
   void setupUi();
@@ -112,6 +114,7 @@ private:
   QLineEdit *m_intervalEdit;
   QCheckBox *m_incIdCheck;
   QCheckBox *m_incDataCheck;
+  QComboBox *m_sendTypeCombo;
   QLineEdit *m_nameEdit;
   QPushButton *m_addToListButton;
   QPushButton *m_immediateSendButton;

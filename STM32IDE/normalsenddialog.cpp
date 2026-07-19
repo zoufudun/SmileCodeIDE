@@ -20,10 +20,11 @@
 // -------------------------------------------------------------------------
 RowSender::RowSender(CanInterface *can, int channel, int rowId, quint32 id, bool ext, bool remote, bool fd, bool brs,
                      const QByteArray &data, int framesPerSend, int sendCount, int intervalMs,
-                     bool incId, bool incData, double speedMultiplier, QObject *parent)
+                     bool incId, bool incData, double speedMultiplier, int transmitType, QObject *parent)
     : QObject(parent), m_can(can), m_channel(channel), m_rowId(rowId), m_id(id), m_ext(ext), m_remote(remote),
       m_fd(fd), m_brs(brs), m_data(data), m_framesPerSend(framesPerSend), m_sendCount(sendCount),
-      m_intervalMs(intervalMs), m_incId(incId), m_incData(incData), m_speedMultiplier(speedMultiplier) {
+      m_intervalMs(intervalMs), m_incId(incId), m_incData(incData), m_speedMultiplier(speedMultiplier),
+      m_transmitType(transmitType) {
   m_timer = new QTimer(this);
   connect(m_timer, &QTimer::timeout, this, &RowSender::onTimeout);
 }
@@ -68,6 +69,7 @@ void RowSender::sendOnce() {
     frame.fd = m_fd;
     frame.brs = m_brs;
     frame.data = m_data;
+    frame.transmitType = m_transmitType;
 
     bool ok = m_can->sendFrame(m_channel, frame);
     if (!ok) {
@@ -108,6 +110,12 @@ NormalSendPage::NormalSendPage(CanInterface *can, QWidget *parent)
   // 列表发送大循环定时器
   m_listIntervalTimer = new QTimer(this);
   connect(m_listIntervalTimer, &QTimer::timeout, this, &NormalSendPage::onListSendTick);
+
+  if (m_can) {
+    connect(m_can, &CanInterface::connected, this, &NormalSendPage::refreshChannels);
+    connect(m_can, &CanInterface::disconnected, this, &NormalSendPage::refreshChannels);
+  }
+  refreshChannels();
 }
 
 NormalSendPage::~NormalSendPage() {
@@ -190,19 +198,24 @@ void NormalSendPage::setupUi() {
   m_intervalEdit = new QLineEdit("0");
   gridLayout->addWidget(m_intervalEdit, 3, 5);
 
-  // Row 4: ID递增 Checkbox, 数据递增 Checkbox, 名称(可选)
-  QHBoxLayout *checkLayout = new QHBoxLayout();
-  m_incIdCheck = new QCheckBox("ID递增");
-  m_incDataCheck = new QCheckBox("数据递增");
-  checkLayout->addWidget(m_incIdCheck);
-  checkLayout->addWidget(m_incDataCheck);
-  gridLayout->addLayout(checkLayout, 4, 0, 1, 2);
+  // Row 4: 发送方式, 名称(可选), ID/数据递增
+  gridLayout->addWidget(new QLabel("发送方式:"), 4, 0);
+  m_sendTypeCombo = new QComboBox();
+  m_sendTypeCombo->addItems({"正常发送", "单次发送", "自发自收", "单次自发只收"});
+  gridLayout->addWidget(m_sendTypeCombo, 4, 1);
 
   gridLayout->addWidget(new QLabel("名称(可选):"), 4, 2);
   m_nameEdit = new QLineEdit();
   gridLayout->addWidget(m_nameEdit, 4, 3);
 
-  // Row 4 right: 添加到列表, 立即发送, 发送时间
+  QHBoxLayout *checkLayout = new QHBoxLayout();
+  m_incIdCheck = new QCheckBox("ID递增");
+  m_incDataCheck = new QCheckBox("数据递增");
+  checkLayout->addWidget(m_incIdCheck);
+  checkLayout->addWidget(m_incDataCheck);
+  gridLayout->addLayout(checkLayout, 4, 4, 1, 2);
+
+  // Row 5: 添加到列表, 立即发送, 发送时间
   QHBoxLayout *btnLayout = new QHBoxLayout();
   m_addToListButton = new QPushButton("添加到列表");
   m_immediateSendButton = new QPushButton("立即发送");
@@ -212,7 +225,8 @@ void NormalSendPage::setupUi() {
   btnLayout->addWidget(m_addToListButton);
   btnLayout->addWidget(m_immediateSendButton);
   btnLayout->addWidget(m_immediateSendTimeLabel);
-  gridLayout->addLayout(btnLayout, 4, 4, 1, 2);
+  btnLayout->addStretch();
+  gridLayout->addLayout(btnLayout, 5, 0, 1, 6);
 
   // Protocol/Length setup
   auto updateLenFunc = [this]() {
@@ -244,10 +258,10 @@ void NormalSendPage::setupUi() {
   listLayout->setContentsMargins(6, 6, 6, 6);
 
   m_tableWidget = new QTableWidget();
-  m_tableWidget->setColumnCount(11);
+  m_tableWidget->setColumnCount(12);
   m_tableWidget->setHorizontalHeaderLabels({
       "选择", "状态", "ID(0x)", "协议", "长度", "名称",
-      "数据", "帧类型", "单次发送帧数", "发送次数", "单次间隔(ms)"
+      "数据", "帧类型", "单次发送帧数", "发送次数", "单次间隔(ms)", "发送方式"
   });
   m_tableWidget->horizontalHeader()->setSectionResizeMode(QHeaderView::Interactive);
   m_tableWidget->horizontalHeader()->setStretchLastSection(true);
@@ -376,6 +390,7 @@ void NormalSendPage::setControlsEnabled(bool enabled) {
   m_intervalEdit->setEnabled(enabled);
   m_incIdCheck->setEnabled(enabled);
   m_incDataCheck->setEnabled(enabled);
+  m_sendTypeCombo->setEnabled(enabled);
   m_nameEdit->setEnabled(enabled);
   m_addToListButton->setEnabled(enabled);
   
@@ -461,6 +476,7 @@ void NormalSendPage::onImmediateSend() {
         frame.fd = (m_protocolCombo->currentText() == "CAN FD");
         frame.brs = (frame.fd && m_brsCheck->isChecked());
         frame.data = m_immData;
+        frame.transmitType = m_sendTypeCombo->currentIndex();
         
         m_can->sendFrame(channel, frame);
 
@@ -507,6 +523,7 @@ void NormalSendPage::onImmediateSendTimerTick() {
     frame.fd = (m_protocolCombo->currentText() == "CAN FD");
     frame.brs = (frame.fd && m_brsCheck->isChecked());
     frame.data = m_immData;
+    frame.transmitType = m_sendTypeCombo->currentIndex();
 
     m_can->sendFrame(channel, frame);
 
@@ -580,6 +597,9 @@ void NormalSendPage::onAddToList() {
 
   // 10: Interval (ms)
   m_tableWidget->setItem(row, 10, new QTableWidgetItem(m_intervalEdit->text()));
+
+  // 11: 发送方式
+  m_tableWidget->setItem(row, 11, new QTableWidgetItem(m_sendTypeCombo->currentText()));
 }
 
 void NormalSendPage::onSelectAll() {
@@ -701,6 +721,7 @@ void NormalSendPage::onImportList() {
     m_tableWidget->setItem(row, 8, new QTableWidgetItem(obj.value("framesPerSend").toString()));
     m_tableWidget->setItem(row, 9, new QTableWidgetItem(obj.value("sendCount").toString()));
     m_tableWidget->setItem(row, 10, new QTableWidgetItem(obj.value("intervalMs").toString()));
+    m_tableWidget->setItem(row, 11, new QTableWidgetItem(obj.value("transmitType").toString().isEmpty() ? "正常发送" : obj.value("transmitType").toString()));
   }
 }
 
@@ -721,6 +742,7 @@ void NormalSendPage::onExportList() {
     obj["framesPerSend"] = m_tableWidget->item(i, 8) ? m_tableWidget->item(i, 8)->text() : "";
     obj["sendCount"] = m_tableWidget->item(i, 9) ? m_tableWidget->item(i, 9)->text() : "";
     obj["intervalMs"] = m_tableWidget->item(i, 10) ? m_tableWidget->item(i, 10)->text() : "";
+    obj["transmitType"] = m_tableWidget->item(i, 11) ? m_tableWidget->item(i, 11)->text() : "正常发送";
     arr.append(obj);
   }
 
@@ -844,10 +866,16 @@ void NormalSendPage::executeNextSerial() {
   bool fd = protoStr.startsWith("CAN FD");
   bool brs = protoStr.contains("BRS");
 
+  QString sendTypeStr = m_tableWidget->item(row, 11) ? m_tableWidget->item(row, 11)->text() : "正常发送";
+  int transmitType = 0;
+  if (sendTypeStr == "单次发送") transmitType = 1;
+  else if (sendTypeStr == "自发自收") transmitType = 2;
+  else if (sendTypeStr == "单次自发只收" || sendTypeStr == "单次自发自收") transmitType = 3;
+
   RowSender *sender = new RowSender(m_can, channel, row, id, ext, remote, fd, brs,
                                     data, framesPerSend, sendCount, interval,
                                     m_incIdCheck->isChecked(), m_incDataCheck->isChecked(),
-                                    multiplier, this);
+                                    multiplier, transmitType, this);
   m_activeSenders.append(sender);
 
   connect(sender, &RowSender::statusChanged, this, &NormalSendPage::onRowSenderStatus);
@@ -883,10 +911,16 @@ void NormalSendPage::startParallelSend() {
     bool fd = protoStr.startsWith("CAN FD");
     bool brs = protoStr.contains("BRS");
 
+    QString sendTypeStr = m_tableWidget->item(row, 11) ? m_tableWidget->item(row, 11)->text() : "正常发送";
+    int transmitType = 0;
+    if (sendTypeStr == "单次发送") transmitType = 1;
+    else if (sendTypeStr == "自发自收") transmitType = 2;
+    else if (sendTypeStr == "单次自发只收" || sendTypeStr == "单次自发自收") transmitType = 3;
+
     RowSender *sender = new RowSender(m_can, channel, row, id, ext, remote, fd, brs,
                                       data, framesPerSend, sendCount, interval,
                                       m_incIdCheck->isChecked(), m_incDataCheck->isChecked(),
-                                      multiplier, this);
+                                      multiplier, transmitType, this);
     m_activeSenders.append(sender);
 
     connect(sender, &RowSender::statusChanged, this, &NormalSendPage::onRowSenderStatus);
@@ -1028,7 +1062,33 @@ void NormalSendDialog::createNewTab() {
   }
   
   int newIdx = m_tabWidget->count() - 1;
-  m_tabWidget->insertTab(newIdx, page, QString("Tab %1").arg(m_tabCounter++));
+  m_tabWidget->insertTab(newIdx, page, QString("通道名称 %1").arg(m_tabCounter++));
   m_tabWidget->setCurrentIndex(newIdx);
   m_tabWidget->blockSignals(false);
+}
+
+void NormalSendPage::refreshChannels() {
+  int prevIndex = m_channelCombo->currentIndex();
+  m_channelCombo->clear();
+
+  QString hw, fw, dr, lib, serial, typeStr;
+  int canNum = 2;
+  if (m_can && m_can->isDeviceOpen()) {
+    m_can->getDeviceInformation(&hw, &fw, &dr, &lib, &canNum, &serial, &typeStr);
+    if (typeStr.isEmpty()) {
+      typeStr = "USBCANFD-200U";
+    }
+    int deviceIndex = m_can->deviceIndex();
+    for (int i = 0; i < canNum; ++i) {
+      m_channelCombo->addItem(QString("%1 设备%2 通道%3").arg(typeStr).arg(deviceIndex).arg(i));
+    }
+  } else {
+    m_channelCombo->addItems({"USBCANFD-200U 设备0 通道0", "USBCANFD-200U 设备0 通道1"});
+  }
+
+  if (prevIndex >= 0 && prevIndex < m_channelCombo->count()) {
+    m_channelCombo->setCurrentIndex(prevIndex);
+  } else if (m_can && m_can->isOpen()) {
+    m_channelCombo->setCurrentIndex(m_can->channel());
+  }
 }

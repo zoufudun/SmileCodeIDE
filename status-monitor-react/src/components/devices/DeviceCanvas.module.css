@@ -1,0 +1,12 @@
+.canvas {
+  display: block;
+  position: relative;
+  width: 3000px;
+  height: 2000px;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 20px 20px;
+  background-color: rgba(10, 15, 25, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  border-radius: 12px;
+  overflow: visible;
+}

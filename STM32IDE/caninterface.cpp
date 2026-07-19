@@ -109,6 +109,8 @@ struct CanInterface::Impl {
   QMap<int, CHANNEL_HANDLE> activeChans;
   quint32 deviceType = kUsbCanFd200U;
   int deviceIndex = 0;
+  QMap<int, CanChannelConfig> chanConfigs;
+  QMap<int, QList<CanFilterRule>> chanFilters;
 
   bool resolved() const {
     return openDevice && closeDevice && initCan && startCan && getReceiveNum &&
@@ -254,6 +256,14 @@ bool CanInterface::isOpen() const {
   return !m_d->activeChans.isEmpty();
 }
 
+quint32 CanInterface::deviceType() const {
+  return m_d->deviceType;
+}
+
+int CanInterface::deviceIndex() const {
+  return m_d->deviceIndex;
+}
+
 bool CanInterface::openDevice(quint32 deviceType, int deviceIndex) {
   if (isDeviceOpen()) {
     return true;
@@ -349,6 +359,7 @@ bool CanInterface::startChannel(int channel, const CanChannelConfig &cfg) {
   }
 
   m_d->activeChans[channel] = chanHandle;
+  m_d->chanConfigs[channel] = cfg;
   m_open = true;
   m_channel = channel;
   m_fdEnabled = cfg.isFd;
@@ -372,6 +383,8 @@ bool CanInterface::stopChannel(int channel) {
   }
 
   m_d->activeChans.remove(channel);
+  m_d->chanConfigs.remove(channel);
+  m_d->chanFilters.remove(channel);
   if (m_d->activeChans.isEmpty()) {
     m_timer->stop();
     m_open = false;
@@ -381,6 +394,66 @@ bool CanInterface::stopChannel(int channel) {
 
 bool CanInterface::isChannelRunning(int channel) const {
   return m_d->activeChans.contains(channel);
+}
+
+CanChannelConfig CanInterface::channelConfig(int channel) const {
+  if (m_d->chanConfigs.contains(channel)) {
+    return m_d->chanConfigs[channel];
+  }
+  return CanChannelConfig();
+}
+
+void CanInterface::setChannelConfig(int channel, const CanChannelConfig &cfg) {
+  m_d->chanConfigs[channel] = cfg;
+}
+
+void CanInterface::setChannelFilters(int channel, const QList<CanFilterRule> &rules) {
+  m_d->chanFilters[channel] = rules;
+}
+
+QList<CanFilterRule> CanInterface::channelFilters(int channel) const {
+  if (m_d->chanFilters.contains(channel)) {
+    return m_d->chanFilters[channel];
+  }
+  return QList<CanFilterRule>();
+}
+
+bool CanInterface::matchesFilter(int channel, const CanFrame &frame) const {
+  if (!m_d->chanConfigs.contains(channel)) {
+    return true;
+  }
+  const auto &cfg = m_d->chanConfigs[channel];
+  if (!cfg.enableFilter) {
+    return true;
+  }
+  if (!m_d->chanFilters.contains(channel)) {
+    return false; // Enabled but no rules => drop everything
+  }
+  const auto &rules = m_d->chanFilters[channel];
+  if (rules.isEmpty()) {
+    return false; // Whitelist is empty => drop everything
+  }
+
+  for (const auto &rule : rules) {
+    bool isExtendedRule = (rule.mode == 1 || rule.mode == 3);
+    bool isSegmentRule = (rule.mode == 2 || rule.mode == 3);
+
+    // Frame type must match rule frame type (standard vs extended)
+    if (frame.extended != isExtendedRule) {
+      continue;
+    }
+
+    if (isSegmentRule) {
+      if (frame.id >= rule.startId && frame.id <= rule.endId) {
+        return true;
+      }
+    } else {
+      if (frame.id == rule.startId) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 bool CanInterface::getDeviceInformation(QString *hwVer, QString *fwVer, QString *drVer,
@@ -526,7 +599,7 @@ bool CanInterface::sendFrame(int channel, const CanFrame &frame) {
   if (frame.fd) {
     ZCAN_TransmitFD_Data tx;
     memset(&tx, 0, sizeof(tx));
-    tx.transmit_type = 0;
+    tx.transmit_type = static_cast<UINT>(frame.transmitType);
     tx.frame.can_id = canId;
     int len = frame.data.size();
     if (len > CANFD_MAX_DLEN)
@@ -538,7 +611,7 @@ bool CanInterface::sendFrame(int channel, const CanFrame &frame) {
   } else {
     ZCAN_Transmit_Data tx;
     memset(&tx, 0, sizeof(tx));
-    tx.transmit_type = 0;
+    tx.transmit_type = static_cast<UINT>(frame.transmitType);
     tx.frame.can_id = canId;
     int len = frame.data.size();
     if (len > CAN_MAX_DLEN)
@@ -596,7 +669,9 @@ void CanInterface::pollReceive() {
           frame.data = QByteArray(reinterpret_cast<const char *>(f.data), len);
         }
         frame.timestamp = QDateTime::currentMSecsSinceEpoch();
-        emit frameReceived(frame);
+        if (matchesFilter(channelIdx, frame)) {
+          emit frameReceived(frame);
+        }
       }
       handled += got;
       classicNum -= got;
@@ -626,7 +701,9 @@ void CanInterface::pollReceive() {
         int len = qMin<int>(f.len, CANFD_MAX_DLEN);
         frame.data = QByteArray(reinterpret_cast<const char *>(f.data), len);
         frame.timestamp = QDateTime::currentMSecsSinceEpoch();
-        emit frameReceived(frame);
+        if (matchesFilter(channelIdx, frame)) {
+          emit frameReceived(frame);
+        }
       }
       handled += got;
       fdNum -= got;

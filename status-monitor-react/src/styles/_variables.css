@@ -1,0 +1,52 @@
+/* ===== CSS 自定义属性主题体系 ===== */
+
+/* :root 默认值（科技蓝 Cyber） */
+:root {
+  --primary-color: #00f0ff;
+  --primary-glow: rgba(0, 240, 255, 0.4);
+  --primary-glow-light: rgba(0, 240, 255, 0.15);
+  --primary-border: rgba(0, 240, 255, 0.25);
+  --bg-color: #070b13;
+  --panel-bg: rgba(15, 23, 42, 0.6);
+  --panel-border: rgba(255, 255, 255, 0.05);
+}
+
+/* 科技蓝 Cyber */
+body.theme-cyber {
+  --primary-color: #00f0ff;
+  --primary-glow: rgba(0, 240, 255, 0.4);
+  --primary-glow-light: rgba(0, 240, 255, 0.15);
+  --primary-border: rgba(0, 240, 255, 0.25);
+  --bg-color: #070b13;
+  --panel-bg: rgba(15, 23, 42, 0.6);
+}
+
+/* 翡翠绿 Emerald */
+body.theme-emerald {
+  --primary-color: #10b981;
+  --primary-glow: rgba(16, 185, 129, 0.4);
+  --primary-glow-light: rgba(16, 185, 129, 0.15);
+  --primary-border: rgba(16, 185, 129, 0.25);
+  --bg-color: #061712;
+  --panel-bg: rgba(15, 32, 28, 0.65);
+}
+
+/* 琥珀金 Amber */
+body.theme-amber {
+  --primary-color: #f59e0b;
+  --primary-glow: rgba(245, 158, 11, 0.4);
+  --primary-glow-light: rgba(245, 158, 11, 0.15);
+  --primary-border: rgba(245, 158, 11, 0.25);
+  --bg-color: #140d04;
+  --panel-bg: rgba(26, 20, 10, 0.65);
+}
+
+/* 烈焰红 Ruby */
+body.theme-ruby {
+  --primary-color: #ef4444;
+  --primary-glow: rgba(239, 68, 68, 0.4);
+  --primary-glow-light: rgba(239, 68, 68, 0.15);
+  --primary-border: rgba(239, 68, 68, 0.25);
+  --bg-color: #140404;
+  --panel-bg: rgba(26, 10, 10, 0.65);
+}

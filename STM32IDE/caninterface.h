@@ -20,8 +20,16 @@ struct CanFrame {
   QByteArray data;         // 数据负载（经典 CAN 最多 8 字节，FD 最多 64 字节）
   qint64 timestamp = 0;    // 接收/发送时间戳（ms，主机时钟）
   int channel = 0;         // 通道索引 (0 或 1)
+  int transmitType = 0;    // 发送方式：0-正常发送，1-单次发送，2-自发自收，3-单次自发自收
 
   int dlc() const { return data.size(); }
+};
+
+// 滤波规则结构
+struct CanFilterRule {
+  int mode = 0; // 0: 标准帧明确ID, 1: 扩展帧明确ID, 2: 标准帧段ID, 3: 扩展帧段ID
+  quint32 startId = 0;
+  quint32 endId = 0;
 };
 
 // CAN 工作模式
@@ -56,6 +64,10 @@ public:
   bool libraryLoaded() const;
   QString libraryError() const { return m_libError; }
 
+  // 获取当前打开的设备信息
+  quint32 deviceType() const;
+  int deviceIndex() const;
+
   // 兼容旧版，检查是否有任何通道正在运行
   bool isOpen() const;
   bool fdEnabled() const { return m_fdEnabled; }
@@ -70,6 +82,13 @@ public:
   bool startChannel(int channel, const CanChannelConfig &cfg);
   bool stopChannel(int channel);
   bool isChannelRunning(int channel) const;
+  CanChannelConfig channelConfig(int channel) const;
+  void setChannelConfig(int channel, const CanChannelConfig &cfg);
+
+  // 通道滤波设置
+  void setChannelFilters(int channel, const QList<CanFilterRule> &rules);
+  QList<CanFilterRule> channelFilters(int channel) const;
+  bool matchesFilter(int channel, const CanFrame &frame) const;
 
   // 获取连接中的设备信息 (Image 4 需求)
   bool getDeviceInformation(QString *hwVer, QString *fwVer, QString *drVer,

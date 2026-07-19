@@ -1,0 +1,54 @@
+/* ===== 编辑模式（body.edit-mode）全局样式 ===== */
+
+/* 设备卡片变为可抓取 */
+body.edit-mode .device-card {
+  cursor: grab;
+  user-select: none;
+}
+
+body.edit-mode .device-card:active {
+  cursor: grabbing;
+  box-shadow: 0 0 15px var(--primary-glow);
+  border-color: var(--primary-color);
+  z-index: 100;
+}
+
+/* 房间 header 变为可移动光标 */
+body.edit-mode .room-header {
+  cursor: move;
+}
+
+/* 房间操作按钮可见 */
+body.edit-mode .room-actions {
+  display: flex !important;
+}
+
+/* 房间缩放手柄可见 */
+body.edit-mode .room-resize-handle-t,
+body.edit-mode .room-resize-handle-b,
+body.edit-mode .room-resize-handle-l,
+body.edit-mode .room-resize-handle-r,
+body.edit-mode .room-resize-handle-se {
+  display: block;
+}
+
+/* 房间在编辑模式下高亮 */
+body.edit-mode .room-box {
+  border-color: var(--primary-border) !important;
+  background: rgba(15, 23, 42, 0.4) !important;
+}
+
+body.edit-mode .room-box:hover {
+  border-color: var(--primary-color) !important;
+  box-shadow: 0 0 8px var(--primary-glow-light);
+}
+
+/* 画布背景 SVG 在编辑模式下更亮 */
+body.edit-mode .canvas-background {
+  opacity: 0.22;
+}
+
+/* 编辑模式下画布网格变为主题色点阵 */
+body.edit-mode .device-canvas {
+  border: 1px dashed var(--primary-border);
+}

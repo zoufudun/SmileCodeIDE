@@ -1,4 +1,4 @@
-QT       += core gui serialport printsupport network
+QT       += core gui serialport printsupport network websockets
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -50,6 +50,10 @@ SOURCES += \
     caninterface.cpp \
     canopenmaster.cpp \
     candevicedialog.cpp \
+    canprotocolmonitor.cpp \
+    canprotocolconfigdialog.cpp \
+    devicestatuswidget.cpp \
+    devicemonitorpanel.cpp \
     toastwidget.cpp \
     scrollinglabel.cpp \
     terminalwidget.cpp \
@@ -58,7 +62,11 @@ SOURCES += \
     widgetdesigner.cpp \
     editorwidget.cpp \
     mcuprofilemanager.cpp \
-    verticaltabwidget.cpp
+    verticaltabwidget.cpp \
+    canviewpanel.cpp \
+    canopenviewpanel.cpp \
+    devicemonitordialog.cpp \
+    canbusutilizationdialog.cpp
 
 # 头文件
 HEADERS += \
@@ -76,6 +84,10 @@ HEADERS += \
     caninterface.h \
     canopenmaster.h \
     candevicedialog.h \
+    canprotocolmonitor.h \
+    canprotocolconfigdialog.h \
+    devicestatuswidget.h \
+    devicemonitorpanel.h \
     cantheme.h \
     toastwidget.h \
     scrollinglabel.h \
@@ -85,7 +97,11 @@ HEADERS += \
     widgetdesigner.h \
     editorwidget.h \
     mcuprofilemanager.h \
-    verticaltabwidget.h
+    verticaltabwidget.h \
+    canviewpanel.h \
+    canopenviewpanel.h \
+    devicemonitordialog.h \
+    canbusutilizationdialog.h
 
 # 默认规则
 QMAKE_CXXFLAGS += -Wall -Wextra -Wpedantic

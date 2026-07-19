@@ -16,12 +16,14 @@ class CanDeviceDialog : public QDialog {
   Q_OBJECT
 public:
   explicit CanDeviceDialog(CanInterface *can, QWidget *parent = nullptr);
+  void applyThemeStyle(const QString &qss);
 
 private slots:
   void onOpenDeviceClicked();
   void onCloseDeviceClicked();
   void onStartChannelClicked(int channel);
   void onStopChannelClicked(int channel);
+  void onFilterSettingsClicked(int channel);
   void onStartAllChannels();
   void onStopAllChannels();
   void onShowDeviceInfoClicked();
@@ -45,6 +47,7 @@ private:
   // 跟踪各通道的控制按钮
   QMap<int, QPushButton*> m_startButtons;
   QMap<int, QPushButton*> m_stopButtons;
+  QMap<int, QPushButton*> m_filterButtons;
 
   // 跟踪设备的控制按钮
   QPushButton *m_deviceStartButton;
