@@ -1140,13 +1140,13 @@ void DeviceMonitorPanel::saveRoomLayout() {
   }
   root["devicePositions"] = devPos;
 
-  QSettings s("SmileCode", "Stm32Compiler");
+  QSettings s("PhudonTools", "PhudonTools");
   s.setValue("monitor/roomLayout",
       QString::fromUtf8(QJsonDocument(root).toJson(QJsonDocument::Compact)));
 }
 
 void DeviceMonitorPanel::loadRoomLayout() {
-  QSettings s("SmileCode", "Stm32Compiler");
+  QSettings s("PhudonTools", "PhudonTools");
   QString json = s.value("monitor/roomLayout").toString();
   if (json.isEmpty()) return;
 

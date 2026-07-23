@@ -30,8 +30,11 @@ win32 {
 # include(QCodeEditor/QCodeEditor.pri)
 
 # 生成可执行文件名称
-TARGET = Stm32Compiler
+TARGET = PhudonTools
 TEMPLATE = app
+
+# Windows 可执行文件图标
+win32: RC_ICONS = resources/app.ico
 
 # 源文件
 SOURCES += \

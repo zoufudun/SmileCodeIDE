@@ -76,7 +76,7 @@ CodeEditor::CodeEditor(QWidget *parent)
 
   // 设置示例代码
   editor->setText(
-      "// STM32 代码编辑器\n#include <stdint.h>\n\nint main(void) {\n    // "
+      "// PhudonTools 代码编辑器\n#include <stdint.h>\n\nint main(void) {\n    // "
       "初始化代码\n    while(1) {\n        // 主循环\n    }\n    return 0;\n}");
 
   // 连接信号和槽
@@ -2967,7 +2967,7 @@ void CodeEditor::createToolBar() {
 
   QAction *aboutAction = new QAction("关于", this);
   aboutAction->setIcon(style->standardIcon(QStyle::SP_MessageBoxInformation));
-  aboutAction->setToolTip("关于STM32IDE");
+  aboutAction->setToolTip("关于PhudonTools");
   connect(aboutAction, &QAction::triggered, [this]() {
     // 实现关于功能
     emit aboutRequested();

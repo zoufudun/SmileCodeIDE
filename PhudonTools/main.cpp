@@ -1,11 +1,15 @@
 #include "TOOLS/CIconFont.h"
 #include "mainwindow.h"
 #include <QApplication>
+#include <QIcon>
 #include <QStyleFactory>
 
 
 int main(int argc, char *argv[]) {
   QApplication app(argc, argv);
+
+    // 设置应用全局图标
+    app.setWindowIcon(QIcon(":/resources/logo.png"));
 
     // ----------------------------
     // 载入 QDarkStyle 样式表
@@ -28,8 +32,8 @@ int main(int argc, char *argv[]) {
   app.setStyle(QStyleFactory::create("Fusion"));
 
   // 设置应用程序信息
-  app.setApplicationName("STM32 编译与调试工具");
-  app.setOrganizationName("STM32IDE");
+  app.setApplicationName("PhudonTools");
+  app.setOrganizationName("PhudonTools");
 
   // 初始化全局图标字体
   CIconFont::instance()->loadFont(":/Font/iconfontUltra.ttf");

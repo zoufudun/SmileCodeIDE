@@ -51,5 +51,6 @@
         <file>icons/IAP.png</file>
         <file>Font/iconfontMAX.ttf</file>
         <file>Font/iconfontUltra.ttf</file>
+        <file>resources/logo.png</file>
     </qresource>
 </RCC>

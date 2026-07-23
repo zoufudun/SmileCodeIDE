@@ -99,7 +99,7 @@ MainWindow::MainWindow(QWidget *parent)
           QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished), this,
           &MainWindow::processFinished);
 
-  m_settings = new QSettings("STM32IDE", "Settings", this);
+  m_settings = new QSettings("PhudonTools", "Settings", this);
   loadSettings();
 
   // 加载上次使用的主题或默认使用深色主题
@@ -109,7 +109,7 @@ MainWindow::MainWindow(QWidget *parent)
   statusBar()->showMessage("就绪");
 
   // 设置窗口属性
-  setWindowTitle("STM32 IDE");
+  setWindowTitle("PhudonTools");
   resize(1200, 800);
 
   // 确保快捷键能够正常工作
@@ -205,7 +205,7 @@ void MainWindow::newFile() {
   // 创建新文件
   m_codeEditor->setText("");
   m_currentFilePath = "";
-  setWindowTitle("STM32IDE - 新文件");
+  setWindowTitle("PhudonTools - 新文件");
   statusBar()->showMessage("已创建新文件", 2000);
 }
 
@@ -485,7 +485,7 @@ void MainWindow::createToolbars() {
 // }
 
 void MainWindow::setupUi() {
-  setWindowTitle("STM32 编译与调试工具");
+  setWindowTitle("PhudonTools");
   resize(1024, 768);
 
   // 创建中央部件
@@ -2241,13 +2241,17 @@ void MainWindow::changeTheme(int themeIndex) {
 }
 
 void MainWindow::showAboutDialog() {
-  QMessageBox::about(
-      this, "关于STM32IDE",
-      "<h3>STM32 编译与调试工具</h3>"
-      "<p>版本: 1.0</p>"
-      "<p>作者: PhodonZou</p>"
-      "<p>这是一个基于Qt的STM32开发工具，用于编译和调试STM32项目。</p>"
-      "<p>支持ARM GCC工具链和OpenOCD调试器。</p>");
+  QMessageBox msgBox(this);
+  msgBox.setWindowTitle("关于 PhudonTools");
+  msgBox.setIconPixmap(QPixmap(":/resources/logo.png").scaled(128, 128, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+  msgBox.setText("<h2 style='color:#1565C0;'>PhudonTools</h2>"
+                 "<p><b>版本:</b> 1.0</p>"
+                 "<p><b>作者:</b> PhodonZou</p>"
+                 "<p>嵌入式开发调试一体化工具集<br>"
+                 "支持 STM32 编译烧录、串口/CAN 调试、IAP 升级</p>"
+                 "<p style='color:#666;'>基于 Qt 5.15 · ARM GCC · OpenOCD</p>");
+  msgBox.setStandardButtons(QMessageBox::Ok);
+  msgBox.exec();
   statusBar()->showMessage("已显示关于信息", 2000);
 }
 
@@ -3484,7 +3488,7 @@ void MainWindow::saveFile() {
   // Save the file using the CodeEditor's saveFile method
   if (m_codeEditor->saveFile(m_currentFilePath)) {
     statusBar()->showMessage("File saved: " + m_currentFilePath, 2000);
-    setWindowTitle("STM32IDE - " + QFileInfo(m_currentFilePath).fileName());
+    setWindowTitle("PhudonTools - " + QFileInfo(m_currentFilePath).fileName());
   } else {
     QMessageBox::warning(this, "Save Failed",
                          "Failed to save file: " + m_currentFilePath);
@@ -3870,7 +3874,7 @@ void MainWindow::updateMenuState() {
 
 void MainWindow::updateWindowTitle() {
   if (m_projectPath.isEmpty()) {
-    setWindowTitle("STM32 IDE");
+    setWindowTitle("PhudonTools");
   } else {
     QFileInfo fileInfo(m_projectPath);
     QString projectName = fileInfo.fileName();

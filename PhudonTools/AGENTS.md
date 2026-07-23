@@ -1,4 +1,4 @@
-# AGENTS.md - STM32IDE Development Guide
+# AGENTS.md - PhudonTools Development Guide
 
 ## Build Commands
 
@@ -6,8 +6,8 @@ This is a Qt-based C++ project using qmake as the build system.
 
 ### Full Build
 ```bash
-# From the STM32IDE directory
-qmake STM32IDE.pro
+# From the PhudonTools directory
+qmake PhudonTools.pro
 make release
 ```
 
@@ -25,7 +25,7 @@ make debug-clean
 ### Rebuild from Scratch
 ```bash
 make distclean
-qmake STM32IDE.pro
+qmake PhudonTools.pro
 make release
 ```
 
