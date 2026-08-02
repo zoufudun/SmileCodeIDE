@@ -50,6 +50,9 @@ static const int MULTI_COLS = 2;
 static const int MULTI_ROWS = 5;
 static const int MULTI_PER_PAGE = MULTI_COLS * MULTI_ROWS; // 10
 
+// 前向声明
+class LineNumberWidget;
+
 class SerialSession : public QWidget {
   Q_OBJECT
 
@@ -99,8 +102,13 @@ protected:
   void onTimeUnitChanged(int index);
   void onChartThemeChanged(int index);
 
+private:
+  void refreshFramePreview();
+  QString byteArrayHexView(const QByteArray &data) const;
+
   // UI Updates
   void updateWaveform(const QByteArray &data);
+  void updateLineNumberDisplay();
   void onChartContextMenu(const QPoint &pos);
   void onReplotTimeout();
 
@@ -131,6 +139,7 @@ private:
   double pointsToDisplayWidth(int points) const;
   void refreshViewWidthSpin();
   void refreshMultiPage(); // redraw 20 widgets for current page
+  bool takeNextFrame(QByteArray &payload);
 
   // Serial Port
   QSerialPort *m_serial;
@@ -157,6 +166,8 @@ private:
   QPushButton *m_btnStopRx;
 
   // Floating Controls for Receive Text Area
+  QToolButton *m_btnRxLineNumber;
+  QToolButton *m_btnRxEncoding;
   QToolButton *m_btnRxHexToggle;
   QToolButton *m_btnRxTimeToggle;
   QToolButton *m_btnRxPauseToggle;
@@ -271,6 +282,12 @@ public:
 
   QGroupBox *m_groupPlotParams;
   QGroupBox *m_groupYAxis;
+  QGroupBox *m_groupFrameConfig;
+  QGroupBox *m_groupChannelConfig;
+
+  QCheckBox *m_chkStrictFrame;
+  QLabel *m_lblFramePreview;
+  QLabel *m_lblChannelHint;
 
   // 控件设计器相关
   class WidgetDesignerArea *m_widgetDesigner;
@@ -286,6 +303,19 @@ private:
 
   // Per-instance waveform receive buffer (must NOT be static)
   QByteArray m_rxBuffer;
+
+  // Multi-byte character decoder and line formatting buffers
+  QByteArray m_rxDecoderBuffer;
+  QString m_rxLineBuffer;
+
+  // 行号显示组件
+  LineNumberWidget *m_lineNumberWidget;
+  bool m_showLineNumbers = false;
+
+  // 增量解码状态（用于手动编码模式，避免不完整字节截断）
+  QTextCodec::ConverterState *m_converterState;
+  QString m_lastCodecName;    // 跟踪 ConverterState 对应的编码名
+  QString m_selectedCodecName; // 当前用户选择的编码（空=自动检测）
 };
 
 // -------------------------------------------------------------

@@ -20,10 +20,13 @@
 #include <QMessageBox>
 #include <QPlainTextEdit>
 #include <QRegularExpression>
+#include <QScrollArea>
 #include <QScrollBar>
+#include <QSet>
 #include <QSignalBlocker>
 #include <QSize>
 #include <QSplitter>
+#include <QTextCodec>
 #include <QTextStream>
 #include <QToolButton>
 #include <QToolTip>
@@ -132,13 +135,119 @@ private:
   double m_divisor;
   int m_fixedPrecision;
 };
+
+QByteArray parseFrameMarker(const QString &text) {
+  const QString trimmed = text.trimmed();
+  if (trimmed.startsWith(QStringLiteral("hex:"), Qt::CaseInsensitive)) {
+    return QByteArray::fromHex(trimmed.mid(4).toLatin1());
+  }
+
+  QByteArray marker;
+  for (int index = 0; index < text.size(); ++index) {
+    const QChar current = text.at(index);
+    if (current != QLatin1Char('\\') || index + 1 >= text.size()) {
+      marker.append(QString(current).toUtf8());
+      continue;
+    }
+
+    const QChar escaped = text.at(++index);
+    if (escaped == QLatin1Char('n')) {
+      marker.append('\n');
+    } else if (escaped == QLatin1Char('r')) {
+      marker.append('\r');
+    } else if (escaped == QLatin1Char('t')) {
+      marker.append('\t');
+    } else if (escaped == QLatin1Char('\\')) {
+      marker.append('\\');
+    } else if (escaped == QLatin1Char('x') && index + 2 < text.size()) {
+      const QByteArray hex = text.mid(index + 1, 2).toLatin1();
+      bool validHex = false;
+      const int value = hex.toInt(&validHex, 16);
+      if (validHex) {
+        marker.append(static_cast<char>(value));
+        index += 2;
+      } else {
+        marker.append("\\x");
+      }
+    } else {
+      marker.append(QString(escaped).toUtf8());
+    }
+  }
+  return marker;
+}
 } // namespace
+
+// ============================================================================
+// LineNumberWidget — 接收框行号显示组件（独立列，不属于文本区）
+// ============================================================================
+class LineNumberWidget : public QWidget {
+  QTextEdit *m_edit = nullptr;
+
+public:
+  explicit LineNumberWidget(QWidget *parent = nullptr)
+      : QWidget(parent) {
+    setFixedWidth(40);
+    setVisible(false);
+    setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);
+  }
+
+  void bindTo(QTextEdit *edit) {
+    m_edit = edit;
+    if (edit) {
+      setFont(edit->font());
+    }
+  }
+
+  QSize sizeHint() const override {
+    int digits = 1;
+    int max = m_edit ? qMax(1, m_edit->document()->blockCount()) : 1;
+    while (max >= 10) { max /= 10; ++digits; }
+    int w = 8 + fontMetrics().horizontalAdvance(QLatin1Char('9')) * digits + 8;
+    return QSize(w, 0);
+  }
+
+  void updateWidth() {
+    QSize s = sizeHint();
+    setFixedWidth(s.width());
+  }
+
+protected:
+  void paintEvent(QPaintEvent *) override {
+    QPainter p(this);
+    p.fillRect(rect(), QColor("#ECEFF1"));
+    if (!m_edit) return;
+
+    QPen textPen(QColor("#90A4AE"));
+    p.setPen(textPen);
+    p.setFont(m_edit->font());
+
+    // 对齐 QTextEdit 文本内容的垂直偏移
+    QAbstractTextDocumentLayout *layout =
+        m_edit->document()->documentLayout();
+    int scrollY = m_edit->verticalScrollBar()->value();
+    // QTextEdit 内容区顶部有 ~4px 的 margin
+    int contentOffset = qRound(m_edit->document()->documentMargin());
+    int w = width() - 6;
+
+    for (QTextBlock block = m_edit->document()->begin(); block.isValid();
+         block = block.next()) {
+      QRectF br = layout->blockBoundingRect(block);
+      int top = qRound(br.top()) - scrollY + contentOffset;
+      int h = qRound(br.height());
+      if (top + h < 0) continue;
+      if (top > height()) break;
+      p.drawText(0, top, w, h, Qt::AlignRight | Qt::AlignVCenter,
+                 QString::number(block.blockNumber() + 1));
+    }
+  }
+};
 
 SerialSession::SerialSession(QWidget *parent)
     : QWidget(parent), m_lastPortCount(0), m_rxCount(0), m_txCount(0),
       m_xValue(0), m_xAxisScale(1.0), m_viewWidthPoints(100),
       m_widgetDesigner(nullptr), m_widgetToolbox(nullptr),
-      m_leftTabWidget(nullptr) {
+      m_leftTabWidget(nullptr), m_converterState(nullptr),
+      m_lineNumberWidget(nullptr) {
   ensureUnifiedToolTipStyle();
   m_serial = new QSerialPort(this);
   m_autoSendTimer = new QTimer(this);
@@ -173,6 +282,8 @@ SerialSession::SerialSession(QWidget *parent)
 SerialSession::~SerialSession() {
   if (m_serial->isOpen())
     m_serial->close();
+  delete m_converterState;
+  m_converterState = nullptr;
 }
 
 void SerialSession::setupUi() {
@@ -428,11 +539,7 @@ void SerialSession::setupUi() {
   QVBoxLayout *grpScopeMainLayout = new QVBoxLayout(grpScope);
   grpScopeMainLayout->setContentsMargins(10, 10, 10, 10);
 
-  QVBoxLayout *grpScopeLayout = new QVBoxLayout();
-  grpScopeLayout->setContentsMargins(0, 0, 0, 0);
-  grpScopeMainLayout->addLayout(grpScopeLayout);
-  grpScopeLayout->setSpacing(4);
-  m_settingsLayout = grpScopeLayout;
+  m_settingsLayout = grpScopeMainLayout;
 
   const QFont scopeIconFont = CIconFont::instance()->getIconFont(50);
   auto setupScopeIconCheck = [&scopeIconFont](QCheckBox *check,
@@ -512,148 +619,270 @@ void SerialSession::setupUi() {
   setupScopeIconButton(m_btnCurveSettings, "\ue872", "查看/修改曲线样式",
                        false);
 
-  auto makeScopeItem = [](QWidget *iconWidget) -> QWidget * {
-    QWidget *cell = new QWidget();
-    QVBoxLayout *cellLayout = new QVBoxLayout(cell);
-    cellLayout->setContentsMargins(0, 0, 0, 0);
-    cellLayout->setSpacing(0);
-    cellLayout->addStretch();
-    cellLayout->addWidget(iconWidget, 0, Qt::AlignHCenter | Qt::AlignVCenter);
-    cellLayout->addStretch();
-    return cell;
-  };
+  QGridLayout *grpScopeLayout = new QGridLayout();
+  grpScopeLayout->setContentsMargins(0, 0, 0, 0);
+  grpScopeLayout->setHorizontalSpacing(12);
+  grpScopeLayout->setVerticalSpacing(10);
+  grpScopeMainLayout->addLayout(grpScopeLayout);
 
-  QGridLayout *scopeIconRow = new QGridLayout();
-  scopeIconRow->setContentsMargins(0, 0, 0, 0);
-  scopeIconRow->setHorizontalSpacing(8);
-  scopeIconRow->setVerticalSpacing(8);
+  // 顶部快捷图标栏（两行四列）
+  QWidget *quickPanel = new QWidget();
+  quickPanel->setObjectName("scopeQuickPanel");
+  QGridLayout *quickLayout = new QGridLayout(quickPanel);
+  quickLayout->setContentsMargins(10, 8, 10, 8);
+  quickLayout->setSpacing(10);
+  quickPanel->setStyleSheet("QWidget#scopeQuickPanel {"
+                            "  background: #F7F9FB;"
+                            "  border: 1px solid #E3E8EE;"
+                            "  border-radius: 10px;"
+                            "}");
 
-  // 第一排：5个图标
-  scopeIconRow->addWidget(makeScopeItem(m_chkEnableWaveform), 0, 0);
-  scopeIconRow->addWidget(makeScopeItem(m_chkShowGrid), 0, 1);
-  scopeIconRow->addWidget(makeScopeItem(m_btnAutoScale), 0, 2);
-  scopeIconRow->addWidget(makeScopeItem(m_btnClearWaveform), 0, 3);
-  scopeIconRow->addWidget(makeScopeItem(m_btnResetChart), 0, 4);
+  quickLayout->addWidget(m_chkEnableWaveform, 0, 0, Qt::AlignCenter);
+  quickLayout->addWidget(m_chkShowGrid, 0, 1, Qt::AlignCenter);
+  quickLayout->addWidget(m_btnAutoScale, 0, 2, Qt::AlignCenter);
+  quickLayout->addWidget(m_btnCurveSettings, 0, 3, Qt::AlignCenter);
+  quickLayout->addWidget(m_btnStopWaveform, 1, 0, Qt::AlignCenter);
+  quickLayout->addWidget(m_btnClearWaveform, 1, 1, Qt::AlignCenter);
+  quickLayout->addWidget(m_btnResetChart, 1, 2, Qt::AlignCenter);
+  quickLayout->addWidget(m_chkShowRawData, 1, 3, Qt::AlignCenter);
+  quickLayout->addWidget(m_chkHideRxTx, 2, 0, Qt::AlignCenter);
+  quickLayout->addWidget(m_chkHideRxData, 2, 1, Qt::AlignCenter);
 
-  // 第二排：5个图标
-  scopeIconRow->addWidget(makeScopeItem(m_btnStopWaveform), 1, 0);
-  scopeIconRow->addWidget(makeScopeItem(m_btnCurveSettings), 1, 1);
-  scopeIconRow->addWidget(makeScopeItem(m_chkHideRxTx), 1, 2);
-  scopeIconRow->addWidget(makeScopeItem(m_chkHideRxData), 1, 3);
-  scopeIconRow->addWidget(makeScopeItem(m_chkShowRawData), 1, 4);
-
-  for (int c = 0; c < 5; ++c) {
-    scopeIconRow->setColumnStretch(c, 1);
+  for (int c = 0; c < 4; ++c) {
+    quickLayout->setColumnStretch(c, 1);
   }
-  grpScopeLayout->addLayout(scopeIconRow);
 
-  // 1. Group Box for Plot Parameters (Window width, buffer, theme)
-  m_groupPlotParams = new QGroupBox();
+  grpScopeLayout->addWidget(quickPanel, 0, 0, 1, 2);
+
+  // 左列：绘图参数 + Y 轴
+  m_groupPlotParams = new QGroupBox("绘图参数");
   QGridLayout *paramsLayout = new QGridLayout(m_groupPlotParams);
-  paramsLayout->setContentsMargins(4, 8, 4, 4);
-  paramsLayout->setHorizontalSpacing(8);
-  paramsLayout->setVerticalSpacing(6);
+  paramsLayout->setContentsMargins(10, 8, 10, 10);
+  paramsLayout->setHorizontalSpacing(12);
+  paramsLayout->setVerticalSpacing(8);
 
-  // 第一行：视窗宽度 + 缓冲区上限
   paramsLayout->addWidget(new QLabel("视窗宽度(∆t):"), 0, 0);
   m_spinPoints = new QDoubleSpinBox();
   m_spinPoints->setKeyboardTracking(false);
   paramsLayout->addWidget(m_spinPoints, 0, 1);
 
-  paramsLayout->addWidget(new QLabel("缓冲区上限:"), 0, 2);
+  paramsLayout->addWidget(new QLabel("缓冲区上限:"), 1, 0);
   m_spinBufferLimit = new QSpinBox();
   m_spinBufferLimit->setRange(100, 1000000);
   m_spinBufferLimit->setValue(10000);
-  paramsLayout->addWidget(m_spinBufferLimit, 0, 3);
+  paramsLayout->addWidget(m_spinBufferLimit, 1, 1);
 
-  // 第二行：X轴标签单位 + 波形主题
-  paramsLayout->addWidget(new QLabel("X轴标签单位:"), 1, 0);
+  paramsLayout->addWidget(new QLabel("X 轴单位:"), 2, 0);
   m_comboTimeUnit = new QComboBox();
   m_comboTimeUnit->addItems({"点数 (Points)", "毫秒 (ms)", "秒 (s)"});
-  paramsLayout->addWidget(m_comboTimeUnit, 1, 1);
+  paramsLayout->addWidget(m_comboTimeUnit, 2, 1);
 
-  paramsLayout->addWidget(new QLabel("波形主题:"), 1, 2);
-  m_comboChartTheme = new QComboBox();
-  m_comboChartTheme->addItems({"亮色主题", "暗黑炫光", "科幻示波器"});
-  m_comboChartTheme->setCurrentIndex(1);
-  paramsLayout->addWidget(m_comboChartTheme, 1, 3);
-
-  paramsLayout->addWidget(new QLabel("采样周期(ms/点):"), 2, 0);
+  paramsLayout->addWidget(new QLabel("采样周期:"), 3, 0);
   m_spinSampleInterval = new QDoubleSpinBox();
   m_spinSampleInterval->setRange(0.001, 60000.0);
   m_spinSampleInterval->setDecimals(3);
   m_spinSampleInterval->setSingleStep(0.1);
   m_spinSampleInterval->setValue(1.0);
-  m_spinSampleInterval->setSuffix(" ms");
+  m_spinSampleInterval->setSuffix(" ms/点");
   m_spinSampleInterval->setToolTip("设置每个采样点对应的真实时间");
-  paramsLayout->addWidget(m_spinSampleInterval, 2, 1);
+  paramsLayout->addWidget(m_spinSampleInterval, 3, 1);
 
-  m_groupPlotParams->setFlat(true);
+  paramsLayout->addWidget(new QLabel("波形主题:"), 4, 0);
+  m_comboChartTheme = new QComboBox();
+  m_comboChartTheme->addItems({"亮色主题", "暗黑炫光", "科幻示波器"});
+  m_comboChartTheme->setCurrentIndex(1);
+  paramsLayout->addWidget(m_comboChartTheme, 4, 1);
+
   m_groupPlotParams->setStyleSheet(
-      "QGroupBox { border: none; margin-top: 0px; font-weight: 600; color: "
-      "#455A64; }"
-      "QGroupBox::title { subcontrol-origin: margin; left: 0px; top: 0px; "
-      "padding: 0px; }");
-  grpScopeLayout->addWidget(m_groupPlotParams);
+      "QGroupBox { border: 1px solid #E3E8EE; border-radius: 10px; margin-top: "
+      "8px; background: #FFFFFF; }"
+      "QGroupBox::title { subcontrol-origin: margin; subcontrol-position: "
+      "top left; padding: 0 8px; color: #1B5E20; font-weight: 700; }");
 
-  // 2. Group Box for Y-Axis control
-  m_groupYAxis = new QGroupBox();
+  m_groupYAxis = new QGroupBox("Y 轴控制");
   QGridLayout *yLayout = new QGridLayout(m_groupYAxis);
-  yLayout->setContentsMargins(4, 8, 4, 4);
-  yLayout->setHorizontalSpacing(8);
-  yLayout->setVerticalSpacing(6);
+  yLayout->setContentsMargins(10, 8, 10, 10);
+  yLayout->setHorizontalSpacing(12);
+  yLayout->setVerticalSpacing(8);
 
-  yLayout->addWidget(new QLabel("Y轴最小值:"), 0, 0);
+  yLayout->addWidget(new QLabel("最小值:"), 0, 0);
   m_spinYMin = new QDoubleSpinBox();
   m_spinYMin->setRange(-99999, 99999);
   m_spinYMin->setEnabled(false);
   yLayout->addWidget(m_spinYMin, 0, 1);
 
-  yLayout->addWidget(new QLabel("Y轴最大值:"), 1, 0);
+  yLayout->addWidget(new QLabel("最大值:"), 1, 0);
   m_spinYMax = new QDoubleSpinBox();
   m_spinYMax->setRange(-99999, 99999);
   m_spinYMax->setEnabled(false);
   yLayout->addWidget(m_spinYMax, 1, 1);
 
-  yLayout->addWidget(new QLabel("Y轴刻度:"), 2, 0);
+  yLayout->addWidget(new QLabel("刻度:"), 2, 0);
   m_spinYTick = new QDoubleSpinBox();
   m_spinYTick->setRange(0, 99999);
   m_spinYTick->setEnabled(false);
   yLayout->addWidget(m_spinYTick, 2, 1);
 
-  m_groupYAxis->setFlat(true);
   m_groupYAxis->setStyleSheet(
-      "QGroupBox { border: none; margin-top: 0px; font-weight: 600; color: "
-      "#455A64; }"
-      "QGroupBox::title { subcontrol-origin: margin; left: 0px; top: 0px; "
-      "padding: 0px; }");
-  grpScopeLayout->addWidget(m_groupYAxis);
+      "QGroupBox { border: 1px solid #E3E8EE; border-radius: 10px; margin-top: "
+      "8px; background: #FFFFFF; }"
+      "QGroupBox::title { subcontrol-origin: margin; subcontrol-position: "
+      "top left; padding: 0 8px; color: #1B5E20; font-weight: 700; }");
 
-  QGroupBox *grpFrame = new QGroupBox("数据帧配置");
-  QGridLayout *frameLayout = new QGridLayout(grpFrame);
-  frameLayout->setContentsMargins(4, 8, 4, 4);
-  frameLayout->setHorizontalSpacing(8);
+  // 右列：数据帧配置 + 通道管理 (构造卡片组件)
+  m_groupFrameConfig = new QGroupBox("数据帧配置");
+  QGridLayout *frameLayout = new QGridLayout(m_groupFrameConfig);
+  frameLayout->setContentsMargins(12, 12, 12, 12);
+  frameLayout->setHorizontalSpacing(10);
   frameLayout->setVerticalSpacing(10);
 
-  frameLayout->addWidget(new QLabel("帧尾:"), 0, 0);
+  const QString frameFieldStyle =
+      "QLineEdit {"
+      "  border: 1px solid #CFD8DC;"
+      "  border-radius: 6px;"
+      "  padding: 4px 8px;"
+      "  min-height: 26px;"
+      "  background: #FFFFFF;"
+      "  color: #263238;"
+      "  font-size: 12px;"
+      "  font-family: Consolas, 'Courier New', monospace;"
+      "}"
+      "QLineEdit:focus { border: 1px solid #43A047; background: #FAFAFA; }";
+  const QString frameLabelStyle =
+      "QLabel { font-weight: 600; font-size: 12px; color: #37474F; background: transparent; }";
+
+  QLabel *lblFrameHeader = new QLabel("帧头标示:");
+  lblFrameHeader->setStyleSheet(frameLabelStyle);
+  frameLayout->addWidget(lblFrameHeader, 0, 0);
+
+  m_editFrameHeader = new QLineEdit();
+  m_editFrameHeader->setPlaceholderText("可选，如 $ 或 hex:AA 55");
+  m_editFrameHeader->setStyleSheet(frameFieldStyle);
+  m_editFrameHeader->setToolTip(
+      "支持普通文本、\\n /\\r /\\t /\\xNN 转义，或 hex:AA 55 形式的十六进制");
+  frameLayout->addWidget(m_editFrameHeader, 0, 1);
+
+  QLabel *lblFrameTail = new QLabel("帧尾标示:");
+  lblFrameTail->setStyleSheet(frameLabelStyle);
+  frameLayout->addWidget(lblFrameTail, 1, 0);
+
   m_editFrameTail = new QLineEdit("\\n");
-  frameLayout->addWidget(m_editFrameTail, 0, 1);
+  m_editFrameTail->setPlaceholderText("必填，如 ; 或 \\n 或 hex:0D 0A");
+  m_editFrameTail->setStyleSheet(frameFieldStyle);
+  m_editFrameTail->setToolTip(
+      "帧尾不能为空；支持普通文本、\\n /\\r /\\t /\\xNN 转义，或 hex:0D 0A");
+  frameLayout->addWidget(m_editFrameTail, 1, 1);
 
-  grpFrame->setFlat(true);
-  grpFrame->setStyleSheet(
-      "QGroupBox { border: none; margin-top: 0px; font-weight: 600; color: "
-      "#455A64; }"
-      "QGroupBox::title { subcontrol-origin: margin; left: 0px; top: 0px; "
-      "padding: 0px; }");
-  grpScopeLayout->addWidget(grpFrame);
+  m_chkStrictFrame = new QCheckBox("严格帧匹配 (仅完整数据帧绘图)");
+  m_chkStrictFrame->setChecked(true);
+  m_chkStrictFrame->setEnabled(false);
+  m_chkStrictFrame->setToolTip(
+      "已强制启用：只有同时匹配所配置帧头与帧尾的完整数据帧才会显示波形，"
+      "不完整或不匹配的数据会被丢弃。");
+  m_chkStrictFrame->setStyleSheet(
+      "QCheckBox { font-weight: 600; font-size: 12px; color: #1B5E20; background: transparent; padding: 2px 0px; }"
+      "QCheckBox::indicator { width: 14px; height: 14px; }");
+  frameLayout->addWidget(m_chkStrictFrame, 2, 0, 1, 2);
 
-  QGroupBox *grpChannels = new QGroupBox("通道管理");
-  m_channelsLayout = new QVBoxLayout(grpChannels);
-  m_channelsLayout->setContentsMargins(4, 4, 4, 4);
+  m_lblFramePreview = new QLabel();
+  m_lblFramePreview->setAlignment(Qt::AlignCenter);
+  m_lblFramePreview->setWordWrap(true);
+  m_lblFramePreview->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+  m_lblFramePreview->setMinimumHeight(48);
+  frameLayout->addWidget(m_lblFramePreview, 3, 0, 1, 2);
+
+  frameLayout->setColumnStretch(1, 1);
+
+  m_groupFrameConfig->setStyleSheet(
+      "QGroupBox { border: 1px solid #C8E6C9; border-radius: 10px; margin-top: "
+      "8px; background: #FAFFF9; }"
+      "QGroupBox::title { subcontrol-origin: margin; subcontrol-position: "
+      "top left; padding: 0 10px; color: #1B5E20; font-weight: 700; font-size: 13px; }");
+
+  m_groupChannelConfig = new QGroupBox("通道管理");
+  QVBoxLayout *channelOuterLayout = new QVBoxLayout(m_groupChannelConfig);
+  channelOuterLayout->setContentsMargins(10, 8, 10, 10);
+  channelOuterLayout->setSpacing(6);
+
+  m_lblChannelHint = new QLabel("等待符合帧格式的数据，通道将自动创建");
+  m_lblChannelHint->setAlignment(Qt::AlignCenter);
+  m_lblChannelHint->setWordWrap(true);
+  m_lblChannelHint->setStyleSheet(
+      "QLabel {"
+      "  color: #90A4AE;"
+      "  background: #FAFBFC;"
+      "  border: 1px dashed #CFD8DC;"
+      "  border-radius: 8px;"
+      "  padding: 10px 8px;"
+      "}");
+  channelOuterLayout->addWidget(m_lblChannelHint);
+
+  QScrollArea *channelScroll = new QScrollArea();
+  channelScroll->setWidgetResizable(true);
+  channelScroll->setFrameShape(QFrame::NoFrame);
+  channelScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+  channelScroll->setStyleSheet("QScrollArea { background: transparent; }");
+
+  QWidget *channelHost = new QWidget();
+  channelHost->setStyleSheet("background: transparent;");
+  m_channelsLayout = new QVBoxLayout(channelHost);
+  m_channelsLayout->setContentsMargins(0, 2, 0, 2);
+  m_channelsLayout->setSpacing(6);
   m_channelsLayout->addStretch();
-  grpScopeLayout->addWidget(grpChannels);
 
-  grpScopeLayout->addStretch();
+  channelScroll->setWidget(channelHost);
+  channelOuterLayout->addWidget(channelScroll, 1);
+
+  m_groupChannelConfig->setStyleSheet(
+      "QGroupBox { border: 1px solid #E3E8EE; border-radius: 10px; margin-top: "
+      "8px; background: #FFFFFF; }"
+      "QGroupBox::title { subcontrol-origin: margin; subcontrol-position: "
+      "top left; padding: 0 8px; color: #1B5E20; font-weight: 700; }");
+
+  // 左列：绘图参数 + Y 轴 (使用垂直 QSplitter 支持上下拖动调节)
+  QSplitter *leftSplitter = new QSplitter(Qt::Vertical);
+  leftSplitter->setObjectName("scopeLeftSplitter");
+  leftSplitter->setChildrenCollapsible(false);
+  leftSplitter->setHandleWidth(6);
+  leftSplitter->setStyleSheet(
+      "QSplitter#scopeLeftSplitter::handle {"
+      "  background: #E3E8EE;"
+      "  border-radius: 2px;"
+      "  margin: 2px 0px;"
+      "}"
+      "QSplitter#scopeLeftSplitter::handle:hover {"
+      "  background: #42A5F5;"
+      "}");
+  leftSplitter->addWidget(m_groupPlotParams);
+  leftSplitter->addWidget(m_groupYAxis);
+  leftSplitter->setStretchFactor(0, 1);
+  leftSplitter->setStretchFactor(1, 1);
+
+  // 右列：数据帧配置 + 通道管理 (使用垂直 QSplitter 支持上下拖动调节)
+  QSplitter *rightSplitter = new QSplitter(Qt::Vertical);
+  rightSplitter->setObjectName("scopeRightSplitter");
+  rightSplitter->setChildrenCollapsible(false);
+  rightSplitter->setHandleWidth(6);
+  rightSplitter->setStyleSheet(
+      "QSplitter#scopeRightSplitter::handle {"
+      "  background: #E3E8EE;"
+      "  border-radius: 2px;"
+      "  margin: 2px 0px;"
+      "}"
+      "QSplitter#scopeRightSplitter::handle:hover {"
+      "  background: #42A5F5;"
+      "}");
+  rightSplitter->addWidget(m_groupFrameConfig);
+  rightSplitter->addWidget(m_groupChannelConfig);
+  rightSplitter->setStretchFactor(0, 0);
+  rightSplitter->setStretchFactor(1, 1);
+
+  grpScopeLayout->addWidget(leftSplitter, 1, 0);
+  grpScopeLayout->addWidget(rightSplitter, 1, 1);
+
+  grpScopeLayout->setRowStretch(1, 1);
+  grpScopeLayout->setColumnStretch(0, 1);
+  grpScopeLayout->setColumnStretch(1, 1);
 
   // 将示波器设置添加到垂直标签页（第二个标签）
   m_leftTabWidget->addTab(grpScope, "示波器设置", QString(QChar(0xe86d)));
@@ -719,24 +948,43 @@ void SerialSession::setupUi() {
   dataLayout->setContentsMargins(0, 0, 0, 0);
   dataMainLayout->addLayout(dataLayout);
 
-  // To make the buttons float over the text area securely
+  // ===== 接收区：行号列 + 文本框 水平排列 =====
   QWidget *rxContainer = new QWidget();
-  QVBoxLayout *rxContainerLayout = new QVBoxLayout(rxContainer);
+  QHBoxLayout *rxContainerLayout = new QHBoxLayout(rxContainer);
   rxContainerLayout->setContentsMargins(0, 0, 0, 0);
+  rxContainerLayout->setSpacing(0);
+
+  // 行号组件（独立列，默认隐藏）
+  m_lineNumberWidget = new LineNumberWidget();
+  rxContainerLayout->addWidget(m_lineNumberWidget);
 
   m_textReceive = new QTextEdit();
-  // Prevent unbounded growth that causes permanent UI freeze on rapid
-  // auto-sends
   m_textReceive->document()->setMaximumBlockCount(1000);
   m_textReceive->setReadOnly(true);
   m_textReceive->installEventFilter(this);
+  rxContainerLayout->addWidget(m_textReceive, 1);
 
-  // Floating container
+  // 绑定行号组件到文本框
+  m_lineNumberWidget->bindTo(m_textReceive);
+
+  // 行号更新信号
+  connect(m_textReceive->document(), &QTextDocument::blockCountChanged, this,
+          [this]() {
+            if (m_showLineNumbers)
+              updateLineNumberDisplay();
+          });
+  connect(m_textReceive->verticalScrollBar(), &QScrollBar::valueChanged, this,
+          [this]() {
+            if (m_showLineNumbers)
+              m_lineNumberWidget->update();
+          });
+
+  // Floating container（悬浮在 m_textReceive 上方）
   QWidget *rxFloatWidget = new QWidget(m_textReceive);
   rxFloatWidget->setObjectName("rxFloat");
   rxFloatWidget->setAttribute(Qt::WA_TransparentForMouseEvents, false);
   rxFloatWidget->setStyleSheet("background: transparent; border: none;");
-  rxFloatWidget->raise(); // 确保浮动控件在最上层
+  rxFloatWidget->raise();
 
   QHBoxLayout *rxFloatLayout = new QHBoxLayout(rxFloatWidget);
   rxFloatLayout->setContentsMargins(0, 0, 0, 0);
@@ -749,7 +997,6 @@ void SerialSession::setupUi() {
     btn->setFixedSize(32, 32);
     btn->setCursor(Qt::PointingHandCursor);
     btn->setCheckable(true);
-    // Give it a solid background so it masks text underneath
     btn->setStyleSheet(
         "QToolButton { color: #555555; background: #E3F2FD; border: 1px solid "
         "#BBDEFB; border-radius: 16px; }"
@@ -760,6 +1007,19 @@ void SerialSession::setupUi() {
         "#FFCC80; padding: 4px 8px; }");
     return btn;
   };
+
+  // 行号图标 0xe89c（悬浮最左侧）
+  m_btnRxLineNumber = createFloatBtn(QChar(0xe89c));
+  m_btnRxLineNumber->setToolTip("显示/隐藏行号");
+  connect(m_btnRxLineNumber, &QToolButton::toggled, this, [this](bool on) {
+    m_showLineNumbers = on;
+    updateLineNumberDisplay();
+  });
+
+  // 编码图标 0xf9d5（悬浮在行号图标右侧）
+  m_btnRxEncoding = createFloatBtn(QChar(0xf9d5));
+  m_btnRxEncoding->setToolTip("选择文本编码");
+  m_btnRxEncoding->setCheckable(false);
 
   m_btnRxHexToggle = createFloatBtn(QChar(0xEBBC));
   m_btnRxTimeToggle = createFloatBtn(QChar(0xE676));
@@ -772,23 +1032,81 @@ void SerialSession::setupUi() {
   m_btnRxPauseToggle->setToolTip("暂停接收");
   m_btnRxClear->setToolTip("清空接收区");
 
+  rxFloatLayout->addWidget(m_btnRxLineNumber);
+  rxFloatLayout->addWidget(m_btnRxEncoding);
   rxFloatLayout->addWidget(m_btnRxHexToggle);
   rxFloatLayout->addWidget(m_btnRxTimeToggle);
   rxFloatLayout->addWidget(m_btnRxPauseToggle);
   rxFloatLayout->addWidget(m_btnRxClear);
 
-  // 初始化浮动控件位置（避免显示在左上角）
+  // 编码图标弹出菜单：列出全部可用编码
+  connect(m_btnRxEncoding, &QToolButton::clicked, this, [this]() {
+    QMenu menu(m_btnRxEncoding);
+    menu.setStyleSheet(
+        "QMenu { background: #FFFFFF; border: 1px solid #D0D7DE; "
+        "border-radius: 8px; padding: 4px; }"
+        "QMenu::item { padding: 6px 32px 6px 16px; border-radius: 4px; }"
+        "QMenu::item:selected { background: #E8EDF5; color: #1565C0; }"
+        "QMenu::separator { height: 1px; background: #E5E7EB; margin: 4px 8px; }");
+
+    // 自动检测（始终第一项，data 为空表示自动）
+    QAction *actAuto = menu.addAction("自动检测（UTF-8 / GBK）");
+    actAuto->setCheckable(true);
+    actAuto->setChecked(m_selectedCodecName.isEmpty());
+    actAuto->setData(QString());
+
+    // 常用编码（显示名与 data 分离）
+    QAction *actUtf8 = menu.addAction("UTF-8");
+    actUtf8->setCheckable(true);
+    actUtf8->setChecked(m_selectedCodecName == "UTF-8");
+    actUtf8->setData("UTF-8");
+
+    QAction *actGbk = menu.addAction("GBK / GB2312");
+    actGbk->setCheckable(true);
+    actGbk->setChecked(m_selectedCodecName == "GBK" ||
+                       m_selectedCodecName == "GB2312");
+    actGbk->setData("GBK");
+
+    menu.addSeparator();
+
+    // 列出系统所有可用编码
+    const auto allCodecs = QTextCodec::availableCodecs();
+    QSet<QString> seen;
+    seen.insert("UTF-8");
+    seen.insert("GBK");
+    seen.insert("GB2312");
+    for (const QByteArray &name : allCodecs) {
+      QString codecName = QString::fromUtf8(name);
+      if (codecName.isEmpty() || seen.contains(codecName)) continue;
+      seen.insert(codecName);
+      QAction *act = menu.addAction(codecName);
+      act->setCheckable(true);
+      act->setChecked(m_selectedCodecName == codecName);
+      act->setData(codecName);
+    }
+
+    QAction *chosen = menu.exec(m_btnRxEncoding->mapToGlobal(
+        QPoint(0, m_btnRxEncoding->height())));
+
+    if (!chosen) return;
+    // 使用 data() 获取实际编码名（而非显示文字）
+    m_selectedCodecName = chosen->data().toString();
+    // 编码变化时重置解码器状态
+    delete m_converterState;
+    m_converterState = nullptr;
+    m_lastCodecName.clear();
+  });
+
+  // 初始化浮动控件位置
   rxFloatWidget->adjustSize();
   rxFloatWidget->move(
-      qMax(4, m_textReceive->width() - rxFloatWidget->width() - 10),
+      qMax(4, m_textReceive->width() - rxFloatWidget->width() - 35),
       qMax(4, m_textReceive->height() - rxFloatWidget->height() - 10));
-
-  rxContainerLayout->addWidget(m_textReceive);
 
   dataLayout->addWidget(rxContainer);
 
-  // 将接收区域包装为DockWidget
-  m_dockReceive = new QDockWidget("接收数据", dataDockHost);
+  // 将接收区域包装为DockWidget（不显示标题文字）
+  m_dockReceive = new QDockWidget(QString(), dataDockHost);
   m_dockReceive->setObjectName("dataDock");
   m_dockReceive->setFeatures(QDockWidget::DockWidgetMovable |
                              QDockWidget::DockWidgetFloatable |
@@ -946,10 +1264,10 @@ void SerialSession::setupUi() {
   txFloatLeftLayout->addWidget(m_chkTxNewLine);
   txFloatLeftLayout->addWidget(m_spinAutoSendInterval);
 
-  // 初始化浮动控件位置（避免显示在左上角）
+  // 初始化浮动控件位置（防止被滚动条遮挡，右边距设为 35）
   txFloatRightWidget->adjustSize();
   txFloatRightWidget->move(
-      qMax(4, m_textSend->width() - txFloatRightWidget->width() - 10),
+      qMax(4, m_textSend->width() - txFloatRightWidget->width() - 35),
       qMax(4, m_textSend->height() - txFloatRightWidget->height() - 10));
   txFloatLeftWidget->adjustSize();
   txFloatLeftWidget->move(
@@ -1163,7 +1481,7 @@ void SerialSession::setupUi() {
   grpSendLayout->addWidget(m_sendTabWidget);
 
   // 将发送区域包装为DockWidget
-  m_dockSend = new QDockWidget("数据发送", dataDockHost);
+  m_dockSend = new QDockWidget(QString(), dataDockHost);
   m_dockSend->setObjectName("dataDock");
   m_dockSend->setFeatures(QDockWidget::DockWidgetMovable |
                           QDockWidget::DockWidgetFloatable |
@@ -1285,6 +1603,23 @@ void SerialSession::setupChart() {
 
   // Context Menu Policy
   m_customPlot->setContextMenuPolicy(Qt::CustomContextMenu);
+
+  // 图例双击显示/隐藏逻辑
+  connect(m_customPlot, &QCustomPlot::legendDoubleClick, this,
+          [this](QCPLegend *legend, QCPAbstractLegendItem *item,
+                 QMouseEvent *event) {
+            Q_UNUSED(legend);
+            Q_UNUSED(event);
+            if (item) {
+              QCPPlottableLegendItem *plItem =
+                  qobject_cast<QCPPlottableLegendItem *>(item);
+              if (plItem) {
+                bool visible = plItem->plottable()->visible();
+                plItem->plottable()->setVisible(!visible);
+                m_customPlot->replot();
+              }
+            }
+          });
 
   // Interactions: Scroll and Zoom
   m_customPlot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom |
@@ -1734,13 +2069,23 @@ void SerialSession::setupConnections() {
             updateChartSettings();
           });
 
-  connect(m_editFrameTail, &QLineEdit::textChanged, this,
-          [this](const QString &text) { 
-             QString parsed = text;
-             parsed.replace("\\n", "\n");
-             parsed.replace("\\r", "\r");
-             m_frameTail = parsed.toUtf8(); 
+  connect(m_editFrameHeader, &QLineEdit::textChanged, this,
+          [this](const QString &text) {
+            m_frameHeader = parseFrameMarker(text);
+            m_rxBuffer.clear();
+            refreshFramePreview();
           });
+  connect(m_editFrameTail, &QLineEdit::textChanged, this,
+          [this](const QString &text) {
+            m_frameTail = parseFrameMarker(text);
+            m_rxBuffer.clear();
+            refreshFramePreview();
+          });
+  connect(m_chkStrictFrame, &QCheckBox::toggled, this, [this](bool) {
+    m_rxBuffer.clear();
+    refreshFramePreview();
+  });
+  refreshFramePreview();
 
   // 注释掉DockWidget相关的连接，因为已改为标签页
   // connect(m_dockScopeSettings, &QDockWidget::dockLocationChanged, this,
@@ -1758,23 +2103,6 @@ void SerialSession::setupConnections() {
   connect(m_btnCurveSettings, &QPushButton::clicked, this,
           &SerialSession::onCurveSettingsClicked);
 
-  // 图例双击显示/隐藏逻辑
-  connect(m_customPlot, &QCustomPlot::legendDoubleClick, this,
-          [this](QCPLegend *legend, QCPAbstractLegendItem *item,
-                 QMouseEvent *event) {
-            Q_UNUSED(legend);
-            Q_UNUSED(event);
-            if (item) {
-              QCPPlottableLegendItem *plItem =
-                  qobject_cast<QCPPlottableLegendItem *>(item);
-              if (plItem) {
-                bool visible = plItem->plottable()->visible();
-                plItem->plottable()->setVisible(!visible);
-                m_customPlot->replot();
-              }
-            }
-          });
-
   // Floating Play Pause Logic Integration
   connect(m_btnFloatingPlay, &QToolButton::clicked, [this]() {
     m_btnStopWaveform->setChecked(!m_btnStopWaveform->isChecked());
@@ -1782,20 +2110,89 @@ void SerialSession::setupConnections() {
 
   connect(m_btnStopWaveform, &QPushButton::toggled, [this](bool checked) {
     if (checked) {
-      // Checked meaning stopped/paused: Show play icon (e87d)
       m_btnStopWaveform->setText("\ue87d");
       m_btnFloatingPlay->setText(QChar(0xE719));
       m_btnFloatingPlay->show();
     } else {
-      // Unchecked meaning playing: Show pause icon (e87c)
       m_btnStopWaveform->setText("\ue87c");
       m_btnFloatingPlay->hide();
     }
   });
 
-  // Set default state to paused (playing starts when explicitly clicked)
   m_btnStopWaveform->setChecked(true);
   onTimeUnitChanged(m_comboTimeUnit->currentIndex());
+}
+
+void SerialSession::refreshFramePreview() {
+  if (!m_lblFramePreview) {
+    return;
+  }
+
+  const bool validTail = !m_frameTail.isEmpty();
+  const bool strict = m_chkStrictFrame && m_chkStrictFrame->isChecked();
+
+  const QString warnStyle =
+      "QLabel { background-color: #FFEBEE; color: #C62828; border: 1px solid "
+      "#EF9A9A; border-radius: 8px; font-weight: 600; font-size: 12px; padding: 6px 10px; line-height: 1.3; }";
+  const QString okStyle =
+      "QLabel { background-color: #E8F5E9; color: #1B5E20; border: 1px solid "
+      "#81C784; border-radius: 8px; font-weight: 600; font-size: 12px; padding: 6px 10px; line-height: 1.3; }";
+  const QString looseStyle =
+      "QLabel { background-color: #FFF8E1; color: #7B5A00; border: 1px solid "
+      "#FFCC80; border-radius: 8px; font-weight: 600; font-size: 12px; padding: 6px 10px; line-height: 1.3; }";
+
+  if (!validTail) {
+    m_lblFramePreview->setStyleSheet(warnStyle);
+    m_lblFramePreview->setText("帧尾为空，当前无法匹配任何数据帧");
+    return;
+  }
+
+  const QString headerView =
+      m_frameHeader.isEmpty() ? QStringLiteral("(任意)")
+                              : byteArrayHexView(m_frameHeader);
+  const QString tailView = byteArrayHexView(m_frameTail);
+  const QString pattern = QString("%1 │ Payload │ %2").arg(headerView, tailView);
+
+  if (strict) {
+    m_lblFramePreview->setStyleSheet(okStyle);
+    m_lblFramePreview->setText(
+        QString("严格匹配：%1\n仅完整匹配的合法数据帧参与绘图").arg(pattern));
+  } else {
+    m_lblFramePreview->setStyleSheet(looseStyle);
+    m_lblFramePreview->setText(
+        QString("宽松匹配：%1\n允许缺失帧头的数据帧入图").arg(pattern));
+  }
+}
+
+QString SerialSession::byteArrayHexView(const QByteArray &data) const {
+  if (data.isEmpty()) {
+    return QStringLiteral("(空)");
+  }
+
+  QStringList tokens;
+  tokens.reserve(data.size());
+  for (char rawByte : data) {
+    const unsigned char byte = static_cast<unsigned char>(rawByte);
+    switch (byte) {
+    case '\n':
+      tokens << QStringLiteral("\\n");
+      break;
+    case '\r':
+      tokens << QStringLiteral("\\r");
+      break;
+    case '\t':
+      tokens << QStringLiteral("\\t");
+      break;
+    default:
+      if (byte >= 0x20 && byte < 0x7F) {
+        tokens << QChar(static_cast<char>(byte));
+      } else {
+        tokens << QString("\\x%1").arg(byte, 2, 16, QLatin1Char('0')).toUpper();
+      }
+      break;
+    }
+  }
+  return tokens.join(QString());
 }
 
 void SerialSession::onCurveSettingsClicked() {
@@ -1886,6 +2283,12 @@ void SerialSession::openClosePort() {
         m_comboStopBits->currentData().toInt()));
 
     if (m_serial->open(QIODevice::ReadWrite)) {
+      m_rxDecoderBuffer.clear();
+      m_rxLineBuffer.clear();
+      // 重置增量解码状态
+      delete m_converterState;
+      m_converterState = nullptr;
+      m_lastCodecName.clear();
       m_welcomeText = "   串口 " + m_serial->portName() +
                       " 已打开   "; // Change text for scroll
       m_lblWelcome->setText(m_welcomeText);
@@ -1948,43 +2351,173 @@ void SerialSession::onReadyRead() {
   }
 
   if (!m_btnStopRx->isChecked()) {
-    QString rawStr;
-
-    // Hex vs ASCII
-    if (m_rbRxHex->isChecked()) {
-      rawStr = data.toHex(' ').toUpper();
-    } else {
-      rawStr = QString::fromLocal8Bit(data); // Support Local encoding
-    }
-
+    const bool isHex = m_rbRxHex->isChecked();
     const bool logMode = m_chkRxLog->isChecked();
     const bool showTimestamp = m_chkRxTime->isChecked() || logMode;
     const QString rxTag = logMode ? "[LOG][RX]" : "[RX]";
 
-    // Build HTML line: red timestamp + plain data
-    QString htmlLine;
-    if (showTimestamp) {
-      QString timeStr =
-          QDateTime::currentDateTime().toString("[yyyy-MM-dd HH:mm:ss.zzz] ");
-      htmlLine = QString("<span style='color:red;'>%1</span>"
-                         "<span>%2 %3</span>")
-                     .arg(timeStr.toHtmlEscaped())
-                     .arg(rxTag)
-                     .arg(rawStr.toHtmlEscaped());
-    } else {
-      htmlLine =
-          QString("<span>%1 %2</span>").arg(rxTag).arg(rawStr.toHtmlEscaped());
-    }
+    if (isHex) {
+      // Hex 接收模式
+      QString hexStr = data.toHex(' ').toUpper();
+      if (!hexStr.isEmpty()) {
+        hexStr += ' ';
+      }
 
-    if (!m_chkHideRxData->isChecked()) {
-      bool showRaw = m_chkShowRawData->isChecked();
-      if (!showRaw) {
-        // 未勾选「显示原始数据」时，显示接收到的完整原始数据
-        m_textReceive->append(htmlLine);
+      if (!m_chkHideRxData->isChecked() && !m_chkShowRawData->isChecked()) {
+        if (showTimestamp) {
+          QString timeStr =
+              QDateTime::currentDateTime().toString("[yyyy-MM-dd HH:mm:ss.zzz] ");
+          QString htmlLine =
+              QString("<span style='color:red;'>%1</span><span>%2 %3</span>")
+                  .arg(timeStr.toHtmlEscaped())
+                  .arg(rxTag)
+                  .arg(hexStr.toHtmlEscaped());
+          m_textReceive->append(htmlLine);
+        } else {
+          QTextCursor cursor = m_textReceive->textCursor();
+          cursor.movePosition(QTextCursor::End);
+          cursor.insertText(hexStr);
+          m_textReceive->setTextCursor(cursor);
+        }
         m_textReceive->verticalScrollBar()->setValue(
             m_textReceive->verticalScrollBar()->maximum());
       }
-      // 勾选时，updateWaveform 会显示去掉帧头帧尾的 Payload
+    } else {
+      // ASCII / 文本 接收模式
+      m_rxDecoderBuffer.append(data);
+
+      // 获取当前选择的编码
+      const QString selectedCodec = m_selectedCodecName;
+      QByteArray validBytes;
+      QString rawStr;
+
+      if (selectedCodec.isEmpty()) {
+        // ====== 自动检测模式：UTF-8 / GBK 不完整字节检测 ======
+        int len = m_rxDecoderBuffer.size();
+        int incompleteCount = 0;
+
+        // 1. 检查 UTF-8 末尾不完整字节 (最多回溯 3 字节)
+        for (int i = 1; i <= qMin(4, len); ++i) {
+          unsigned char uc =
+              static_cast<unsigned char>(m_rxDecoderBuffer.at(len - i));
+          if ((uc & 0x80) == 0) {
+            break;
+          }
+          if ((uc & 0xE0) == 0xC0) {
+            if (i < 2) incompleteCount = i;
+            break;
+          }
+          if ((uc & 0xF0) == 0xE0) {
+            if (i < 3) incompleteCount = i;
+            break;
+          }
+          if ((uc & 0xF8) == 0xF0) {
+            if (i < 4) incompleteCount = i;
+            break;
+          }
+        }
+
+        // 2. 如果 UTF-8 未发现不完整字节，检查 GBK
+        if (incompleteCount == 0 && len > 0) {
+          unsigned char lastByte =
+              static_cast<unsigned char>(m_rxDecoderBuffer.at(len - 1));
+          if (lastByte >= 0x81 && lastByte <= 0xFE) {
+            int highByteCount = 0;
+            for (int i = len - 1; i >= 0; --i) {
+              unsigned char b =
+                  static_cast<unsigned char>(m_rxDecoderBuffer.at(i));
+              if (b >= 0x80) highByteCount++;
+              else break;
+            }
+            if (highByteCount % 2 != 0) {
+              incompleteCount = 1;
+            }
+          }
+        }
+
+        validBytes = m_rxDecoderBuffer.left(len - incompleteCount);
+        m_rxDecoderBuffer = m_rxDecoderBuffer.right(incompleteCount);
+
+        if (!validBytes.isEmpty()) {
+          rawStr = QString::fromUtf8(validBytes);
+          if (rawStr.contains(QChar(0xFFFD))) {
+            QString gbkStr = QString::fromLocal8Bit(validBytes);
+            if (!gbkStr.contains(QChar(0xFFFD))) {
+              rawStr = gbkStr;
+            }
+          }
+        }
+      } else {
+        // ====== 手动编码模式：QTextCodec::ConverterState 增量解码 ======
+        QTextCodec *codec = QTextCodec::codecForName(selectedCodec.toUtf8());
+        if (codec) {
+          // 编码变化时重置状态
+          if (m_lastCodecName != selectedCodec) {
+            delete m_converterState;
+            m_converterState = new QTextCodec::ConverterState(
+                QTextCodec::ConvertInvalidToNull);
+            m_lastCodecName = selectedCodec;
+            m_rxDecoderBuffer.clear();
+          }
+          if (!m_converterState) {
+            m_converterState = new QTextCodec::ConverterState(
+                QTextCodec::ConvertInvalidToNull);
+            m_lastCodecName = selectedCodec;
+          }
+          // ConverterState 内部自动缓冲不完整字节，传入全部数据即可
+          QByteArray allData = m_rxDecoderBuffer;
+          m_rxDecoderBuffer.clear();
+          rawStr = codec->toUnicode(allData.constData(), allData.size(),
+                                    m_converterState);
+          validBytes = allData;
+        } else {
+          // 未找到编码，回退 UTF-8
+          validBytes = m_rxDecoderBuffer;
+          m_rxDecoderBuffer.clear();
+          rawStr = QString::fromUtf8(validBytes);
+        }
+      }
+
+      if (!validBytes.isEmpty()) {
+
+        // 统一换行符
+        rawStr.replace("\r\n", "\n");
+        rawStr.replace('\r', '\n');
+
+        if (!m_chkHideRxData->isChecked() && !m_chkShowRawData->isChecked()) {
+          if (showTimestamp) {
+            // 时间戳/日志模式：按行拆分，只有遇到 '\n' 才输出一行带有时间戳的记录
+            m_rxLineBuffer.append(rawStr);
+            int lineBreakPos = -1;
+            while ((lineBreakPos = m_rxLineBuffer.indexOf('\n')) >= 0) {
+              QString lineStr = m_rxLineBuffer.left(lineBreakPos);
+              m_rxLineBuffer.remove(0, lineBreakPos + 1);
+
+              QString timeStr =
+                  QDateTime::currentDateTime().toString("[yyyy-MM-dd HH:mm:ss.zzz] ");
+              // 转换 HTML 特殊字符并保留多空格与 Tab
+              QString escapedContent =
+                  lineStr.toHtmlEscaped()
+                      .replace("  ", " &nbsp;")
+                      .replace("\t", "&nbsp;&nbsp;&nbsp;&nbsp;");
+              QString htmlLine =
+                  QString("<span style='color:red;'>%1</span><span>%2 %3</span>")
+                      .arg(timeStr.toHtmlEscaped())
+                      .arg(rxTag)
+                      .arg(escapedContent);
+              m_textReceive->append(htmlLine);
+            }
+          } else {
+            // 非时间戳模式：标准终端无损流式输出 (保留空格、Tab、换行、段落缩进)
+            QTextCursor cursor = m_textReceive->textCursor();
+            cursor.movePosition(QTextCursor::End);
+            cursor.insertText(rawStr);
+            m_textReceive->setTextCursor(cursor);
+          }
+          m_textReceive->verticalScrollBar()->setValue(
+              m_textReceive->verticalScrollBar()->maximum());
+        }
+      }
     }
   }
 
@@ -2208,6 +2741,77 @@ void SerialSession::updateChartSettings() {
   m_customPlot->replot();
 }
 
+bool SerialSession::takeNextFrame(QByteArray &payload) {
+  payload.clear();
+
+  // 帧尾是分帧的必要条件，未配置时不做任何解析
+  if (m_frameTail.isEmpty()) {
+    return false;
+  }
+
+  const bool strict = m_chkStrictFrame && m_chkStrictFrame->isChecked();
+  const bool requireHeader = strict && !m_frameHeader.isEmpty();
+  const int overflowLimit = qMax(4096, m_spinBufferLimit->value() * 64);
+
+  while (true) {
+    int payloadStart = 0;
+
+    if (!m_frameHeader.isEmpty()) {
+      const int headerIndex = m_rxBuffer.indexOf(m_frameHeader);
+      if (headerIndex < 0) {
+        if (requireHeader) {
+          // 严格模式：没有帧头的数据一律丢弃，只保留可能被拆包的尾部字节
+          const int bytesToKeep =
+              qMin(m_rxBuffer.size(), m_frameHeader.size() - 1);
+          m_rxBuffer = m_rxBuffer.right(bytesToKeep);
+          return false;
+        }
+        // 宽松模式：允许没有帧头，直接按帧尾切分
+      } else {
+        if (headerIndex > 0) {
+          m_rxBuffer.remove(0, headerIndex); // 丢弃帧头之前的噪声
+        }
+        payloadStart = m_frameHeader.size();
+      }
+    }
+
+    const int tailIndex = m_rxBuffer.indexOf(m_frameTail, payloadStart);
+    if (tailIndex < 0) {
+      // 帧尾还没到，等待后续数据；缓冲异常膨胀时做安全回收
+      if (m_rxBuffer.size() > overflowLimit) {
+        if (m_frameHeader.isEmpty()) {
+          m_rxBuffer.clear();
+        } else {
+          const int lastHeader = m_rxBuffer.lastIndexOf(m_frameHeader);
+          m_rxBuffer = lastHeader > 0
+                           ? m_rxBuffer.mid(lastHeader)
+                           : m_rxBuffer.right(m_frameHeader.size() - 1);
+        }
+      }
+      return false;
+    }
+
+    // 严格模式下，若帧头与帧尾之间又出现帧头，说明前一帧被截断，重新同步
+    if (requireHeader && payloadStart > 0) {
+      const int nestedHeader = m_rxBuffer.indexOf(m_frameHeader, payloadStart);
+      if (nestedHeader >= 0 && nestedHeader < tailIndex) {
+        m_rxBuffer.remove(0, nestedHeader);
+        continue;
+      }
+    }
+
+    payload = m_rxBuffer.mid(payloadStart, tailIndex - payloadStart).trimmed();
+    m_rxBuffer.remove(0, tailIndex + m_frameTail.size());
+
+    // 严格模式要求帧头存在，缺失帧头的帧直接丢弃并继续查找下一帧
+    if (requireHeader && payloadStart == 0) {
+      payload.clear();
+      continue;
+    }
+    return true;
+  }
+}
+
 void SerialSession::updateWaveform(const QByteArray &data) {
   bool waveformStopped = m_btnStopWaveform && m_btnStopWaveform->isChecked();
   // 若波形已暂停且不需要显示 Payload，则直接跳过
@@ -2215,9 +2819,6 @@ void SerialSession::updateWaveform(const QByteArray &data) {
     return;
   }
 
-  // Use the per-instance member buffer — NOT a static, which would be shared
-  // across all SerialSession instances and causes data corruption + crashes
-  // when two serial ports are open simultaneously.
   m_rxBuffer.append(data);
 
   int maxPoints = m_viewWidthPoints;
@@ -2226,26 +2827,12 @@ void SerialSession::updateWaveform(const QByteArray &data) {
   QVector<QVector<double>> channelDataBatch;
   QVector<QVector<double>> channelKeysBatch;
 
-  while (true) {
-    if (m_frameTail.isEmpty()) {
-      break;
-    }
-
-    int endIdx = m_rxBuffer.indexOf(m_frameTail);
-    if (endIdx == -1) {
-      if (m_rxBuffer.size() > 4096)
-        m_rxBuffer.clear(); // Safety clear
-      break; // Need more data
-    }
-
-    // Found complete frame:
-    QByteArray payloadBytes = m_rxBuffer.mid(0, endIdx).trimmed();
-    m_rxBuffer.remove(0, endIdx + m_frameTail.size()); // Remove processed frame
-
+  QByteArray payloadBytes;
+  while (takeNextFrame(payloadBytes)) {
     if (payloadBytes.isEmpty())
       continue;
 
-    QString payload = QString::fromLatin1(payloadBytes);
+    QString payload = QString::fromUtf8(payloadBytes);
 
     int colonIdx = payload.indexOf(':');
     QString prefix = "";
@@ -2290,42 +2877,65 @@ void SerialSession::updateWaveform(const QByteArray &data) {
     if (parts.isEmpty())
       continue;
 
+    QVector<double> frameValues;
+    frameValues.reserve(parts.size());
+    bool validFrame = true;
+    for (const QString &part : parts) {
+      bool ok = false;
+      const double value = part.toDouble(&ok);
+      if (!ok) {
+        validFrame = false;
+        break;
+      }
+      frameValues.append(value);
+    }
+    if (!validFrame) {
+      continue;
+    }
+
     // Ensure we have enough graphs
-    int neededGraphs = parts.size();
+    int neededGraphs = frameValues.size();
     while (m_customPlot->graphCount() < neededGraphs) {
       int idx = m_customPlot->graphCount();
       m_customPlot->addGraph();
 
-      // Assign distinct vibrant colors using HSV for a "neon" effect
-      int hue = (idx * 137) % 360; // Golden angle approx
-      // Use high saturation and value for neon glow
+      int hue = (idx * 137) % 360;
       QColor color = QColor::fromHsv(hue, 230, 255);
       QPen pen(color);
-      pen.setWidthF(2.0f); // Thicker line for glowing appearance
+      pen.setWidthF(2.0f);
       m_customPlot->graph(idx)->setPen(pen);
       m_customPlot->graph(idx)->setName(QString("CH%1").arg(idx + 1));
 
-      // Create channel eye icon toggle row
       QWidget *chWidget = new QWidget();
-      QHBoxLayout *chLayout = new QHBoxLayout(chWidget);
-      chLayout->setContentsMargins(0, 0, 0, 0);
+      chWidget->setObjectName("channelRow");
+      chWidget->setMinimumHeight(38);
+      chWidget->setStyleSheet(
+          "QWidget#channelRow { background: #F7F9FB; border: 1px solid #E3E8EE; "
+          "border-radius: 8px; }");
 
-      QLabel *colorLabel = new QLabel("■");
+      QHBoxLayout *chLayout = new QHBoxLayout(chWidget);
+      chLayout->setContentsMargins(8, 2, 8, 2);
+      chLayout->setSpacing(8);
+
+      QLabel *colorLabel = new QLabel("●");
       colorLabel->setStyleSheet(
-          QString("color: %1; font-size: 16px;").arg(color.name()));
+          QString("color: %1; font-size: 18px; font-weight: bold;").arg(color.name()));
 
       QLabel *nameLabel = new QLabel(m_customPlot->graph(idx)->name());
+      nameLabel->setStyleSheet("QLabel { font-weight: 600; color: #374151; }");
 
       QToolButton *eyeBtn = new QToolButton();
       eyeBtn->setCheckable(true);
       eyeBtn->setChecked(true);
       eyeBtn->setFont(CIconFont::instance()->getIconFont(16));
-      eyeBtn->setText(QChar(0xE846)); // visible icon
+      eyeBtn->setText(QChar(0xE846));
+      eyeBtn->setToolTip("显示/隐藏通道");
       eyeBtn->setStyleSheet(
-          "QToolButton:checked { font-weight: normal; color: #4CAF50; border: "
-          "none; background: transparent; } "
-          "QToolButton:!checked { font-weight: normal; color: gray; "
-          "border: none; background: transparent; }");
+          "QToolButton { border: 1px solid #D1D5DB; border-radius: 6px; "
+          "padding: 2px 6px; background: transparent; } "
+          "QToolButton:checked { color: #1B5E20; border-color: #81C784; "
+          "background: #E8F5E9; } "
+          "QToolButton:!checked { color: #9CA3AF; border-color: #E5E7EB; }");
 
       connect(eyeBtn, &QToolButton::toggled, [this, idx, eyeBtn](bool checked) {
         eyeBtn->setText(checked ? QChar(0xE846) : QChar(0xE847));
@@ -2346,20 +2956,21 @@ void SerialSession::updateWaveform(const QByteArray &data) {
         m_channelsLayout->addWidget(chWidget);
       }
       m_channelWidgets[idx] = chWidget;
+
+      if (m_lblChannelHint) {
+        m_lblChannelHint->hide();
+      }
     }
 
-    // Accumulate data to graphs
-    for (int i = 0; i < parts.size(); ++i) {
-      bool ok;
-      double val = parts[i].toDouble(&ok);
-      if (ok) {
-        if (i >= channelDataBatch.size()) {
-          channelDataBatch.resize(i + 1);
-          channelKeysBatch.resize(i + 1);
-        }
-        channelDataBatch[i].append(val);
-        channelKeysBatch[i].append(m_xValue * m_xAxisScale);
+    // Accumulate data to graphs. A frame is accepted only when every channel
+    // value is valid, so all channels remain aligned to the same sample key.
+    for (int i = 0; i < frameValues.size(); ++i) {
+      if (i >= channelDataBatch.size()) {
+        channelDataBatch.resize(i + 1);
+        channelKeysBatch.resize(i + 1);
       }
+      channelDataBatch[i].append(frameValues[i]);
+      channelKeysBatch[i].append(m_xValue * m_xAxisScale);
     }
 
     m_xValue++;
@@ -2554,8 +3165,12 @@ bool SerialSession::eventFilter(QObject *watched, QEvent *event) {
     QWidget *rxFloat = m_textReceive->findChild<QWidget *>("rxFloat");
     if (rxFloat) {
       rxFloat->adjustSize();
-      rxFloat->move(qMax(4, size.width() - rxFloat->width() - 10),
+      rxFloat->move(qMax(4, size.width() - rxFloat->width() - 35),
                     qMax(4, size.height() - rxFloat->height() - 10));
+    }
+    // 更新行号区域宽度
+    if (m_showLineNumbers && m_lineNumberWidget) {
+      m_lineNumberWidget->updateWidth();
     }
   } else if (watched == m_textSend && (event->type() == QEvent::Resize ||
                                        event->type() == QEvent::Show)) {
@@ -2568,7 +3183,7 @@ bool SerialSession::eventFilter(QObject *watched, QEvent *event) {
     QWidget *txFloatLeft = m_textSend->findChild<QWidget *>("txFloatLeft");
     if (txFloatRight) {
       txFloatRight->adjustSize();
-      txFloatRight->move(qMax(4, size.width() - txFloatRight->width() - 10),
+      txFloatRight->move(qMax(4, size.width() - txFloatRight->width() - 35),
                          qMax(4, size.height() - txFloatRight->height() - 10));
     }
     if (txFloatLeft) {
@@ -2579,6 +3194,18 @@ bool SerialSession::eventFilter(QObject *watched, QEvent *event) {
   }
 
   return QWidget::eventFilter(watched, event);
+}
+
+void SerialSession::updateLineNumberDisplay() {
+  if (!m_lineNumberWidget || !m_textReceive)
+    return;
+
+  m_lineNumberWidget->setVisible(m_showLineNumbers);
+  m_btnRxLineNumber->setChecked(m_showLineNumbers);
+  if (m_showLineNumbers) {
+    m_lineNumberWidget->updateWidth();
+  }
+  m_lineNumberWidget->update();
 }
 
 void SerialSession::sendData() {
@@ -2653,6 +3280,8 @@ void SerialSession::sendData() {
 void SerialSession::clearReceiveArea() {
   m_textReceive->clear();
   m_rxBuffer.clear();
+  m_rxDecoderBuffer.clear();
+  m_rxLineBuffer.clear();
   m_rxCount = 0;
   m_lblRxCount->setText("0");
   for (int i = 0; i < m_customPlot->graphCount(); ++i) {
