@@ -34,6 +34,9 @@ public:
 
   void setDraggable(bool enable) { m_draggable = enable; }
   void startDragging(const QPoint &globalPos);
+  void setLabel(const QString &label);
+  void setCanId(quint32 canId);
+  void setDeviceKind(DeviceKind kind);
 
   // 图标风格选择（全局静态，所有 widget 共享）
   static int iconStyle() { return s_iconStyle; }
@@ -42,6 +45,7 @@ public:
 signals:
   void deviceDragged(int deviceId, const QPoint &newPos);
   void dragStartedFromDock(int deviceId, const QPoint &globalPos);
+  void editRequested(int deviceId);
 
 public slots:
   void setStatus(bool value);
@@ -53,6 +57,7 @@ protected:
   void mousePressEvent(QMouseEvent *e) override;
   void mouseMoveEvent(QMouseEvent *e) override;
   void mouseReleaseEvent(QMouseEvent *e) override;
+  void contextMenuEvent(QContextMenuEvent *event) override;
   QSize sizeHint() const override { return QSize(135, 160); }
   QSize minimumSizeHint() const override { return QSize(128, 155); }
 
@@ -77,6 +82,7 @@ private:
   void drawMobileSprayGunSimple(QPainter &p, const QRect &area);
   QColor accentColor() const;
   QColor glowColor() const;
+  void updateAnimationState();
 
   int m_deviceId;
   DeviceKind m_kind;

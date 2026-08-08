@@ -16,6 +16,7 @@
 #include <QScrollBar>
 #include <QTextBlock>
 #include <QTextCursor>
+#include <QTimer>
 #include <QVBoxLayout>
 
 #include "caninterface.h"
@@ -112,6 +113,11 @@ CanProtocolMonitor::CanProtocolMonitor(QWidget *parent)
   mainLayout->addWidget(m_log);
 
   // ---- 信号连接 ----
+  m_batchTimer = new QTimer(this);
+  m_batchTimer->setInterval(33);
+  connect(m_batchTimer, &QTimer::timeout, this, &CanProtocolMonitor::processBatch);
+  m_batchTimer->start();
+
   connect(m_can, &CanInterface::frameReceived, this,
           &CanProtocolMonitor::onFrameReceived);
   connect(m_can, &CanInterface::connected, this,
@@ -231,40 +237,52 @@ void CanProtocolMonitor::rebuildGrid() {
 
 void CanProtocolMonitor::onFrameReceived(const CanFrame &frame) {
   if (m_mappings.isEmpty()) return;
+  if (m_pendingFrames.size() < 5000) {
+    m_pendingFrames.append(frame);
+  }
+}
 
-  for (const auto &mapping : m_mappings) {
-    if (frame.id != mapping.canId) continue;
-    if (mapping.byteIndex >= frame.data.size()) continue;
+void CanProtocolMonitor::processBatch() {
+  if (m_pendingFrames.isEmpty()) return;
 
-    const quint8 byteVal =
-        static_cast<quint8>(frame.data[mapping.byteIndex]);
-    const bool bitVal = (byteVal >> mapping.bitIndex) & 0x01;
+  QVector<CanFrame> batch = std::move(m_pendingFrames);
+  m_pendingFrames.clear();
 
-    auto *widget = m_deviceWidgets.value(mapping.deviceId, nullptr);
-    if (!widget) continue;
+  for (const auto &frame : batch) {
+    for (const auto &mapping : m_mappings) {
+      if (frame.id != mapping.canId) continue;
+      if (mapping.byteIndex >= frame.data.size()) continue;
 
-    const bool prev = widget->status();
-    widget->setStatus(bitVal);
+      const quint8 byteVal =
+          static_cast<quint8>(frame.data[mapping.byteIndex]);
+      const bool bitVal = (byteVal >> mapping.bitIndex) & 0x01;
 
-    // 状态变化时记录日志
-    if (bitVal != prev) {
-      QString direction =
-          bitVal ? QStringLiteral("→ 报警") : QStringLiteral("→ 恢复正常");
-      if (mapping.deviceType == QStringLiteral("valve")) {
-        direction =
-            bitVal ? QStringLiteral("→ 开启") : QStringLiteral("→ 关闭");
+      auto *widget = m_deviceWidgets.value(mapping.deviceId, nullptr);
+      if (!widget) continue;
+
+      const bool prev = widget->status();
+      widget->setStatus(bitVal);
+
+      // 状态变化时记录日志
+      if (bitVal != prev) {
+        QString direction =
+            bitVal ? QStringLiteral("→ 报警") : QStringLiteral("→ 恢复正常");
+        if (mapping.deviceType == QStringLiteral("valve")) {
+          direction =
+              bitVal ? QStringLiteral("→ 开启") : QStringLiteral("→ 关闭");
+        }
+        const QString time =
+            QDateTime::currentDateTime().toString("HH:mm:ss.zzz");
+        appendLog(
+            QStringLiteral("[%1] CAN ID=0x%2 字节%3.位%4 %5 %6")
+                .arg(time)
+                .arg(frame.id, 0, 16)
+                .arg(mapping.byteIndex)
+                .arg(mapping.bitIndex)
+                .arg(mapping.label)
+                .arg(direction),
+            bitVal);
       }
-      const QString time =
-          QDateTime::currentDateTime().toString("HH:mm:ss.zzz");
-      appendLog(
-          QStringLiteral("[%1] CAN ID=0x%2 字节%3.位%4 %5 %6")
-              .arg(time)
-              .arg(frame.id, 0, 16)
-              .arg(mapping.byteIndex)
-              .arg(mapping.bitIndex)
-              .arg(mapping.label)
-              .arg(direction),
-          bitVal);
     }
   }
 }
@@ -430,6 +448,7 @@ void CanProtocolMonitor::loadConfig() {
 // ========== 日志 ==========
 
 void CanProtocolMonitor::appendLog(const QString &text, bool isAlarm) {
+  m_log->setUpdatesEnabled(false);
   if (isAlarm) {
     m_log->appendHtml(
         QStringLiteral(
@@ -439,15 +458,17 @@ void CanProtocolMonitor::appendLog(const QString &text, bool isAlarm) {
     m_log->appendPlainText(text);
   }
 
-  // 限制日志行数
+  // 限制日志行数（单次高效率裁剪）
   QTextDocument *doc = m_log->document();
-  while (doc->blockCount() > 500) {
-    QTextCursor cursor(doc->firstBlock());
-    cursor.select(QTextCursor::BlockUnderCursor);
+  int extraBlocks = doc->blockCount() - 500;
+  if (extraBlocks > 0) {
+    QTextCursor cursor(doc);
+    cursor.movePosition(QTextCursor::Start);
+    cursor.movePosition(QTextCursor::NextBlock, QTextCursor::KeepAnchor, extraBlocks);
     cursor.removeSelectedText();
-    cursor.deleteChar();
   }
 
   // 自动滚动到底部
   m_log->verticalScrollBar()->setValue(m_log->verticalScrollBar()->maximum());
+  m_log->setUpdatesEnabled(true);
 }

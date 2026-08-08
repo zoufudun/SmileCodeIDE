@@ -1,5 +1,6 @@
 #include "devicestatuswidget.h"
 
+#include <QContextMenuEvent>
 #include <QFontMetrics>
 #include <QMouseEvent>
 #include <QPainter>
@@ -48,7 +49,29 @@ DeviceStatusWidget::DeviceStatusWidget(int deviceId, DeviceKind kind,
     if (m_animProgress > 1.0) m_animProgress -= 1.0;
     update();
   });
-  m_animTimer->start();
+}
+
+void DeviceStatusWidget::updateAnimationState() {
+  bool needAnim = m_status || m_hovered;
+  if (needAnim) {
+    if (!m_animTimer->isActive()) m_animTimer->start();
+  } else {
+    if (m_animTimer->isActive()) m_animTimer->stop();
+  }
+}
+
+void DeviceStatusWidget::enterEvent(QEvent *event) {
+  m_hovered = true;
+  updateAnimationState();
+  update();
+  QWidget::enterEvent(event);
+}
+
+void DeviceStatusWidget::leaveEvent(QEvent *event) {
+  m_hovered = false;
+  updateAnimationState();
+  update();
+  QWidget::leaveEvent(event);
 }
 
 QColor DeviceStatusWidget::accentColor() const {
@@ -67,7 +90,34 @@ void DeviceStatusWidget::setStatus(bool value) {
   m_status = value;
   if (value) { m_alarmPhase = true; m_flashTimer->start(); }
   else { m_flashTimer->stop(); m_alarmPhase = false; }
+  updateAnimationState();
   update();
+}
+
+void DeviceStatusWidget::setLabel(const QString &label) {
+  if (m_label != label) {
+    m_label = label;
+    update();
+  }
+}
+
+void DeviceStatusWidget::setCanId(quint32 canId) {
+  if (m_canId != canId) {
+    m_canId = canId;
+    update();
+  }
+}
+
+void DeviceStatusWidget::setDeviceKind(DeviceKind kind) {
+  if (m_kind != kind) {
+    m_kind = kind;
+    update();
+  }
+}
+
+void DeviceStatusWidget::contextMenuEvent(QContextMenuEvent *event) {
+  Q_UNUSED(event);
+  emit editRequested(m_deviceId);
 }
 
 // ===== 主绘制 =====
@@ -727,9 +777,6 @@ void DeviceStatusWidget::drawMobileSprayGun(QPainter &p, const QRect &area) {
     }
   }
 }
-
-void DeviceStatusWidget::enterEvent(QEvent *) { m_hovered = true; update(); }
-void DeviceStatusWidget::leaveEvent(QEvent *) { m_hovered = false; update(); }
 
 // ===== 简约风格备选图标 (风格1) =====
 

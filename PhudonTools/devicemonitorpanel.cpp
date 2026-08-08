@@ -2,14 +2,18 @@
 
 #include <QComboBox>
 #include <QDateTime>
+#include <QDialog>
+#include <QDialogButtonBox>
 #include <QFile>
 #include <QFileDialog>
+#include <QFormLayout>
 #include <QGridLayout>
 #include <QHBoxLayout>
 #include <QInputDialog>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QKeyEvent>
 #include <QLabel>
 #include <QMessageBox>
 #include <QPainter>
@@ -18,11 +22,14 @@
 #include <QPushButton>
 #include <QScrollArea>
 #include <QScrollBar>
+#include <QSet>
 #include <QSettings>
-#include <QWheelEvent>
+#include <QSpinBox>
 #include <QSplitter>
 #include <QTextBlock>
 #include <QTextCursor>
+#include <QTimer>
+#include <QWheelEvent>
 #include <QDragEnterEvent>
 #include <QDragMoveEvent>
 #include <QDropEvent>
@@ -137,6 +144,11 @@ DeviceMonitorPanel::DeviceMonitorPanel(CanInterface *can, QWidget *parent)
     : QWidget(parent), m_can(can) {
   setupUi();
 
+  m_batchTimer = new QTimer(this);
+  m_batchTimer->setInterval(33);
+  connect(m_batchTimer, &QTimer::timeout, this, &DeviceMonitorPanel::processBatch);
+  m_batchTimer->start();
+
   // 连接 CAN 帧接收信号
   connect(m_can, &CanInterface::frameReceived, this,
           &DeviceMonitorPanel::onFrameReceived);
@@ -169,12 +181,12 @@ void DeviceMonitorPanel::setupUi() {
 
 
   // ---- 工具栏 ----
-  auto *toolbar = new QWidget();
-  toolbar->setFixedHeight(42);
-  toolbar->setStyleSheet(
+  m_toolbar = new QWidget();
+  m_toolbar->setFixedHeight(42);
+  m_toolbar->setStyleSheet(
       "QWidget { background-color: #111827; border-bottom: 1px solid #1E293E; }");
 
-  auto *tbLayout = new QHBoxLayout(toolbar);
+  auto *tbLayout = new QHBoxLayout(m_toolbar);
   tbLayout->setContentsMargins(10, 5, 10, 5);
   tbLayout->setSpacing(8);
 
@@ -289,6 +301,14 @@ void DeviceMonitorPanel::setupUi() {
       "QPushButton:checked{color:#00D4FF;border-color:#00D4FF;}");
   tbLayout->addWidget(btnInfoLog);
 
+  // 全屏按钮
+  m_btnFullScreen = new QPushButton(QStringLiteral("📺 全屏"));
+  m_btnFullScreen->setStyleSheet(techBtn +
+      "QPushButton{color:#F59E0B;background:#27201A;border:1px solid #3E2E1E;}"
+      "QPushButton:hover{background:#3E2E1E;border-color:#F59E0B;}");
+  tbLayout->addWidget(m_btnFullScreen);
+  connect(m_btnFullScreen, &QPushButton::clicked, this, &DeviceMonitorPanel::toggleFullScreen);
+
   tbLayout->addStretch();
 
   m_lblCount = new QLabel(QStringLiteral("CAN 2.0B Protocol Monitor"));
@@ -297,7 +317,7 @@ void DeviceMonitorPanel::setupUi() {
       "font-family: 'Consolas', monospace; padding-right: 4px;");
   tbLayout->addWidget(m_lblCount);
 
-  mainLayout->addWidget(toolbar);
+  mainLayout->addWidget(m_toolbar);
 
   // ---- 未摆放设备停靠区 (仅布局模式可见) ----
   m_unplacedDock = new QWidget();
@@ -430,18 +450,22 @@ void DeviceMonitorPanel::setupUi() {
   mainLayout->addWidget(splitter, 1);
 
   // ---- 底部状态栏 ----
-  auto *bottomBar = new BottomStatusBar(this);
-  mainLayout->addWidget(bottomBar);
+  m_bottomBar = new BottomStatusBar(this);
+  mainLayout->addWidget(m_bottomBar);
 
   // 系统时钟定时器
   auto *clockTimer = new QTimer(this);
-  connect(clockTimer, &QTimer::timeout, this, [bottomBar]() {
-    bottomBar->lblClock->setText(
-        QDateTime::currentDateTime().toString("yyyy-MM-dd  HH:mm:ss"));
+  connect(clockTimer, &QTimer::timeout, this, [this]() {
+    if (m_bottomBar && m_bottomBar->lblClock) {
+      m_bottomBar->lblClock->setText(
+          QDateTime::currentDateTime().toString("yyyy-MM-dd  HH:mm:ss"));
+    }
   });
   clockTimer->start(1000);
-  bottomBar->lblClock->setText(
-      QDateTime::currentDateTime().toString("yyyy-MM-dd  HH:mm:ss"));
+  if (m_bottomBar && m_bottomBar->lblClock) {
+    m_bottomBar->lblClock->setText(
+        QDateTime::currentDateTime().toString("yyyy-MM-dd  HH:mm:ss"));
+  }
 
   // ---- 信号连接 ----
   connect(m_btnConfig, &QPushButton::clicked, this,
@@ -485,66 +509,78 @@ void DeviceMonitorPanel::setupUi() {
 void DeviceMonitorPanel::onFrameReceived(const CanFrame &frame) {
   if (m_mappings.isEmpty()) return;
   m_frameCount++;
+  if (m_pendingFrames.size() < 5000) {
+    m_pendingFrames.append(frame);
+  }
+}
 
-  for (const auto &mapping : m_mappings) {
-    if (frame.id != mapping.canId) continue;
-    if (mapping.byteIndex >= frame.data.size()) continue;
+void DeviceMonitorPanel::processBatch() {
+  if (m_pendingFrames.isEmpty()) return;
 
-    const quint8 byteVal =
-        static_cast<quint8>(frame.data[mapping.byteIndex]);
-    const bool bitVal = (byteVal >> mapping.bitIndex) & 0x01;
+  QVector<CanFrame> batch = std::move(m_pendingFrames);
+  m_pendingFrames.clear();
 
-    auto *widget = m_deviceWidgets.value(mapping.deviceId, nullptr);
-    if (!widget) continue;
+  for (const auto &frame : batch) {
+    for (const auto &mapping : m_mappings) {
+      if (frame.id != mapping.canId) continue;
+      if (mapping.byteIndex >= frame.data.size()) continue;
 
-    const bool prev = widget->status();
-    widget->setStatus(bitVal);
+      const quint8 byteVal =
+          static_cast<quint8>(frame.data[mapping.byteIndex]);
+      const bool bitVal = (byteVal >> mapping.bitIndex) & 0x01;
 
-    if (bitVal != prev) {
-      // 设备类型中文名
-      QString typeName;
-      if (mapping.deviceType == QStringLiteral("detector")) typeName = QStringLiteral("烟温探测器");
-      else if (mapping.deviceType == QStringLiteral("valve")) typeName = QStringLiteral("控制分配阀");
-      else if (mapping.deviceType == QStringLiteral("valve_distributor")) typeName = QStringLiteral("分配阀");
-      else if (mapping.deviceType == QStringLiteral("valve_zone")) typeName = QStringLiteral("区域阀");
-      else if (mapping.deviceType == QStringLiteral("valve_main_isolation")) typeName = QStringLiteral("总管隔离阀");
-      else if (mapping.deviceType == QStringLiteral("manual_alarm")) typeName = QStringLiteral("手动报警按钮");
-      else if (mapping.deviceType == QStringLiteral("gas_cylinder")) typeName = QStringLiteral("1301气体钢瓶");
-      else if (mapping.deviceType == QStringLiteral("water_pump")) typeName = QStringLiteral("水泵");
-      else if (mapping.deviceType == QStringLiteral("pressure_switch")) typeName = QStringLiteral("压力开关");
-      else if (mapping.deviceType == QStringLiteral("mobile_spray_gun")) typeName = QStringLiteral("移动喷枪");
-      else typeName = mapping.deviceType;
+      auto *widget = m_deviceWidgets.value(mapping.deviceId, nullptr);
+      if (!widget) continue;
 
-      // 状态文字
-      QString stText;
-      if (mapping.deviceType == QStringLiteral("valve") ||
-          mapping.deviceType == QStringLiteral("valve_distributor") ||
-          mapping.deviceType == QStringLiteral("valve_zone") ||
-          mapping.deviceType == QStringLiteral("valve_main_isolation"))
-        stText = bitVal ? QStringLiteral("开启") : QStringLiteral("关闭");
-      else if (mapping.deviceType == QStringLiteral("water_pump"))
-        stText = bitVal ? QStringLiteral("运转") : QStringLiteral("停止");
-      else if (mapping.deviceType == QStringLiteral("pressure_switch"))
-        stText = bitVal ? QStringLiteral("开启") : QStringLiteral("关闭");
-      else if (mapping.deviceType == QStringLiteral("mobile_spray_gun"))
-        stText = bitVal ? QStringLiteral("喷射") : QStringLiteral("停止");
-      else
-        stText = bitVal ? QStringLiteral("报警") : QStringLiteral("正常");
+      const bool prev = widget->status();
+      widget->setStatus(bitVal);
 
-      appendLog(QStringLiteral("%1 [%2]  状态变为：%3")
-                    .arg(mapping.label, typeName, stText),
-                bitVal);
+      if (bitVal != prev) {
+        // 设备类型中文名
+        QString typeName;
+        if (mapping.deviceType == QStringLiteral("detector")) typeName = QStringLiteral("烟温探测器");
+        else if (mapping.deviceType == QStringLiteral("valve")) typeName = QStringLiteral("控制分配阀");
+        else if (mapping.deviceType == QStringLiteral("valve_distributor")) typeName = QStringLiteral("分配阀");
+        else if (mapping.deviceType == QStringLiteral("valve_zone")) typeName = QStringLiteral("区域阀");
+        else if (mapping.deviceType == QStringLiteral("valve_main_isolation")) typeName = QStringLiteral("总管隔离阀");
+        else if (mapping.deviceType == QStringLiteral("manual_alarm")) typeName = QStringLiteral("手动报警按钮");
+        else if (mapping.deviceType == QStringLiteral("gas_cylinder")) typeName = QStringLiteral("1301气体钢瓶");
+        else if (mapping.deviceType == QStringLiteral("water_pump")) typeName = QStringLiteral("水泵");
+        else if (mapping.deviceType == QStringLiteral("pressure_switch")) typeName = QStringLiteral("压力开关");
+        else if (mapping.deviceType == QStringLiteral("mobile_spray_gun")) typeName = QStringLiteral("移动喷枪");
+        else typeName = mapping.deviceType;
 
-      // 向所有连接的 WebSocket 客户端广播状态更新
-      QJsonObject updateObj;
-      updateObj[QStringLiteral("type")] = QStringLiteral("update");
-      updateObj[QStringLiteral("deviceId")] = mapping.deviceId;
-      updateObj[QStringLiteral("status")] = bitVal;
-      updateObj[QStringLiteral("prevStatus")] = prev;
-      updateObj[QStringLiteral("label")] = mapping.label;
-      updateObj[QStringLiteral("deviceType")] = mapping.deviceType;
-      updateObj[QStringLiteral("timestamp")] = QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss");
-      broadcastMessage(updateObj);
+        // 状态文字
+        QString stText;
+        if (mapping.deviceType == QStringLiteral("valve") ||
+            mapping.deviceType == QStringLiteral("valve_distributor") ||
+            mapping.deviceType == QStringLiteral("valve_zone") ||
+            mapping.deviceType == QStringLiteral("valve_main_isolation"))
+          stText = bitVal ? QStringLiteral("开启") : QStringLiteral("关闭");
+        else if (mapping.deviceType == QStringLiteral("water_pump"))
+          stText = bitVal ? QStringLiteral("运转") : QStringLiteral("停止");
+        else if (mapping.deviceType == QStringLiteral("pressure_switch"))
+          stText = bitVal ? QStringLiteral("开启") : QStringLiteral("关闭");
+        else if (mapping.deviceType == QStringLiteral("mobile_spray_gun"))
+          stText = bitVal ? QStringLiteral("喷射") : QStringLiteral("停止");
+        else
+          stText = bitVal ? QStringLiteral("报警") : QStringLiteral("正常");
+
+        appendLog(QStringLiteral("%1 [%2]  状态变为：%3")
+                      .arg(mapping.label, typeName, stText),
+                  bitVal);
+
+        // 向所有连接的 WebSocket 客户端广播状态更新
+        QJsonObject updateObj;
+        updateObj[QStringLiteral("type")] = QStringLiteral("update");
+        updateObj[QStringLiteral("deviceId")] = mapping.deviceId;
+        updateObj[QStringLiteral("status")] = bitVal;
+        updateObj[QStringLiteral("prevStatus")] = prev;
+        updateObj[QStringLiteral("label")] = mapping.label;
+        updateObj[QStringLiteral("deviceType")] = mapping.deviceType;
+        updateObj[QStringLiteral("timestamp")] = QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss");
+        broadcastMessage(updateObj);
+      }
     }
   }
 }
@@ -564,43 +600,58 @@ void DeviceMonitorPanel::rebuildGrid() {
       delete item;
     }
   } else {
-    // 如果配置数量发生变化，则重新创建控件
-    if (m_deviceWidgets.size() != m_mappings.size()) {
-      qDeleteAll(m_deviceWidgets);
-      m_deviceWidgets.clear();
-      while (m_gridLayout->count() > 0) {
-        QLayoutItem *item = m_gridLayout->takeAt(0);
-        delete item;
+    // 清理已在 m_mappings 中被删除的控件
+    QSet<int> currentMappingIds;
+    for (const auto &m : m_mappings) {
+      currentMappingIds.insert(m.deviceId);
+    }
+    for (auto it = m_deviceWidgets.begin(); it != m_deviceWidgets.end(); ) {
+      if (!currentMappingIds.contains(it.key())) {
+        delete it.value();
+        it = m_deviceWidgets.erase(it);
+      } else {
+        ++it;
       }
-      for (int i = 0; i < m_mappings.size(); ++i) {
-        const auto &m = m_mappings[i];
-        DeviceStatusWidget::DeviceKind kind = DeviceStatusWidget::Detector;
-        if (m.deviceType == QStringLiteral("valve")) {
-          kind = DeviceStatusWidget::Valve;
-        } else if (m.deviceType == QStringLiteral("valve_distributor")) {
-          kind = DeviceStatusWidget::ValveDistributor;
-        } else if (m.deviceType == QStringLiteral("valve_zone")) {
-          kind = DeviceStatusWidget::ValveZone;
-        } else if (m.deviceType == QStringLiteral("valve_main_isolation")) {
-          kind = DeviceStatusWidget::ValveMainIsolation;
-        } else if (m.deviceType == QStringLiteral("manual_alarm")) {
-          kind = DeviceStatusWidget::ManualAlarm;
-        } else if (m.deviceType == QStringLiteral("gas_cylinder")) {
-          kind = DeviceStatusWidget::GasCylinder;
-        } else if (m.deviceType == QStringLiteral("water_pump")) {
-          kind = DeviceStatusWidget::WaterPump;
-        } else if (m.deviceType == QStringLiteral("pressure_switch")) {
-          kind = DeviceStatusWidget::PressureSwitch;
-        } else if (m.deviceType == QStringLiteral("mobile_spray_gun")) {
-          kind = DeviceStatusWidget::MobileSprayGun;
-        }
-        auto *w = new DeviceStatusWidget(m.deviceId, kind, m.label, m.canId);
+    }
+
+    // 针对每个映射，同步更新或创建 DeviceStatusWidget 实例
+    for (int i = 0; i < m_mappings.size(); ++i) {
+      const auto &m = m_mappings[i];
+      DeviceStatusWidget::DeviceKind kind = DeviceStatusWidget::Detector;
+      if (m.deviceType == QStringLiteral("valve")) {
+        kind = DeviceStatusWidget::Valve;
+      } else if (m.deviceType == QStringLiteral("valve_distributor")) {
+        kind = DeviceStatusWidget::ValveDistributor;
+      } else if (m.deviceType == QStringLiteral("valve_zone")) {
+        kind = DeviceStatusWidget::ValveZone;
+      } else if (m.deviceType == QStringLiteral("valve_main_isolation")) {
+        kind = DeviceStatusWidget::ValveMainIsolation;
+      } else if (m.deviceType == QStringLiteral("manual_alarm")) {
+        kind = DeviceStatusWidget::ManualAlarm;
+      } else if (m.deviceType == QStringLiteral("gas_cylinder")) {
+        kind = DeviceStatusWidget::GasCylinder;
+      } else if (m.deviceType == QStringLiteral("water_pump")) {
+        kind = DeviceStatusWidget::WaterPump;
+      } else if (m.deviceType == QStringLiteral("pressure_switch")) {
+        kind = DeviceStatusWidget::PressureSwitch;
+      } else if (m.deviceType == QStringLiteral("mobile_spray_gun")) {
+        kind = DeviceStatusWidget::MobileSprayGun;
+      }
+
+      DeviceStatusWidget *w = m_deviceWidgets.value(m.deviceId, nullptr);
+      if (w) {
+        w->setLabel(m.label);
+        w->setCanId(m.canId);
+        w->setDeviceKind(kind);
+      } else {
+        w = new DeviceStatusWidget(m.deviceId, kind, m.label, m.canId);
         w->setStatus(m.defaultVal);
+        connect(w, &DeviceStatusWidget::editRequested, this, &DeviceMonitorPanel::onEditDeviceRequested);
         m_deviceWidgets[m.deviceId] = w;
       }
     }
 
-    // 重新排列已有控件坐标（避免重新创建导致的状态丢失）
+    // 重新排列控件坐标
     while (m_gridLayout->count() > 0) {
       m_gridLayout->takeAt(0);
     }
@@ -834,6 +885,7 @@ void DeviceMonitorPanel::loadConfig() {
 void DeviceMonitorPanel::appendLog(const QString &text, bool isAlarm) {
   const QString ts =
       QDateTime::currentDateTime().toString("HH:mm:ss.zzz");
+  m_log->setUpdatesEnabled(false);
   if (isAlarm) {
     m_log->appendHtml(
         QStringLiteral("<span style='color:#EF4444;'>[%1] %2</span>")
@@ -842,16 +894,18 @@ void DeviceMonitorPanel::appendLog(const QString &text, bool isAlarm) {
     m_log->appendPlainText(
         QStringLiteral("[%1] %2").arg(ts, text));
   }
-  // 裁剪旧日志
+  // 高效批量裁剪旧日志
   auto *doc = m_log->document();
-  while (doc->blockCount() > 300) {
-    QTextCursor c(doc->firstBlock());
-    c.select(QTextCursor::BlockUnderCursor);
+  int extraBlocks = doc->blockCount() - 300;
+  if (extraBlocks > 0) {
+    QTextCursor c(doc);
+    c.movePosition(QTextCursor::Start);
+    c.movePosition(QTextCursor::NextBlock, QTextCursor::KeepAnchor, extraBlocks);
     c.removeSelectedText();
-    c.deleteChar();
   }
   m_log->verticalScrollBar()->setValue(
       m_log->verticalScrollBar()->maximum());
+  m_log->setUpdatesEnabled(true);
 }
 
 
@@ -982,6 +1036,13 @@ void DeviceMonitorPanel::wheelEvent(QWheelEvent *e) {
 }
 
 bool DeviceMonitorPanel::eventFilter(QObject *watched, QEvent *event) {
+  if (event->type() == QEvent::KeyPress) {
+    auto *keyEvent = static_cast<QKeyEvent *>(event);
+    if (keyEvent->key() == Qt::Key_Escape && m_isFullScreen) {
+      toggleFullScreen();
+      return true;
+    }
+  }
   if (watched == m_gridContainer) {
     if (event->type() == QEvent::DragEnter) {
       QDragEnterEvent *dee = static_cast<QDragEnterEvent *>(event);
@@ -1416,6 +1477,127 @@ void DeviceMonitorPanel::placeDeviceOnCanvas(int deviceId) {
   updateZoom();
 
   appendLog(QStringLiteral("✓ 设备 %1 已摆放到画布").arg(w->label()), false);
+}
+
+// ========== 设备编辑与全屏控制 ==========
+
+void DeviceMonitorPanel::onEditDeviceRequested(int deviceId) {
+  int targetIdx = -1;
+  for (int i = 0; i < m_mappings.size(); ++i) {
+    if (m_mappings[i].deviceId == deviceId) {
+      targetIdx = i;
+      break;
+    }
+  }
+  if (targetIdx < 0) return;
+
+  DeviceBitMapping &m = m_mappings[targetIdx];
+
+  QDialog dlg(this);
+  dlg.setWindowTitle(QStringLiteral("编辑设备信息 (ID: #%1)").arg(deviceId));
+  dlg.setMinimumWidth(380);
+  dlg.setStyleSheet(
+      "QDialog { background: #111827; color: #E2E8F0; font-family: 'Microsoft YaHei'; }"
+      "QLabel { color: #94A3B8; font-size: 12px; }"
+      "QLineEdit, QComboBox, QSpinBox { background: #1E293B; color: #E2E8F0; border: 1px solid #334155; padding: 5px; border-radius: 4px; font-size: 12px; }"
+      "QLineEdit:focus, QComboBox:focus, QSpinBox:focus { border-color: #00D4FF; }"
+      "QPushButton { background: #1E3A5F; color: #00D4FF; border: 1px solid #00D4FF; padding: 6px 16px; border-radius: 4px; font-weight: bold; }"
+      "QPushButton:hover { background: #00D4FF; color: #111827; }");
+
+  auto *layout = new QFormLayout(&dlg);
+  layout->setContentsMargins(20, 20, 20, 20);
+  layout->setSpacing(12);
+
+  auto *labelEdit = new QLineEdit(m.label, &dlg);
+  layout->addRow(QStringLiteral("设备名称/标签:"), labelEdit);
+
+  auto *typeCombo = new QComboBox(&dlg);
+  typeCombo->addItem(QStringLiteral("烟温探测器"), QStringLiteral("detector"));
+  typeCombo->addItem(QStringLiteral("分配阀(蝶阀)"), QStringLiteral("valve_distributor"));
+  typeCombo->addItem(QStringLiteral("区域阀(闸阀)"), QStringLiteral("valve_zone"));
+  typeCombo->addItem(QStringLiteral("总管隔离阀(截止阀)"), QStringLiteral("valve_main_isolation"));
+  typeCombo->addItem(QStringLiteral("控制分配阀"), QStringLiteral("valve"));
+  typeCombo->addItem(QStringLiteral("手动报警按钮"), QStringLiteral("manual_alarm"));
+  typeCombo->addItem(QStringLiteral("1301气体钢瓶"), QStringLiteral("gas_cylinder"));
+  typeCombo->addItem(QStringLiteral("水泵"), QStringLiteral("water_pump"));
+  typeCombo->addItem(QStringLiteral("压力开关"), QStringLiteral("pressure_switch"));
+  typeCombo->addItem(QStringLiteral("移动喷枪"), QStringLiteral("mobile_spray_gun"));
+  int tIdx = typeCombo->findData(m.deviceType);
+  if (tIdx >= 0) typeCombo->setCurrentIndex(tIdx);
+  layout->addRow(QStringLiteral("设备类型:"), typeCombo);
+
+  auto *canIdEdit = new QLineEdit(QString("0x%1").arg(m.canId, 0, 16).toUpper(), &dlg);
+  layout->addRow(QStringLiteral("CAN 帧 ID (hex):"), canIdEdit);
+
+  auto *byteSpin = new QSpinBox(&dlg);
+  byteSpin->setRange(0, 7);
+  byteSpin->setValue(m.byteIndex);
+  layout->addRow(QStringLiteral("字节索引 (0-7):"), byteSpin);
+
+  auto *bitSpin = new QSpinBox(&dlg);
+  bitSpin->setRange(0, 7);
+  bitSpin->setValue(m.bitIndex);
+  layout->addRow(QStringLiteral("位索引 (0-7):"), bitSpin);
+
+  auto *defaultCombo = new QComboBox(&dlg);
+  defaultCombo->addItem(QStringLiteral("0 (正常/关闭)"), 0);
+  defaultCombo->addItem(QStringLiteral("1 (报警/开启)"), 1);
+  defaultCombo->setCurrentIndex(m.defaultVal == 1 ? 1 : 0);
+  layout->addRow(QStringLiteral("默认状态:"), defaultCombo);
+
+  auto *btnBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+  connect(btnBox, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
+  connect(btnBox, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
+  layout->addRow(btnBox);
+
+  if (dlg.exec() == QDialog::Accepted) {
+    m.label = labelEdit->text().trimmed();
+    m.deviceType = typeCombo->currentData().toString();
+    bool ok = false;
+    quint32 cid = canIdEdit->text().trimmed().toUInt(&ok, 0);
+    if (ok) m.canId = cid;
+    m.byteIndex = byteSpin->value();
+    m.bitIndex = bitSpin->value();
+    m.defaultVal = defaultCombo->currentData().toInt();
+
+    rebuildGrid();
+    saveConfig();
+
+    for (auto *client : m_clients) {
+      sendConfigToClient(client);
+    }
+
+    appendLog(QStringLiteral("✓ 设备 #%1 [%2] 信息已修改").arg(m.deviceId).arg(m.label));
+  }
+}
+
+void DeviceMonitorPanel::toggleFullScreen() {
+  QWidget *topWin = window();
+  if (!topWin) topWin = topLevelWidget();
+
+  m_isFullScreen = !m_isFullScreen;
+  if (m_isFullScreen) {
+    if (m_toolbar) m_toolbar->setVisible(false);
+    if (m_bottomBar) m_bottomBar->setVisible(false);
+    if (topWin) topWin->showFullScreen();
+    if (m_btnFullScreen) m_btnFullScreen->setText(QStringLiteral("🔙 退出全屏"));
+    appendLog(QStringLiteral("🖥 已进入全屏显示模式 (按 ESC 退出)"), false);
+  } else {
+    if (m_toolbar) m_toolbar->setVisible(true);
+    if (m_bottomBar) m_bottomBar->setVisible(true);
+    if (topWin) topWin->showNormal();
+    if (m_btnFullScreen) m_btnFullScreen->setText(QStringLiteral("📺 全屏"));
+    appendLog(QStringLiteral("🖥 已退出全屏显示模式"), false);
+  }
+}
+
+void DeviceMonitorPanel::keyPressEvent(QKeyEvent *event) {
+  if (event->key() == Qt::Key_Escape && m_isFullScreen) {
+    toggleFullScreen();
+    event->accept();
+    return;
+  }
+  QWidget::keyPressEvent(event);
 }
 
 

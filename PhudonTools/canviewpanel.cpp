@@ -10,10 +10,16 @@
 #include <QFileDialog>
 #include <QFile>
 #include <QTextStream>
+#include <QTimer>
 
 CanViewPanel::CanViewPanel(CanInterface *can, int viewId, QWidget *parent)
     : QWidget(parent), m_can(can), m_viewId(viewId) {
   setupUi();
+
+  m_batchTimer = new QTimer(this);
+  m_batchTimer->setInterval(33);
+  connect(m_batchTimer, &QTimer::timeout, this, &CanViewPanel::flushBatch);
+  m_batchTimer->start();
 
   if (m_can) {
     connect(m_can, &CanInterface::frameReceived, this, &CanViewPanel::onFrameReceived);
@@ -279,6 +285,7 @@ void CanViewPanel::onSendClicked() {
 }
 
 void CanViewPanel::onClearClicked() {
+  m_pendingFrames.clear();
   m_receiveTreeWidget->clear();
   m_rxCount = 0;
   m_txCount = 0;
@@ -287,50 +294,74 @@ void CanViewPanel::onClearClicked() {
 }
 
 void CanViewPanel::appendFrameRow(const CanFrame &frame, bool tx) {
-  QString type;
-  if (frame.fd) {
-    type = frame.extended ? "FD扩展" : "FD标准";
-    if (frame.brs)
-      type += "+BRS";
-  } else if (frame.remote) {
-    type = frame.extended ? "扩展远程" : "标准远程";
-  } else {
-    type = frame.extended ? "扩展数据" : "标准数据";
+  if (m_pendingFrames.size() < 10000) {
+    m_pendingFrames.append({frame, tx});
+  }
+}
+
+void CanViewPanel::flushBatch() {
+  if (m_pendingFrames.isEmpty()) return;
+
+  QVector<PendingFrame> batch = std::move(m_pendingFrames);
+  m_pendingFrames.clear();
+
+  m_lblRxCount->setText(QString("接收帧数: %1").arg(m_rxCount));
+  m_lblTxCount->setText(QString("发送帧数: %1").arg(m_txCount));
+
+  QList<QTreeWidgetItem*> items;
+  items.reserve(batch.size());
+
+  int currentTotal = m_receiveTreeWidget->topLevelItemCount();
+
+  for (const auto &pf : batch) {
+    const CanFrame &frame = pf.frame;
+    const bool tx = pf.tx;
+
+    QString type;
+    if (frame.fd) {
+      type = frame.extended ? "FD扩展" : "FD标准";
+      if (frame.brs)
+        type += "+BRS";
+    } else if (frame.remote) {
+      type = frame.extended ? "扩展远程" : "标准远程";
+    } else {
+      type = frame.extended ? "扩展数据" : "标准数据";
+    }
+
+    const QString time = QDateTime::fromMSecsSinceEpoch(frame.timestamp).toString("HH:mm:ss.zzz");
+    const int idWidth = frame.extended ? 8 : 3;
+    const QString idText = QString("%1").arg(frame.id, idWidth, 16, QChar('0')).toUpper();
+
+    currentTotal++;
+
+    QStringList cols;
+    cols << QString::number(currentTotal)
+         << time
+         << QString("通道 %1").arg(frame.channel)
+         << idText
+         << type
+         << (tx ? "发送" : "接收")
+         << QString::number(frame.data.size())
+         << QString::fromLatin1(frame.data.toHex(' ').toUpper());
+
+    QTreeWidgetItem *item = new QTreeWidgetItem(cols);
+    item->setForeground(5, tx ? QBrush(QColor("#2980b9")) : QBrush(QColor("#16a085")));
+    items.append(item);
   }
 
-  const QString time = QDateTime::fromMSecsSinceEpoch(frame.timestamp).toString("HH:mm:ss.zzz");
-  const int idWidth = frame.extended ? 8 : 3;
-  const QString idText = QString("%1").arg(frame.id, idWidth, 16, QChar('0')).toUpper();
+  m_receiveTreeWidget->setUpdatesEnabled(false);
+  m_receiveTreeWidget->addTopLevelItems(items);
 
-  int totalCount = m_receiveTreeWidget->topLevelItemCount() + 1;
+  int totalCount = m_receiveTreeWidget->topLevelItemCount();
+  if (totalCount > 2000) {
+    int removeCount = totalCount - 2000;
+    for (int i = 0; i < removeCount; ++i) {
+      delete m_receiveTreeWidget->takeTopLevelItem(0);
+    }
+  }
 
-  QStringList cols;
-  cols << QString::number(totalCount)
-       << time
-       << QString("通道 %1").arg(frame.channel)
-       << idText
-       << type
-       << (tx ? "发送" : "接收")
-       << QString::number(frame.data.size())
-       << QString::fromLatin1(frame.data.toHex(' ').toUpper());
-
-  QTreeWidgetItem *item = new QTreeWidgetItem(cols);
-  item->setForeground(5, tx ? QBrush(QColor("#2980b9")) : QBrush(QColor("#16a085")));
-  m_receiveTreeWidget->addTopLevelItem(item);
   m_receiveTreeWidget->scrollToBottom();
-
-  if (tx) {
-    m_txCount++;
-    m_lblTxCount->setText(QString("发送帧数: %1").arg(m_txCount));
-  } else {
-    m_rxCount++;
-    m_lblRxCount->setText(QString("接收帧数: %1").arg(m_rxCount));
-  }
-
-  // Cap tree size
-  while (m_receiveTreeWidget->topLevelItemCount() > 2000) {
-    delete m_receiveTreeWidget->takeTopLevelItem(0);
-  }
+  m_receiveTreeWidget->setUpdatesEnabled(true);
 }
 
 void CanViewPanel::onFrameReceived(const CanFrame &frame) {
@@ -338,6 +369,7 @@ void CanViewPanel::onFrameReceived(const CanFrame &frame) {
   int selectedChan = m_channelCombo->currentIndex();
   if (selectedChan < 0) return;
   if (frame.channel == selectedChan) {
+    m_rxCount++;
     appendFrameRow(frame, false);
   }
 }
@@ -347,6 +379,7 @@ void CanViewPanel::onFrameSent(const CanFrame &frame) {
   int selectedChan = m_channelCombo->currentIndex();
   if (selectedChan < 0) return;
   if (frame.channel == selectedChan) {
+    m_txCount++;
     appendFrameRow(frame, true);
   }
 }

@@ -75,6 +75,16 @@ private:
 
   int m_rxCount = 0;
   int m_txCount = 0;
+
+  struct PendingFrame {
+    CanFrame frame;
+    bool tx;
+  };
+  QVector<PendingFrame> m_pendingFrames;
+  QTimer *m_batchTimer = nullptr;
+
+private slots:
+  void flushBatch();
 };
 
 #endif // CANVIEWPANEL_H

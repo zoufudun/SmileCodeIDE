@@ -24,6 +24,7 @@ class QScrollArea;
 class CanInterface;
 class DeviceStatusWidget;
 class RoomWidget;
+class BottomStatusBar;
 
 // ===== 房间区域数据结构 =====
 enum RoomShape { ShapeRectangle = 0, ShapeCircle, ShapeDiamond, ShapeIrregular };
@@ -65,11 +66,15 @@ private slots:
   void onDeviceDragged(int deviceId, const QPoint &newPos);
   void onRoomMoved(const QString &id, const QRect &newGeom);
   void onRoomResized(const QString &id, const QRect &newGeom);
+  void processBatch();
+  void onEditDeviceRequested(int deviceId);
+  void toggleFullScreen();
 
 protected:
   void resizeEvent(QResizeEvent *event) override;
   void wheelEvent(QWheelEvent *event) override;
   bool eventFilter(QObject *watched, QEvent *event) override;
+  void keyPressEvent(QKeyEvent *event) override;
 
 private:
   void rebuildGrid();
@@ -97,12 +102,16 @@ private:
   QList<DeviceBitMapping> m_mappings;
 
   // UI
+  QWidget *m_toolbar = nullptr;
+  BottomStatusBar *m_bottomBar = nullptr;
   QPushButton *m_btnConfig;
   QPushButton *m_btnImport;
   QPushButton *m_btnExport;
   QPushButton *m_btnReset;
   QPushButton *m_btnToggleRoom;
   QPushButton *m_btnAddRoom;
+  QPushButton *m_btnFullScreen = nullptr;
+  bool m_isFullScreen = false;
   QComboBox *m_templateCombo;
   QScrollArea *m_scrollArea;
   QWidget *m_gridContainer;
@@ -117,6 +126,9 @@ private:
   QHash<int, DeviceStatusWidget *> m_deviceWidgets;
   int m_gridCols = 5;
   int m_frameCount = 0;
+
+  QVector<CanFrame> m_pendingFrames;
+  QTimer *m_batchTimer = nullptr;
 
   // Room 模式
   bool m_roomMode = false;

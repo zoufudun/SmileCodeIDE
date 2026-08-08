@@ -22,8 +22,8 @@ QT_BEGIN_MOC_NAMESPACE
 QT_WARNING_PUSH
 QT_WARNING_DISABLE_DEPRECATED
 struct qt_meta_stringdata_CanProtocolMonitor_t {
-    QByteArrayData data[13];
-    char stringdata0[169];
+    QByteArrayData data[14];
+    char stringdata0[182];
 };
 #define QT_MOC_LITERAL(idx, ofs, len) \
     Q_STATIC_BYTE_ARRAY_DATA_HEADER_INITIALIZER_WITH_OFFSET(len, \
@@ -44,14 +44,16 @@ QT_MOC_LITERAL(8, 88, 17), // "onCanDisconnected"
 QT_MOC_LITERAL(9, 106, 15), // "onConfigClicked"
 QT_MOC_LITERAL(10, 122, 15), // "onImportClicked"
 QT_MOC_LITERAL(11, 138, 15), // "onExportClicked"
-QT_MOC_LITERAL(12, 154, 14) // "onClearClicked"
+QT_MOC_LITERAL(12, 154, 14), // "onClearClicked"
+QT_MOC_LITERAL(13, 169, 12) // "processBatch"
 
     },
     "CanProtocolMonitor\0closed\0\0onDeviceManage\0"
     "onFrameReceived\0CanFrame\0frame\0"
     "onCanConnected\0onCanDisconnected\0"
     "onConfigClicked\0onImportClicked\0"
-    "onExportClicked\0onClearClicked"
+    "onExportClicked\0onClearClicked\0"
+    "processBatch"
 };
 #undef QT_MOC_LITERAL
 
@@ -61,7 +63,7 @@ static const uint qt_meta_data_CanProtocolMonitor[] = {
        8,       // revision
        0,       // classname
        0,    0, // classinfo
-       9,   14, // methods
+      10,   14, // methods
        0,    0, // properties
        0,    0, // enums/sets
        0,    0, // constructors
@@ -69,17 +71,18 @@ static const uint qt_meta_data_CanProtocolMonitor[] = {
        1,       // signalCount
 
  // signals: name, argc, parameters, tag, flags
-       1,    0,   59,    2, 0x06 /* Public */,
+       1,    0,   64,    2, 0x06 /* Public */,
 
  // slots: name, argc, parameters, tag, flags
-       3,    0,   60,    2, 0x08 /* Private */,
-       4,    1,   61,    2, 0x08 /* Private */,
-       7,    0,   64,    2, 0x08 /* Private */,
-       8,    0,   65,    2, 0x08 /* Private */,
-       9,    0,   66,    2, 0x08 /* Private */,
-      10,    0,   67,    2, 0x08 /* Private */,
-      11,    0,   68,    2, 0x08 /* Private */,
-      12,    0,   69,    2, 0x08 /* Private */,
+       3,    0,   65,    2, 0x08 /* Private */,
+       4,    1,   66,    2, 0x08 /* Private */,
+       7,    0,   69,    2, 0x08 /* Private */,
+       8,    0,   70,    2, 0x08 /* Private */,
+       9,    0,   71,    2, 0x08 /* Private */,
+      10,    0,   72,    2, 0x08 /* Private */,
+      11,    0,   73,    2, 0x08 /* Private */,
+      12,    0,   74,    2, 0x08 /* Private */,
+      13,    0,   75,    2, 0x08 /* Private */,
 
  // signals: parameters
     QMetaType::Void,
@@ -87,6 +90,7 @@ static const uint qt_meta_data_CanProtocolMonitor[] = {
  // slots: parameters
     QMetaType::Void,
     QMetaType::Void, 0x80000000 | 5,    6,
+    QMetaType::Void,
     QMetaType::Void,
     QMetaType::Void,
     QMetaType::Void,
@@ -112,6 +116,7 @@ void CanProtocolMonitor::qt_static_metacall(QObject *_o, QMetaObject::Call _c, i
         case 6: _t->onImportClicked(); break;
         case 7: _t->onExportClicked(); break;
         case 8: _t->onClearClicked(); break;
+        case 9: _t->processBatch(); break;
         default: ;
         }
     } else if (_c == QMetaObject::IndexOfMethod) {
@@ -155,13 +160,13 @@ int CanProtocolMonitor::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 9)
+        if (_id < 10)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 9;
+        _id -= 10;
     } else if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
-        if (_id < 9)
+        if (_id < 10)
             *reinterpret_cast<int*>(_a[0]) = -1;
-        _id -= 9;
+        _id -= 10;
     }
     return _id;
 }

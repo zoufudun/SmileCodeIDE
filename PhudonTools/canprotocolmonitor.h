@@ -40,6 +40,7 @@ private slots:
   void onImportClicked();
   void onExportClicked();
   void onClearClicked();
+  void processBatch();
 
 private:
   void rebuildGrid();
@@ -67,6 +68,9 @@ private:
   QHash<int, DeviceStatusWidget *> m_deviceWidgets;
 
   int m_gridCols = 5;
+
+  QVector<CanFrame> m_pendingFrames;
+  QTimer *m_batchTimer = nullptr;
 };
 
 #endif // CANPROTOCOLMONITOR_H
