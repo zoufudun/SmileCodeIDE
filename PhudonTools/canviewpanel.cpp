@@ -285,7 +285,7 @@ void CanViewPanel::onSendClicked() {
 }
 
 void CanViewPanel::onClearClicked() {
-  m_pendingFrames.clear();
+  m_ringBuffer.clear();
   m_receiveTreeWidget->clear();
   m_rxCount = 0;
   m_txCount = 0;
@@ -294,16 +294,14 @@ void CanViewPanel::onClearClicked() {
 }
 
 void CanViewPanel::appendFrameRow(const CanFrame &frame, bool tx) {
-  if (m_pendingFrames.size() < 10000) {
-    m_pendingFrames.append({frame, tx});
-  }
+  m_ringBuffer.push({frame, tx});
 }
 
 void CanViewPanel::flushBatch() {
-  if (m_pendingFrames.isEmpty()) return;
+  if (m_ringBuffer.isEmpty()) return;
 
-  QVector<PendingFrame> batch = std::move(m_pendingFrames);
-  m_pendingFrames.clear();
+  std::vector<PendingFrame> batch;
+  m_ringBuffer.pop_batch(batch, 4096);
 
   m_lblRxCount->setText(QString("接收帧数: %1").arg(m_rxCount));
   m_lblTxCount->setText(QString("发送帧数: %1").arg(m_txCount));

@@ -10,6 +10,7 @@
 #include <QComboBox>
 #include <QLabel>
 #include "caninterface.h"
+#include "ringbuffer.h"
 
 class CanViewPanel : public QWidget {
   Q_OBJECT
@@ -80,7 +81,7 @@ private:
     CanFrame frame;
     bool tx;
   };
-  QVector<PendingFrame> m_pendingFrames;
+  LockFreeRingBuffer<PendingFrame, 16384> m_ringBuffer;
   QTimer *m_batchTimer = nullptr;
 
 private slots:

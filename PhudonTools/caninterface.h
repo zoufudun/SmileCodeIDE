@@ -53,7 +53,13 @@ struct CanChannelConfig {
   bool enableFilter = false;
 };
 
-// 基于周立功(ZLG) zlgcan 动态库的 CAN/CAN FD 收发后端。
+// 创芯科技 ControlCAN 系列设备类型常量
+#define CX_USBCAN1           103 // 创芯 USBCAN-1C
+#define CX_USBCAN2           104 // 创芯 USBCAN-2C
+#define CX_USBCAN_E_U        120 // 创芯 USBCAN-E-U
+#define CX_USBCAN_2E_U       121 // 创芯 USBCAN-2E-U
+
+// CAN/CAN FD 多驱动通用收发后端（支持周立功 ZLG 与 创芯科技 USBCAN 系列）。
 class CanInterface : public QObject {
   Q_OBJECT
 public:
@@ -108,6 +114,9 @@ public:
 
   // 判断设备类型是否支持 CAN FD（41+ 的 USBCANFD 系列及虚拟设备）
   static bool isDeviceFdCapable(quint32 deviceType);
+
+  // 判断是否为创芯科技 ControlCAN 系列设备 (USBCAN-2C 等)
+  static bool isControlCanDevice(quint32 deviceType);
 
   // 诊断：获取驱动版本和设备状态（需在 open 前调用）
   bool diagnoseDriver(QString *driverVer, QString *deviceName, bool *online) const;

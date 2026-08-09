@@ -1,6 +1,7 @@
 #ifndef DEVICESTATUSWIDGET_H
 #define DEVICESTATUSWIDGET_H
 
+#include <QPixmap>
 #include <QString>
 #include <QTimer>
 #include <QWidget>
@@ -31,16 +32,19 @@ public:
   QString label() const { return m_label; }
   bool status() const { return m_status; }
   quint32 canId() const { return m_canId; }
+  int defaultVal() const { return m_defaultVal; }
 
   void setDraggable(bool enable) { m_draggable = enable; }
   void startDragging(const QPoint &globalPos);
   void setLabel(const QString &label);
   void setCanId(quint32 canId);
   void setDeviceKind(DeviceKind kind);
+  void setDefaultVal(int val);
 
   // 图标风格选择（全局静态，所有 widget 共享）
   static int iconStyle() { return s_iconStyle; }
-  static void setIconStyle(int style) { s_iconStyle = style; }
+  static void setIconStyle(int style);
+  void invalidateCache();
 
 signals:
   void deviceDragged(int deviceId, const QPoint &newPos);
@@ -58,10 +62,13 @@ protected:
   void mouseMoveEvent(QMouseEvent *e) override;
   void mouseReleaseEvent(QMouseEvent *e) override;
   void contextMenuEvent(QContextMenuEvent *event) override;
+  void resizeEvent(QResizeEvent *event) override;
+
   QSize sizeHint() const override { return QSize(135, 160); }
   QSize minimumSizeHint() const override { return QSize(128, 155); }
 
 private:
+  void renderCache();
   void drawDetector(QPainter &p, const QRect &area);
   void drawValve(QPainter &p, const QRect &area);
   void drawValveDistributor(QPainter &p, const QRect &area);
@@ -82,19 +89,21 @@ private:
   void drawMobileSprayGunSimple(QPainter &p, const QRect &area);
   QColor accentColor() const;
   QColor glowColor() const;
-  void updateAnimationState();
 
   int m_deviceId;
   DeviceKind m_kind;
   QString m_label;
   quint32 m_canId;
+  int m_defaultVal = 0;
   bool m_status = false;
   static int s_iconStyle;
   bool m_alarmPhase = false;
   bool m_hovered = false;
-  qreal m_animProgress = 0.0;
   QTimer *m_flashTimer;
-  QTimer *m_animTimer;
+
+  // 离屏渲染缓存
+  QPixmap m_cachedCard;
+  bool m_cacheDirty = true;
 
   // 拖拽
   bool m_draggable = false;

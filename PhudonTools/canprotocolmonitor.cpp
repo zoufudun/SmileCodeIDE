@@ -237,16 +237,14 @@ void CanProtocolMonitor::rebuildGrid() {
 
 void CanProtocolMonitor::onFrameReceived(const CanFrame &frame) {
   if (m_mappings.isEmpty()) return;
-  if (m_pendingFrames.size() < 5000) {
-    m_pendingFrames.append(frame);
-  }
+  m_ringBuffer.push(frame);
 }
 
 void CanProtocolMonitor::processBatch() {
-  if (m_pendingFrames.isEmpty()) return;
+  if (m_ringBuffer.isEmpty()) return;
 
-  QVector<CanFrame> batch = std::move(m_pendingFrames);
-  m_pendingFrames.clear();
+  std::vector<CanFrame> batch;
+  m_ringBuffer.pop_batch(batch, 4096);
 
   for (const auto &frame : batch) {
     for (const auto &mapping : m_mappings) {

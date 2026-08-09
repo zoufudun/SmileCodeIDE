@@ -7,6 +7,7 @@
 
 #include "canprotocolconfigdialog.h"
 #include "caninterface.h"
+#include "ringbuffer.h"
 
 class QGridLayout;
 class QLabel;
@@ -69,7 +70,7 @@ private:
 
   int m_gridCols = 5;
 
-  QVector<CanFrame> m_pendingFrames;
+  LockFreeRingBuffer<CanFrame, 16384> m_ringBuffer;
   QTimer *m_batchTimer = nullptr;
 };
 

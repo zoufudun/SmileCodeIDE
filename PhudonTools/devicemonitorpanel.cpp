@@ -33,6 +33,8 @@
 #include <QDragEnterEvent>
 #include <QDragMoveEvent>
 #include <QDropEvent>
+#include <QGraphicsDropShadowEffect>
+#include <QMouseEvent>
 #include <QMimeData>
 #include <QVBoxLayout>
 
@@ -292,14 +294,14 @@ void DeviceMonitorPanel::setupUi() {
   tbLayout->addWidget(btnSaveLayout);
 
   // 信息日志按钮
-  auto *btnInfoLog = new QPushButton(QStringLiteral("📟 信息日志"));
-  btnInfoLog->setCheckable(true);
-  btnInfoLog->setChecked(true);
-  btnInfoLog->setStyleSheet(techBtn +
+  m_btnInfoLog = new QPushButton(QStringLiteral("📟 信息日志"));
+  m_btnInfoLog->setCheckable(true);
+  m_btnInfoLog->setChecked(true);
+  m_btnInfoLog->setStyleSheet(techBtn +
       "QPushButton{color:#7C879A;background:#1A2235;border:1px solid #1E293E;}"
       "QPushButton:hover{color:#00D4FF;border-color:#00D4FF;}"
       "QPushButton:checked{color:#00D4FF;border-color:#00D4FF;}");
-  tbLayout->addWidget(btnInfoLog);
+  tbLayout->addWidget(m_btnInfoLog);
 
   // 全屏按钮
   m_btnFullScreen = new QPushButton(QStringLiteral("📺 全屏"));
@@ -360,12 +362,7 @@ void DeviceMonitorPanel::setupUi() {
   dockVLayout->addWidget(dockScroll);
   mainLayout->addWidget(m_unplacedDock);
 
-  // ---- 页面主体 (采用分割器以支持日志高度拖动调节) ----
-  QSplitter *splitter = new QSplitter(Qt::Vertical, this);
-  splitter->setChildrenCollapsible(false);
-  splitter->setStyleSheet("QSplitter::handle { background-color: #1E293E; height: 3px; }");
-
-  // ---- 设备网格区域 (可滚动) ----
+  // ---- 设备网格区域 (可滚动，独占全屏区域) ----
   m_scrollArea = new QScrollArea();
   m_scrollArea->setWidgetResizable(true); // 默认网格模式：自动扩展填充视口
   m_scrollArea->setFrameShape(QFrame::NoFrame);
@@ -388,70 +385,84 @@ void DeviceMonitorPanel::setupUi() {
   m_gridLayout->setAlignment(Qt::AlignTop | Qt::AlignHCenter);
 
   m_scrollArea->setWidget(m_gridContainer);
-  splitter->addWidget(m_scrollArea);
+  mainLayout->addWidget(m_scrollArea, 1);
 
-  // ---- 事件日志（带右上角清除/关闭按钮） ----
-  auto *logWrapper = new QWidget();
-  auto *logWLayout = new QVBoxLayout(logWrapper);
-  logWLayout->setContentsMargins(0, 0, 0, 0);
+  // ---- 底部状态栏 ----
+  m_bottomBar = new BottomStatusBar(this);
+  mainLayout->addWidget(m_bottomBar);
+
+  // ---- 悬浮事件日志框 (可拖拽、可关闭、科技感 HUD 风格) ----
+  m_logWrapper = new QWidget(this);
+  m_logWrapper->setObjectName("FloatingLog");
+  m_logWrapper->setFixedSize(360, 220);
+  m_logWrapper->setStyleSheet(
+      "QWidget#FloatingLog { background: rgba(13, 18, 30, 0.93); "
+      "border: 1px solid #00D4FF; border-radius: 6px; }");
+
+  // 阴影效果
+  auto *shadow = new QGraphicsDropShadowEffect(m_logWrapper);
+  shadow->setBlurRadius(20);
+  shadow->setColor(QColor(0, 212, 255, 60));
+  shadow->setOffset(0, 4);
+  m_logWrapper->setGraphicsEffect(shadow);
+
+  auto *logWLayout = new QVBoxLayout(m_logWrapper);
+  logWLayout->setContentsMargins(1, 1, 1, 1);
   logWLayout->setSpacing(0);
 
-  // 日志标题栏
-  auto *logTitleBar = new QWidget();
-  logTitleBar->setFixedHeight(26);
-  logTitleBar->setStyleSheet("background:#0F1620;border-bottom:1px solid #1E293E;");
-  auto *ltLayout = new QHBoxLayout(logTitleBar);
+  // 可拖拽日志标题栏
+  m_logTitleBar = new QWidget(m_logWrapper);
+  m_logTitleBar->setFixedHeight(28);
+  m_logTitleBar->setCursor(Qt::SizeAllCursor);
+  m_logTitleBar->setStyleSheet(
+      "background: #111B2E; border-bottom: 1px solid #1E293E; "
+      "border-top-left-radius: 5px; border-top-right-radius: 5px;");
+  m_logTitleBar->installEventFilter(this);
+
+  auto *ltLayout = new QHBoxLayout(m_logTitleBar);
   ltLayout->setContentsMargins(10, 0, 4, 0);
-  auto *logTitleLbl = new QLabel(QStringLiteral("📋 事件日志"));
-  logTitleLbl->setStyleSheet("color:#7C879A;font-size:10px;font-weight:bold;font-family:'Microsoft YaHei';");
+  auto *logTitleLbl = new QLabel(QStringLiteral("📋 事件日志 (按住标题栏拖拽)"));
+  logTitleLbl->setStyleSheet("color: #00D4FF; font-size: 10px; font-weight: bold; font-family: 'Microsoft YaHei';");
   ltLayout->addWidget(logTitleLbl);
   ltLayout->addStretch();
+
   auto *btnClearLog = new QPushButton(QStringLiteral("🗑"));
   btnClearLog->setFixedSize(22, 22);
   btnClearLog->setToolTip(QStringLiteral("清除日志"));
   btnClearLog->setStyleSheet("QPushButton{color:#64748B;background:transparent;border:none;font-size:12px;}QPushButton:hover{color:#F87171;}");
   ltLayout->addWidget(btnClearLog);
+
   auto *btnCloseLog = new QPushButton(QStringLiteral("✕"));
   btnCloseLog->setFixedSize(22, 22);
-  btnCloseLog->setToolTip(QStringLiteral("关闭日志"));
+  btnCloseLog->setToolTip(QStringLiteral("关闭日志框"));
   btnCloseLog->setStyleSheet("QPushButton{color:#64748B;background:transparent;border:none;font-size:11px;}QPushButton:hover{color:#EF4444;}");
   ltLayout->addWidget(btnCloseLog);
-  logWLayout->addWidget(logTitleBar);
 
-  m_log = new QPlainTextEdit();
+  logWLayout->addWidget(m_logTitleBar);
+
+  m_log = new QPlainTextEdit(m_logWrapper);
   m_log->setReadOnly(true);
   m_log->setFrameShape(QFrame::NoFrame);
   m_log->setStyleSheet(
-      "QPlainTextEdit { background-color: #0A0E14; color: #7C879A; "
+      "QPlainTextEdit { background: transparent; color: #94A3B8; "
       "font-size: 11px; font-family: 'Microsoft YaHei', 'Consolas', monospace; "
       "padding: 6px; border: none; }");
   m_log->setPlaceholderText(QStringLiteral("事件日志 — 设备状态变更记录"));
   logWLayout->addWidget(m_log);
-  splitter->addWidget(logWrapper);
 
-  // 日志面板清除/关闭按钮
+  // 清除/关闭/显示连接
   connect(btnClearLog, &QPushButton::clicked, this, [this]() {
     m_log->clear();
   });
-  connect(btnCloseLog, &QPushButton::clicked, this, [this, logWrapper]() {
-    logWrapper->setVisible(false);
+  connect(btnCloseLog, &QPushButton::clicked, this, [this]() {
+    if (m_btnInfoLog) m_btnInfoLog->setChecked(false);
   });
-  // 工具栏信息日志按钮 — 重新打开日志面板
-  connect(btnInfoLog, &QPushButton::toggled, this, [logWrapper](bool checked) {
-    logWrapper->setVisible(checked);
+  connect(m_btnInfoLog, &QPushButton::toggled, this, [this](bool checked) {
+    if (m_logWrapper) {
+      m_logWrapper->setVisible(checked);
+      if (checked) m_logWrapper->raise();
+    }
   });
-  // logWrapper 隐藏时同步按钮状态
-  // (close 按钮点击后通过 btnCloseLog 连接处理)
-
-  // 设置分割器初始拉伸比例
-  splitter->setStretchFactor(0, 5); // 监控区域占5份
-  splitter->setStretchFactor(1, 1); // 日志区域占1份
-
-  mainLayout->addWidget(splitter, 1);
-
-  // ---- 底部状态栏 ----
-  m_bottomBar = new BottomStatusBar(this);
-  mainLayout->addWidget(m_bottomBar);
 
   // 系统时钟定时器
   auto *clockTimer = new QTimer(this);
@@ -509,20 +520,28 @@ void DeviceMonitorPanel::setupUi() {
 void DeviceMonitorPanel::onFrameReceived(const CanFrame &frame) {
   if (m_mappings.isEmpty()) return;
   m_frameCount++;
-  if (m_pendingFrames.size() < 5000) {
-    m_pendingFrames.append(frame);
+  m_ringBuffer.push(frame);
+}
+
+void DeviceMonitorPanel::buildMappingHash() {
+  m_canIdToMappingIndices.clear();
+  for (int i = 0; i < m_mappings.size(); ++i) {
+    m_canIdToMappingIndices[m_mappings[i].canId].append(i);
   }
 }
 
 void DeviceMonitorPanel::processBatch() {
-  if (m_pendingFrames.isEmpty()) return;
+  if (m_ringBuffer.isEmpty()) return;
 
-  QVector<CanFrame> batch = std::move(m_pendingFrames);
-  m_pendingFrames.clear();
+  std::vector<CanFrame> batch;
+  m_ringBuffer.pop_batch(batch, 4096);
 
   for (const auto &frame : batch) {
-    for (const auto &mapping : m_mappings) {
-      if (frame.id != mapping.canId) continue;
+    const auto &indices = m_canIdToMappingIndices.value(frame.id);
+    if (indices.isEmpty()) continue;
+
+    for (int idx : indices) {
+      auto &mapping = m_mappings[idx];
       if (mapping.byteIndex >= frame.data.size()) continue;
 
       const quint8 byteVal =
@@ -643,13 +662,16 @@ void DeviceMonitorPanel::rebuildGrid() {
         w->setLabel(m.label);
         w->setCanId(m.canId);
         w->setDeviceKind(kind);
+        w->setDefaultVal(m.defaultVal);
       } else {
         w = new DeviceStatusWidget(m.deviceId, kind, m.label, m.canId);
-        w->setStatus(m.defaultVal);
+        w->setDefaultVal(m.defaultVal);
         connect(w, &DeviceStatusWidget::editRequested, this, &DeviceMonitorPanel::onEditDeviceRequested);
         m_deviceWidgets[m.deviceId] = w;
       }
     }
+
+    buildMappingHash();
 
     // 重新排列控件坐标
     while (m_gridLayout->count() > 0) {
@@ -675,6 +697,21 @@ void DeviceMonitorPanel::rebuildGrid() {
 
 void DeviceMonitorPanel::resizeEvent(QResizeEvent *event) {
   QWidget::resizeEvent(event);
+
+  if (m_logWrapper && m_logWrapper->isVisible()) {
+    int bHeight = m_bottomBar ? m_bottomBar->height() : 30;
+    int tHeight = m_toolbar ? m_toolbar->height() : 42;
+    int maxX = qMax(0, width() - m_logWrapper->width() - 20);
+    int maxY = qMax(tHeight, height() - m_logWrapper->height() - bHeight - 15);
+    QPoint curPos = m_logWrapper->pos();
+    if (curPos.x() == 0 && curPos.y() == 0) {
+      m_logWrapper->move(maxX, maxY);
+    } else {
+      m_logWrapper->move(qBound(0, curPos.x(), maxX), qBound(tHeight, curPos.y(), maxY));
+    }
+    m_logWrapper->raise();
+  }
+
   if (!m_scrollArea || m_mappings.isEmpty()) return;
 
   if (m_roomMode) {
@@ -830,7 +867,10 @@ void DeviceMonitorPanel::onExportClicked() {
 void DeviceMonitorPanel::onResetClicked() {
   for (const auto &m : m_mappings) {
     auto *w = m_deviceWidgets.value(m.deviceId, nullptr);
-    if (w) w->setStatus(m.defaultVal);
+    if (w) {
+      w->setDefaultVal(m.defaultVal);
+      w->setStatus(m.defaultVal == 1);
+    }
   }
   m_log->clear();
   m_frameCount = 0;
@@ -1041,6 +1081,57 @@ bool DeviceMonitorPanel::eventFilter(QObject *watched, QEvent *event) {
     if (keyEvent->key() == Qt::Key_Escape && m_isFullScreen) {
       toggleFullScreen();
       return true;
+    }
+  }
+  if (watched == m_logTitleBar && m_logWrapper) {
+    if (event->type() == QEvent::MouseButtonPress) {
+      QMouseEvent *me = static_cast<QMouseEvent *>(event);
+      if (me->button() == Qt::LeftButton) {
+        m_logDragging = true;
+        m_logDragStartPos = me->globalPos() - m_logWrapper->pos();
+        m_logWrapper->raise();
+        return true;
+      }
+    } else if (event->type() == QEvent::MouseMove) {
+      QMouseEvent *me = static_cast<QMouseEvent *>(event);
+      if (m_logDragging && (me->buttons() & Qt::LeftButton)) {
+        QPoint newPos = me->globalPos() - m_logDragStartPos;
+        int bHeight = m_bottomBar ? m_bottomBar->height() : 30;
+        int tHeight = m_toolbar ? m_toolbar->height() : 42;
+        int maxX = qMax(0, width() - m_logWrapper->width());
+        int maxY = qMax(tHeight, height() - m_logWrapper->height() - bHeight);
+        newPos.setX(qBound(0, newPos.x(), maxX));
+        newPos.setY(qBound(tHeight, newPos.y(), maxY));
+        m_logWrapper->move(newPos);
+        return true;
+      }
+    } else if (event->type() == QEvent::MouseButtonRelease) {
+      if (m_logDragging) {
+        m_logDragging = false;
+        return true;
+      }
+    }
+  }
+  if (watched == m_logWrapper) {
+    if (event->type() == QEvent::Hide || event->type() == QEvent::Show) {
+      bool isVisible = (event->type() == QEvent::Show);
+      if (m_btnInfoLog && m_btnInfoLog->isChecked() != isVisible) {
+        m_btnInfoLog->blockSignals(true);
+        m_btnInfoLog->setChecked(isVisible);
+        m_btnInfoLog->blockSignals(false);
+      }
+      QTimer::singleShot(20, this, [this]() {
+        if (m_roomMode) {
+          updateZoom();
+        } else if (m_scrollArea) {
+          int areaW = m_scrollArea->viewport()->width();
+          int cols = qMax(1, areaW / 150);
+          if (cols != m_gridCols) {
+            m_gridCols = cols;
+            rebuildGrid();
+          }
+        }
+      });
     }
   }
   if (watched == m_gridContainer) {

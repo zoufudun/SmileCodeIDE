@@ -14,6 +14,7 @@
 
 #include "caninterface.h"
 #include "canprotocolconfigdialog.h"
+#include "ringbuffer.h"
 
 class QGridLayout;
 class QLabel;
@@ -79,6 +80,7 @@ protected:
 private:
   void rebuildGrid();
   void rebuildRoomCanvas();
+  void buildMappingHash();
   void appendLog(const QString &text, bool isAlarm = false);
   void loadConfig();
   void saveConfig();
@@ -100,6 +102,7 @@ private:
 
   CanInterface *m_can;
   QList<DeviceBitMapping> m_mappings;
+  QHash<quint32, QList<int>> m_canIdToMappingIndices;
 
   // UI
   QWidget *m_toolbar = nullptr;
@@ -117,7 +120,13 @@ private:
   QWidget *m_gridContainer;
   QGridLayout *m_gridLayout;
   QPlainTextEdit *m_log;
+  QWidget *m_logWrapper = nullptr;
+  QWidget *m_logTitleBar = nullptr;
+  QPushButton *m_btnInfoLog = nullptr;
   QLabel *m_lblCount = nullptr;
+
+  bool m_logDragging = false;
+  QPoint m_logDragStartPos;
 
   // 未摆放设备停靠区
   QWidget *m_unplacedDock = nullptr;
@@ -127,7 +136,7 @@ private:
   int m_gridCols = 5;
   int m_frameCount = 0;
 
-  QVector<CanFrame> m_pendingFrames;
+  LockFreeRingBuffer<CanFrame, 16384> m_ringBuffer;
   QTimer *m_batchTimer = nullptr;
 
   // Room 模式

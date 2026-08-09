@@ -502,11 +502,19 @@ void CanDeviceDialog::setupUi() {
 
   topPanel->addWidget(new QLabel("类型"));
   m_deviceTypeCombo = new QComboBox();
+  m_deviceTypeCombo->addItem("创芯 USBCAN-2C", CX_USBCAN2);
+  m_deviceTypeCombo->addItem("创芯 USBCAN-1C", CX_USBCAN1);
+  m_deviceTypeCombo->addItem("创芯 USBCAN-2E-U", CX_USBCAN_2E_U);
+  m_deviceTypeCombo->addItem("创芯 USBCAN-E-U", CX_USBCAN_E_U);
   m_deviceTypeCombo->addItem("USBCANFD-200U", ZCAN_USBCANFD_200U);
   m_deviceTypeCombo->addItem("USBCANFD-100U", ZCAN_USBCANFD_100U);
   m_deviceTypeCombo->addItem("USBCANFD-MINI", ZCAN_USBCANFD_MINI);
   m_deviceTypeCombo->addItem("USBCANFD-800U", ZCAN_USBCANFD_800U);
   m_deviceTypeCombo->addItem("USBCAN-4E-U", ZCAN_USBCAN_4E_U);
+  m_deviceTypeCombo->addItem("USBCAN-2E-U", ZCAN_USBCAN_2E_U);
+  m_deviceTypeCombo->addItem("USBCAN-2", ZCAN_USBCAN2);
+  m_deviceTypeCombo->addItem("USBCAN-1", ZCAN_USBCAN1);
+  m_deviceTypeCombo->addItem("虚拟 CAN 设备", ZCAN_VIRTUAL_DEVICE);
   m_deviceTypeCombo->setStyleSheet("QComboBox { min-width: 140px; }");
   topPanel->addWidget(m_deviceTypeCombo);
 
