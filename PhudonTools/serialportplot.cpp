@@ -1630,6 +1630,8 @@ void SerialSession::setupChart() {
       true); // Disable AA during heavy interactions
   m_customPlot->setAntialiasedElements(QCP::aePlottables | QCP::aeAxes |
                                        QCP::aeGrid);
+  // Enable OpenGL Hardware Acceleration for Ultra-Fast Trend Curves
+  m_customPlot->setOpenGl(true);
 
   // Initial Range
   m_customPlot->xAxis->setRange(0, 100);

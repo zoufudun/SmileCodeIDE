@@ -35,6 +35,7 @@
 #include "../qcustomplot/qcustomplot.h"
 #include "curvesettings.h"
 #include "scrollinglabel.h"
+#include "ringbuffer.h"
 #include <QDialog>
 #include <QDockWidget>
 #include <QMainWindow>
@@ -297,9 +298,10 @@ public:
   int m_designerTabIndex = -1;
 
 private:
-  // Render Throttling
+  // Render Throttling & Lock-Free RingBuffer
   QTimer *m_replotTimer;
   bool m_needsReplot;
+  LockFreeRingBuffer<char, 65536> m_rxRingBuffer;
 
   // Per-instance waveform receive buffer (must NOT be static)
   QByteArray m_rxBuffer;

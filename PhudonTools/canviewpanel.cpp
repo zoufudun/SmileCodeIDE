@@ -301,17 +301,25 @@ void CanViewPanel::flushBatch() {
   if (m_ringBuffer.isEmpty()) return;
 
   std::vector<PendingFrame> batch;
-  m_ringBuffer.pop_batch(batch, 4096);
+  m_ringBuffer.pop_all(batch);
 
   m_lblRxCount->setText(QString("接收帧数: %1").arg(m_rxCount));
   m_lblTxCount->setText(QString("发送帧数: %1").arg(m_txCount));
 
+  if (batch.empty()) return;
+
+  // 极致性能优化：在高频暴拉场景下，限制单次批量刷新 UI 的节点上限为 150 帧，
+  // 保持表格丝滑渲染，超越的部分通过计数器精确体现。
+  const size_t maxDisplayBatch = 150;
+  const size_t startIndex = (batch.size() > maxDisplayBatch) ? (batch.size() - maxDisplayBatch) : 0;
+
   QList<QTreeWidgetItem*> items;
-  items.reserve(batch.size());
+  items.reserve(batch.size() - startIndex);
 
   int currentTotal = m_receiveTreeWidget->topLevelItemCount();
 
-  for (const auto &pf : batch) {
+  for (size_t b = startIndex; b < batch.size(); ++b) {
+    const auto &pf = batch[b];
     const CanFrame &frame = pf.frame;
     const bool tx = pf.tx;
 
@@ -351,8 +359,8 @@ void CanViewPanel::flushBatch() {
   m_receiveTreeWidget->addTopLevelItems(items);
 
   int totalCount = m_receiveTreeWidget->topLevelItemCount();
-  if (totalCount > 2000) {
-    int removeCount = totalCount - 2000;
+  if (totalCount > 1500) {
+    int removeCount = totalCount - 1500;
     for (int i = 0; i < removeCount; ++i) {
       delete m_receiveTreeWidget->takeTopLevelItem(0);
     }
