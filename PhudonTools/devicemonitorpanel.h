@@ -30,7 +30,6 @@ class DeviceStatusWidget;
 class RoomWidget;
 class BottomStatusBar;
 class SubMonitorWindow;
-class TemplateBackground;
 
 // ===== 房间区域数据结构 =====
 enum RoomShape { ShapeRectangle = 0, ShapeCircle, ShapeDiamond, ShapeIrregular };
@@ -196,7 +195,6 @@ private:
   // Room 布局模式数据
   QList<RoomRegion> m_rooms;
   QHash<QString, RoomWidget *> m_roomWidgets;
-  TemplateBackground *m_templateBg = nullptr;
   QHash<int, QPoint> m_deviceRoomPos;
   QString m_activeTemplate;
   qreal m_zoomLevel = 1.0;

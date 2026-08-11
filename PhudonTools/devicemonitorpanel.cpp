@@ -28,6 +28,7 @@
 #include <QMimeData>
 #include <QMouseEvent>
 #include <QPainter>
+#include <QtMath>
 #include <QPainterPath>
 #include <QPlainTextEdit>
 #include <QPushButton>
@@ -52,100 +53,6 @@
 #include "canprotocolconfigdialog.h"
 #include "devicestatuswidget.h"
 #include "roomwidget.h"
-
-// ========== 布局模板背景轮廓图 ==========
-
-class TemplateBackground : public QWidget {
-public:
-  QString tpl;
-  explicit TemplateBackground(QWidget *parent = nullptr) : QWidget(parent) {
-    setObjectName(QStringLiteral("TemplateBackground"));
-    setAttribute(Qt::WA_TransparentForMouseEvents);
-    setAttribute(Qt::WA_NoSystemBackground);
-  }
-
-protected:
-  void paintEvent(QPaintEvent *) override {
-    if (tpl.isEmpty())
-      return;
-    QPainter p(this);
-    p.setRenderHint(QPainter::Antialiasing);
-    QColor c(0x00, 0xD4, 0xFF, 15);
-    QPen pen(c, 1.5, Qt::DotLine);
-    p.setPen(pen);
-    p.setBrush(QColor(0x00, 0xD4, 0xFF, 8));
-
-    if (tpl == QStringLiteral("submarine")) {
-      // 核潜艇外形
-      QPainterPath hull;
-      hull.moveTo(120, 350);
-      hull.cubicTo(50, 200, 300, 180, 500, 180);
-      hull.lineTo(1400, 180);
-      hull.cubicTo(1550, 180, 1580, 300, 1580, 350);
-      hull.cubicTo(1580, 420, 1550, 540, 1400, 540);
-      hull.lineTo(500, 540);
-      hull.cubicTo(300, 540, 50, 500, 120, 350);
-      p.drawPath(hull);
-      // 指挥塔
-      p.drawRect(400, 100, 150, 80);
-      // 螺旋桨
-      p.setPen(QPen(c, 2));
-      p.drawLine(1560, 350, 1600, 310);
-      p.drawLine(1560, 350, 1600, 350);
-      p.drawLine(1560, 350, 1600, 390);
-      // 隔舱
-      p.setPen(pen);
-      p.drawLine(350, 200, 350, 520);
-      p.drawLine(650, 200, 650, 520);
-      p.drawLine(900, 200, 900, 520);
-      p.drawLine(1150, 200, 1150, 520);
-    } else if (tpl == QStringLiteral("building")) {
-      p.drawRoundedRect(80, 80, 640, 400, 8, 8);
-      p.drawLine(80, 215, 720, 215);
-      p.drawLine(80, 350, 720, 350);
-      for (int x = 160; x < 720; x += 120)
-        p.drawLine(x, 80, x, 480);
-      p.drawLine(400, 80, 400, 40);
-      p.drawEllipse(QPoint(400, 40), 6, 6);
-    } else if (tpl == QStringLiteral("warship")) {
-      QPainterPath ship;
-      ship.moveTo(80, 250);
-      ship.lineTo(150, 180);
-      ship.lineTo(350, 180);
-      ship.lineTo(400, 130);
-      ship.lineTo(500, 130);
-      ship.lineTo(550, 180);
-      ship.lineTo(700, 180);
-      ship.lineTo(750, 160);
-      ship.lineTo(800, 160);
-      ship.lineTo(850, 200);
-      ship.lineTo(980, 200);
-      ship.lineTo(1020, 250);
-      ship.closeSubpath();
-      p.drawPath(ship);
-      p.drawLine(80, 250, 1020, 250);
-      p.drawRect(200, 170, 50, 30);
-      p.drawLine(450, 130, 450, 60);
-      p.drawEllipse(QPoint(450, 55), 8, 5);
-    } else if (tpl == QStringLiteral("carrier")) {
-      QPainterPath deck;
-      deck.moveTo(30, 220);
-      deck.lineTo(30, 170);
-      deck.lineTo(280, 100);
-      deck.lineTo(550, 100);
-      deck.lineTo(1010, 170);
-      deck.lineTo(1010, 220);
-      deck.closeSubpath();
-      p.drawPath(deck);
-      p.drawRect(590, 60, 160, 130);
-      p.drawLine(30, 220, 1010, 220);
-      for (int x = 100; x < 500; x += 80) {
-        p.drawLine(x, 120, x - 30, 180);
-        p.drawLine(x + 40, 120, x + 10, 180);
-      }
-    }
-  }
-};
 
 // ========== 多屏联动独立监控窗口 (显示区域实际 2D 布局图) ==========
 
@@ -250,15 +157,6 @@ public:
       }
     }
 
-    // 1b. 清理旧模板背景
-    QList<TemplateBackground *> oldBgs = canvasContainer->findChildren<TemplateBackground *>();
-    for (auto *child : oldBgs) {
-      if (child) {
-        child->hide();
-        delete child;
-      }
-    }
-
     // 1c. 清理旧房间区域
     for (auto *rw : roomWidgets) {
       if (rw) {
@@ -353,15 +251,6 @@ public:
     int vpW = scrollArea->viewport()->width();
     int vpH = scrollArea->viewport()->height();
     canvasContainer->setFixedSize(qMax(vpW, maxX), qMax(vpH, maxY));
-
-    // 模板背景轮廓图
-    if (!activeTemplate.isEmpty()) {
-      auto *bg = new TemplateBackground(canvasContainer);
-      bg->tpl = activeTemplate;
-      bg->setGeometry(0, 0, maxX, maxY);
-      bg->lower();
-      bg->show();
-    }
 
     // 更新房间卡片内的设备数统计
     for (auto *rw : roomWidgets) {
@@ -498,6 +387,7 @@ DeviceMonitorPanel::~DeviceMonitorPanel() {
 }
 
 void DeviceMonitorPanel::setupUi() {
+  setStyleSheet(QStringLiteral("QToolTip { color: #00D4FF; background-color: #0F172A; border: 1px solid #00D4FF; border-radius: 4px; padding: 5px 10px; font-size: 12px; font-family: 'Microsoft YaHei'; }"));
   auto *mainLayout = new QVBoxLayout(this);
   mainLayout->setContentsMargins(0, 0, 0, 0);
   mainLayout->setSpacing(0);
@@ -1735,82 +1625,142 @@ void DeviceMonitorPanel::drawTemplateBackground(QPainter &p, const QRect &rect,
   int w = rect.width();
   int h = rect.height();
 
-  // 暗色高科技深邃背景
-  p.fillRect(rect, QColor(0x0A, 0x0F, 0x1D));
+  // 1. 全局设置纯线条绘制：零底色填充，背景与底板 100% 完美无缝统一！
+  p.setBrush(Qt::NoBrush);
 
-  // 精细 HUD 居中网格线
-  QPen gridPen(QColor(0x1E, 0x2A, 0x3E, 60), 1, Qt::DotLine);
+  // 2. 微弱高科技 HUD 网格辅助线
+  QPen gridPen(QColor(0x1E, 0x2A, 0x3E, 45), 1, Qt::DotLine);
   p.setPen(gridPen);
-  for (int x = 0; x < w; x += 50) {
+  for (int x = 0; x < w; x += 60) {
     p.drawLine(x, 0, x, h);
   }
-  for (int y = 0; y < h; y += 50) {
+  for (int y = 0; y < h; y += 60) {
     p.drawLine(0, y, w, y);
   }
 
-  QColor neonCyan(0x00, 0xD4, 0xFF, 180);
-  QColor neonAmber(0xF5, 0x9E, 0x0B, 180);
-  QColor neonGreen(0x10, 0xB9, 0x81, 180);
+  QColor neonCyan(0x00, 0xD4, 0xFF, 120);
+  QColor neonAmber(0xF5, 0x9E, 0x0B, 110);
+  QColor neonGreen(0x10, 0xB9, 0x81, 110);
 
   if (tpl == QStringLiteral("submarine")) {
-    // 🚢 核潜艇全屏流线型外廓与舱室剖面线
+    // 🚢 核潜艇全景高精双壳体矢量蓝图
     int cy = h / 2;
-    int bowX = 80;
+    int bowX = 90;
     int sternX = w - 120;
-    int hullH = qMin(380, h - 200);
+    int hullH = qMin(360, h - 220);
+    int topY = cy - hullH / 2;
+    int botY = cy + hullH / 2;
 
-    QPainterPath subOutline;
-    subOutline.moveTo(bowX + 150, cy - hullH / 2);
-    // 艇艏圆弧水滴
-    subOutline.cubicTo(bowX + 20, cy - hullH / 2, bowX, cy, bowX + 20, cy + hullH / 2);
-    subOutline.lineTo(bowX + 150, cy + hullH / 2);
-    // 艇身
-    subOutline.lineTo(sternX - 100, cy + hullH / 2 - 20);
-    // 艇艉渐窄
-    subOutline.lineTo(sternX, cy + 30);
-    subOutline.lineTo(sternX + 40, cy); // 螺旋桨轴
-    subOutline.lineTo(sternX, cy - 30);
-    subOutline.lineTo(sternX - 100, cy - hullH / 2 + 20);
-    subOutline.closeSubpath();
+    // A. 艇体主要主壳外廓 (流线型双壳体水滴艇)
+    QPainterPath hull;
+    hull.moveTo(bowX + 160, topY);
+    hull.cubicTo(bowX + 20, topY, bowX, cy - 30, bowX, cy);
+    hull.cubicTo(bowX, cy + 30, bowX + 20, botY, bowX + 160, botY);
+    hull.lineTo(sternX - 120, botY);
+    hull.lineTo(sternX - 20, cy + 25);
+    hull.lineTo(sternX, cy + 12);
+    hull.lineTo(sternX + 35, cy + 12); // 轴毂
+    hull.lineTo(sternX + 35, cy - 12);
+    hull.lineTo(sternX, cy - 12);
+    hull.lineTo(sternX - 20, cy - 25);
+    hull.lineTo(sternX - 120, topY);
+    hull.closeSubpath();
 
-    // 艇体阴影与亮青发光线条
-    p.setBrush(QColor(0x00, 0xD4, 0xFF, 15));
-    p.setPen(QPen(neonCyan, 2.5));
-    p.drawPath(subOutline);
+    p.setPen(QPen(neonCyan, 2.2));
+    p.drawPath(hull);
 
-    // 指挥塔/水翼 (Sail)
+    // B. 双壳体内壁衬线 (双轮廓科技质感)
+    QPainterPath innerHull;
+    innerHull.moveTo(bowX + 160, topY + 12);
+    innerHull.cubicTo(bowX + 32, topY + 12, bowX + 12, cy - 25, bowX + 12, cy);
+    innerHull.cubicTo(bowX + 12, cy + 25, bowX + 32, botY - 12, bowX + 160, botY - 12);
+    innerHull.lineTo(sternX - 120, botY - 12);
+    innerHull.lineTo(sternX - 25, cy + 18);
+    innerHull.lineTo(sternX - 25, cy - 18);
+    innerHull.lineTo(sternX - 120, topY + 12);
+    innerHull.closeSubpath();
+    p.setPen(QPen(QColor(0x00, 0xD4, 0xFF, 90), 1.2, Qt::DashLine));
+    p.drawPath(innerHull);
+
+    // C. 指挥塔围壳 (Sail) 与水翼
     QPainterPath sail;
-    sail.moveTo(bowX + 450, cy - hullH / 2);
-    sail.lineTo(bowX + 470, cy - hullH / 2 - 70);
-    sail.lineTo(bowX + 680, cy - hullH / 2 - 70);
-    sail.lineTo(bowX + 720, cy - hullH / 2);
-    sail.closeSubpath();
-    p.setBrush(QColor(0x00, 0xD4, 0xFF, 25));
+    int sailX = bowX + 460;
+    int sailW = 200;
+    int sailH = 65;
+    sail.moveTo(sailX, topY);
+    sail.lineTo(sailX + 20, topY - sailH);
+    sail.lineTo(sailX + sailW - 20, topY - sailH);
+    sail.lineTo(sailX + sailW, topY);
+    p.setPen(QPen(neonCyan, 2.0));
     p.drawPath(sail);
 
-    // 潜望镜与雷达桅杆
-    p.setPen(QPen(neonCyan, 1.8));
-    p.drawLine(bowX + 520, cy - hullH / 2 - 70, bowX + 520, cy - hullH / 2 - 105);
-    p.drawLine(bowX + 560, cy - hullH / 2 - 70, bowX + 560, cy - hullH / 2 - 120);
+    // 指挥塔前缘水翼 (Sail Planes)
+    p.drawLine(sailX - 25, topY - sailH + 25, sailX + 20, topY - sailH + 25);
+    p.drawLine(sailX + sailW - 20, topY - sailH + 25, sailX + sailW + 25, topY - sailH + 25);
 
-    // 尾部 7 叶大侧斜螺旋桨轮廓
-    p.setPen(QPen(neonAmber, 2.0));
-    p.drawEllipse(QPoint(sternX + 45, cy), 15, 45);
+    // 潜望镜、光电桅杆、雷达天线阵列
+    p.setPen(QPen(neonCyan, 1.5));
+    p.drawLine(sailX + 60, topY - sailH, sailX + 60, topY - sailH - 35);
+    p.drawEllipse(QPoint(sailX + 60, topY - sailH - 37), 3, 3);
+    p.drawLine(sailX + 100, topY - sailH, sailX + 100, topY - sailH - 45);
+    p.drawLine(sailX + 140, topY - sailH, sailX + 140, topY - sailH - 30);
 
-    // 舱壁分隔虚线与标识
-    p.setPen(QPen(QColor(0x64, 0x74, 0x8B, 160), 1.5, Qt::DashLine));
-    p.drawLine(bowX + 330, cy - hullH / 2 + 10, bowX + 330, cy + hullH / 2 - 10);
-    p.drawLine(bowX + 650, cy - hullH / 2 + 10, bowX + 650, cy + hullH / 2 - 10);
-    p.drawLine(bowX + 920, cy - hullH / 2 + 10, bowX + 920, cy + hullH / 2 - 10);
-    p.drawLine(bowX + 1180, cy - hullH / 2 + 10, bowX + 1180, cy + hullH / 2 - 10);
+    // D. 艇艏 4 具鱼雷发射管
+    p.setPen(QPen(neonAmber, 1.6));
+    p.drawRect(bowX + 25, cy - 45, 55, 14);
+    p.drawRect(bowX + 25, cy - 20, 55, 14);
+    p.drawRect(bowX + 25, cy + 6, 55, 14);
+    p.drawRect(bowX + 25, cy + 31, 55, 14);
+    p.drawLine(bowX + 20, cy - 50, bowX + 20, cy + 50);
 
-    // 水波雷达扫描圈
-    p.setPen(QPen(QColor(0x00, 0xD4, 0xFF, 60), 1, Qt::DotLine));
-    p.drawEllipse(QPoint(bowX + 30, cy), 80, 80);
-    p.drawEllipse(QPoint(bowX + 30, cy), 140, 140);
+    // E. 垂直导弹发射阵列 (VLS 8 单元口盖)
+    int vlsX = bowX + 270;
+    p.setPen(QPen(QColor(0x00, 0xD4, 0xFF, 130), 1.2));
+    for (int i = 0; i < 4; ++i) {
+      p.drawRect(vlsX + i * 32, topY + 18, 24, 20);
+      p.drawRect(vlsX + i * 32, topY + 44, 24, 20);
+    }
+
+    // F. 反应堆舱区双层辐射屏蔽壁与圆环堆芯
+    int rxX = bowX + 900;
+    p.setPen(QPen(neonAmber, 1.8, Qt::DashLine));
+    p.drawRect(rxX + 15, topY + 20, 210, hullH - 40);
+    p.setPen(QPen(neonAmber, 1.5));
+    p.drawEllipse(QPoint(rxX + 120, cy), 45, 45);
+    p.drawEllipse(QPoint(rxX + 120, cy), 20, 20);
+    p.drawLine(rxX + 120, cy - 45, rxX + 120, cy + 45);
+    p.drawLine(rxX + 75, cy, rxX + 165, cy);
+
+    // G. 艇艉 X 型操纵舵与 7 叶大侧斜螺旋桨
+    int propX = sternX + 35;
+    p.setPen(QPen(neonCyan, 2.0));
+    p.drawLine(sternX - 30, cy - 70, sternX + 25, cy + 70);
+    p.drawLine(sternX - 30, cy + 70, sternX + 25, cy - 70);
+
+    // 7 叶大侧斜螺旋桨 (高精弧面桨叶)
+    p.setPen(QPen(neonAmber, 1.8));
+    for (int deg = 0; deg < 360; deg += 51) {
+      qreal rad = qDegreesToRadians((qreal)deg);
+      qreal ex = propX + 38 * qCos(rad);
+      qreal ey = cy + 38 * qSin(rad);
+      p.drawLine(QPointF(propX, cy), QPointF(ex, ey));
+      p.drawEllipse(QPointF(ex, ey), 4, 8);
+    }
+
+    // H. 舱壁分隔虚线
+    p.setPen(QPen(QColor(0x64, 0x74, 0x8B, 160), 1.5, Qt::DashDotLine));
+    p.drawLine(bowX + 250, topY + 12, bowX + 250, botY - 12);  // 鱼雷舱/战术中心
+    p.drawLine(bowX + 570, topY + 12, bowX + 570, botY - 12);  // 战术中心/休息舱
+    p.drawLine(bowX + 890, topY + 12, bowX + 890, botY - 12);  // 休息舱/反应堆
+    p.drawLine(bowX + 1160, topY + 12, bowX + 1160, botY - 12); // 反应堆/推进舱
+
+    // I. 声纳脉冲波纹
+    p.setPen(QPen(QColor(0x00, 0xD4, 0xFF, 50), 1, Qt::DotLine));
+    p.drawArc(QRect(bowX - 40, cy - 80, 160, 160), -60 * 16, 120 * 16);
+    p.drawArc(QRect(bowX - 80, cy - 120, 240, 240), -60 * 16, 120 * 16);
   }
   else if (tpl == QStringLiteral("building")) {
-    // 🏢 写字楼三层立体结构与建筑蓝图轮廓
+    // 🏢 写字楼三层立体结构与建筑蓝图轮廓 (纯矢量线条)
     int marginX = 80;
     int bldW = w - marginX * 2;
     int floorH = qMin(220, (h - 150) / 3);
@@ -1821,37 +1771,35 @@ void DeviceMonitorPanel::drawTemplateBackground(QPainter &p, const QRect &rect,
 
       QPainterPath floorPath;
       floorPath.addRoundedRect(fRect, 8, 8);
-      p.setBrush(QColor(0x10, 0xB9, 0x81, 12));
       p.setPen(QPen(neonGreen, 2.0));
       p.drawPath(floorPath);
 
       // 电梯井与管道核心筒
-      p.setPen(QPen(QColor(0x00, 0xD4, 0xFF, 120), 1.5, Qt::DashLine));
+      p.setPen(QPen(QColor(0x00, 0xD4, 0xFF, 140), 1.5, Qt::DashLine));
       p.drawRect(marginX + 20, fy + 10, 60, floorH - 20);
 
       // 玻璃幕墙网格
-      p.setPen(QPen(QColor(0x10, 0xB9, 0x81, 40), 1, Qt::DotLine));
+      p.setPen(QPen(QColor(0x10, 0xB9, 0x81, 50), 1, Qt::DotLine));
       for (int fx = marginX + 120; fx < marginX + bldW; fx += 100) {
         p.drawLine(fx, fy, fx, fy + floorH);
       }
     }
   }
   else if (tpl == QStringLiteral("warship")) {
-    // 🛥️ 水面隐身驱逐舰/巡洋舰外廓轮廓
+    // 🛥️ 水面隐身驱逐舰外廓轮廓 (纯矢量线条)
     int bowX = 60;
     int sternX = w - 80;
     int cy = h / 2 + 30;
     int hullH = qMin(320, h - 220);
 
     QPainterPath shipPath;
-    shipPath.moveTo(bowX, cy); // 舰艏水线尖角
+    shipPath.moveTo(bowX, cy);
     shipPath.lineTo(bowX + 220, cy - hullH / 2);
     shipPath.lineTo(sternX, cy - hullH / 2 + 10);
     shipPath.lineTo(sternX + 20, cy + hullH / 2 - 10);
     shipPath.lineTo(bowX + 180, cy + hullH / 2);
     shipPath.closeSubpath();
 
-    p.setBrush(QColor(0x00, 0xD4, 0xFF, 15));
     p.setPen(QPen(neonCyan, 2.5));
     p.drawPath(shipPath);
 
@@ -1862,7 +1810,7 @@ void DeviceMonitorPanel::drawTemplateBackground(QPainter &p, const QRect &rect,
     bridge.lineTo(bowX + 580, cy - hullH / 2 - 80);
     bridge.lineTo(bowX + 620, cy - hullH / 2);
     bridge.closeSubpath();
-    p.setBrush(QColor(0x00, 0xD4, 0xFF, 25));
+    p.setPen(QPen(neonCyan, 2.0));
     p.drawPath(bridge);
 
     // 舰艏 130mm 主炮轮廓
@@ -1879,7 +1827,7 @@ void DeviceMonitorPanel::drawTemplateBackground(QPainter &p, const QRect &rect,
     p.drawLine(heloX - 20, cy, heloX + 20, cy);
   }
   else if (tpl == QStringLiteral("carrier")) {
-    // 🛫 航母全景飞行甲板与斜角降落跑道外廓
+    // 🛫 航母全景飞行甲板外廓 (纯矢量线条)
     int marginX = 50;
     int marginY = 50;
     int deckW = w - marginX * 2;
@@ -1895,7 +1843,6 @@ void DeviceMonitorPanel::drawTemplateBackground(QPainter &p, const QRect &rect,
     carrierDeck.lineTo(marginX, marginY + deckH - 120);
     carrierDeck.closeSubpath();
 
-    p.setBrush(QColor(0x00, 0xD4, 0xFF, 12));
     p.setPen(QPen(neonCyan, 2.5));
     p.drawPath(carrierDeck);
 
@@ -1905,7 +1852,6 @@ void DeviceMonitorPanel::drawTemplateBackground(QPainter &p, const QRect &rect,
 
     // 右舷舰岛 (Island) 轮廓
     QRect island(marginX + deckW - 320, marginY + 70, 160, 220);
-    p.setBrush(QColor(0xF5, 0x9E, 0x0B, 30));
     p.setPen(QPen(neonAmber, 2.0));
     p.drawRoundedRect(island, 8, 8);
   }
@@ -2093,9 +2039,44 @@ void DeviceMonitorPanel::onAddRoom() {
 }
 
 void DeviceMonitorPanel::onManageRoomsRequested() {
-  RoomManagerDialog dlg(m_rooms, m_viewNames, this);
+  QString activeViewName =
+      (m_activeViewIndex >= 0 && m_activeViewIndex < m_viewNames.size())
+          ? m_viewNames[m_activeViewIndex]
+          : QStringLiteral("界面1");
+
+  // 1. 过滤仅提取关联当前活动视口切页的房间
+  QList<RoomRegion> currentViewRooms;
+  for (const auto &r : m_rooms) {
+    QString rView = r.targetView.trimmed();
+    if (rView.isEmpty()) rView = QStringLiteral("界面1");
+    bool matchesView =
+        ((rView == activeViewName) ||
+         (activeViewName == QStringLiteral("界面1") &&
+          (rView == QStringLiteral("界面1") || rView.isEmpty())));
+    if (matchesView) {
+      currentViewRooms.append(r);
+    }
+  }
+
+  RoomManagerDialog dlg(currentViewRooms, m_viewNames, this);
   if (dlg.exec() == QDialog::Accepted) {
-    m_rooms = dlg.rooms();
+    QList<RoomRegion> updatedViewRooms = dlg.rooms();
+
+    // 2. 合并更新：保留其他切页界面的房间不变，仅替换当前切页界面的房间列表
+    QList<RoomRegion> newRooms;
+    for (const auto &r : m_rooms) {
+      QString rView = r.targetView.trimmed();
+      if (rView.isEmpty()) rView = QStringLiteral("界面1");
+      bool matchesView =
+          ((rView == activeViewName) ||
+           (activeViewName == QStringLiteral("界面1") &&
+            (rView == QStringLiteral("界面1") || rView.isEmpty())));
+      if (!matchesView) {
+        newRooms.append(r);
+      }
+    }
+    newRooms.append(updatedViewRooms);
+    m_rooms = newRooms;
 
     // 根据更新后的房间结构重新排布与整齐网格对齐
     autoArrangeRoomDevices();
@@ -2107,7 +2088,7 @@ void DeviceMonitorPanel::onManageRoomsRequested() {
     updateZoom();
     updateUnplacedDock();
 
-    appendLog(QStringLiteral("✓ 已完成房间管理全量配置与同步处理"), false);
+    appendLog(QStringLiteral("✓ 已完成当前界面【%1】的房间管理配置与同步处理").arg(activeViewName), false);
   }
 }
 
@@ -2469,21 +2450,6 @@ void DeviceMonitorPanel::rebuildRoomCanvas() {
   int vpH = m_scrollArea->viewport()->height();
   m_gridContainer->setFixedSize(qMax(vpW, (int)(m_baseCanvasW * m_zoomLevel)),
                                 qMax(vpH, (int)(m_baseCanvasH * m_zoomLevel)));
-
-  // 模板背景轮廓单例复用
-  if (!m_activeTemplate.isEmpty()) {
-    if (!m_templateBg) {
-      m_templateBg = new TemplateBackground(m_gridContainer);
-    }
-    m_templateBg->tpl = m_activeTemplate;
-    m_templateBg->setGeometry(0, 0, maxX, maxY);
-    m_templateBg->lower();
-    m_templateBg->show();
-  } else {
-    if (m_templateBg) {
-      m_templateBg->hide();
-    }
-  }
 
   // ===== 分流属于 activeViewName 的设备：已摆放的放画布，未摆放的放停靠区
   for (const auto &m : m_mappings) {

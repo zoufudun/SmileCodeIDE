@@ -10607,6 +10607,8 @@ release/devicemonitorpanel.o: devicemonitorpanel.cpp devicemonitorpanel.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/QMouseEvent \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/QPainter \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/qpainter.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QtMath \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qmath.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/QPainterPath \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/qpainterpath.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QPlainTextEdit \

@@ -42,6 +42,7 @@ DeviceStatusWidget::DeviceStatusWidget(int deviceId, DeviceKind kind,
                  .arg(m_deviceId)
                  .arg(m_canId, 3, 16, QChar('0'))
                  .toUpper());
+  setStyleSheet(QStringLiteral("QToolTip { color: #00D4FF; background-color: #0F172A; border: 1px solid #00D4FF; border-radius: 4px; padding: 5px 10px; font-size: 12px; font-family: 'Microsoft YaHei'; }"));
 
   m_flashTimer->setInterval(500);
   connect(m_flashTimer, &QTimer::timeout, this, [this]() {
