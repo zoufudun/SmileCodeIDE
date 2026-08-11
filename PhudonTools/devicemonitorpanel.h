@@ -40,10 +40,13 @@ struct RoomRegion {
   QRect geom;
   int shape = ShapeRectangle; // 0=矩形, 1=圆形, 2=菱形, 3=不规则
   QString targetView = QStringLiteral("界面1"); // 所属界面/标签页名称
+  bool visible = true;                          // 是否显示
+  bool isLocked = false;                        // 是否固定不动 (锁定防拖拽)
+  QColor color = QColor(0, 212, 255);           // 主题/边框颜色
 
   RoomRegion() = default;
-  RoomRegion(const QString &i, const QString &n, const QRect &g, int s = ShapeRectangle, const QString &tv = QStringLiteral("界面1"))
-      : id(i), name(n), geom(g), shape(s), targetView(tv) {}
+  RoomRegion(const QString &i, const QString &n, const QRect &g, int s = ShapeRectangle, const QString &tv = QStringLiteral("界面1"), bool v = true, bool l = false, const QColor &c = QColor(0, 212, 255))
+      : id(i), name(n), geom(g), shape(s), targetView(tv), visible(v), isLocked(l), color(c) {}
 };
 
 class QToolButton;
@@ -83,9 +86,12 @@ private slots:
   void closeLayoutFloatingBox();
   void onDeleteRoom();
   void onAddRoom();
+  void autoArrangeRoomsAndDevices();
+  void onManageRoomsRequested();
   void onDeviceDragged(int deviceId, const QPoint &newPos);
   void onRoomMoved(const QString &id, const QRect &newGeom);
   void onRoomResized(const QString &id, const QRect &newGeom);
+  void onRoomLockToggled(const QString &id, bool locked);
   void processBatch();
   void onEditDeviceRequested(int deviceId);
   void toggleFullScreen();
@@ -104,10 +110,12 @@ private:
   void saveConfig();
   void setupUi();
   void updateTabBar();
+  void drawTemplateBackground(QPainter &p, const QRect &rect, const QString &tpl);
   void updateSubWindows();
   void scheduleSubWindowUpdate(); // Debounced: always defers and coalesces multiple calls
   void sendConfigToClient(QWebSocket *client);
   void broadcastMessage(const QJsonObject &json);
+  void repositionFloatingWidgets();
 
   // Room 辅助
   void saveRoomLayout();
@@ -133,6 +141,9 @@ private:
   QToolButton *m_btnSettingsMenu = nullptr; // ⚙ 设置菜单按钮
   QPushButton *m_btnLayoutToggle = nullptr; // 📐 布局/视图 切换按钮
   QDialog *m_layoutFloatingDialog = nullptr; // 布局模式悬浮控制框
+  QWidget *m_layoutFloatingTitleBar = nullptr; // 悬浮控制框标题栏
+  bool m_layoutFloatingDragging = false;
+  QPoint m_layoutFloatingDragStartPos;
   bool m_layoutEditingEnabled = false;       // 使能布局状态 (默认 false / 视图模式)
   QAction *m_actMultiScreenToggle = nullptr;
   QPushButton *m_btnConfig;
@@ -150,6 +161,8 @@ private:
   QWidget *m_logWrapper = nullptr;
   QWidget *m_logTitleBar = nullptr;
   QPushButton *m_btnInfoLog = nullptr;
+  QPushButton *m_btnToggleLogSize = nullptr;
+  bool m_logExpanded = false;
   QLabel *m_lblCount = nullptr;
 
   // 界面分割与多屏联动 UI

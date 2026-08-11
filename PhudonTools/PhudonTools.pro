@@ -60,6 +60,7 @@ SOURCES += \
     devicestatuswidget.cpp \
     devicemonitorpanel.cpp \
     roomwidget.cpp \
+    roommanagerdialog.cpp \
     toastwidget.cpp \
     scrollinglabel.cpp \
     terminalwidget.cpp \
@@ -95,6 +96,7 @@ HEADERS += \
     devicestatuswidget.h \
     devicemonitorpanel.h \
     roomwidget.h \
+    roommanagerdialog.h \
     cantheme.h \
     toastwidget.h \
     scrollinglabel.h \

@@ -29,13 +29,19 @@ namespace TechColors {
 DeviceStatusWidget::DeviceStatusWidget(int deviceId, DeviceKind kind,
                                        const QString &label, quint32 canId, QWidget *parent)
     : QWidget(parent),
-      m_deviceId(deviceId), m_kind(kind), m_label(label), m_canId(canId),
+      m_deviceId(deviceId), m_kind(kind), m_label(label.left(32)), m_canId(canId),
       m_flashTimer(new QTimer(this))
 {
   // 固定尺寸策略 — 不随容器拉伸
   setMinimumSize(128, 155);
   setMaximumSize(200, 240);
   setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+
+  setToolTip(QStringLiteral("[%1]\nID: #%2 | CAN: 0x%3")
+                 .arg(m_label)
+                 .arg(m_deviceId)
+                 .arg(m_canId, 3, 16, QChar('0'))
+                 .toUpper());
 
   m_flashTimer->setInterval(500);
   connect(m_flashTimer, &QTimer::timeout, this, [this]() {
@@ -95,8 +101,14 @@ void DeviceStatusWidget::setStatus(bool value) {
 }
 
 void DeviceStatusWidget::setLabel(const QString &label) {
-  if (m_label != label) {
-    m_label = label;
+  QString newLbl = label.left(32);
+  if (m_label != newLbl) {
+    m_label = newLbl;
+    setToolTip(QStringLiteral("[%1]\nID: #%2 | CAN: 0x%3")
+                   .arg(m_label)
+                   .arg(m_deviceId)
+                   .arg(m_canId, 3, 16, QChar('0'))
+                   .toUpper());
     invalidateCache();
   }
 }
@@ -104,6 +116,11 @@ void DeviceStatusWidget::setLabel(const QString &label) {
 void DeviceStatusWidget::setCanId(quint32 canId) {
   if (m_canId != canId) {
     m_canId = canId;
+    setToolTip(QStringLiteral("[%1]\nID: #%2 | CAN: 0x%3")
+                   .arg(m_label)
+                   .arg(m_deviceId)
+                   .arg(m_canId, 3, 16, QChar('0'))
+                   .toUpper());
     invalidateCache();
   }
 }

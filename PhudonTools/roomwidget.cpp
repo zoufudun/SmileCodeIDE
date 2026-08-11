@@ -19,9 +19,22 @@ RoomWidget::RoomWidget(const QString &id, const QString &name,
       "font-family: 'Microsoft YaHei'; background: rgba(13,17,23,180); "
       "padding: 3px 8px; border-radius: 4px; }");
   m_titleLabel->move(8, 6);
-  m_titleLabel->setFixedSize(qMax(80, width() - 60), 22);
+  m_titleLabel->setFixedSize(qMax(50, width() - 80), 22);
 
-  // 右上角改名/删除按钮
+  // 右上角锁定/改名/删除按钮
+  m_btnLock = new QPushButton(m_locked ? QStringLiteral("🔒") : QStringLiteral("🔓"), this);
+  m_btnLock->setFixedSize(20, 20);
+  m_btnLock->move(width() - 71, 7);
+  m_btnLock->setToolTip(m_locked ? QStringLiteral("解锁房间") : QStringLiteral("锁定固定房间"));
+  m_btnLock->setStyleSheet(m_locked
+    ? "QPushButton{color:#F59E0B;background:#27201A;border:1px solid #F59E0B;border-radius:3px;font-size:10px;}QPushButton:hover{background:#3E2E1E;}"
+    : "QPushButton{color:#64748B;background:rgba(13,17,23,180);border:1px solid #1E293E;border-radius:3px;font-size:10px;}QPushButton:hover{background:#1E293E;color:#00D4FF;}");
+  m_btnLock->raise();
+  connect(m_btnLock, &QPushButton::clicked, this, [this]() {
+    setLocked(!m_locked);
+    emit roomLockToggled(m_id, m_locked);
+  });
+
   m_btnRename = new QPushButton(QStringLiteral("✎"), this);
   m_btnRename->setFixedSize(20, 20);
   m_btnRename->move(width() - 48, 7);
@@ -49,16 +62,69 @@ RoomWidget::RoomWidget(const QString &id, const QString &name,
   show();
 }
 
+void RoomWidget::resizeEvent(QResizeEvent *e) {
+  QWidget::resizeEvent(e);
+  if (m_titleLabel) m_titleLabel->setFixedSize(qMax(50, width() - 80), 22);
+  if (m_btnLock) m_btnLock->move(width() - 71, 7);
+  if (m_btnRename) m_btnRename->move(width() - 48, 7);
+  if (m_btnDelete) m_btnDelete->move(width() - 25, 7);
+}
+
 void RoomWidget::setDeviceCount(int n) {
-  m_countLabel->setText(QStringLiteral("%1 个设备").arg(n));
+  if (m_locked) {
+    m_countLabel->setText(QStringLiteral("🔒 %1 个设备").arg(n));
+    m_countLabel->setStyleSheet(
+        "QLabel { color: #F59E0B; font-size: 9px; font-weight: bold; "
+        "font-family: 'Consolas'; background: rgba(0,0,0,90); "
+        "padding: 1px 6px; border-radius: 3px; }");
+  } else {
+    m_countLabel->setText(QStringLiteral("%1 个设备").arg(n));
+    m_countLabel->setStyleSheet(
+        "QLabel { color: #64748B; font-size: 9px; font-weight: bold; "
+        "font-family: 'Consolas'; background: rgba(0,0,0,60); "
+        "padding: 1px 6px; border-radius: 3px; }");
+  }
 }
 
 void RoomWidget::updateTitleFromLabel() {
   // 无需额外操作，title 由外部设置
 }
 
+void RoomWidget::setLocked(bool locked) {
+  m_locked = locked;
+  if (m_btnLock) {
+    m_btnLock->setText(m_locked ? QStringLiteral("🔒") : QStringLiteral("🔓"));
+    m_btnLock->setToolTip(m_locked ? QStringLiteral("解锁房间") : QStringLiteral("锁定固定房间"));
+    m_btnLock->setStyleSheet(m_locked
+      ? "QPushButton{color:#F59E0B;background:#27201A;border:1px solid #F59E0B;border-radius:3px;font-size:10px;}QPushButton:hover{background:#3E2E1E;}"
+      : "QPushButton{color:#64748B;background:rgba(13,17,23,180);border:1px solid #1E293E;border-radius:3px;font-size:10px;}QPushButton:hover{background:#1E293E;color:#00D4FF;}");
+  }
+  int cnt = m_countLabel->text().remove(QStringLiteral("🔒 ")).remove(QStringLiteral(" 个设备")).toInt();
+  setDeviceCount(cnt);
+  setToolTip(m_locked ? QStringLiteral("[%1] 已锁定固定，无法拖拽与重置尺寸").arg(m_titleLabel->text()) : QString());
+  update();
+}
+
+void RoomWidget::setRoomColor(const QColor &color) {
+  if (color.isValid()) {
+    m_color = color;
+    QString colorHex = m_color.name();
+    m_titleLabel->setStyleSheet(QString(
+        "QLabel { color: %1; font-size: 11px; font-weight: bold; "
+        "font-family: 'Microsoft YaHei'; background: rgba(13,17,23,200); "
+        "padding: 3px 8px; border-radius: 4px; border: 1px solid %1; }").arg(colorHex));
+    update();
+  }
+}
+
+void RoomWidget::setRoomShape(int shape) {
+  m_shape = shape;
+  update();
+}
+
 void RoomWidget::setEditingEnabled(bool enable) {
   m_editingEnabled = enable;
+  if (m_btnLock) m_btnLock->setVisible(enable);
   if (m_btnRename) m_btnRename->setVisible(enable);
   if (m_btnDelete) m_btnDelete->setVisible(enable);
   update();
@@ -69,8 +135,17 @@ void RoomWidget::paintEvent(QPaintEvent *) {
   p.setRenderHint(QPainter::Antialiasing);
 
   QRect r = rect().adjusted(1, 1, -1, -1);
-  QPen dashPen(QColor(0x00, 0xD4, 0xFF, m_editingEnabled ? 80 : 40), 1.5, m_editingEnabled ? Qt::DashLine : Qt::SolidLine);
-  QBrush fillBrush(QColor(0x00, 0xD4, 0xFF, m_editingEnabled ? 10 : 5));
+  QColor penColor = m_color;
+  penColor.setAlpha(m_editingEnabled ? (m_locked ? 120 : 180) : 100);
+
+  QColor strokeColor = m_color;
+  strokeColor.setAlpha(m_editingEnabled ? (m_locked ? 100 : 160) : 80);
+  QPen dashPen(strokeColor, 1.5, (m_editingEnabled && !m_locked) ? Qt::DashLine : Qt::SolidLine);
+
+  QColor fillBrushColor = m_color;
+  fillBrushColor.setAlpha(m_editingEnabled ? (m_locked ? 15 : 25) : 10);
+  QBrush fillBrush(fillBrushColor);
+
   p.setPen(dashPen);
   p.setBrush(fillBrush);
 
@@ -92,9 +167,11 @@ void RoomWidget::paintEvent(QPaintEvent *) {
     p.drawRoundedRect(r, 6, 6);
   }
 
-  // 缩放手柄指示点 (仅在布局使能模式下绘制)
-  if (m_editingEnabled) {
-    p.setBrush(QColor(0x00, 0xD4, 0xFF, 100));
+  // 缩放手柄指示点 (仅在未锁定且处于编辑模式下绘制)
+  if (m_editingEnabled && !m_locked) {
+    QColor handleColor = m_color;
+    handleColor.setAlpha(160);
+    p.setBrush(handleColor);
     p.setPen(Qt::NoPen);
     int s = 5;
     p.drawEllipse(QPoint(r.left() + s, r.top() + s), 2, 2);
@@ -105,7 +182,7 @@ void RoomWidget::paintEvent(QPaintEvent *) {
 }
 
 RoomWidget::Edge RoomWidget::hitTest(const QPoint &pos) const {
-  if (!m_editingEnabled) return None;
+  if (!m_editingEnabled || m_locked) return None;
   int x = pos.x(), y = pos.y(), w = width(), h = height();
   int s = HANDLE_SIZE;
   bool l = x < s, r = x > w - s, t = y < s, b = y > h - s;
@@ -121,7 +198,7 @@ RoomWidget::Edge RoomWidget::hitTest(const QPoint &pos) const {
 }
 
 void RoomWidget::updateCursor(Edge e) {
-  if (!m_editingEnabled) {
+  if (!m_editingEnabled || m_locked) {
     setCursor(Qt::ArrowCursor);
     return;
   }
@@ -135,7 +212,7 @@ void RoomWidget::updateCursor(Edge e) {
 }
 
 void RoomWidget::mousePressEvent(QMouseEvent *e) {
-  if (!m_editingEnabled) {
+  if (!m_editingEnabled || m_locked) {
     QWidget::mousePressEvent(e);
     return;
   }
@@ -156,7 +233,7 @@ void RoomWidget::mousePressEvent(QMouseEvent *e) {
 }
 
 void RoomWidget::mouseMoveEvent(QMouseEvent *e) {
-  if (!m_dragging && !m_resizing) {
+  if (m_locked || (!m_dragging && !m_resizing)) {
     updateCursor(hitTest(e->pos()));
     return;
   }
@@ -186,6 +263,7 @@ void RoomWidget::mouseMoveEvent(QMouseEvent *e) {
 }
 
 void RoomWidget::mouseReleaseEvent(QMouseEvent *e) {
+  if (m_locked) return;
   if (m_dragging) {
     m_dragging = false;
     setCursor(Qt::ArrowCursor);

@@ -57,7 +57,8 @@ CanProtocolConfigDialog::CanProtocolConfigDialog(QWidget *parent)
 
   editLayout->addWidget(new QLabel(QStringLiteral("设备标签:"), this));
   m_labelEdit = new QLineEdit(this);
-  m_labelEdit->setPlaceholderText(QStringLiteral("如: 餐厅烟感"));
+  m_labelEdit->setMaxLength(32);
+  m_labelEdit->setPlaceholderText(QStringLiteral("上限32字，如: 餐厅烟感"));
   m_labelEdit->setMinimumWidth(100);
   editLayout->addWidget(m_labelEdit);
 
@@ -108,10 +109,11 @@ CanProtocolConfigDialog::CanProtocolConfigDialog(QWidget *parent)
   editLayout->addWidget(m_targetViewCombo);
 
   editLayout->addWidget(new QLabel(QStringLiteral("所属房间:"), this));
-  m_targetRoomEdit = new QLineEdit(this);
-  m_targetRoomEdit->setPlaceholderText(QStringLiteral("如: 1号机房"));
-  m_targetRoomEdit->setFixedWidth(100);
-  editLayout->addWidget(m_targetRoomEdit);
+  m_targetRoomCombo = new QComboBox(this);
+  m_targetRoomCombo->setEditable(true);
+  m_targetRoomCombo->addItem(QStringLiteral("(未指定/未放置区)"), QString());
+  m_targetRoomCombo->setFixedWidth(120);
+  editLayout->addWidget(m_targetRoomCombo);
 
   mainLayout->addWidget(editArea);
 
@@ -282,13 +284,45 @@ void CanProtocolConfigDialog::addTableRow(int deviceId, const QString &label,
   }
   m_table->setCellWidget(row, 7, targetViewCombo);
 
-  // 所属房间 (可编辑单元格)
-  auto *targetRoomItem = new QTableWidgetItem(targetRoom);
-  targetRoomItem->setTextAlignment(Qt::AlignCenter);
-  m_table->setItem(row, 8, targetRoomItem);
+  // 所属房间 (可编辑下拉单元格)
+  auto *targetRoomComboCell = new QComboBox(m_table);
+  targetRoomComboCell->setEditable(true);
+  targetRoomComboCell->addItem(QStringLiteral("(未指定/未放置区)"), QString());
+  for (const QString &rName : m_availableRooms) {
+    if (!rName.trimmed().isEmpty()) {
+      targetRoomComboCell->addItem(rName.trimmed(), rName.trimmed());
+    }
+  }
+  QString tRoom = targetRoom.trimmed();
+  int rIdx = targetRoomComboCell->findText(tRoom);
+  if (rIdx >= 0) {
+    targetRoomComboCell->setCurrentIndex(rIdx);
+  } else if (!tRoom.isEmpty()) {
+    targetRoomComboCell->setCurrentText(tRoom);
+  }
+  m_table->setCellWidget(row, 8, targetRoomComboCell);
 }
 
 // ---- 公共接口 ----
+
+void CanProtocolConfigDialog::setAvailableRooms(const QStringList &roomNames) {
+  m_availableRooms = roomNames;
+  if (m_targetRoomCombo) {
+    QString curText = m_targetRoomCombo->currentText();
+    m_targetRoomCombo->clear();
+    m_targetRoomCombo->addItem(QStringLiteral("(未指定/未放置区)"), QString());
+    for (const QString &r : m_availableRooms) {
+      if (!r.trimmed().isEmpty()) {
+        m_targetRoomCombo->addItem(r.trimmed(), r.trimmed());
+      }
+    }
+    if (!curText.isEmpty()) {
+      int rIdx = m_targetRoomCombo->findText(curText);
+      if (rIdx >= 0) m_targetRoomCombo->setCurrentIndex(rIdx);
+      else m_targetRoomCombo->setCurrentText(curText);
+    }
+  }
+}
 
 void CanProtocolConfigDialog::setMappings(
     const QList<DeviceBitMapping> &mappings) {
@@ -337,7 +371,12 @@ QList<DeviceBitMapping> CanProtocolConfigDialog::mappings() const {
       m.targetView = QStringLiteral("界面1");
     }
 
-    if (m_table->item(r, 8)) {
+    auto *targetRoomCombo = qobject_cast<QComboBox *>(m_table->cellWidget(r, 8));
+    if (targetRoomCombo) {
+      QString rText = targetRoomCombo->currentText().trimmed();
+      if (rText == QStringLiteral("(未指定/未放置区)")) rText.clear();
+      m.targetRoom = rText;
+    } else if (m_table->item(r, 8)) {
       m.targetRoom = m_table->item(r, 8)->text().trimmed();
     }
 
@@ -363,7 +402,8 @@ void CanProtocolConfigDialog::onAddRow() {
   int defaultVal = m_defaultValCombo->currentData().toInt();
   QString targetView = m_targetViewCombo ? m_targetViewCombo->currentText().trimmed() : QStringLiteral("界面1");
   if (targetView.isEmpty()) targetView = QStringLiteral("界面1");
-  QString targetRoom = m_targetRoomEdit ? m_targetRoomEdit->text().trimmed() : QString();
+  QString targetRoom = m_targetRoomCombo ? m_targetRoomCombo->currentText().trimmed() : QString();
+  if (targetRoom == QStringLiteral("(未指定/未放置区)")) targetRoom.clear();
 
   int deviceId = m_nextDeviceId++;
   QString label = m_labelEdit->text().trimmed();
@@ -434,8 +474,14 @@ void CanProtocolConfigDialog::onModifyRow() {
   }
 
   // 所属房间
-  if (m_table->item(row, 8) && m_targetRoomEdit) {
-    m_table->item(row, 8)->setText(m_targetRoomEdit->text().trimmed());
+  auto *targetRoomComboCell = qobject_cast<QComboBox *>(m_table->cellWidget(row, 8));
+  if (targetRoomComboCell && m_targetRoomCombo) {
+    QString targetRoom = m_targetRoomCombo->currentText().trimmed();
+    int rIdx = targetRoomComboCell->findText(targetRoom);
+    if (rIdx >= 0) targetRoomComboCell->setCurrentIndex(rIdx);
+    else targetRoomComboCell->setCurrentText(targetRoom);
+  } else if (m_table->item(row, 8) && m_targetRoomCombo) {
+    m_table->item(row, 8)->setText(m_targetRoomCombo->currentText().trimmed());
   }
 }
 
@@ -470,8 +516,15 @@ void CanProtocolConfigDialog::onSelectionChanged() {
       if (vIdx >= 0) m_targetViewCombo->setCurrentIndex(vIdx);
       else m_targetViewCombo->setCurrentText(targetViewCombo->currentText());
     }
-    if (m_table->item(row, 8) && m_targetRoomEdit) {
-      m_targetRoomEdit->setText(m_table->item(row, 8)->text());
+    auto *targetRoomComboCell = qobject_cast<QComboBox *>(m_table->cellWidget(row, 8));
+    if (targetRoomComboCell && m_targetRoomCombo) {
+      int rIdx = m_targetRoomCombo->findText(targetRoomComboCell->currentText());
+      if (rIdx >= 0) m_targetRoomCombo->setCurrentIndex(rIdx);
+      else m_targetRoomCombo->setCurrentText(targetRoomComboCell->currentText());
+    } else if (m_table->item(row, 8) && m_targetRoomCombo) {
+      int rIdx = m_targetRoomCombo->findText(m_table->item(row, 8)->text());
+      if (rIdx >= 0) m_targetRoomCombo->setCurrentIndex(rIdx);
+      else m_targetRoomCombo->setCurrentText(m_table->item(row, 8)->text());
     }
     m_btnModify->setEnabled(true);
     m_btnDelete->setEnabled(true);

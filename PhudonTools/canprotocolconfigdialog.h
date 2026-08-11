@@ -31,8 +31,9 @@ class CanProtocolConfigDialog : public QDialog {
 public:
   explicit CanProtocolConfigDialog(QWidget *parent = nullptr);
 
-  // 设置可选界面列表
+  // 设置可选界面与房间列表
   void setAvailableViews(const QStringList &viewNames);
+  void setAvailableRooms(const QStringList &roomNames);
 
   // 获取/设置当前的映射配置
   void setMappings(const QList<DeviceBitMapping> &mappings);
@@ -73,9 +74,10 @@ private:
   QSpinBox *m_defaultBitSpin;
   QComboBox *m_defaultValCombo; // 默认状态选择
   QComboBox *m_targetViewCombo; // 所属界面下拉框
-  QLineEdit *m_targetRoomEdit;  // 所属房间输入框
+  QComboBox *m_targetRoomCombo; // 所属房间下拉/可输入框
 
   QStringList m_availableViews;
+  QStringList m_availableRooms;
   int m_nextDeviceId = 1;
 };
 
