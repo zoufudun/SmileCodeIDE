@@ -16,6 +16,7 @@
 #include "USBCANFD/zlgcan.h"
 
 #ifdef Q_OS_WIN
+#include <windows.h>
 #define ZLG_CALL __stdcall
 #else
 #define ZLG_CALL
@@ -242,9 +243,16 @@ bool CanInterface::isDeviceFdCapable(quint32 deviceType) {
 bool CanInterface::libraryLoaded() const { return m_d->resolved() || m_d->vciResolved(); }
 
 bool CanInterface::loadLibrary() {
-  // 1. 加载 zlgcan.dll
   const QString appDir = QCoreApplication::applicationDirPath();
+
+#ifdef Q_OS_WIN
+  SetDllDirectoryW(reinterpret_cast<LPCWSTR>(appDir.utf16()));
+  SetDllDirectoryW(reinterpret_cast<LPCWSTR>((appDir + QStringLiteral("/CXCAN")).utf16()));
+#endif
+
+  // 1. 加载 zlgcan.dll
   const QStringList candidates = {appDir + "/zlgcan.dll",
+                                  appDir + "/USBCANFD/zlgcan.dll",
                                   QStringLiteral("zlgcan")};
   bool loaded = false;
   for (const QString &name : candidates) {
@@ -363,6 +371,7 @@ int CanInterface::deviceIndex() const {
 }
 
 bool CanInterface::openDevice(quint32 deviceType, int deviceIndex) {
+  m_lastError.clear();
   if (isDeviceOpen()) {
     return true;
   }
@@ -370,40 +379,86 @@ bool CanInterface::openDevice(quint32 deviceType, int deviceIndex) {
   m_d->deviceType = deviceType;
   m_d->deviceIndex = deviceIndex;
 
-  if (isControlCanDevice(deviceType)) {
-    if (!m_d->vciResolved()) {
-      emit errorOccurred(QStringLiteral("ControlCAN.dll 驱动未就绪"));
-      return false;
-    }
-    m_d->isControlCan = true;
-    m_d->cxDevType = mapCxDeviceType(deviceType);
-    m_d->cxDevIndex = static_cast<quint32>(deviceIndex);
-
-    quint32 ret = m_d->vciOpenDevice(m_d->cxDevType, m_d->cxDevIndex, 0);
-    if (ret != 1) {
-      m_d->isControlCan = false;
-      emit errorOccurred(QStringLiteral("打开创芯 USBCAN 设备失败 (类型 %1, 索引 %2)").arg(deviceType).arg(deviceIndex));
-      return false;
-    }
-    return true;
-  }
-
-  if (!m_d->resolved()) {
-    emit errorOccurred(QStringLiteral("zlgcan 动态库未就绪：%1").arg(m_libError));
-    return false;
-  }
-
   const QString appDir = QCoreApplication::applicationDirPath();
   const QString prevCwd = QDir::currentPath();
   QDir::setCurrent(appDir);
   auto cwdGuard = qScopeGuard([prevCwd]() { QDir::setCurrent(prevCwd); });
 
-  m_d->device = m_d->openDevice(deviceType, static_cast<UINT>(deviceIndex), 0);
-  if (m_d->device == INVALID_DEVICE_HANDLE) {
-    emit errorOccurred(QStringLiteral("打开设备失败 (类型 %1, 索引 %2)").arg(deviceType).arg(deviceIndex));
+#ifdef Q_OS_WIN
+  SetDllDirectoryW(reinterpret_cast<LPCWSTR>(appDir.utf16()));
+  SetDllDirectoryW(reinterpret_cast<LPCWSTR>((appDir + QStringLiteral("/CXCAN")).utf16()));
+#endif
+
+  if (isControlCanDevice(deviceType)) {
+    if (!m_d->vciResolved()) {
+      m_lastError = QStringLiteral("ControlCAN.dll 驱动未就绪，请检查软件目录是否存在 64 位 ControlCAN.dll。");
+      emit errorOccurred(m_lastError);
+      return false;
+    }
+    m_d->isControlCan = true;
+    quint32 mappedType = mapCxDeviceType(deviceType);
+    m_d->cxDevIndex = static_cast<quint32>(deviceIndex);
+
+    // 清理可能的未释放句柄
+    m_d->vciCloseDevice(mappedType, m_d->cxDevIndex);
+
+    // 1. 尝试使用映射后的设备类型码打开 (例: USBCAN2 -> 4)
+    quint32 ret = m_d->vciOpenDevice(mappedType, m_d->cxDevIndex, 0);
+    if (ret == 1) {
+      m_d->cxDevType = mappedType;
+      return true;
+    }
+
+    // 2. 若失败，尝试使用原始设备类型码打开 (例: 104)
+    if (mappedType != deviceType) {
+      m_d->vciCloseDevice(deviceType, m_d->cxDevIndex);
+      ret = m_d->vciOpenDevice(deviceType, m_d->cxDevIndex, 0);
+      if (ret == 1) {
+        m_d->cxDevType = deviceType;
+        return true;
+      }
+    }
+
+    // 3. 创芯驱动打开失败时，尝试 zlgcan 备用接口打开
+    if (m_d->resolved()) {
+      m_d->isControlCan = false;
+      m_d->device = m_d->openDevice(mappedType, static_cast<UINT>(deviceIndex), 0);
+      if (m_d->device != INVALID_DEVICE_HANDLE) {
+        return true;
+      }
+    }
+
+    m_d->isControlCan = false;
+    m_lastError = QStringLiteral("打开创芯 USBCAN 设备失败 (类型 %1, 索引 %2)。\n\n排查建议：\n1. 检查 USB 接口是否插紧且设备指示灯亮起；\n2. 确认设备管理器中已安装创芯 USB 驱动；\n3. 确认设备未被 CANTest / ZCANPro 或其他应用占用。")
+                      .arg(deviceType).arg(deviceIndex);
+    emit errorOccurred(m_lastError);
     return false;
   }
-  return true;
+
+  // 优先通过 zlgcan 打开设备
+  if (m_d->resolved()) {
+    m_d->device = m_d->openDevice(deviceType, static_cast<UINT>(deviceIndex), 0);
+    if (m_d->device != INVALID_DEVICE_HANDLE) {
+      return true;
+    }
+  }
+
+  // 经典 CAN 设备（USBCAN-1, USBCAN-2, USBCAN-E-U, USBCAN-2E-U）若通过 zlgcan 打开失败，降级尝试使用 ControlCAN 打开
+  if (m_d->vciResolved() && (deviceType == ZCAN_USBCAN1 || deviceType == ZCAN_USBCAN2 || deviceType == ZCAN_USBCAN_E_U || deviceType == ZCAN_USBCAN_2E_U)) {
+    m_d->isControlCan = true;
+    m_d->cxDevIndex = static_cast<quint32>(deviceIndex);
+    m_d->cxDevType = deviceType;
+    m_d->vciCloseDevice(deviceType, m_d->cxDevIndex);
+    quint32 ret = m_d->vciOpenDevice(deviceType, m_d->cxDevIndex, 0);
+    if (ret == 1) {
+      return true;
+    }
+  }
+
+  m_d->isControlCan = false;
+  m_lastError = QStringLiteral("打开设备失败 (类型 %1, 索引 %2)。\n\n提示：%1").arg(deviceType).arg(deviceIndex).arg(m_d->resolved() ? QStringLiteral("请检查设备硬件连接、驱动安装或索引。") : m_libError);
+  emit errorOccurred(m_lastError);
+  return false;
 }
 
 void CanInterface::closeDevice() {

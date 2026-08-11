@@ -20,6 +20,8 @@ struct DeviceBitMapping {
   int byteIndex;      // 数据字节索引 (0-7)
   int bitIndex;       // 位索引 (0-7, LSB=0)
   int defaultVal;     // 默认值 (0或1)
+  QString targetView; // 所属界面/标签页名称（如"界面1", "驾驶舱"）
+  QString targetRoom; // 所属房间名称/ID（如"1号机房", "控制室"）
 };
 
 // 协议配置对话框 —— 管理 CAN ID 到设备状态的映射表。
@@ -28,6 +30,9 @@ class CanProtocolConfigDialog : public QDialog {
   Q_OBJECT
 public:
   explicit CanProtocolConfigDialog(QWidget *parent = nullptr);
+
+  // 设置可选界面列表
+  void setAvailableViews(const QStringList &viewNames);
 
   // 获取/设置当前的映射配置
   void setMappings(const QList<DeviceBitMapping> &mappings);
@@ -46,7 +51,9 @@ private slots:
 
 private:
   void addTableRow(int deviceId, const QString &label, const QString &type,
-                   quint32 canId, int byteIdx, int bitIdx, int defaultVal);
+                   quint32 canId, int byteIdx, int bitIdx, int defaultVal,
+                   const QString &targetView = QStringLiteral("界面1"),
+                   const QString &targetRoom = QString());
 
   QTableWidget *m_table;
   QPushButton *m_btnAdd;
@@ -65,7 +72,10 @@ private:
   QSpinBox *m_defaultByteSpin;
   QSpinBox *m_defaultBitSpin;
   QComboBox *m_defaultValCombo; // 默认状态选择
+  QComboBox *m_targetViewCombo; // 所属界面下拉框
+  QLineEdit *m_targetRoomEdit;  // 所属房间输入框
 
+  QStringList m_availableViews;
   int m_nextDeviceId = 1;
 };
 

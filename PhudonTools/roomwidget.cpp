@@ -22,21 +22,21 @@ RoomWidget::RoomWidget(const QString &id, const QString &name,
   m_titleLabel->setFixedSize(qMax(80, width() - 60), 22);
 
   // 右上角改名/删除按钮
-  auto *btnRename = new QPushButton(QStringLiteral("✎"), this);
-  btnRename->setFixedSize(20, 20);
-  btnRename->move(width() - 48, 7);
-  btnRename->setToolTip(QStringLiteral("重命名房间"));
-  btnRename->setStyleSheet("QPushButton{color:#00D4FF;background:rgba(13,17,23,180);border:1px solid #1E3A5F;border-radius:3px;font-size:10px;}QPushButton:hover{background:#1E3A5F;}");
-  btnRename->raise();
-  connect(btnRename, &QPushButton::clicked, this, [this]() { emit roomRenameRequested(m_id); });
+  m_btnRename = new QPushButton(QStringLiteral("✎"), this);
+  m_btnRename->setFixedSize(20, 20);
+  m_btnRename->move(width() - 48, 7);
+  m_btnRename->setToolTip(QStringLiteral("重命名房间"));
+  m_btnRename->setStyleSheet("QPushButton{color:#00D4FF;background:rgba(13,17,23,180);border:1px solid #1E3A5F;border-radius:3px;font-size:10px;}QPushButton:hover{background:#1E3A5F;}");
+  m_btnRename->raise();
+  connect(m_btnRename, &QPushButton::clicked, this, [this]() { emit roomRenameRequested(m_id); });
 
-  auto *btnDelete = new QPushButton(QStringLiteral("✕"), this);
-  btnDelete->setFixedSize(20, 20);
-  btnDelete->move(width() - 25, 7);
-  btnDelete->setToolTip(QStringLiteral("删除房间"));
-  btnDelete->setStyleSheet("QPushButton{color:#F87171;background:rgba(13,17,23,180);border:1px solid #3E1E1E;border-radius:3px;font-size:10px;}QPushButton:hover{background:#3E1E1E;}");
-  btnDelete->raise();
-  connect(btnDelete, &QPushButton::clicked, this, [this]() { emit roomDeleteRequested(m_id); });
+  m_btnDelete = new QPushButton(QStringLiteral("✕"), this);
+  m_btnDelete->setFixedSize(20, 20);
+  m_btnDelete->move(width() - 25, 7);
+  m_btnDelete->setToolTip(QStringLiteral("删除房间"));
+  m_btnDelete->setStyleSheet("QPushButton{color:#F87171;background:rgba(13,17,23,180);border:1px solid #3E1E1E;border-radius:3px;font-size:10px;}QPushButton:hover{background:#3E1E1E;}");
+  m_btnDelete->raise();
+  connect(m_btnDelete, &QPushButton::clicked, this, [this]() { emit roomDeleteRequested(m_id); });
 
   m_countLabel = new QLabel("0", this);
   m_countLabel->setStyleSheet(
@@ -57,13 +57,20 @@ void RoomWidget::updateTitleFromLabel() {
   // 无需额外操作，title 由外部设置
 }
 
+void RoomWidget::setEditingEnabled(bool enable) {
+  m_editingEnabled = enable;
+  if (m_btnRename) m_btnRename->setVisible(enable);
+  if (m_btnDelete) m_btnDelete->setVisible(enable);
+  update();
+}
+
 void RoomWidget::paintEvent(QPaintEvent *) {
   QPainter p(this);
   p.setRenderHint(QPainter::Antialiasing);
 
   QRect r = rect().adjusted(1, 1, -1, -1);
-  QPen dashPen(QColor(0x00, 0xD4, 0xFF, 60), 1.5, Qt::DashLine);
-  QBrush fillBrush(QColor(0x00, 0xD4, 0xFF, 10));
+  QPen dashPen(QColor(0x00, 0xD4, 0xFF, m_editingEnabled ? 80 : 40), 1.5, m_editingEnabled ? Qt::DashLine : Qt::SolidLine);
+  QBrush fillBrush(QColor(0x00, 0xD4, 0xFF, m_editingEnabled ? 10 : 5));
   p.setPen(dashPen);
   p.setBrush(fillBrush);
 
@@ -85,17 +92,20 @@ void RoomWidget::paintEvent(QPaintEvent *) {
     p.drawRoundedRect(r, 6, 6);
   }
 
-  // 缩放手柄指示点
-  p.setBrush(QColor(0x00, 0xD4, 0xFF, 100));
-  p.setPen(Qt::NoPen);
-  int s = 5;
-  p.drawEllipse(QPoint(r.left() + s, r.top() + s), 2, 2);
-  p.drawEllipse(QPoint(r.right() - s, r.top() + s), 2, 2);
-  p.drawEllipse(QPoint(r.left() + s, r.bottom() - s), 2, 2);
-  p.drawEllipse(QPoint(r.right() - s, r.bottom() - s), 2, 2);
+  // 缩放手柄指示点 (仅在布局使能模式下绘制)
+  if (m_editingEnabled) {
+    p.setBrush(QColor(0x00, 0xD4, 0xFF, 100));
+    p.setPen(Qt::NoPen);
+    int s = 5;
+    p.drawEllipse(QPoint(r.left() + s, r.top() + s), 2, 2);
+    p.drawEllipse(QPoint(r.right() - s, r.top() + s), 2, 2);
+    p.drawEllipse(QPoint(r.left() + s, r.bottom() - s), 2, 2);
+    p.drawEllipse(QPoint(r.right() - s, r.bottom() - s), 2, 2);
+  }
 }
 
 RoomWidget::Edge RoomWidget::hitTest(const QPoint &pos) const {
+  if (!m_editingEnabled) return None;
   int x = pos.x(), y = pos.y(), w = width(), h = height();
   int s = HANDLE_SIZE;
   bool l = x < s, r = x > w - s, t = y < s, b = y > h - s;
@@ -111,6 +121,10 @@ RoomWidget::Edge RoomWidget::hitTest(const QPoint &pos) const {
 }
 
 void RoomWidget::updateCursor(Edge e) {
+  if (!m_editingEnabled) {
+    setCursor(Qt::ArrowCursor);
+    return;
+  }
   switch (e) {
     case Top: case Bottom: setCursor(Qt::SizeVerCursor); break;
     case Left: case Right: setCursor(Qt::SizeHorCursor); break;
@@ -121,6 +135,10 @@ void RoomWidget::updateCursor(Edge e) {
 }
 
 void RoomWidget::mousePressEvent(QMouseEvent *e) {
+  if (!m_editingEnabled) {
+    QWidget::mousePressEvent(e);
+    return;
+  }
   m_resizeEdge = hitTest(e->pos());
   if (m_resizeEdge != None) {
     m_resizing = true;

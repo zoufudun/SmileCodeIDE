@@ -22,6 +22,8 @@ public:
 
   void setDeviceCount(int n);
   void updateTitleFromLabel();
+  void setEditingEnabled(bool enable);
+  bool isEditingEnabled() const { return m_editingEnabled; }
 
 signals:
   void roomMoved(const QString &id, const QRect &newGeom);
@@ -44,7 +46,10 @@ private:
   QString m_id;
   QLabel *m_titleLabel;
   QLabel *m_countLabel;
+  QPushButton *m_btnRename = nullptr;
+  QPushButton *m_btnDelete = nullptr;
   int m_shape = 0;
+  bool m_editingEnabled = true;
   bool m_dragging = false;
   bool m_resizing = false;
   Edge m_resizeEdge = None;

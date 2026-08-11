@@ -176,17 +176,10 @@ void DeviceStatusWidget::renderCache() {
                QStringLiteral("#%1").arg(m_deviceId));
   }
 
-  // ---- 图标区域 ----
+  // ---- 图标区域 (适当放大图标，移除外部圆圈) ----
   const int iconCX = card.center().x();
-  const int iconCY = card.top() + 48 * s;
-  QRect iconArea(iconCX - 30 * s, iconCY - 30 * s, 60 * s, 60 * s);
-
-  // HUD 静态外饰环
-  {
-    p.setPen(QPen(TechColors::gray, 0.8));
-    p.setBrush(Qt::NoBrush);
-    p.drawEllipse(QPointF(iconCX, iconCY), 28 * s, 28 * s);
-  }
+  const int iconCY = card.top() + 50 * s;
+  QRect iconArea(iconCX - 38 * s, iconCY - 38 * s, 76 * s, 76 * s);
 
   // 设备图标
   if (s_iconStyle == 0) {
@@ -218,7 +211,7 @@ void DeviceStatusWidget::renderCache() {
   }
 
   // ---- LED 指示灯 ----
-  const int ledY = iconCY + 38 * s;
+  const int ledY = iconCY + 42 * s;
   QColor ledCol = m_status ? TechColors::red : TechColors::green;
   {
     QPointF lc(card.center().x(), ledY);
@@ -234,7 +227,7 @@ void DeviceStatusWidget::renderCache() {
   }
 
   // ---- 设备名称 ----
-  const int nameY = ledY + 9 * s;
+  const int nameY = ledY + 8 * s;
   p.setPen(TechColors::text);
   p.setFont(QFont("Microsoft YaHei", qMax(8, qRound(9.0 * s))));
   p.drawText(QRect(card.left() + 4, nameY, card.width() - 8, 22 * s),
@@ -256,7 +249,7 @@ void DeviceStatusWidget::renderCache() {
     case MobileSprayGun:      stText = m_status ? QStringLiteral("喷射") : QStringLiteral("停止"); stColor = m_status ? TechColors::green : TechColors::gray; break;
   }
 
-  QRect stRect(card.center().x() - 22 * s, card.bottom() - 32 * s, 44 * s, 18 * s);
+  QRect stRect(card.center().x() - 22 * s, card.bottom() - 22 * s, 44 * s, 18 * s);
   {
     QPainterPath stPath;
     stPath.addRoundedRect(stRect, 4, 4);
@@ -267,16 +260,6 @@ void DeviceStatusWidget::renderCache() {
     p.setPen(stColor);
     p.setFont(QFont("Microsoft YaHei", qMax(8, qRound(9.0 * s)), QFont::Bold));
     p.drawText(stRect, Qt::AlignCenter, stText);
-  }
-
-  // ---- 底部状态条 ----
-  {
-    QRect botBar(card.left() + 4, card.bottom() - 10, card.width() - 8, 4);
-    QPainterPath botPath;
-    botPath.addRoundedRect(botBar, 2, 2);
-    p.setPen(Qt::NoPen);
-    p.setBrush(m_status ? TechColors::red : TechColors::green);
-    p.drawPath(botPath);
   }
 
   m_cacheDirty = false;
@@ -888,7 +871,9 @@ void DeviceStatusWidget::mouseMoveEvent(QMouseEvent *e) {
 void DeviceStatusWidget::mouseReleaseEvent(QMouseEvent *e) {
   if (m_dragActive) {
     m_dragActive = false;
-    releaseMouse();
+    if (mouseGrabber() == this) {
+      releaseMouse();
+    }
     setCursor(Qt::ArrowCursor);
     emit deviceDragged(m_deviceId, pos());
   } else if (!m_draggable && e->button() == Qt::LeftButton) {

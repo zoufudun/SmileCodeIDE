@@ -22,8 +22,8 @@ QT_BEGIN_MOC_NAMESPACE
 QT_WARNING_PUSH
 QT_WARNING_DISABLE_DEPRECATED
 struct qt_meta_stringdata_DeviceMonitorPanel_t {
-    QByteArrayData data[25];
-    char stringdata0[314];
+    QByteArrayData data[35];
+    char stringdata0[470];
 };
 #define QT_MOC_LITERAL(idx, ofs, len) \
     Q_STATIC_BYTE_ARRAY_DATA_HEADER_INITIALIZER_WITH_OFFSET(len, \
@@ -45,18 +45,28 @@ QT_MOC_LITERAL(9, 98, 15), // "onExportClicked"
 QT_MOC_LITERAL(10, 114, 14), // "onResetClicked"
 QT_MOC_LITERAL(11, 129, 15), // "onNewConnection"
 QT_MOC_LITERAL(12, 145, 20), // "onClientDisconnected"
-QT_MOC_LITERAL(13, 166, 16), // "onToggleRoomMode"
-QT_MOC_LITERAL(14, 183, 9), // "onAddRoom"
-QT_MOC_LITERAL(15, 193, 15), // "onDeviceDragged"
-QT_MOC_LITERAL(16, 209, 8), // "deviceId"
-QT_MOC_LITERAL(17, 218, 6), // "newPos"
-QT_MOC_LITERAL(18, 225, 11), // "onRoomMoved"
-QT_MOC_LITERAL(19, 237, 2), // "id"
-QT_MOC_LITERAL(20, 240, 7), // "newGeom"
-QT_MOC_LITERAL(21, 248, 13), // "onRoomResized"
-QT_MOC_LITERAL(22, 262, 12), // "processBatch"
-QT_MOC_LITERAL(23, 275, 21), // "onEditDeviceRequested"
-QT_MOC_LITERAL(24, 297, 16) // "toggleFullScreen"
+QT_MOC_LITERAL(13, 166, 20), // "onSplitConfigClicked"
+QT_MOC_LITERAL(14, 187, 20), // "onMultiScreenToggled"
+QT_MOC_LITERAL(15, 208, 7), // "checked"
+QT_MOC_LITERAL(16, 216, 12), // "onTabChanged"
+QT_MOC_LITERAL(17, 229, 5), // "index"
+QT_MOC_LITERAL(18, 235, 21), // "onScreenLayoutChanged"
+QT_MOC_LITERAL(19, 257, 16), // "toggleLayoutMode"
+QT_MOC_LITERAL(20, 274, 6), // "enable"
+QT_MOC_LITERAL(21, 281, 21), // "showLayoutFloatingBox"
+QT_MOC_LITERAL(22, 303, 22), // "closeLayoutFloatingBox"
+QT_MOC_LITERAL(23, 326, 12), // "onDeleteRoom"
+QT_MOC_LITERAL(24, 339, 9), // "onAddRoom"
+QT_MOC_LITERAL(25, 349, 15), // "onDeviceDragged"
+QT_MOC_LITERAL(26, 365, 8), // "deviceId"
+QT_MOC_LITERAL(27, 374, 6), // "newPos"
+QT_MOC_LITERAL(28, 381, 11), // "onRoomMoved"
+QT_MOC_LITERAL(29, 393, 2), // "id"
+QT_MOC_LITERAL(30, 396, 7), // "newGeom"
+QT_MOC_LITERAL(31, 404, 13), // "onRoomResized"
+QT_MOC_LITERAL(32, 418, 12), // "processBatch"
+QT_MOC_LITERAL(33, 431, 21), // "onEditDeviceRequested"
+QT_MOC_LITERAL(34, 453, 16) // "toggleFullScreen"
 
     },
     "DeviceMonitorPanel\0logMessage\0\0msg\0"
@@ -64,8 +74,13 @@ QT_MOC_LITERAL(24, 297, 16) // "toggleFullScreen"
     "onConfigClicked\0onImportClicked\0"
     "onExportClicked\0onResetClicked\0"
     "onNewConnection\0onClientDisconnected\0"
-    "onToggleRoomMode\0onAddRoom\0onDeviceDragged\0"
-    "deviceId\0newPos\0onRoomMoved\0id\0newGeom\0"
+    "onSplitConfigClicked\0onMultiScreenToggled\0"
+    "checked\0onTabChanged\0index\0"
+    "onScreenLayoutChanged\0toggleLayoutMode\0"
+    "enable\0showLayoutFloatingBox\0"
+    "closeLayoutFloatingBox\0onDeleteRoom\0"
+    "onAddRoom\0onDeviceDragged\0deviceId\0"
+    "newPos\0onRoomMoved\0id\0newGeom\0"
     "onRoomResized\0processBatch\0"
     "onEditDeviceRequested\0toggleFullScreen"
 };
@@ -77,7 +92,7 @@ static const uint qt_meta_data_DeviceMonitorPanel[] = {
        8,       // revision
        0,       // classname
        0,    0, // classinfo
-      16,   14, // methods
+      23,   14, // methods
        0,    0, // properties
        0,    0, // enums/sets
        0,    0, // constructors
@@ -85,24 +100,31 @@ static const uint qt_meta_data_DeviceMonitorPanel[] = {
        1,       // signalCount
 
  // signals: name, argc, parameters, tag, flags
-       1,    1,   94,    2, 0x06 /* Public */,
+       1,    1,  129,    2, 0x06 /* Public */,
 
  // slots: name, argc, parameters, tag, flags
-       4,    1,   97,    2, 0x0a /* Public */,
-       7,    0,  100,    2, 0x08 /* Private */,
-       8,    0,  101,    2, 0x08 /* Private */,
-       9,    0,  102,    2, 0x08 /* Private */,
-      10,    0,  103,    2, 0x08 /* Private */,
-      11,    0,  104,    2, 0x08 /* Private */,
-      12,    0,  105,    2, 0x08 /* Private */,
-      13,    0,  106,    2, 0x08 /* Private */,
-      14,    0,  107,    2, 0x08 /* Private */,
-      15,    2,  108,    2, 0x08 /* Private */,
-      18,    2,  113,    2, 0x08 /* Private */,
-      21,    2,  118,    2, 0x08 /* Private */,
-      22,    0,  123,    2, 0x08 /* Private */,
-      23,    1,  124,    2, 0x08 /* Private */,
-      24,    0,  127,    2, 0x08 /* Private */,
+       4,    1,  132,    2, 0x0a /* Public */,
+       7,    0,  135,    2, 0x08 /* Private */,
+       8,    0,  136,    2, 0x08 /* Private */,
+       9,    0,  137,    2, 0x08 /* Private */,
+      10,    0,  138,    2, 0x08 /* Private */,
+      11,    0,  139,    2, 0x08 /* Private */,
+      12,    0,  140,    2, 0x08 /* Private */,
+      13,    0,  141,    2, 0x08 /* Private */,
+      14,    1,  142,    2, 0x08 /* Private */,
+      16,    1,  145,    2, 0x08 /* Private */,
+      18,    0,  148,    2, 0x08 /* Private */,
+      19,    1,  149,    2, 0x08 /* Private */,
+      21,    0,  152,    2, 0x08 /* Private */,
+      22,    0,  153,    2, 0x08 /* Private */,
+      23,    0,  154,    2, 0x08 /* Private */,
+      24,    0,  155,    2, 0x08 /* Private */,
+      25,    2,  156,    2, 0x08 /* Private */,
+      28,    2,  161,    2, 0x08 /* Private */,
+      31,    2,  166,    2, 0x08 /* Private */,
+      32,    0,  171,    2, 0x08 /* Private */,
+      33,    1,  172,    2, 0x08 /* Private */,
+      34,    0,  175,    2, 0x08 /* Private */,
 
  // signals: parameters
     QMetaType::Void, QMetaType::QString,    3,
@@ -116,12 +138,19 @@ static const uint qt_meta_data_DeviceMonitorPanel[] = {
     QMetaType::Void,
     QMetaType::Void,
     QMetaType::Void,
+    QMetaType::Void, QMetaType::Bool,   15,
+    QMetaType::Void, QMetaType::Int,   17,
     QMetaType::Void,
-    QMetaType::Void, QMetaType::Int, QMetaType::QPoint,   16,   17,
-    QMetaType::Void, QMetaType::QString, QMetaType::QRect,   19,   20,
-    QMetaType::Void, QMetaType::QString, QMetaType::QRect,   19,   20,
+    QMetaType::Void, QMetaType::Bool,   20,
     QMetaType::Void,
-    QMetaType::Void, QMetaType::Int,   16,
+    QMetaType::Void,
+    QMetaType::Void,
+    QMetaType::Void,
+    QMetaType::Void, QMetaType::Int, QMetaType::QPoint,   26,   27,
+    QMetaType::Void, QMetaType::QString, QMetaType::QRect,   29,   30,
+    QMetaType::Void, QMetaType::QString, QMetaType::QRect,   29,   30,
+    QMetaType::Void,
+    QMetaType::Void, QMetaType::Int,   26,
     QMetaType::Void,
 
        0        // eod
@@ -141,14 +170,21 @@ void DeviceMonitorPanel::qt_static_metacall(QObject *_o, QMetaObject::Call _c, i
         case 5: _t->onResetClicked(); break;
         case 6: _t->onNewConnection(); break;
         case 7: _t->onClientDisconnected(); break;
-        case 8: _t->onToggleRoomMode(); break;
-        case 9: _t->onAddRoom(); break;
-        case 10: _t->onDeviceDragged((*reinterpret_cast< int(*)>(_a[1])),(*reinterpret_cast< const QPoint(*)>(_a[2]))); break;
-        case 11: _t->onRoomMoved((*reinterpret_cast< const QString(*)>(_a[1])),(*reinterpret_cast< const QRect(*)>(_a[2]))); break;
-        case 12: _t->onRoomResized((*reinterpret_cast< const QString(*)>(_a[1])),(*reinterpret_cast< const QRect(*)>(_a[2]))); break;
-        case 13: _t->processBatch(); break;
-        case 14: _t->onEditDeviceRequested((*reinterpret_cast< int(*)>(_a[1]))); break;
-        case 15: _t->toggleFullScreen(); break;
+        case 8: _t->onSplitConfigClicked(); break;
+        case 9: _t->onMultiScreenToggled((*reinterpret_cast< bool(*)>(_a[1]))); break;
+        case 10: _t->onTabChanged((*reinterpret_cast< int(*)>(_a[1]))); break;
+        case 11: _t->onScreenLayoutChanged(); break;
+        case 12: _t->toggleLayoutMode((*reinterpret_cast< bool(*)>(_a[1]))); break;
+        case 13: _t->showLayoutFloatingBox(); break;
+        case 14: _t->closeLayoutFloatingBox(); break;
+        case 15: _t->onDeleteRoom(); break;
+        case 16: _t->onAddRoom(); break;
+        case 17: _t->onDeviceDragged((*reinterpret_cast< int(*)>(_a[1])),(*reinterpret_cast< const QPoint(*)>(_a[2]))); break;
+        case 18: _t->onRoomMoved((*reinterpret_cast< const QString(*)>(_a[1])),(*reinterpret_cast< const QRect(*)>(_a[2]))); break;
+        case 19: _t->onRoomResized((*reinterpret_cast< const QString(*)>(_a[1])),(*reinterpret_cast< const QRect(*)>(_a[2]))); break;
+        case 20: _t->processBatch(); break;
+        case 21: _t->onEditDeviceRequested((*reinterpret_cast< int(*)>(_a[1]))); break;
+        case 22: _t->toggleFullScreen(); break;
         default: ;
         }
     } else if (_c == QMetaObject::IndexOfMethod) {
@@ -192,13 +228,13 @@ int DeviceMonitorPanel::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 16)
+        if (_id < 23)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 16;
+        _id -= 23;
     } else if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
-        if (_id < 16)
+        if (_id < 23)
             *reinterpret_cast<int*>(_a[0]) = -1;
-        _id -= 16;
+        _id -= 23;
     }
     return _id;
 }

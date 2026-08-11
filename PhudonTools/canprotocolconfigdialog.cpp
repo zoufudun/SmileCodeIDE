@@ -27,23 +27,25 @@ CanProtocolConfigDialog::CanProtocolConfigDialog(QWidget *parent)
   mainLayout->setSpacing(12);
 
   // 表格放在最上方
-  m_table = new QTableWidget(0, 7, this);
+  m_table = new QTableWidget(0, 9, this);
   m_table->setHorizontalHeaderLabels(
       {QStringLiteral("设备ID"), QStringLiteral("标签"), QStringLiteral("类型"),
        QStringLiteral("CAN ID (hex)"), QStringLiteral("字节"), QStringLiteral("位"),
-       QStringLiteral("默认值")});
+       QStringLiteral("默认值"), QStringLiteral("所属界面"), QStringLiteral("所属房间")});
   m_table->setSelectionBehavior(QAbstractItemView::SelectRows);
   m_table->setSelectionMode(QAbstractItemView::SingleSelection);
   m_table->setAlternatingRowColors(true);
   m_table->verticalHeader()->setVisible(false);
   m_table->horizontalHeader()->setStretchLastSection(true);
-  m_table->setColumnWidth(0, 70);
-  m_table->setColumnWidth(1, 160);
-  m_table->setColumnWidth(2, 110);
-  m_table->setColumnWidth(3, 110);
-  m_table->setColumnWidth(4, 70);
-  m_table->setColumnWidth(5, 70);
-  m_table->setColumnWidth(6, 110);
+  m_table->setColumnWidth(0, 50);
+  m_table->setColumnWidth(1, 120);
+  m_table->setColumnWidth(2, 100);
+  m_table->setColumnWidth(3, 90);
+  m_table->setColumnWidth(4, 50);
+  m_table->setColumnWidth(5, 50);
+  m_table->setColumnWidth(6, 90);
+  m_table->setColumnWidth(7, 90);
+  m_table->setColumnWidth(8, 100);
 
   mainLayout->addWidget(m_table, 1);
 
@@ -95,6 +97,21 @@ CanProtocolConfigDialog::CanProtocolConfigDialog(QWidget *parent)
   m_defaultValCombo->addItem(QStringLiteral("0 (正常/关闭)"), 0);
   m_defaultValCombo->addItem(QStringLiteral("1 (报警/开启)"), 1);
   editLayout->addWidget(m_defaultValCombo);
+
+  editLayout->addWidget(new QLabel(QStringLiteral("所属界面:"), this));
+  m_targetViewCombo = new QComboBox(this);
+  m_targetViewCombo->setEditable(true); // 允许下拉选择或手动输入
+  m_targetViewCombo->addItem(QStringLiteral("界面1"));
+  m_targetViewCombo->addItem(QStringLiteral("界面2"));
+  m_targetViewCombo->addItem(QStringLiteral("界面3"));
+  m_targetViewCombo->setFixedWidth(90);
+  editLayout->addWidget(m_targetViewCombo);
+
+  editLayout->addWidget(new QLabel(QStringLiteral("所属房间:"), this));
+  m_targetRoomEdit = new QLineEdit(this);
+  m_targetRoomEdit->setPlaceholderText(QStringLiteral("如: 1号机房"));
+  m_targetRoomEdit->setFixedWidth(100);
+  editLayout->addWidget(m_targetRoomEdit);
 
   mainLayout->addWidget(editArea);
 
@@ -166,6 +183,16 @@ CanProtocolConfigDialog::CanProtocolConfigDialog(QWidget *parent)
   connect(m_table, &QTableWidget::itemSelectionChanged, this, &CanProtocolConfigDialog::onSelectionChanged);
 }
 
+void CanProtocolConfigDialog::setAvailableViews(const QStringList &viewNames) {
+  m_availableViews = viewNames;
+  if (m_targetViewCombo) {
+    m_targetViewCombo->clear();
+    for (const QString &v : m_availableViews) {
+      m_targetViewCombo->addItem(v);
+    }
+  }
+}
+
 void CanProtocolConfigDialog::applyThemeStyle(const QString &qss) {
   setStyleSheet(qss + 
     "\nQPushButton#deleteButton { background-color: #ef4444; color: white; }"
@@ -177,7 +204,9 @@ void CanProtocolConfigDialog::applyThemeStyle(const QString &qss) {
 
 void CanProtocolConfigDialog::addTableRow(int deviceId, const QString &label,
                                           const QString &type, quint32 canId,
-                                          int byteIdx, int bitIdx, int defaultVal) {
+                                          int byteIdx, int bitIdx, int defaultVal,
+                                          const QString &targetView,
+                                          const QString &targetRoom) {
   int row = m_table->rowCount();
   m_table->insertRow(row);
 
@@ -236,6 +265,27 @@ void CanProtocolConfigDialog::addTableRow(int deviceId, const QString &label,
   defaultCombo->addItem(QStringLiteral("1 (报警/开启)"), 1);
   defaultCombo->setCurrentIndex(defaultVal == 1 ? 1 : 0);
   m_table->setCellWidget(row, 6, defaultCombo);
+
+  // 所属界面 (下拉框选择)
+  auto *targetViewCombo = new QComboBox(m_table);
+  targetViewCombo->setEditable(true);
+  QStringList views = m_availableViews.isEmpty() ? QStringList{QStringLiteral("界面1"), QStringLiteral("界面2"), QStringLiteral("界面3")} : m_availableViews;
+  for (const QString &v : views) {
+    targetViewCombo->addItem(v);
+  }
+  QString tView = targetView.isEmpty() ? QStringLiteral("界面1") : targetView;
+  int vIdx = targetViewCombo->findText(tView);
+  if (vIdx >= 0) {
+    targetViewCombo->setCurrentIndex(vIdx);
+  } else {
+    targetViewCombo->setCurrentText(tView);
+  }
+  m_table->setCellWidget(row, 7, targetViewCombo);
+
+  // 所属房间 (可编辑单元格)
+  auto *targetRoomItem = new QTableWidgetItem(targetRoom);
+  targetRoomItem->setTextAlignment(Qt::AlignCenter);
+  m_table->setItem(row, 8, targetRoomItem);
 }
 
 // ---- 公共接口 ----
@@ -246,7 +296,7 @@ void CanProtocolConfigDialog::setMappings(
   int maxId = 0;
   for (const auto &m : mappings) {
     addTableRow(m.deviceId, m.label, m.deviceType, m.canId, m.byteIndex,
-                m.bitIndex, m.defaultVal);
+                m.bitIndex, m.defaultVal, m.targetView, m.targetRoom);
     if (m.deviceId > maxId) maxId = m.deviceId;
   }
   m_nextDeviceId = maxId + 1;
@@ -277,6 +327,20 @@ QList<DeviceBitMapping> CanProtocolConfigDialog::mappings() const {
     auto *defaultCombo = qobject_cast<QComboBox *>(m_table->cellWidget(r, 6));
     m.defaultVal = defaultCombo ? defaultCombo->currentData().toInt() : 0;
 
+    auto *targetViewCombo = qobject_cast<QComboBox *>(m_table->cellWidget(r, 7));
+    if (targetViewCombo) {
+      m.targetView = targetViewCombo->currentText().trimmed();
+    } else if (m_table->item(r, 7)) {
+      m.targetView = m_table->item(r, 7)->text().trimmed();
+    }
+    if (m.targetView.isEmpty()) {
+      m.targetView = QStringLiteral("界面1");
+    }
+
+    if (m_table->item(r, 8)) {
+      m.targetRoom = m_table->item(r, 8)->text().trimmed();
+    }
+
     result.append(m);
   }
   return result;
@@ -297,6 +361,9 @@ void CanProtocolConfigDialog::onAddRow() {
   int byteIdx = m_defaultByteSpin->value();
   int bitIdx = m_defaultBitSpin->value();
   int defaultVal = m_defaultValCombo->currentData().toInt();
+  QString targetView = m_targetViewCombo ? m_targetViewCombo->currentText().trimmed() : QStringLiteral("界面1");
+  if (targetView.isEmpty()) targetView = QStringLiteral("界面1");
+  QString targetRoom = m_targetRoomEdit ? m_targetRoomEdit->text().trimmed() : QString();
 
   int deviceId = m_nextDeviceId++;
   QString label = m_labelEdit->text().trimmed();
@@ -304,7 +371,7 @@ void CanProtocolConfigDialog::onAddRow() {
     label = QStringLiteral("设备%1").arg(deviceId);
   }
 
-  addTableRow(deviceId, label, type, canId, byteIdx, bitIdx, defaultVal);
+  addTableRow(deviceId, label, type, canId, byteIdx, bitIdx, defaultVal, targetView, targetRoom);
 }
 
 void CanProtocolConfigDialog::onDeleteRow() {
@@ -355,6 +422,21 @@ void CanProtocolConfigDialog::onModifyRow() {
   if (defaultCombo) {
     defaultCombo->setCurrentIndex(m_defaultValCombo->currentIndex());
   }
+
+  // 所属界面
+  auto *targetViewCombo = qobject_cast<QComboBox *>(m_table->cellWidget(row, 7));
+  if (targetViewCombo && m_targetViewCombo) {
+    QString targetView = m_targetViewCombo->currentText().trimmed();
+    if (targetView.isEmpty()) targetView = QStringLiteral("界面1");
+    int vIdx = targetViewCombo->findText(targetView);
+    if (vIdx >= 0) targetViewCombo->setCurrentIndex(vIdx);
+    else targetViewCombo->setCurrentText(targetView);
+  }
+
+  // 所属房间
+  if (m_table->item(row, 8) && m_targetRoomEdit) {
+    m_table->item(row, 8)->setText(m_targetRoomEdit->text().trimmed());
+  }
 }
 
 void CanProtocolConfigDialog::onSelectionChanged() {
@@ -382,6 +464,15 @@ void CanProtocolConfigDialog::onSelectionChanged() {
     if (defaultCombo) {
       m_defaultValCombo->setCurrentIndex(defaultCombo->currentIndex());
     }
+    auto *targetViewCombo = qobject_cast<QComboBox *>(m_table->cellWidget(row, 7));
+    if (targetViewCombo && m_targetViewCombo) {
+      int vIdx = m_targetViewCombo->findText(targetViewCombo->currentText());
+      if (vIdx >= 0) m_targetViewCombo->setCurrentIndex(vIdx);
+      else m_targetViewCombo->setCurrentText(targetViewCombo->currentText());
+    }
+    if (m_table->item(row, 8) && m_targetRoomEdit) {
+      m_targetRoomEdit->setText(m_table->item(row, 8)->text());
+    }
     m_btnModify->setEnabled(true);
     m_btnDelete->setEnabled(true);
   } else {
@@ -404,6 +495,7 @@ void CanProtocolConfigDialog::onExportJson() {
     obj["byteIndex"] = m.byteIndex;
     obj["bitIndex"] = m.bitIndex;
     obj["defaultVal"] = m.defaultVal;
+    obj["targetView"] = m.targetView;
     arr.append(obj);
   }
 
@@ -460,7 +552,8 @@ void CanProtocolConfigDialog::onImportJson() {
         obj.value("deviceType").toString(QStringLiteral("detector")),
         static_cast<quint32>(obj.value("canId").toInt(0x100)),
         obj.value("byteIndex").toInt(0), obj.value("bitIndex").toInt(0),
-        obj.value("defaultVal").toInt(0));
+        obj.value("defaultVal").toInt(0),
+        obj.value("targetView").toString(QStringLiteral("界面1")));
   }
   m_nextDeviceId = maxId + 1;
 

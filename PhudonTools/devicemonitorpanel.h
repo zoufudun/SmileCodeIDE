@@ -6,6 +6,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QList>
+#include <QPointer>
 #include <QRect>
 #include <QString>
 #include <QWebSocket>
@@ -17,15 +18,19 @@
 #include "ringbuffer.h"
 
 class QGridLayout;
+class QHBoxLayout;
 class QLabel;
 class QPlainTextEdit;
 class QPushButton;
 class QComboBox;
 class QScrollArea;
+class QTabBar;
 class CanInterface;
 class DeviceStatusWidget;
 class RoomWidget;
 class BottomStatusBar;
+class SubMonitorWindow;
+class TemplateBackground;
 
 // ===== 房间区域数据结构 =====
 enum RoomShape { ShapeRectangle = 0, ShapeCircle, ShapeDiamond, ShapeIrregular };
@@ -34,11 +39,16 @@ struct RoomRegion {
   QString name;
   QRect geom;
   int shape = ShapeRectangle; // 0=矩形, 1=圆形, 2=菱形, 3=不规则
+  QString targetView = QStringLiteral("界面1"); // 所属界面/标签页名称
 
   RoomRegion() = default;
-  RoomRegion(const QString &i, const QString &n, const QRect &g, int s = ShapeRectangle)
-      : id(i), name(n), geom(g), shape(s) {}
+  RoomRegion(const QString &i, const QString &n, const QRect &g, int s = ShapeRectangle, const QString &tv = QStringLiteral("界面1"))
+      : id(i), name(n), geom(g), shape(s), targetView(tv) {}
 };
+
+class QToolButton;
+class QMenu;
+class QAction;
 
 // 科技风设备状态监控面板 —— 嵌入 CANTool 标签页。
 class DeviceMonitorPanel : public QWidget {
@@ -61,8 +71,17 @@ private slots:
   void onNewConnection();
   void onClientDisconnected();
 
-  // Room 模式
-  void onToggleRoomMode();
+  // 界面分割与多屏联动
+  void onSplitConfigClicked();
+  void onMultiScreenToggled(bool checked);
+  void onTabChanged(int index);
+  void onScreenLayoutChanged();
+
+  // Room 界面与布局管理
+  void toggleLayoutMode(bool enable);
+  void showLayoutFloatingBox();
+  void closeLayoutFloatingBox();
+  void onDeleteRoom();
   void onAddRoom();
   void onDeviceDragged(int deviceId, const QPoint &newPos);
   void onRoomMoved(const QString &id, const QRect &newGeom);
@@ -78,13 +97,15 @@ protected:
   void keyPressEvent(QKeyEvent *event) override;
 
 private:
-  void rebuildGrid();
   void rebuildRoomCanvas();
   void buildMappingHash();
   void appendLog(const QString &text, bool isAlarm = false);
   void loadConfig();
   void saveConfig();
   void setupUi();
+  void updateTabBar();
+  void updateSubWindows();
+  void scheduleSubWindowUpdate(); // Debounced: always defers and coalesces multiple calls
   void sendConfigToClient(QWebSocket *client);
   void broadcastMessage(const QJsonObject &json);
 
@@ -92,11 +113,13 @@ private:
   void saveRoomLayout();
   void loadRoomLayout();
   void applyLayoutTemplate(const QString &tpl);
+  void autoArrangeRoomDevices();
   void zoomIn();
   void zoomOut();
   void zoomFit();
   void updateZoom();
   void updateUnplacedDock();
+  void clearUnplacedDock();
   void placeDeviceOnCanvas(int deviceId);
   RoomRegion *roomAtPos(const QPoint &pos);
 
@@ -107,11 +130,15 @@ private:
   // UI
   QWidget *m_toolbar = nullptr;
   BottomStatusBar *m_bottomBar = nullptr;
+  QToolButton *m_btnSettingsMenu = nullptr; // ⚙ 设置菜单按钮
+  QPushButton *m_btnLayoutToggle = nullptr; // 📐 布局/视图 切换按钮
+  QDialog *m_layoutFloatingDialog = nullptr; // 布局模式悬浮控制框
+  bool m_layoutEditingEnabled = false;       // 使能布局状态 (默认 false / 视图模式)
+  QAction *m_actMultiScreenToggle = nullptr;
   QPushButton *m_btnConfig;
   QPushButton *m_btnImport;
   QPushButton *m_btnExport;
   QPushButton *m_btnReset;
-  QPushButton *m_btnToggleRoom;
   QPushButton *m_btnAddRoom;
   QPushButton *m_btnFullScreen = nullptr;
   bool m_isFullScreen = false;
@@ -125,12 +152,26 @@ private:
   QPushButton *m_btnInfoLog = nullptr;
   QLabel *m_lblCount = nullptr;
 
+  // 界面分割与多屏联动 UI
+  QWidget *m_floatingTabWrapper = nullptr;
+  QTabBar *m_viewTabBar = nullptr;
+  QPushButton *m_btnSplitConfig = nullptr;
+  QPushButton *m_btnMultiScreen = nullptr;
+  QStringList m_viewNames;
+  int m_activeViewIndex = 0;
+  bool m_multiScreenActive = false;
+  bool m_updatingSubWindows = false;   // 重入保护守卫
+  bool m_isRebuildingCanvas = false;   // 画布重建重入保护守卫
+  QList<QPointer<SubMonitorWindow>> m_subWindows;
+  QTimer *m_subWinUpdateTimer = nullptr; // Debounce timer - coalesces multiple updateSubWindows requests
+
   bool m_logDragging = false;
   QPoint m_logDragStartPos;
 
   // 未摆放设备停靠区
   QWidget *m_unplacedDock = nullptr;
   QWidget *m_unplacedContainer = nullptr;
+  QHBoxLayout *m_unplacedLayout = nullptr;
 
   QHash<int, DeviceStatusWidget *> m_deviceWidgets;
   int m_gridCols = 5;
@@ -139,10 +180,10 @@ private:
   LockFreeRingBuffer<CanFrame, 16384> m_ringBuffer;
   QTimer *m_batchTimer = nullptr;
 
-  // Room 模式
-  bool m_roomMode = false;
+  // Room 布局模式数据
   QList<RoomRegion> m_rooms;
-  QList<RoomWidget *> m_roomWidgets;
+  QHash<QString, RoomWidget *> m_roomWidgets;
+  TemplateBackground *m_templateBg = nullptr;
   QHash<int, QPoint> m_deviceRoomPos;
   QString m_activeTemplate;
   qreal m_zoomLevel = 1.0;

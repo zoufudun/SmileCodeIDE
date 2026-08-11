@@ -668,7 +668,11 @@ void CanDeviceDialog::onOpenDeviceClicked() {
   if (m_can->openDevice(type, index)) {
     refreshDeviceTree();
   } else {
-    QMessageBox::critical(this, "错误", "打开设备失败，请检查驱动连接。");
+    QString errDetail = m_can->lastError();
+    if (errDetail.isEmpty()) {
+      errDetail = QStringLiteral("打开设备失败，请检查驱动与设备连接。");
+    }
+    QMessageBox::critical(this, QStringLiteral("打开设备失败"), errDetail);
   }
 }
 

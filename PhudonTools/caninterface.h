@@ -69,6 +69,7 @@ public:
   // zlgcan 动态库是否加载成功
   bool libraryLoaded() const;
   QString libraryError() const { return m_libError; }
+  QString lastError() const { return m_lastError; }
 
   // 获取当前打开的设备信息
   quint32 deviceType() const;
@@ -143,6 +144,7 @@ private:
   bool m_fdEnabled = false;
   int m_channel = 0;
   QString m_libError;
+  QString m_lastError;
 };
 
 #endif // CANINTERFACE_H
