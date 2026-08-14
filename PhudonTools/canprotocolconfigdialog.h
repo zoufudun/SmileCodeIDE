@@ -22,6 +22,8 @@ struct DeviceBitMapping {
   int defaultVal;     // 默认值 (0或1)
   QString targetView; // 所属界面/标签页名称（如"界面1", "驾驶舱"）
   QString targetRoom; // 所属房间名称/ID（如"1号机房", "控制室"）
+  int canDevice = 0;  // CAN 设备 Index (如 0)
+  int canChannel = -1;// CAN 通道 Index (-1: 任意通道, 0: 通道0, 1: 通道1)
 };
 
 // 协议配置对话框 —— 管理 CAN ID 到设备状态的映射表。
@@ -34,6 +36,7 @@ public:
   // 设置可选界面与房间列表
   void setAvailableViews(const QStringList &viewNames);
   void setAvailableRooms(const QStringList &roomNames);
+  void setRoomViewPairs(const QList<QPair<QString, QString>> &pairs);
 
   // 获取/设置当前的映射配置
   void setMappings(const QList<DeviceBitMapping> &mappings);
@@ -41,6 +44,10 @@ public:
 
   // 应用主题样式
   void applyThemeStyle(const QString &qss);
+
+  // CSV 导入导出静态辅助接口 (QByteArray 正确处理 BOM 与 GBK/UTF-8 编码)
+  static QByteArray exportMappingsToCsv(const QList<DeviceBitMapping> &list);
+  static QList<DeviceBitMapping> parseCsvToMappings(const QByteArray &csvData);
 
 private slots:
   void onAddRow();
@@ -54,7 +61,8 @@ private:
   void addTableRow(int deviceId, const QString &label, const QString &type,
                    quint32 canId, int byteIdx, int bitIdx, int defaultVal,
                    const QString &targetView = QStringLiteral("界面1"),
-                   const QString &targetRoom = QString());
+                   const QString &targetRoom = QString(),
+                   int canChannel = -1);
 
   QTableWidget *m_table;
   QPushButton *m_btnAdd;
@@ -73,11 +81,13 @@ private:
   QSpinBox *m_defaultByteSpin;
   QSpinBox *m_defaultBitSpin;
   QComboBox *m_defaultValCombo; // 默认状态选择
+  QComboBox *m_defaultChannelCombo; // CAN 通道选择
   QComboBox *m_targetViewCombo; // 所属界面下拉框
   QComboBox *m_targetRoomCombo; // 所属房间下拉/可输入框
 
   QStringList m_availableViews;
   QStringList m_availableRooms;
+  QList<QPair<QString, QString>> m_roomViewPairs;
   int m_nextDeviceId = 1;
 };
 

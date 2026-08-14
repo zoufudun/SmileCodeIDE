@@ -57,6 +57,7 @@ SOURCES += \
     candevicedialog.cpp \
     canprotocolmonitor.cpp \
     canprotocolconfigdialog.cpp \
+    protocolconfigdialog.cpp \
     devicestatuswidget.cpp \
     devicemonitorpanel.cpp \
     roomwidget.cpp \
@@ -93,6 +94,7 @@ HEADERS += \
     candevicedialog.h \
     canprotocolmonitor.h \
     canprotocolconfigdialog.h \
+    protocolconfigdialog.h \
     devicestatuswidget.h \
     devicemonitorpanel.h \
     roomwidget.h \

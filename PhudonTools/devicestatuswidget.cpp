@@ -32,9 +32,9 @@ DeviceStatusWidget::DeviceStatusWidget(int deviceId, DeviceKind kind,
       m_deviceId(deviceId), m_kind(kind), m_label(label.left(32)), m_canId(canId),
       m_flashTimer(new QTimer(this))
 {
-  // 固定尺寸策略 — 不随容器拉伸
-  setMinimumSize(128, 155);
-  setMaximumSize(200, 240);
+  // 紧凑尺寸策略 — 缩小占用面积
+  setMinimumSize(85, 95);
+  setMaximumSize(150, 160);
   setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 
   setToolTip(QStringLiteral("[%1]\nID: #%2 | CAN: 0x%3")
@@ -154,50 +154,34 @@ void DeviceStatusWidget::renderCache() {
 
   const int w = width(), h = height();
   const QRect card(2, 2, w - 4, h - 4);
-  qreal s = qMin(w / 135.0, h / 160.0);
+  qreal s = qMin(w / 96.0, h / 106.0);
 
   // ---- 卡片背景 ----
   {
     QPainterPath bgPath;
-    bgPath.addRoundedRect(card, 8, 8);
+    bgPath.addRoundedRect(card, 6, 6);
     p.setPen(Qt::NoPen);
     p.setBrush(TechColors::bg);
     p.drawPath(bgPath);
 
-    // 顶部渐变
-    QLinearGradient g(card.left(), card.top(), card.left(), card.top() + 30);
+    // 顶部微弱渐变
+    QLinearGradient g(card.left(), card.top(), card.left(), card.top() + 24 * s);
     g.setColorAt(0, QColor(0x1E, 0x2A, 0x3E, 100));
     g.setColorAt(1, QColor(0x0F, 0x17, 0x2A, 0));
     p.setBrush(g);
     p.drawPath(bgPath);
 
-    // 边框
+    // 边框 (报警时红边，正常时常规边框)
     QColor bc = m_status ? TechColors::red : TechColors::border;
     p.setPen(QPen(bc, 1.0));
     p.setBrush(Qt::NoBrush);
     p.drawPath(bgPath);
   }
 
-  // ---- CAN ID (右上角) ----
-  {
-    p.setPen(TechColors::accentCyan);
-    p.setFont(QFont("Consolas", qMax(6, qRound(7.0 * s)), QFont::Bold));
-    QString canStr = QStringLiteral("CAN 0x%1").arg(m_canId, 3, 16, QChar('0')).toUpper();
-    p.drawText(QRect(card.left(), card.top() + 3, card.width() - 5, 14), Qt::AlignRight, canStr);
-  }
-
-  // ---- 设备 ID (左上角) ----
-  {
-    p.setPen(TechColors::textDim);
-    p.setFont(QFont("Consolas", qMax(5, qRound(6.5 * s)), QFont::Bold));
-    p.drawText(QRect(card.left() + 5, card.top() + 3, 40, 14), Qt::AlignLeft,
-               QStringLiteral("#%1").arg(m_deviceId));
-  }
-
-  // ---- 图标区域 (适当放大图标，移除外部圆圈) ----
+  // ---- 图标区域 (居中在卡片中上部，无上方ID和CAN ID号) ----
   const int iconCX = card.center().x();
-  const int iconCY = card.top() + 50 * s;
-  QRect iconArea(iconCX - 38 * s, iconCY - 38 * s, 76 * s, 76 * s);
+  const int iconCY = card.top() + 36 * s;
+  QRect iconArea(iconCX - 28 * s, iconCY - 28 * s, 56 * s, 56 * s);
 
   // 设备图标
   if (s_iconStyle == 0) {
@@ -228,57 +212,28 @@ void DeviceStatusWidget::renderCache() {
     }
   }
 
-  // ---- LED 指示灯 ----
-  const int ledY = iconCY + 42 * s;
+  // ---- LED 指示灯 (红/绿指示) ----
+  const int ledY = iconCY + 30 * s;
   QColor ledCol = m_status ? TechColors::red : TechColors::green;
   {
     QPointF lc(card.center().x(), ledY);
     QColor og = ledCol; og.setAlpha(50);
     p.setPen(Qt::NoPen); p.setBrush(og);
-    p.drawEllipse(lc, 6 * s, 6 * s);
-    QRadialGradient lg(lc + QPointF(-0.5, -0.5), 2.8 * s);
+    p.drawEllipse(lc, 5 * s, 5 * s);
+    QRadialGradient lg(lc + QPointF(-0.4, -0.4), 2.4 * s);
     lg.setColorAt(0, ledCol.lighter(200));
     lg.setColorAt(0.4, ledCol);
     lg.setColorAt(1, ledCol.darker(180));
     p.setBrush(lg);
-    p.drawEllipse(lc, 2.8 * s, 2.8 * s);
+    p.drawEllipse(lc, 2.4 * s, 2.4 * s);
   }
 
-  // ---- 设备名称 ----
-  const int nameY = ledY + 8 * s;
+  // ---- 设备名称 (去掉下方报警、开字样文本块) ----
+  const int nameY = ledY + 6 * s;
   p.setPen(TechColors::text);
-  p.setFont(QFont("Microsoft YaHei", qMax(8, qRound(9.0 * s))));
-  p.drawText(QRect(card.left() + 4, nameY, card.width() - 8, 22 * s),
-             Qt::AlignHCenter | Qt::TextWordWrap, m_label);
-
-  // ---- 状态便利贴 ----
-  QString stText;
-  QColor stColor = m_status ? TechColors::red : TechColors::green;
-  switch (m_kind) {
-    case Detector:            stText = m_status ? QStringLiteral("报警") : QStringLiteral("正常"); break;
-    case Valve:
-    case ValveDistributor:
-    case ValveZone:
-    case ValveMainIsolation:  stText = m_status ? QStringLiteral("开") : QStringLiteral("关"); stColor = m_status ? TechColors::green : TechColors::amber; break;
-    case ManualAlarm:         stText = m_status ? QStringLiteral("按下") : QStringLiteral("正常"); break;
-    case GasCylinder:         stText = m_status ? QStringLiteral("泄漏") : QStringLiteral("正常"); break;
-    case WaterPump:           stText = m_status ? QStringLiteral("运转") : QStringLiteral("停止"); stColor = m_status ? TechColors::greenBright : TechColors::amber; break;
-    case PressureSwitch:      stText = m_status ? QStringLiteral("开启") : QStringLiteral("关闭"); stColor = m_status ? TechColors::accentCyan : TechColors::gray; break;
-    case MobileSprayGun:      stText = m_status ? QStringLiteral("喷射") : QStringLiteral("停止"); stColor = m_status ? TechColors::green : TechColors::gray; break;
-  }
-
-  QRect stRect(card.center().x() - 22 * s, card.bottom() - 22 * s, 44 * s, 18 * s);
-  {
-    QPainterPath stPath;
-    stPath.addRoundedRect(stRect, 4, 4);
-    QColor stBg = stColor; stBg.setAlpha(30);
-    p.setPen(QPen(stColor, 0.8));
-    p.setBrush(stBg);
-    p.drawPath(stPath);
-    p.setPen(stColor);
-    p.setFont(QFont("Microsoft YaHei", qMax(8, qRound(9.0 * s)), QFont::Bold));
-    p.drawText(stRect, Qt::AlignCenter, stText);
-  }
+  p.setFont(QFont("Microsoft YaHei", qMax(7, qRound(8.0 * s))));
+  p.drawText(QRect(card.left() + 2, nameY, card.width() - 4, qMax(16, card.bottom() - nameY - 2)),
+             Qt::AlignHCenter | Qt::AlignTop | Qt::TextWordWrap, m_label);
 
   m_cacheDirty = false;
 }
@@ -293,21 +248,9 @@ void DeviceStatusWidget::paintEvent(QPaintEvent *) {
   p.setRenderHint(QPainter::Antialiasing);
   p.drawPixmap(0, 0, m_cachedCard);
 
-  const int w = width(), h = height();
-  const QRect card(2, 2, w - 4, h - 4);
-  qreal s = qMin(w / 135.0, h / 160.0);
-
   // 悬停高亮轮廓
   if (m_hovered) {
-    QColor glow = accentColor();
-    glow.setAlpha(35);
-    p.setPen(QPen(glow, 2));
-    p.setBrush(Qt::NoBrush);
-    p.drawRoundedRect(card, 8, 8);
-  }
-
-  // 悬停高亮轮廓
-  if (m_hovered) {
+    const QRect card(2, 2, width() - 4, height() - 4);
     QColor glow = accentColor();
     glow.setAlpha(35);
     p.setPen(QPen(glow, 2));
@@ -867,19 +810,23 @@ void DeviceStatusWidget::mouseMoveEvent(QMouseEvent *e) {
     }
     move(newPos);
   } else if (!m_draggable && (e->buttons() & Qt::LeftButton)) {
-    // 拖动距离阈值
-    if ((e->globalPos() - m_dragStartPos).manhattanLength() > 10) {
-      QDrag *drag = new QDrag(this);
-      QMimeData *mimeData = new QMimeData;
-      mimeData->setText(QString("device:%1").arg(m_deviceId));
-      drag->setMimeData(mimeData);
-      
-      QPixmap pixmap = grab();
-      drag->setPixmap(pixmap);
-      drag->setHotSpot(QPoint(64, 77)); // 使拖拽阴影中心对齐鼠标
-      
-      drag->exec(Qt::MoveAction);
-      setCursor(Qt::ArrowCursor);
+    // 只能从未放置侧边栏发起 QDrag 拖拽入舱
+    if (parentWidget() && parentWidget()->objectName() == QStringLiteral("unplacedContainer")) {
+      if ((e->globalPos() - m_dragStartPos).manhattanLength() > 10) {
+        QDrag *drag = new QDrag(this);
+        QMimeData *mimeData = new QMimeData;
+        mimeData->setText(QString("device:%1").arg(m_deviceId));
+        drag->setMimeData(mimeData);
+        
+        QPixmap pixmap = grab();
+        drag->setPixmap(pixmap);
+        drag->setHotSpot(QPoint(48, 53)); // 96x106 卡片中心点
+        
+        drag->exec(Qt::MoveAction);
+        setCursor(Qt::ArrowCursor);
+      }
+    } else {
+      QWidget::mouseMoveEvent(e);
     }
   } else {
     QWidget::mouseMoveEvent(e);

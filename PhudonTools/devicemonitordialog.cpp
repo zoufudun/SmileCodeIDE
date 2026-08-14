@@ -4,7 +4,7 @@
 DeviceMonitorDialog::DeviceMonitorDialog(CanInterface *can, QWidget *parent)
     : QDialog(parent) {
   setWindowTitle("设备状态监控 (Status Monitor)");
-  resize(850, 600);
+  resize(1360, 850);
   setWindowFlags(windowFlags() | Qt::WindowMinMaxButtonsHint | Qt::WindowCloseButtonHint);
   setAttribute(Qt::WA_DeleteOnClose);
 

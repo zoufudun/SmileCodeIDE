@@ -120,6 +120,8 @@ CanProtocolMonitor::CanProtocolMonitor(QWidget *parent)
 
   connect(m_can, &CanInterface::frameReceived, this,
           &CanProtocolMonitor::onFrameReceived);
+  connect(m_can, &CanInterface::frameSent, this,
+          &CanProtocolMonitor::onFrameReceived);
   connect(m_can, &CanInterface::connected, this,
           &CanProtocolMonitor::onCanConnected);
   connect(m_can, &CanInterface::disconnected, this,
@@ -220,8 +222,11 @@ void CanProtocolMonitor::rebuildGrid() {
     }
 
     auto *widget =
-        new DeviceStatusWidget(mapping.deviceId, kind, mapping.label);
-    widget->setStatus(false);
+        new DeviceStatusWidget(mapping.deviceId, kind, mapping.label, mapping.canId);
+    widget->setDefaultVal(mapping.defaultVal);
+    widget->setStatus(mapping.defaultVal == 1);
+    connect(widget, &DeviceStatusWidget::editRequested, this,
+            &CanProtocolMonitor::onConfigClicked);
 
     int row = i / m_gridCols;
     int col = i % m_gridCols;
@@ -249,6 +254,7 @@ void CanProtocolMonitor::processBatch() {
   for (const auto &frame : batch) {
     for (const auto &mapping : m_mappings) {
       if (frame.id != mapping.canId) continue;
+      if (mapping.canChannel != -1 && frame.channel != mapping.canChannel) continue;
       if (mapping.byteIndex >= frame.data.size()) continue;
 
       const quint8 byteVal =

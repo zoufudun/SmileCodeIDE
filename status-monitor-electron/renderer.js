@@ -434,8 +434,75 @@ function renderWorkspace() {
     deviceGrid.appendChild(bgDiv);
   }
 
-  // Render Rooms
+  // Auto-expand rooms and grid-arrange internal devices
   if (hasSavedLayout || isEditMode) {
+    // 1. Auto-expand rooms based on device count
+    currentLayout.rooms.forEach(room => {
+      const roomDevs = latestMappings.filter(d => {
+        if (d.targetRoom && d.targetRoom.trim()) {
+          return d.targetRoom.trim() === room.name.trim();
+        }
+        const coords = currentLayout.devices[d.deviceId];
+        if (!coords) return false;
+        const cx = coords.x + 50;
+        const cy = coords.y + 55;
+        return cx >= room.x && cx <= room.x + room.w && cy >= room.y && cy <= room.y + room.h;
+      });
+
+      const count = roomDevs.length;
+      const cols = Math.max(2, Math.min(4, Math.ceil(Math.sqrt(count))));
+      const rows = count > 0 ? Math.ceil(count / cols) : 0;
+      const cardW = 96, cardH = 106, gapX = 20, gapY = 20;
+      const reqW = Math.max(320, 20 * 2 + cols * cardW + (cols - 1) * gapX);
+      const reqH = Math.max(200, 52 + 20 + (rows > 0 ? rows * cardH + (rows - 1) * gapY : 0));
+
+      room.w = reqW;
+      room.h = reqH;
+    });
+
+    // 2. Flow layout rooms to avoid room overlaps (40px clearance)
+    let curX = 50, curY = 50, maxRowH = 0;
+    const maxRowW = 1500;
+    currentLayout.rooms.forEach(room => {
+      if (curX + room.w > maxRowW && curX > 50) {
+        curX = 50;
+        curY += maxRowH + 40;
+        maxRowH = 0;
+      }
+      room.x = curX;
+      room.y = curY;
+      curX += room.w + 40;
+      maxRowH = Math.max(maxRowH, room.h);
+    });
+
+    // 3. Grid arrange internal devices
+    currentLayout.rooms.forEach(room => {
+      const roomDevs = latestMappings.filter(d => {
+        if (d.targetRoom && d.targetRoom.trim()) {
+          return d.targetRoom.trim() === room.name.trim();
+        }
+        const coords = currentLayout.devices[d.deviceId];
+        if (!coords) return false;
+        const cx = coords.x + 50;
+        const cy = coords.y + 55;
+        return cx >= room.x && cx <= room.x + room.w && cy >= room.y && cy <= room.y + room.h;
+      });
+
+      const count = roomDevs.length;
+      if (count > 0) {
+        const cols = Math.max(2, Math.min(4, Math.ceil(Math.sqrt(count))));
+        const cardW = 96, cardH = 106, gapX = 20, gapY = 20;
+        roomDevs.forEach((dev, idx) => {
+          const rIdx = Math.floor(idx / cols);
+          const cIdx = idx % cols;
+          currentLayout.devices[dev.deviceId] = {
+            x: room.x + 20 + cIdx * (cardW + gapX),
+            y: room.y + 52 + rIdx * (cardH + gapY)
+          };
+        });
+      }
+    });
+
     currentLayout.rooms.forEach(room => {
       const roomEl = createRoomElement(room);
       deviceGrid.appendChild(roomEl);
@@ -524,6 +591,7 @@ let dragStartX = 0;
 let dragStartY = 0;
 let itemStartX = 0;
 let itemStartY = 0;
+let roomChildStartPos = [];
 
 function setupDraggable(element, isCard) {
   const handle = isCard ? element : element.querySelector(".room-header");
@@ -558,6 +626,28 @@ function setupDraggable(element, isCard) {
       itemStartY = parseInt(element.style.top) || 0;
     }
 
+    // 记录如果拖拽的是房间，其内部包含的所有设备卡片初始坐标（联动跟随平移）
+    roomChildStartPos = [];
+    if (!isCard) {
+      const rx = itemStartX;
+      const ry = itemStartY;
+      const rw = element.offsetWidth;
+      const rh = element.offsetHeight;
+      const cards = deviceGrid.querySelectorAll(".device-card");
+      cards.forEach(card => {
+        const cx = (parseInt(card.style.left) || 0) + (card.offsetWidth || 120) / 2;
+        const cy = (parseInt(card.style.top) || 0) + (card.offsetHeight || 140) / 2;
+        if (cx >= rx && cx <= rx + rw && cy >= ry && cy <= ry + rh) {
+          roomChildStartPos.push({
+            card: card,
+            id: card.dataset.id,
+            startX: parseInt(card.style.left) || 0,
+            startY: parseInt(card.style.top) || 0
+          });
+        }
+      });
+    }
+
     document.addEventListener("mousemove", onMouseMove);
     document.addEventListener("mouseup", onMouseUp);
   });
@@ -585,8 +675,19 @@ function onMouseMove(e) {
   newX = Math.max(0, Math.min(newX, canvasWidth - itemWidth));
   newY = Math.max(0, Math.min(newY, canvasHeight - itemHeight));
 
+  const actualDx = newX - itemStartX;
+  const actualDy = newY - itemStartY;
+
   activeDragItem.style.left = newX + "px";
   activeDragItem.style.top = newY + "px";
+
+  // 若拖拽房间，同步平移内部所有设备卡片
+  if (roomChildStartPos.length > 0) {
+    roomChildStartPos.forEach(child => {
+      child.card.style.left = (child.startX + actualDx) + "px";
+      child.card.style.top = (child.startY + actualDy) + "px";
+    });
+  }
 
   checkRegionContainment();
 }
@@ -606,9 +707,19 @@ function onMouseUp() {
         room.x = x;
         room.y = y;
       }
+      // 保存房间内部平移后的设备坐标
+      if (roomChildStartPos.length > 0) {
+        roomChildStartPos.forEach(child => {
+          currentLayout.devices[child.id] = {
+            x: parseInt(child.card.style.left),
+            y: parseInt(child.card.style.top)
+          };
+        });
+      }
     }
   }
   activeDragItem = null;
+  roomChildStartPos = [];
   document.removeEventListener("mousemove", onMouseMove);
   document.removeEventListener("mouseup", onMouseUp);
 }
@@ -766,7 +877,7 @@ function checkRegionContainment() {
 
 function checkDockVisibility() {
   const hasUnplaced = unplacedContainer.childElementCount > 0;
-  if (hasUnplaced && (isEditMode || Object.keys(currentLayout.devices).length > 0)) {
+  if (hasUnplaced) {
     unplacedDock.style.display = "flex";
   } else {
     unplacedDock.style.display = "none";

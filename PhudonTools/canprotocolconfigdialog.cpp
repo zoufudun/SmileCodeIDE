@@ -14,6 +14,7 @@
 #include <QPushButton>
 #include <QSpinBox>
 #include <QTableWidget>
+#include <QTextCodec>
 #include <QVBoxLayout>
 
 CanProtocolConfigDialog::CanProtocolConfigDialog(QWidget *parent)
@@ -27,25 +28,27 @@ CanProtocolConfigDialog::CanProtocolConfigDialog(QWidget *parent)
   mainLayout->setSpacing(12);
 
   // 表格放在最上方
-  m_table = new QTableWidget(0, 9, this);
+  // 表格放在最上方
+  m_table = new QTableWidget(0, 10, this);
   m_table->setHorizontalHeaderLabels(
       {QStringLiteral("设备ID"), QStringLiteral("标签"), QStringLiteral("类型"),
        QStringLiteral("CAN ID (hex)"), QStringLiteral("字节"), QStringLiteral("位"),
-       QStringLiteral("默认值"), QStringLiteral("所属界面"), QStringLiteral("所属房间")});
+       QStringLiteral("默认值"), QStringLiteral("CAN通道"), QStringLiteral("所属界面"), QStringLiteral("所属房间")});
   m_table->setSelectionBehavior(QAbstractItemView::SelectRows);
   m_table->setSelectionMode(QAbstractItemView::SingleSelection);
   m_table->setAlternatingRowColors(true);
   m_table->verticalHeader()->setVisible(false);
   m_table->horizontalHeader()->setStretchLastSection(true);
-  m_table->setColumnWidth(0, 50);
-  m_table->setColumnWidth(1, 120);
-  m_table->setColumnWidth(2, 100);
-  m_table->setColumnWidth(3, 90);
-  m_table->setColumnWidth(4, 50);
-  m_table->setColumnWidth(5, 50);
-  m_table->setColumnWidth(6, 90);
-  m_table->setColumnWidth(7, 90);
-  m_table->setColumnWidth(8, 100);
+  m_table->setColumnWidth(0, 45);
+  m_table->setColumnWidth(1, 110);
+  m_table->setColumnWidth(2, 95);
+  m_table->setColumnWidth(3, 85);
+  m_table->setColumnWidth(4, 45);
+  m_table->setColumnWidth(5, 45);
+  m_table->setColumnWidth(6, 80);
+  m_table->setColumnWidth(7, 75);
+  m_table->setColumnWidth(8, 85);
+  m_table->setColumnWidth(9, 95);
 
   mainLayout->addWidget(m_table, 1);
 
@@ -78,7 +81,7 @@ CanProtocolConfigDialog::CanProtocolConfigDialog(QWidget *parent)
 
   editLayout->addWidget(new QLabel(QStringLiteral("CAN ID:"), this));
   m_defaultCanIdEdit = new QLineEdit(QStringLiteral("0x100"), this);
-  m_defaultCanIdEdit->setFixedWidth(70);
+  m_defaultCanIdEdit->setFixedWidth(65);
   editLayout->addWidget(m_defaultCanIdEdit);
 
   editLayout->addWidget(new QLabel(QStringLiteral("字节(0-7):"), this));
@@ -99,20 +102,28 @@ CanProtocolConfigDialog::CanProtocolConfigDialog(QWidget *parent)
   m_defaultValCombo->addItem(QStringLiteral("1 (报警/开启)"), 1);
   editLayout->addWidget(m_defaultValCombo);
 
+  editLayout->addWidget(new QLabel(QStringLiteral("CAN通道:"), this));
+  m_defaultChannelCombo = new QComboBox(this);
+  m_defaultChannelCombo->addItem(QStringLiteral("任意通道"), -1);
+  m_defaultChannelCombo->addItem(QStringLiteral("通道 0"), 0);
+  m_defaultChannelCombo->addItem(QStringLiteral("通道 1"), 1);
+  m_defaultChannelCombo->setFixedWidth(80);
+  editLayout->addWidget(m_defaultChannelCombo);
+
   editLayout->addWidget(new QLabel(QStringLiteral("所属界面:"), this));
   m_targetViewCombo = new QComboBox(this);
   m_targetViewCombo->setEditable(true); // 允许下拉选择或手动输入
   m_targetViewCombo->addItem(QStringLiteral("界面1"));
   m_targetViewCombo->addItem(QStringLiteral("界面2"));
   m_targetViewCombo->addItem(QStringLiteral("界面3"));
-  m_targetViewCombo->setFixedWidth(90);
+  m_targetViewCombo->setFixedWidth(85);
   editLayout->addWidget(m_targetViewCombo);
 
   editLayout->addWidget(new QLabel(QStringLiteral("所属房间:"), this));
   m_targetRoomCombo = new QComboBox(this);
   m_targetRoomCombo->setEditable(true);
   m_targetRoomCombo->addItem(QStringLiteral("(未指定/未放置区)"), QString());
-  m_targetRoomCombo->setFixedWidth(120);
+  m_targetRoomCombo->setFixedWidth(110);
   editLayout->addWidget(m_targetRoomCombo);
 
   mainLayout->addWidget(editArea);
@@ -180,7 +191,14 @@ CanProtocolConfigDialog::CanProtocolConfigDialog(QWidget *parent)
   });
   connect(m_btnImport, &QPushButton::clicked, this, &CanProtocolConfigDialog::onImportJson);
   connect(m_btnExport, &QPushButton::clicked, this, &CanProtocolConfigDialog::onExportJson);
-  connect(m_btnOk, &QPushButton::clicked, this, &QDialog::accept);
+  connect(m_btnOk, &QPushButton::clicked, this, [this]() {
+    if (m_btnModify->isEnabled() && m_table->currentRow() >= 0) {
+      onModifyRow();
+    }
+    accept();
+  });
+  connect(m_btnCancel, &QPushButton::clicked, this, &QDialog::reject);
+  connect(m_table, &QTableWidget::itemSelectionChanged, this, &CanProtocolConfigDialog::onSelectionChanged);
   connect(m_btnCancel, &QPushButton::clicked, this, &QDialog::reject);
   connect(m_table, &QTableWidget::itemSelectionChanged, this, &CanProtocolConfigDialog::onSelectionChanged);
 }
@@ -208,7 +226,8 @@ void CanProtocolConfigDialog::addTableRow(int deviceId, const QString &label,
                                           const QString &type, quint32 canId,
                                           int byteIdx, int bitIdx, int defaultVal,
                                           const QString &targetView,
-                                          const QString &targetRoom) {
+                                          const QString &targetRoom,
+                                          int canChannel) {
   int row = m_table->rowCount();
   m_table->insertRow(row);
 
@@ -268,6 +287,16 @@ void CanProtocolConfigDialog::addTableRow(int deviceId, const QString &label,
   defaultCombo->setCurrentIndex(defaultVal == 1 ? 1 : 0);
   m_table->setCellWidget(row, 6, defaultCombo);
 
+  // CAN 通道 (下拉)
+  auto *channelCombo = new QComboBox(m_table);
+  channelCombo->addItem(QStringLiteral("任意通道"), -1);
+  channelCombo->addItem(QStringLiteral("通道 0"), 0);
+  channelCombo->addItem(QStringLiteral("通道 1"), 1);
+  int chIdx = channelCombo->findData(canChannel);
+  if (chIdx >= 0) channelCombo->setCurrentIndex(chIdx);
+  else channelCombo->setCurrentIndex(0);
+  m_table->setCellWidget(row, 7, channelCombo);
+
   // 所属界面 (下拉框选择)
   auto *targetViewCombo = new QComboBox(m_table);
   targetViewCombo->setEditable(true);
@@ -282,7 +311,7 @@ void CanProtocolConfigDialog::addTableRow(int deviceId, const QString &label,
   } else {
     targetViewCombo->setCurrentText(tView);
   }
-  m_table->setCellWidget(row, 7, targetViewCombo);
+  m_table->setCellWidget(row, 8, targetViewCombo);
 
   // 所属房间 (可编辑下拉单元格)
   auto *targetRoomComboCell = new QComboBox(m_table);
@@ -300,7 +329,7 @@ void CanProtocolConfigDialog::addTableRow(int deviceId, const QString &label,
   } else if (!tRoom.isEmpty()) {
     targetRoomComboCell->setCurrentText(tRoom);
   }
-  m_table->setCellWidget(row, 8, targetRoomComboCell);
+  m_table->setCellWidget(row, 9, targetRoomComboCell);
 }
 
 // ---- 公共接口 ----
@@ -324,13 +353,36 @@ void CanProtocolConfigDialog::setAvailableRooms(const QStringList &roomNames) {
   }
 }
 
+void CanProtocolConfigDialog::setRoomViewPairs(const QList<QPair<QString, QString>> &pairs) {
+  m_roomViewPairs = pairs;
+  if (m_targetViewCombo && m_targetRoomCombo) {
+    QString selView = m_targetViewCombo->currentText().trimmed();
+    if (selView.isEmpty()) selView = QStringLiteral("界面1");
+    QString curText = m_targetRoomCombo->currentText();
+    m_targetRoomCombo->clear();
+    m_targetRoomCombo->addItem(QStringLiteral("(未指定/未放置区)"), QString());
+    for (const auto &p : m_roomViewPairs) {
+      QString rView = p.second.trimmed();
+      if (rView.isEmpty()) rView = QStringLiteral("界面1");
+      if (rView == selView) {
+        m_targetRoomCombo->addItem(p.first, p.first);
+      }
+    }
+    if (!curText.isEmpty()) {
+      int rIdx = m_targetRoomCombo->findText(curText);
+      if (rIdx >= 0) m_targetRoomCombo->setCurrentIndex(rIdx);
+      else m_targetRoomCombo->setCurrentText(curText);
+    }
+  }
+}
+
 void CanProtocolConfigDialog::setMappings(
     const QList<DeviceBitMapping> &mappings) {
   m_table->setRowCount(0);
   int maxId = 0;
   for (const auto &m : mappings) {
     addTableRow(m.deviceId, m.label, m.deviceType, m.canId, m.byteIndex,
-                m.bitIndex, m.defaultVal, m.targetView, m.targetRoom);
+                m.bitIndex, m.defaultVal, m.targetView, m.targetRoom, m.canChannel);
     if (m.deviceId > maxId) maxId = m.deviceId;
   }
   m_nextDeviceId = maxId + 1;
@@ -361,23 +413,26 @@ QList<DeviceBitMapping> CanProtocolConfigDialog::mappings() const {
     auto *defaultCombo = qobject_cast<QComboBox *>(m_table->cellWidget(r, 6));
     m.defaultVal = defaultCombo ? defaultCombo->currentData().toInt() : 0;
 
-    auto *targetViewCombo = qobject_cast<QComboBox *>(m_table->cellWidget(r, 7));
+    auto *channelCombo = qobject_cast<QComboBox *>(m_table->cellWidget(r, 7));
+    m.canChannel = channelCombo ? channelCombo->currentData().toInt() : -1;
+
+    auto *targetViewCombo = qobject_cast<QComboBox *>(m_table->cellWidget(r, 8));
     if (targetViewCombo) {
       m.targetView = targetViewCombo->currentText().trimmed();
-    } else if (m_table->item(r, 7)) {
-      m.targetView = m_table->item(r, 7)->text().trimmed();
+    } else if (m_table->item(r, 8)) {
+      m.targetView = m_table->item(r, 8)->text().trimmed();
     }
     if (m.targetView.isEmpty()) {
       m.targetView = QStringLiteral("界面1");
     }
 
-    auto *targetRoomCombo = qobject_cast<QComboBox *>(m_table->cellWidget(r, 8));
+    auto *targetRoomCombo = qobject_cast<QComboBox *>(m_table->cellWidget(r, 9));
     if (targetRoomCombo) {
       QString rText = targetRoomCombo->currentText().trimmed();
       if (rText == QStringLiteral("(未指定/未放置区)")) rText.clear();
       m.targetRoom = rText;
-    } else if (m_table->item(r, 8)) {
-      m.targetRoom = m_table->item(r, 8)->text().trimmed();
+    } else if (m_table->item(r, 9)) {
+      m.targetRoom = m_table->item(r, 9)->text().trimmed();
     }
 
     result.append(m);
@@ -400,6 +455,7 @@ void CanProtocolConfigDialog::onAddRow() {
   int byteIdx = m_defaultByteSpin->value();
   int bitIdx = m_defaultBitSpin->value();
   int defaultVal = m_defaultValCombo->currentData().toInt();
+  int canChannel = m_defaultChannelCombo ? m_defaultChannelCombo->currentData().toInt() : -1;
   QString targetView = m_targetViewCombo ? m_targetViewCombo->currentText().trimmed() : QStringLiteral("界面1");
   if (targetView.isEmpty()) targetView = QStringLiteral("界面1");
   QString targetRoom = m_targetRoomCombo ? m_targetRoomCombo->currentText().trimmed() : QString();
@@ -411,7 +467,7 @@ void CanProtocolConfigDialog::onAddRow() {
     label = QStringLiteral("设备%1").arg(deviceId);
   }
 
-  addTableRow(deviceId, label, type, canId, byteIdx, bitIdx, defaultVal, targetView, targetRoom);
+  addTableRow(deviceId, label, type, canId, byteIdx, bitIdx, defaultVal, targetView, targetRoom, canChannel);
 }
 
 void CanProtocolConfigDialog::onDeleteRow() {
@@ -463,8 +519,14 @@ void CanProtocolConfigDialog::onModifyRow() {
     defaultCombo->setCurrentIndex(m_defaultValCombo->currentIndex());
   }
 
+  // CAN通道
+  auto *channelCombo = qobject_cast<QComboBox *>(m_table->cellWidget(row, 7));
+  if (channelCombo && m_defaultChannelCombo) {
+    channelCombo->setCurrentIndex(m_defaultChannelCombo->currentIndex());
+  }
+
   // 所属界面
-  auto *targetViewCombo = qobject_cast<QComboBox *>(m_table->cellWidget(row, 7));
+  auto *targetViewCombo = qobject_cast<QComboBox *>(m_table->cellWidget(row, 8));
   if (targetViewCombo && m_targetViewCombo) {
     QString targetView = m_targetViewCombo->currentText().trimmed();
     if (targetView.isEmpty()) targetView = QStringLiteral("界面1");
@@ -474,14 +536,14 @@ void CanProtocolConfigDialog::onModifyRow() {
   }
 
   // 所属房间
-  auto *targetRoomComboCell = qobject_cast<QComboBox *>(m_table->cellWidget(row, 8));
+  auto *targetRoomComboCell = qobject_cast<QComboBox *>(m_table->cellWidget(row, 9));
   if (targetRoomComboCell && m_targetRoomCombo) {
     QString targetRoom = m_targetRoomCombo->currentText().trimmed();
     int rIdx = targetRoomComboCell->findText(targetRoom);
     if (rIdx >= 0) targetRoomComboCell->setCurrentIndex(rIdx);
     else targetRoomComboCell->setCurrentText(targetRoom);
-  } else if (m_table->item(row, 8) && m_targetRoomCombo) {
-    m_table->item(row, 8)->setText(m_targetRoomCombo->currentText().trimmed());
+  } else if (m_table->item(row, 9) && m_targetRoomCombo) {
+    m_table->item(row, 9)->setText(m_targetRoomCombo->currentText().trimmed());
   }
 }
 
@@ -510,21 +572,25 @@ void CanProtocolConfigDialog::onSelectionChanged() {
     if (defaultCombo) {
       m_defaultValCombo->setCurrentIndex(defaultCombo->currentIndex());
     }
-    auto *targetViewCombo = qobject_cast<QComboBox *>(m_table->cellWidget(row, 7));
+    auto *channelCombo = qobject_cast<QComboBox *>(m_table->cellWidget(row, 7));
+    if (channelCombo && m_defaultChannelCombo) {
+      m_defaultChannelCombo->setCurrentIndex(channelCombo->currentIndex());
+    }
+    auto *targetViewCombo = qobject_cast<QComboBox *>(m_table->cellWidget(row, 8));
     if (targetViewCombo && m_targetViewCombo) {
       int vIdx = m_targetViewCombo->findText(targetViewCombo->currentText());
       if (vIdx >= 0) m_targetViewCombo->setCurrentIndex(vIdx);
       else m_targetViewCombo->setCurrentText(targetViewCombo->currentText());
     }
-    auto *targetRoomComboCell = qobject_cast<QComboBox *>(m_table->cellWidget(row, 8));
+    auto *targetRoomComboCell = qobject_cast<QComboBox *>(m_table->cellWidget(row, 9));
     if (targetRoomComboCell && m_targetRoomCombo) {
       int rIdx = m_targetRoomCombo->findText(targetRoomComboCell->currentText());
       if (rIdx >= 0) m_targetRoomCombo->setCurrentIndex(rIdx);
       else m_targetRoomCombo->setCurrentText(targetRoomComboCell->currentText());
-    } else if (m_table->item(row, 8) && m_targetRoomCombo) {
-      int rIdx = m_targetRoomCombo->findText(m_table->item(row, 8)->text());
+    } else if (m_table->item(row, 9) && m_targetRoomCombo) {
+      int rIdx = m_targetRoomCombo->findText(m_table->item(row, 9)->text());
       if (rIdx >= 0) m_targetRoomCombo->setCurrentIndex(rIdx);
-      else m_targetRoomCombo->setCurrentText(m_table->item(row, 8)->text());
+      else m_targetRoomCombo->setCurrentText(m_table->item(row, 9)->text());
     }
     m_btnModify->setEnabled(true);
     m_btnDelete->setEnabled(true);
@@ -534,83 +600,238 @@ void CanProtocolConfigDialog::onSelectionChanged() {
   }
 }
 
-// ---- JSON 导入/导出 ----
+// ---- CSV / JSON 导入与导出 ----
+
+QByteArray CanProtocolConfigDialog::exportMappingsToCsv(const QList<DeviceBitMapping> &list) {
+  QByteArray bytes;
+  // 写入正确的 3 字节 UTF-8 BOM (0xEF, 0xBB, 0xBF)
+  bytes.append('\xEF');
+  bytes.append('\xBB');
+  bytes.append('\xBF');
+
+  QString csv;
+  csv += QStringLiteral("设备ID,设备名称,设备类型,CAN ID,字节索引,位索引,默认状态,CAN通道,所属界面,所属房间\r\n");
+
+  for (const auto &m : list) {
+    auto escapeCsv = [](const QString &src) -> QString {
+      QString res = src;
+      if (res.contains(',') || res.contains('"') || res.contains('\n') || res.contains('\r')) {
+        res.replace('"', "\"\"");
+        res = QString("\"%1\"").arg(res);
+      }
+      return res;
+    };
+
+    csv += QString("%1,%2,%3,0x%4,%5,%6,%7,%8,%9,%10\r\n")
+               .arg(m.deviceId)
+               .arg(escapeCsv(m.label))
+               .arg(m.deviceType)
+               .arg(m.canId, 3, 16, QChar('0'))
+               .arg(m.byteIndex)
+               .arg(m.bitIndex)
+               .arg(m.defaultVal)
+               .arg(m.canChannel)
+               .arg(escapeCsv(m.targetView))
+               .arg(escapeCsv(m.targetRoom));
+  }
+  bytes.append(csv.toUtf8());
+  return bytes;
+}
+
+QList<DeviceBitMapping> CanProtocolConfigDialog::parseCsvToMappings(const QByteArray &csvData) {
+  QList<DeviceBitMapping> list;
+  QByteArray data = csvData;
+  if (data.startsWith("\xEF\xBB\xBF")) {
+    data = data.mid(3);
+  }
+
+  QString text = QString::fromUtf8(data);
+  // 若包含替代字符或乱码字符，尝试 GBK 自动兼容解码
+  if (text.contains(QChar(0xFFFD)) || text.contains(QStringLiteral("璁倶"))) {
+    QTextCodec *codec = QTextCodec::codecForName("GBK");
+    if (codec) {
+      text = codec->toUnicode(data);
+    }
+  }
+
+  QStringList lines = text.split(QRegExp("[\r\n]+"), QString::SkipEmptyParts);
+  if (lines.isEmpty()) return list;
+
+  int startLine = 0;
+  if (lines[0].contains(QStringLiteral("设备ID")) ||
+      lines[0].contains(QStringLiteral("deviceId")) ||
+      lines[0].contains(QStringLiteral("设备名称")) ||
+      lines[0].contains(QStringLiteral("label"))) {
+    startLine = 1;
+  }
+
+  auto parseCsvLine = [](const QString &line) -> QStringList {
+    QStringList fields;
+    QString curField;
+    bool inQuotes = false;
+    for (int i = 0; i < line.length(); ++i) {
+      QChar c = line[i];
+      if (c == '"') {
+        if (inQuotes && i + 1 < line.length() && line[i + 1] == '"') {
+          curField += '"';
+          i++;
+        } else {
+          inQuotes = !inQuotes;
+        }
+      } else if (c == ',' && !inQuotes) {
+        fields.append(curField.trimmed());
+        curField.clear();
+      } else {
+        curField += c;
+      }
+    }
+    fields.append(curField.trimmed());
+    return fields;
+  };
+
+  for (int i = startLine; i < lines.size(); ++i) {
+    QStringList f = parseCsvLine(lines[i]);
+    if (f.size() < 4) continue;
+
+    DeviceBitMapping m;
+    m.deviceId = f.value(0).toInt();
+    m.label = f.value(1);
+    m.deviceType = f.value(2);
+
+    QString canIdStr = f.value(3);
+    bool ok = false;
+    if (canIdStr.startsWith("0x", Qt::CaseInsensitive)) {
+      m.canId = canIdStr.mid(2).toUInt(&ok, 16);
+    } else {
+      m.canId = canIdStr.toUInt(&ok, 10);
+    }
+
+    m.byteIndex = f.value(4).toInt();
+    m.bitIndex = f.value(5).toInt();
+    m.defaultVal = f.value(6).toInt();
+    if (f.size() > 7 && !f.value(7).isEmpty()) {
+      bool chOk = false;
+      int ch = f.value(7).toInt(&chOk);
+      m.canChannel = chOk ? ch : -1;
+    } else {
+      m.canChannel = -1;
+    }
+    m.targetView = f.size() > 8 ? f.value(8) : QStringLiteral("界面1");
+    if (m.targetView.isEmpty()) m.targetView = QStringLiteral("界面1");
+    m.targetRoom = f.size() > 9 ? f.value(9) : QString();
+
+    if (m.deviceId > 0 || !m.label.isEmpty()) {
+      list.append(m);
+    }
+  }
+  return list;
+}
 
 void CanProtocolConfigDialog::onExportJson() {
   QList<DeviceBitMapping> list = mappings();
-  QJsonArray arr;
-  for (const auto &m : list) {
-    QJsonObject obj;
-    obj["deviceId"] = m.deviceId;
-    obj["label"] = m.label;
-    obj["deviceType"] = m.deviceType;
-    obj["canId"] = static_cast<int>(m.canId);
-    obj["byteIndex"] = m.byteIndex;
-    obj["bitIndex"] = m.bitIndex;
-    obj["defaultVal"] = m.defaultVal;
-    obj["targetView"] = m.targetView;
-    arr.append(obj);
-  }
 
   QString path = QFileDialog::getSaveFileName(
-      this, QStringLiteral("导出协议配置"),
-      QStringLiteral("can_protocol_config.json"),
-      QStringLiteral("JSON 文件 (*.json)"));
+      this, QStringLiteral("导出协议映射配置"),
+      QStringLiteral("can_protocol_config.csv"),
+      QStringLiteral("CSV 表格文件 (*.csv);;JSON 文件 (*.json)"));
   if (path.isEmpty()) return;
 
-  QFile file(path);
-  if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-    file.write(QJsonDocument(arr).toJson(QJsonDocument::Indented));
-    file.close();
-    QMessageBox::information(this, QStringLiteral("导出成功"),
-                             QStringLiteral("协议配置已导出到:\n%1").arg(path));
+  if (path.endsWith(".csv", Qt::CaseInsensitive)) {
+    QFile file(path);
+    if (file.open(QIODevice::WriteOnly)) {
+      file.write(exportMappingsToCsv(list));
+      file.close();
+      QMessageBox::information(this, QStringLiteral("导出成功"),
+                               QStringLiteral("协议配置已成功导出为 CSV 表格:\n%1").arg(path));
+    } else {
+      QMessageBox::critical(this, QStringLiteral("导出失败"),
+                            QStringLiteral("无法写入文件:\n%1").arg(path));
+    }
   } else {
-    QMessageBox::critical(this, QStringLiteral("导出失败"),
-                          QStringLiteral("无法写入文件:\n%1").arg(path));
+    QJsonArray arr;
+    for (const auto &m : list) {
+      QJsonObject obj;
+      obj["deviceId"] = m.deviceId;
+      obj["label"] = m.label;
+      obj["deviceType"] = m.deviceType;
+      obj["canId"] = static_cast<int>(m.canId);
+      obj["byteIndex"] = m.byteIndex;
+      obj["bitIndex"] = m.bitIndex;
+      obj["defaultVal"] = m.defaultVal;
+      obj["canChannel"] = m.canChannel;
+      obj["targetView"] = m.targetView;
+      obj["targetRoom"] = m.targetRoom;
+      arr.append(obj);
+    }
+
+    QFile file(path);
+    if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+      file.write(QJsonDocument(arr).toJson(QJsonDocument::Indented));
+      file.close();
+      QMessageBox::information(this, QStringLiteral("导出成功"),
+                               QStringLiteral("协议配置已成功导出为 JSON 文件:\n%1").arg(path));
+    } else {
+      QMessageBox::critical(this, QStringLiteral("导出失败"),
+                            QStringLiteral("无法写入文件:\n%1").arg(path));
+    }
   }
 }
 
 void CanProtocolConfigDialog::onImportJson() {
   QString path = QFileDialog::getOpenFileName(
-      this, QStringLiteral("导入协议配置"), QString(),
-      QStringLiteral("JSON 文件 (*.json)"));
+      this, QStringLiteral("导入协议映射配置"), QString(),
+      QStringLiteral("配置与表格文件 (*.json *.csv);;CSV 表格 (*.csv);;JSON 文件 (*.json)"));
   if (path.isEmpty()) return;
 
   QFile file(path);
-  if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+  if (!file.open(QIODevice::ReadOnly)) {
     QMessageBox::critical(this, QStringLiteral("导入失败"),
                           QStringLiteral("无法读取文件:\n%1").arg(path));
     return;
   }
 
-  QJsonParseError err;
-  QJsonDocument doc = QJsonDocument::fromJson(file.readAll(), &err);
+  QByteArray data = file.readAll();
   file.close();
 
-  if (err.error != QJsonParseError::NoError || !doc.isArray()) {
-    QMessageBox::critical(
-        this, QStringLiteral("格式错误"),
-        QStringLiteral("JSON 解析失败: %1").arg(err.errorString()));
-    return;
-  }
+  if (path.endsWith(".csv", Qt::CaseInsensitive)) {
+    QList<DeviceBitMapping> list = parseCsvToMappings(data);
+    if (list.isEmpty()) {
+      QMessageBox::warning(this, QStringLiteral("导入为空"),
+                           QStringLiteral("未能从 CSV 文件中解析到有效的设备映射记录！"));
+      return;
+    }
+    setMappings(list);
+    QMessageBox::information(this, QStringLiteral("导入成功"),
+                             QStringLiteral("已成功从 CSV 文件载入 %1 条设备位映射配置！").arg(list.size()));
+  } else {
+    QJsonParseError err;
+    QJsonDocument doc = QJsonDocument::fromJson(data, &err);
 
-  m_table->setRowCount(0);
-  int maxId = 0;
-  for (const QJsonValue &val : doc.array()) {
-    QJsonObject obj = val.toObject();
-    int id = obj.value("deviceId").toInt(1);
-    if (id > maxId) maxId = id;
-    addTableRow(
-        id, obj.value("label").toString(QStringLiteral("未知")),
-        obj.value("deviceType").toString(QStringLiteral("detector")),
-        static_cast<quint32>(obj.value("canId").toInt(0x100)),
-        obj.value("byteIndex").toInt(0), obj.value("bitIndex").toInt(0),
-        obj.value("defaultVal").toInt(0),
-        obj.value("targetView").toString(QStringLiteral("界面1")));
-  }
-  m_nextDeviceId = maxId + 1;
+    if (err.error != QJsonParseError::NoError || !doc.isArray()) {
+      QMessageBox::critical(
+          this, QStringLiteral("格式错误"),
+          QStringLiteral("JSON 解析失败: %1").arg(err.errorString()));
+      return;
+    }
 
-  QMessageBox::information(this, QStringLiteral("导入成功"),
-                           QStringLiteral("已导入 %1 条设备映射。")
-                               .arg(doc.array().size()));
+    QList<DeviceBitMapping> list;
+    for (const auto &v : doc.array()) {
+      auto o = v.toObject();
+      DeviceBitMapping m;
+      m.deviceId = o["deviceId"].toInt(1);
+      m.label = o["label"].toString(QStringLiteral("设备"));
+      m.deviceType = o["deviceType"].toString(QStringLiteral("detector"));
+      m.canId = static_cast<quint32>(o["canId"].toInt(0x100));
+      m.byteIndex = o["byteIndex"].toInt(0);
+      m.bitIndex = o["bitIndex"].toInt(0);
+      m.defaultVal = o["defaultVal"].toInt(0);
+      m.canChannel = o["canChannel"].toInt(-1);
+      m.targetView = o["targetView"].toString(QStringLiteral("界面1"));
+      m.targetRoom = o["targetRoom"].toString();
+      list.append(m);
+    }
+    setMappings(list);
+    QMessageBox::information(this, QStringLiteral("导入成功"),
+                             QStringLiteral("已成功从 JSON 载入 %1 条设备位映射配置！").arg(list.size()));
+  }
 }

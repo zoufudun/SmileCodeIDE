@@ -15,6 +15,7 @@ release/canopenmaster.o
 release/candevicedialog.o
 release/canprotocolmonitor.o
 release/canprotocolconfigdialog.o
+release/protocolconfigdialog.o
 release/devicestatuswidget.o
 release/devicemonitorpanel.o
 release/roomwidget.o
@@ -49,6 +50,7 @@ release/moc_canopenmaster.o
 release/moc_candevicedialog.o
 release/moc_canprotocolmonitor.o
 release/moc_canprotocolconfigdialog.o
+release/moc_protocolconfigdialog.o
 release/moc_devicestatuswidget.o
 release/moc_devicemonitorpanel.o
 release/moc_roomwidget.o

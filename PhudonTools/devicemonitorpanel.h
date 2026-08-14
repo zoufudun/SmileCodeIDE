@@ -15,6 +15,8 @@
 
 #include "caninterface.h"
 #include "canprotocolconfigdialog.h"
+#include "protocolconfigdialog.h"
+#include "devicestatuswidget.h"
 #include "ringbuffer.h"
 
 class QGridLayout;
@@ -56,6 +58,20 @@ class QAction;
 class DeviceMonitorPanel : public QWidget {
   Q_OBJECT
 public:
+  // 统一布局标准常量定义 (严禁重叠与交合)
+  static constexpr int CARD_W = 96;
+  static constexpr int CARD_H = 106;
+  static constexpr int GAP_X = 20;
+  static constexpr int GAP_Y = 20;
+  static constexpr int PAD_LEFT = 20;
+  static constexpr int PAD_RIGHT = 20;
+  static constexpr int PAD_TOP = 52;
+  static constexpr int PAD_BOTTOM = 20;
+  static constexpr int MIN_ROOM_W = 280;
+  static constexpr int MIN_ROOM_H = 200;
+  static constexpr int ROOM_GAP_X = 40;
+  static constexpr int ROOM_GAP_Y = 40;
+
   explicit DeviceMonitorPanel(CanInterface *can, QWidget *parent = nullptr);
   ~DeviceMonitorPanel() override;
 
@@ -87,6 +103,7 @@ private slots:
   void onAddRoom();
   void autoArrangeRoomsAndDevices();
   void onManageRoomsRequested();
+  void onProtocolConfigClicked();
   void onDeviceDragged(int deviceId, const QPoint &newPos);
   void onRoomMoved(const QString &id, const QRect &newGeom);
   void onRoomResized(const QString &id, const QRect &newGeom);
@@ -100,6 +117,9 @@ protected:
   void wheelEvent(QWheelEvent *event) override;
   bool eventFilter(QObject *watched, QEvent *event) override;
   void keyPressEvent(QKeyEvent *event) override;
+  void showEvent(QShowEvent *event) override;
+  void hideEvent(QHideEvent *event) override;
+  void changeEvent(QEvent *event) override;
 
 private:
   void rebuildRoomCanvas();
@@ -153,6 +173,8 @@ private:
   QPushButton *m_btnFullScreen = nullptr;
   bool m_isFullScreen = false;
   QComboBox *m_templateCombo;
+  QPushButton *m_btnProtocolConfig = nullptr; // 通信协议与通道配置按钮
+  CommProtocolConfig m_protocolConfig;         // 通信协议配置参数
   QScrollArea *m_scrollArea;
   QWidget *m_gridContainer;
   QGridLayout *m_gridLayout;
@@ -198,7 +220,9 @@ private:
   QHash<int, QPoint> m_deviceRoomPos;
   QString m_activeTemplate;
   qreal m_zoomLevel = 1.0;
-  int m_baseCanvasW = 1600, m_baseCanvasH = 1200; // deviceId → 画布坐标
+  int m_baseCanvasW = 1600, m_baseCanvasH = 1200;
+
+  void resolveRoomOverlaps();
 
   // WebSocket
   QWebSocketServer *m_wsServer = nullptr;

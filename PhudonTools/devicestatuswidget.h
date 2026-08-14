@@ -64,8 +64,8 @@ protected:
   void contextMenuEvent(QContextMenuEvent *event) override;
   void resizeEvent(QResizeEvent *event) override;
 
-  QSize sizeHint() const override { return QSize(135, 160); }
-  QSize minimumSizeHint() const override { return QSize(128, 155); }
+  QSize sizeHint() const override { return QSize(96, 106); }
+  QSize minimumSizeHint() const override { return QSize(85, 95); }
 
 private:
   void renderCache();
