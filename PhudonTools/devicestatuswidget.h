@@ -48,6 +48,8 @@ public:
 
 signals:
   void deviceDragged(int deviceId, const QPoint &newPos);
+  void deviceDragging(int deviceId, const QPoint &newPos);
+  void deviceDragFinished(int deviceId);
   void dragStartedFromDock(int deviceId, const QPoint &globalPos);
   void editRequested(int deviceId);
 

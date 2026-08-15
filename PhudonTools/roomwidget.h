@@ -30,8 +30,14 @@ public:
   QColor roomColor() const { return m_color; }
   void setRoomColor(const QColor &color);
   void setRoomShape(int shape);
+  void setMinimumContentSize(int minW, int minH) {
+    m_minW = qMax(160, minW);
+    m_minH = qMax(140, minH);
+  }
 
 signals:
+  void roomDragging(const QString &id, const QRect &currentGeom);
+  void roomDragFinished(const QString &id);
   void roomMoved(const QString &id, const QRect &newGeom);
   void roomResized(const QString &id, const QRect &newGeom);
   void roomClicked(const QString &id);
@@ -59,6 +65,8 @@ private:
   QPushButton *m_btnRename = nullptr;
   QPushButton *m_btnDelete = nullptr;
   int m_shape = 0;
+  int m_minW = 160;
+  int m_minH = 140;
   bool m_editingEnabled = true;
   bool m_locked = false;
   QColor m_color = QColor(0, 212, 255);

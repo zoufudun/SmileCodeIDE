@@ -58,19 +58,19 @@ class QAction;
 class DeviceMonitorPanel : public QWidget {
   Q_OBJECT
 public:
-  // 统一布局标准常量定义 (严禁重叠与交合)
+  // 统一布局标准常量定义 (紧凑贴合，严禁重叠、交合与多余空闲区域)
   static constexpr int CARD_W = 96;
   static constexpr int CARD_H = 106;
-  static constexpr int GAP_X = 20;
-  static constexpr int GAP_Y = 20;
-  static constexpr int PAD_LEFT = 20;
-  static constexpr int PAD_RIGHT = 20;
-  static constexpr int PAD_TOP = 52;
-  static constexpr int PAD_BOTTOM = 20;
-  static constexpr int MIN_ROOM_W = 280;
-  static constexpr int MIN_ROOM_H = 200;
-  static constexpr int ROOM_GAP_X = 40;
-  static constexpr int ROOM_GAP_Y = 40;
+  static constexpr int GAP_X = 16;
+  static constexpr int GAP_Y = 16;
+  static constexpr int PAD_LEFT = 16;
+  static constexpr int PAD_RIGHT = 16;
+  static constexpr int PAD_TOP = 46;
+  static constexpr int PAD_BOTTOM = 16;
+  static constexpr int MIN_ROOM_W = 160;
+  static constexpr int MIN_ROOM_H = 140;
+  static constexpr int ROOM_GAP_X = 36;
+  static constexpr int ROOM_GAP_Y = 36;
 
   explicit DeviceMonitorPanel(CanInterface *can, QWidget *parent = nullptr);
   ~DeviceMonitorPanel() override;
@@ -105,6 +105,10 @@ private slots:
   void onManageRoomsRequested();
   void onProtocolConfigClicked();
   void onDeviceDragged(int deviceId, const QPoint &newPos);
+  void onDeviceDragging(int deviceId, const QPoint &newPos);
+  void onDeviceDragFinished(int deviceId);
+  void onRoomDragging(const QString &id, const QRect &currentGeom);
+  void onRoomDragFinished(const QString &id);
   void onRoomMoved(const QString &id, const QRect &newGeom);
   void onRoomResized(const QString &id, const QRect &newGeom);
   void onRoomLockToggled(const QString &id, bool locked);
@@ -141,6 +145,7 @@ private:
   void loadRoomLayout();
   void applyLayoutTemplate(const QString &tpl);
   void autoArrangeRoomDevices();
+  QString normalizeViewName(const QString &v) const;
   void zoomIn();
   void zoomOut();
   void zoomFit();
@@ -221,8 +226,24 @@ private:
   QString m_activeTemplate;
   qreal m_zoomLevel = 1.0;
   int m_baseCanvasW = 1600, m_baseCanvasH = 1200;
+  struct AlignmentGuide {
+    enum Orientation { Horizontal, Vertical } orientation;
+    int pos;       // X 坐标 (Vertical) 或 Y 坐标 (Horizontal)
+    int start;     // 起始坐标
+    int end;       // 终止坐标
+    QString label; // 辅助对齐提示文本 (例如 "间距 36px" / "居中对齐")
+  };
+  QList<AlignmentGuide> m_activeGuides;
+
+  static QSize standardRoomSizeForCount(int devCount, int shape = 0);
+  void layoutDevicesInRoom(const QString &roomName, const QString &targetView);
 
   void resolveRoomOverlaps();
+  QString generateUniqueRoomId(const QString &targetView) const;
+  void sanitizeRoomIds();
+  void ensureRoomCapacity(RoomRegion &r);
+  void clampDevicesInsideRoom(const RoomRegion &r);
+  void alignAndResolveRoomSpacing(const QString &movedRoomId);
 
   // WebSocket
   QWebSocketServer *m_wsServer = nullptr;

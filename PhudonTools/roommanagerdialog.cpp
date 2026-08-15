@@ -16,8 +16,10 @@
 
 RoomManagerDialog::RoomManagerDialog(const QList<RoomRegion> &rooms,
                                        const QStringList &viewNames,
+                                       const QString &activeViewName,
                                        QWidget *parent)
-    : QDialog(parent), m_rooms(rooms), m_viewNames(viewNames) {
+    : QDialog(parent), m_rooms(rooms), m_viewNames(viewNames),
+      m_activeViewName(activeViewName) {
   setWindowTitle(QStringLiteral("🏠 已建房间列表管理"));
   resize(750, 480);
   setStyleSheet(
@@ -226,9 +228,10 @@ void RoomManagerDialog::populateTable() {
 void RoomManagerDialog::onAddRoom() {
   RoomRegion newRoom;
   int count = m_rooms.size() + 1;
-  newRoom.id = QStringLiteral("room_%1").arg(QDateTime::currentMSecsSinceEpoch());
+  QString defaultView = m_activeViewName.isEmpty() ? m_viewNames.value(0, QStringLiteral("界面1")) : m_activeViewName;
+  newRoom.targetView = defaultView;
+  newRoom.id = QStringLiteral("room_%1_%2").arg(defaultView).arg(QDateTime::currentMSecsSinceEpoch() + m_rooms.size());
   newRoom.name = QStringLiteral("%1号机房").arg(count);
-  newRoom.targetView = m_viewNames.value(0, QStringLiteral("界面1"));
   newRoom.shape = 0;
   newRoom.geom = QRect(50 + (count % 3) * 380, 50 + (count / 3) * 280, 350, 250);
   newRoom.visible = true;

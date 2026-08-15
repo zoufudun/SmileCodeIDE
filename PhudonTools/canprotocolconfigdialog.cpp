@@ -19,7 +19,7 @@
 
 CanProtocolConfigDialog::CanProtocolConfigDialog(QWidget *parent)
     : QDialog(parent) {
-  setWindowTitle(QStringLiteral("CAN 协议设备映射配置"));
+  setWindowTitle(QStringLiteral("映射配置"));
   setMinimumSize(850, 550);
   setWindowFlags(windowFlags() | Qt::WindowMinMaxButtonsHint | Qt::WindowCloseButtonHint);
 
@@ -68,13 +68,13 @@ CanProtocolConfigDialog::CanProtocolConfigDialog(QWidget *parent)
   editLayout->addWidget(new QLabel(QStringLiteral("类型:"), this));
   m_defaultTypeCombo = new QComboBox(this);
   m_defaultTypeCombo->addItem(QStringLiteral("烟温探测器"), QStringLiteral("detector"));
-  m_defaultTypeCombo->addItem(QStringLiteral("分配阀(蝶阀)"), QStringLiteral("valve_distributor"));
-  m_defaultTypeCombo->addItem(QStringLiteral("区域阀(闸阀)"), QStringLiteral("valve_zone"));
-  m_defaultTypeCombo->addItem(QStringLiteral("总管隔离阀(截止阀)"), QStringLiteral("valve_main_isolation"));
-  m_defaultTypeCombo->addItem(QStringLiteral("控制分配阀"), QStringLiteral("valve"));
-  m_defaultTypeCombo->addItem(QStringLiteral("手动报警按钮"), QStringLiteral("manual_alarm"));
-  m_defaultTypeCombo->addItem(QStringLiteral("1301气体钢瓶"), QStringLiteral("gas_cylinder"));
-  m_defaultTypeCombo->addItem(QStringLiteral("水泵"), QStringLiteral("water_pump"));
+  m_defaultTypeCombo->addItem(QStringLiteral("电动阀"), QStringLiteral("valve"));
+  m_defaultTypeCombo->addItem(QStringLiteral("分配阀"), QStringLiteral("valve_distributor"));
+  m_defaultTypeCombo->addItem(QStringLiteral("分区控制阀"), QStringLiteral("valve_zone"));
+  m_defaultTypeCombo->addItem(QStringLiteral("总路隔离阀"), QStringLiteral("valve_main_isolation"));
+  m_defaultTypeCombo->addItem(QStringLiteral("手动报警器"), QStringLiteral("manual_alarm"));
+  m_defaultTypeCombo->addItem(QStringLiteral("灭火瓶组"), QStringLiteral("gas_cylinder"));
+  m_defaultTypeCombo->addItem(QStringLiteral("稳压泵组"), QStringLiteral("water_pump"));
   m_defaultTypeCombo->addItem(QStringLiteral("压力开关"), QStringLiteral("pressure_switch"));
   m_defaultTypeCombo->addItem(QStringLiteral("移动喷枪"), QStringLiteral("mobile_spray_gun"));
   editLayout->addWidget(m_defaultTypeCombo);
@@ -84,13 +84,13 @@ CanProtocolConfigDialog::CanProtocolConfigDialog(QWidget *parent)
   m_defaultCanIdEdit->setFixedWidth(65);
   editLayout->addWidget(m_defaultCanIdEdit);
 
-  editLayout->addWidget(new QLabel(QStringLiteral("字节(0-7):"), this));
+  editLayout->addWidget(new QLabel(QStringLiteral("字节:"), this));
   m_defaultByteSpin = new QSpinBox(this);
   m_defaultByteSpin->setRange(0, 7);
   m_defaultByteSpin->setValue(0);
   editLayout->addWidget(m_defaultByteSpin);
 
-  editLayout->addWidget(new QLabel(QStringLiteral("位(0-7):"), this));
+  editLayout->addWidget(new QLabel(QStringLiteral("位:"), this));
   m_defaultBitSpin = new QSpinBox(this);
   m_defaultBitSpin->setRange(0, 7);
   m_defaultBitSpin->setValue(0);
@@ -112,7 +112,7 @@ CanProtocolConfigDialog::CanProtocolConfigDialog(QWidget *parent)
 
   editLayout->addWidget(new QLabel(QStringLiteral("所属界面:"), this));
   m_targetViewCombo = new QComboBox(this);
-  m_targetViewCombo->setEditable(true); // 允许下拉选择或手动输入
+  m_targetViewCombo->setEditable(true);
   m_targetViewCombo->addItem(QStringLiteral("界面1"));
   m_targetViewCombo->addItem(QStringLiteral("界面2"));
   m_targetViewCombo->addItem(QStringLiteral("界面3"));
@@ -133,8 +133,10 @@ CanProtocolConfigDialog::CanProtocolConfigDialog(QWidget *parent)
   btnLayout->setSpacing(8);
 
   m_btnAdd = new QPushButton(QStringLiteral("＋ 添加设备"), this);
+  m_btnAdd->setObjectName("addButton");
   m_btnAdd->setCursor(Qt::PointingHandCursor);
-  m_btnModify = new QPushButton(QStringLiteral("✓ 修改选中"), this);
+  m_btnModify = new QPushButton(QStringLiteral("✎ 修改选中"), this);
+  m_btnModify->setObjectName("modifyButton");
   m_btnModify->setCursor(Qt::PointingHandCursor);
   m_btnModify->setEnabled(false);
 
@@ -151,9 +153,9 @@ CanProtocolConfigDialog::CanProtocolConfigDialog(QWidget *parent)
       "padding: 4px 12px; border-radius: 3px; font-weight: bold; } "
       "QPushButton:hover { background: #3E1E1E; border-color: #EF4444; }");
 
-  m_btnImport = new QPushButton(QStringLiteral("导入 JSON"), this);
+  m_btnImport = new QPushButton(QStringLiteral("导入配置"), this);
   m_btnImport->setCursor(Qt::PointingHandCursor);
-  m_btnExport = new QPushButton(QStringLiteral("导出 JSON"), this);
+  m_btnExport = new QPushButton(QStringLiteral("导出配置"), this);
   m_btnExport->setCursor(Qt::PointingHandCursor);
 
   btnLayout->addWidget(m_btnAdd);

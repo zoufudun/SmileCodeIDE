@@ -16,6 +16,7 @@ class RoomManagerDialog : public QDialog {
 public:
   explicit RoomManagerDialog(const QList<RoomRegion> &rooms,
                              const QStringList &viewNames,
+                             const QString &activeViewName = QString(),
                              QWidget *parent = nullptr);
 
   QList<RoomRegion> rooms() const;
@@ -31,6 +32,7 @@ private:
 
   QList<RoomRegion> m_rooms;
   QStringList m_viewNames;
+  QString m_activeViewName;
   QTableWidget *m_table;
   QPushButton *m_btnAdd;
   QPushButton *m_btnSelectAll;

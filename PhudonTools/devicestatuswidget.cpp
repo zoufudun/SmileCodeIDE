@@ -809,6 +809,7 @@ void DeviceStatusWidget::mouseMoveEvent(QMouseEvent *e) {
       newPos.setY(qMax(0, qMin(newPos.y(), parentWidget()->height() - height())));
     }
     move(newPos);
+    emit deviceDragging(m_deviceId, pos());
   } else if (!m_draggable && (e->buttons() & Qt::LeftButton)) {
     // 只能从未放置侧边栏发起 QDrag 拖拽入舱
     if (parentWidget() && parentWidget()->objectName() == QStringLiteral("unplacedContainer")) {
@@ -840,6 +841,7 @@ void DeviceStatusWidget::mouseReleaseEvent(QMouseEvent *e) {
       releaseMouse();
     }
     setCursor(Qt::ArrowCursor);
+    emit deviceDragFinished(m_deviceId);
     emit deviceDragged(m_deviceId, pos());
   } else if (!m_draggable && e->button() == Qt::LeftButton) {
     // 如果没有拖拽，只是单纯点击释放，则执行点击摆放

@@ -255,11 +255,14 @@ void RoomWidget::mouseMoveEvent(QMouseEvent *e) {
       case BottomRight: g.setBottomRight(g.bottomRight() + delta); break;
       default: break;
     }
-    if (g.width() < 100) g.setWidth(100);
-    if (g.height() < 80) g.setHeight(80);
+    if (g.width() < m_minW) g.setWidth(m_minW);
+    if (g.height() < m_minH) g.setHeight(m_minH);
   }
 
   setGeometry(g);
+  if (m_dragging) {
+    emit roomDragging(m_id, g);
+  }
 }
 
 void RoomWidget::mouseReleaseEvent(QMouseEvent *e) {
@@ -267,6 +270,7 @@ void RoomWidget::mouseReleaseEvent(QMouseEvent *e) {
   if (m_dragging) {
     m_dragging = false;
     setCursor(Qt::ArrowCursor);
+    emit roomDragFinished(m_id);
     emit roomMoved(m_id, geometry());
   }
   if (m_resizing) {
