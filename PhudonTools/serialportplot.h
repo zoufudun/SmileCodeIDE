@@ -359,6 +359,7 @@ protected:
 private:
   QTabWidget *m_sessionTabs;
   int m_sessionCounter;
+  QString m_currentTheme;
 };
 
 class SerialPortContainer : public QWidget {
@@ -367,6 +368,8 @@ class SerialPortContainer : public QWidget {
 public:
   explicit SerialPortContainer(QWidget *parent = nullptr);
   ~SerialPortContainer();
+  void applyGlobalTheme(const QString &themeFile);
+  void applyFileIconTheme(const QString &themeName);
 
 private slots:
   void handleSplitHorizontal();
@@ -377,9 +380,6 @@ private slots:
 private:
   QToolBar *m_toolbar;
   QSplitter *m_mainSplitter;
-
-  void applyGlobalTheme(const QString &themeFile);
-  void applyFileIconTheme(const QString &themeName);
 
   SerialPortPlot *createNewPlot();
   QString m_currentTheme;

@@ -27,6 +27,9 @@
 #include <QStandardItemModel>
 
 #include "serialportplot.h"
+#include "oscilloscopewindow.h"
+#include "idetheme.h"
+#include "TOOLS/CIconFont.h"
 #include <QDialog>
 #include <QtSerialPort/QSerialPort>
 #include <QtSerialPort/QSerialPortInfo>
@@ -218,9 +221,12 @@ bool MainWindow::isCurrentFileModified() const {
 }
 
 void MainWindow::createToolbars() {
-  // Create main toolbar
+  const QSize unifiedIconSize(22, 22);
+
+  // 1. 主工具栏
   QToolBar *mainToolbar = addToolBar("主工具栏");
   mainToolbar->setMovable(true);
+  mainToolbar->setIconSize(unifiedIconSize);
 
   // Add file actions
   mainToolbar->addAction(findChild<QAction *>("新建项目"));
@@ -245,25 +251,67 @@ void MainWindow::createToolbars() {
   mainToolbar->addAction(findChild<QAction *>("单步跳出"));
   mainToolbar->addSeparator();
 
-  // Tools toolbar
+  // 2. 调试工具栏
   QToolBar *toolsToolbar = addToolBar("调试工具");
   toolsToolbar->setMovable(true);
+  toolsToolbar->setIconSize(unifiedIconSize);
   toolsToolbar->addAction(m_configureToolchainAction);
   toolsToolbar->addSeparator();
-  toolsToolbar->addAction(m_serialToolAction); // 添加串口调试助手工具按钮
-  toolsToolbar->addAction(m_networkToolAction); // 添加网络调试助手工具按钮
-  toolsToolbar->addAction(m_canToolAction); // 添加CAN调试助手工具按钮
-  toolsToolbar->addAction(m_iapToolAction); // 添加IAP升级工具按钮
+  toolsToolbar->addAction(m_oscilloscopeAction); // 数字示波器 (0xe86e)
+  toolsToolbar->addAction(m_serialToolAction);   // 串口调试助手 (0xe661)
+  toolsToolbar->addAction(m_networkToolAction);  // 网络调试助手 (0xe7d2)
+  toolsToolbar->addAction(m_canToolAction);      // CAN调试助手 (0xe8a2)
+  toolsToolbar->addAction(m_iapToolAction);      // IAP升级工具 (0xe8bf)
 
-  // Add view actions
+  // 3. 视图动作
   mainToolbar->addAction(findChild<QAction *>("全屏模式"));
 
-  // 添加分栏工具栏
+  // 4. 分栏工具栏
   QToolBar *splitToolbar = addToolBar("分栏工具栏");
   splitToolbar->setMovable(true);
+  splitToolbar->setIconSize(unifiedIconSize);
   splitToolbar->addAction(m_horizontalSplitAction);
   splitToolbar->addAction(m_verticalSplitAction);
   splitToolbar->addAction(m_closeSplitAction);
+
+  // 5. 主题切换快捷图标按钮 (0xe622，与串口调试助手完全一致)
+  QToolButton *btnTheme = new QToolButton(this);
+  btnTheme->setObjectName("btnThemeIcon");
+  try {
+    QFont iconFont = CIconFont::instance()->getIconFont(18);
+    iconFont.setPixelSize(18);
+    btnTheme->setFont(iconFont);
+  } catch (...) {
+  }
+  btnTheme->setText(QString(QChar(0xe622)));
+  btnTheme->setToolTip("切换主题");
+  btnTheme->setPopupMode(QToolButton::InstantPopup);
+  btnTheme->setStyleSheet("QToolButton::menu-indicator { image: none; }");
+
+  QMenu *menuTheme = new QMenu(btnTheme);
+  // 旗舰奢华主题
+  QMenu *menuFlagship = menuTheme->addMenu("🌟 旗舰奢华主题");
+  menuFlagship->addAction("⚡ 极客钛金 (Titanium Dark)", this, [this]() { applyTheme("dark"); });
+  menuFlagship->addAction("🌌 赛博霓虹 (Cyber Neon)", this, [this]() { applyTheme("cyberneon"); });
+  menuFlagship->addAction("🌋 熔岩黑金 (Obsidian Gold)", this, [this]() { applyTheme("obsidiangold"); });
+  menuFlagship->addAction("🔮 星云紫晶 (Nebula Violet)", this, [this]() { applyTheme("dracula"); });
+  menuFlagship->addAction("🌊 碧海深渊 (Abyssal Ocean)", this, [this]() { applyTheme("nord"); });
+  menuFlagship->addAction("🌲 极客翡翠 (Emerald Matrix)", this, [this]() { applyTheme("vue"); });
+  menuFlagship->addAction("☀️ 纯白曜石 (Crystal Light)", this, [this]() { applyTheme("light"); });
+  menuFlagship->addAction("📜 暖阳羊皮 (Solarized Light)", this, [this]() { applyTheme("solarizedlight"); });
+
+  // 经典主题
+  QMenu *menuClassic = menuTheme->addMenu("经典主题");
+  menuClassic->addAction("GitHub Dark", this, [this]() { applyTheme("githubdark"); });
+  menuClassic->addAction("GitHub Light", this, [this]() { applyTheme("githublight"); });
+  menuClassic->addAction("One Dark", this, [this]() { applyTheme("onedark"); });
+  menuClassic->addAction("Xcode Dark", this, [this]() { applyTheme("xcodedark"); });
+  menuClassic->addAction("Monokai Pro", this, [this]() { applyTheme("monokaipro"); });
+  menuClassic->addAction("Night Owl", this, [this]() { applyTheme("nightowl"); });
+
+  btnTheme->setMenu(menuTheme);
+  toolsToolbar->addSeparator();
+  toolsToolbar->addWidget(btnTheme);
 }
 
 // 在目标选择部分之后添加下载工具选择
@@ -1466,145 +1514,54 @@ void MainWindow::applyTheme(const QString &themeName) {
   // 保存当前主题名称
   m_currentTheme = themeName;
 
-  // 根据主题名称设置对应的选中状态和加载样式表
-  if (themeName == "dark") {
-    m_darkThemeAction->setChecked(true);
-    loadStyleSheet("dark");
+  // 根据主题名称设置对应的选中状态
+  if (m_darkThemeAction) m_darkThemeAction->setChecked(themeName == "dark");
+  if (m_lightThemeAction) m_lightThemeAction->setChecked(themeName == "light");
+  if (m_oneDarkThemeAction) m_oneDarkThemeAction->setChecked(themeName == "onedark");
+  if (m_githubDarkThemeAction) m_githubDarkThemeAction->setChecked(themeName == "githubdark");
+  if (m_xcodeDarkThemeAction) m_xcodeDarkThemeAction->setChecked(themeName == "xcodedark");
+  if (m_vueThemeAction) m_vueThemeAction->setChecked(themeName == "vue");
+  if (m_monokaiProThemeAction) m_monokaiProThemeAction->setChecked(themeName == "monokaipro");
+  if (m_draculaThemeAction) m_draculaThemeAction->setChecked(themeName == "dracula");
+  if (m_nordThemeAction) m_nordThemeAction->setChecked(themeName == "nord");
+  if (m_noctisThemeAction) m_noctisThemeAction->setChecked(themeName == "noctis");
+  if (m_nightOwlThemeAction) m_nightOwlThemeAction->setChecked(themeName == "nightowl");
+  if (m_solarizedLightThemeAction) m_solarizedLightThemeAction->setChecked(themeName == "solarizedlight");
+  if (m_materialLightThemeAction) m_materialLightThemeAction->setChecked(themeName == "materiallight");
+  if (m_atomMaterialThemeAction) m_atomMaterialThemeAction->setChecked(themeName == "atommaterial");
+  if (m_atomOneThemeAction) m_atomOneThemeAction->setChecked(themeName == "atomone");
+  if (m_gerryThemeAction) m_gerryThemeAction->setChecked(themeName == "gerry");
+  if (m_materialIconsThemeAction) m_materialIconsThemeAction->setChecked(themeName == "materialicons");
 
-    // 更新状态栏颜色
-    statusBar()->setStyleSheet("background-color: #007ACC; color: #FFFFFF;");
+  // 1. 加载并应用全套一体化 QSS 样式表 (覆盖菜单、工具栏、项目树、控制台、滚动条、分割器、CAN工具与对话框)
+  loadStyleSheet(themeName);
 
-    // 更新代码编辑器样式
-    if (m_codeEditor && m_lexerCPP) {
-      m_codeEditor->applyTheme(themeName);
-    }
-  } else if (themeName == "light") {
-    // ... existing code ...
-    m_lightThemeAction->setChecked(true);
-    loadStyleSheet("light");
-    statusBar()->setStyleSheet("background-color: #EEEEEE; color: #546E7A;");
-    // 更新代码编辑器样式 (浅色主题)
-    // 更新代码编辑器样式
-    if (m_codeEditor && m_lexerCPP) {
-      m_codeEditor->applyTheme(themeName);
-    }
-  } else if (themeName == "onedark") {
-    m_oneDarkThemeAction->setChecked(true);
-    loadStyleSheet("onedark");
-
-    // 更新状态栏颜色
-    statusBar()->setStyleSheet("background-color: #282C34; color: #ABB2BF;");
-  } else if (themeName == "githubdark") {
-    m_githubDarkThemeAction->setChecked(true);
-    loadStyleSheet("githubdark");
-
-    // 更新状态栏颜色
-    statusBar()->setStyleSheet("background-color: #161B22; color: #C9D1D9;");
-  } else if (themeName == "xcodedark") {
-    m_xcodeDarkThemeAction->setChecked(true);
-    loadStyleSheet("xcodedark");
-
-    // 更新状态栏颜色
-    statusBar()->setStyleSheet("background-color: #2D2D32; color: #FFFFFF;");
-  } else if (themeName == "vue") {
-    m_vueThemeAction->setChecked(true);
-    loadStyleSheet("vue");
-
-    // 更新状态栏颜色
-    statusBar()->setStyleSheet("background-color: #1A1A1A; color: #EEFFFF;");
-  } else if (themeName == "monokaipro") {
-    m_monokaiProThemeAction->setChecked(true);
-    loadStyleSheet("monokaipro");
-
-    // 更新状态栏颜色
-    statusBar()->setStyleSheet("background-color: #221F22; color: #FCFCFA;");
-  } else if (themeName == "dracula") {
-    m_draculaThemeAction->setChecked(true);
-    loadStyleSheet("dracula");
-
-    // 更新状态栏颜色
-    statusBar()->setStyleSheet("background-color: #1E1F29; color: #F8F8F2;");
-  } else if (themeName == "nord") {
-    m_nordThemeAction->setChecked(true);
-    loadStyleSheet("nord");
-
-    // 更新状态栏颜色
-    statusBar()->setStyleSheet("background-color: #2E3440; color: #D8DEE9;");
-  } else if (themeName == "noctis") {
-    m_noctisThemeAction->setChecked(true);
-    loadStyleSheet("noctis");
-
-    // 更新状态栏颜色
-    statusBar()->setStyleSheet("background-color: #1B2932; color: #C2CCDB;");
-  } else if (themeName == "nightowl") {
-    m_nightOwlThemeAction->setChecked(true);
-    loadStyleSheet("nightowl");
-
-    // 更新状态栏颜色
-    statusBar()->setStyleSheet("background-color: #011627; color: #D6DEEB;");
-  } else if (themeName == "solarizedlight") {
-    m_solarizedLightThemeAction->setChecked(true);
-    loadStyleSheet("solarizedlight");
-
-    // 更新状态栏颜色
-    statusBar()->setStyleSheet("background-color: #EEE8D5; color: #657B83;");
-  } else if (themeName == "materiallight") {
-    m_materialLightThemeAction->setChecked(true);
-    loadStyleSheet("materiallight");
-
-    // 更新状态栏颜色
-    statusBar()->setStyleSheet("background-color: #EEEEEE; color: #546E7A;");
-  } else if (themeName == "atommaterial") {
-    m_atomMaterialThemeAction->setChecked(true);
-    loadStyleSheet("atommaterial");
-
-    // 更新状态栏颜色
-    statusBar()->setStyleSheet("background-color: #263238; color: #EEFFFF;");
-  } else if (themeName == "atomone") {
-    m_atomOneThemeAction->setChecked(true);
-    loadStyleSheet("atomone");
-
-    // 更新状态栏颜色
-    statusBar()->setStyleSheet("background-color: #2D2D2D; color: #F8F8F2;");
-  } else if (themeName == "gerry") {
-    m_gerryThemeAction->setChecked(true);
-    loadStyleSheet("gerry");
-
-    // 更新状态栏颜色
-    statusBar()->setStyleSheet("background-color: #1E1E1E; color: #D4D4D4;");
-  } else if (themeName == "materialicons") {
-    m_materialIconsThemeAction->setChecked(true);
-    loadStyleSheet("materialicons");
-
-    // 更新状态栏颜色
-    statusBar()->setStyleSheet("background-color: #212121; color: #FFFFFF;");
+  // 2. 深度同步代码编辑器及其语法高亮、大纲列表、彩虹括号
+  if (m_codeEditor) {
+    m_codeEditor->applyTheme(themeName);
   }
 
-  // 保存主题设置到配置文件
-  m_settings->setValue("theme", m_currentTheme);
+  // 3. 广播给串口调试助手 (若已打开)
+  if (m_serialPlot) {
+    m_serialPlot->applyGlobalTheme(themeName);
+  }
 
-  // 更新状态信息
+  // 4. 保存主题设置到配置文件
+  if (m_settings) {
+    m_settings->setValue("theme", m_currentTheme);
+  }
+
+  // 5. 更新状态信息
   if (m_statusProjectLabel && m_statusTargetLabel && m_statusBuildLabel) {
     updateStatusInfo();
   }
 }
 
 void MainWindow::loadStyleSheet(const QString &sheetName) {
-  // 从资源文件中加载样式表
-  QFile file(":/resources/styles/" + sheetName + ".qss");
-  if (file.open(QFile::ReadOnly | QFile::Text)) {
-    // 读取样式表内容并应用到应用程序
-    QString styleSheet = QLatin1String(file.readAll());
-    qApp->setStyleSheet(styleSheet);
-    file.close();
-
-    // 输出加载成功信息
-    qDebug() << "已加载" << sheetName << "主题样式表";
-  } else {
-    // 如果加载失败，清除样式表并输出错误信息
-    qApp->setStyleSheet("");
-    qDebug() << "无法加载" << sheetName << "主题样式表";
-  }
+  // 生成并应用 IdeTheme 深度融合样式表
+  QString styleSheet = IdeTheme::generateStyleSheet(sheetName);
+  qApp->setStyleSheet(styleSheet);
+  qDebug() << "已应用" << sheetName << "全局一体化主题样式表";
 }
 
 void MainWindow::openProject() {
@@ -2416,90 +2373,90 @@ void MainWindow::saveSettings() {
 
 void MainWindow::setupThemeMenu() {
   // Create theme actions
-  m_darkThemeAction = new QAction("Phudon Dark主题", this);
+  m_darkThemeAction = new QAction("⚡ 极客钛金 (Titanium Dark)", this);
   m_darkThemeAction->setCheckable(true);
   connect(m_darkThemeAction, &QAction::triggered, this,
           &MainWindow::setDarkTheme);
 
-  m_lightThemeAction = new QAction("Phudon Light主题", this);
+  m_lightThemeAction = new QAction("☀️ 纯白曜石 (Crystal Light)", this);
   m_lightThemeAction->setCheckable(true);
   connect(m_lightThemeAction, &QAction::triggered, this,
           &MainWindow::setLightTheme);
 
-  m_oneDarkThemeAction = new QAction("One Dark主题", this);
-  m_oneDarkThemeAction->setCheckable(true);
-  connect(m_oneDarkThemeAction, &QAction::triggered, this,
-          &MainWindow::setOneDarkTheme);
-
-  m_githubDarkThemeAction = new QAction("Github Dark主题", this);
-  m_githubDarkThemeAction->setCheckable(true);
-  connect(m_githubDarkThemeAction, &QAction::triggered, this,
-          &MainWindow::setGithubDarkTheme);
-
-  m_xcodeDarkThemeAction = new QAction("Xcode Dark主题", this);
-  m_xcodeDarkThemeAction->setCheckable(true);
-  connect(m_xcodeDarkThemeAction, &QAction::triggered, this,
-          &MainWindow::setXcodeDarkTheme);
-
-  m_vueThemeAction = new QAction("Vue主题", this);
+  m_vueThemeAction = new QAction("🌲 极客翡翠 (Emerald Matrix)", this);
   m_vueThemeAction->setCheckable(true);
   connect(m_vueThemeAction, &QAction::triggered, this,
           &MainWindow::setVueTheme);
 
-  m_monokaiProThemeAction = new QAction("Monokai Pro主题", this);
-  m_monokaiProThemeAction->setCheckable(true);
-  connect(m_monokaiProThemeAction, &QAction::triggered, this,
-          &MainWindow::setMonokaiProTheme);
-
-  m_draculaThemeAction = new QAction("Dracula主题", this);
+  m_draculaThemeAction = new QAction("🔮 星云紫晶 (Dracula Violet)", this);
   m_draculaThemeAction->setCheckable(true);
   connect(m_draculaThemeAction, &QAction::triggered, this,
           &MainWindow::setDraculaTheme);
 
-  m_nordThemeAction = new QAction("Nord主题", this);
+  m_nordThemeAction = new QAction("🌊 碧海深渊 (Abyssal Nord)", this);
   m_nordThemeAction->setCheckable(true);
   connect(m_nordThemeAction, &QAction::triggered, this,
           &MainWindow::setNordTheme);
 
-  m_noctisThemeAction = new QAction("Noctis主题", this);
-  m_noctisThemeAction->setCheckable(true);
-  connect(m_noctisThemeAction, &QAction::triggered, this,
-          &MainWindow::setNoctisTheme);
-
-  m_nightOwlThemeAction = new QAction("Night Owl主题", this);
-  m_nightOwlThemeAction->setCheckable(true);
-  connect(m_nightOwlThemeAction, &QAction::triggered, this,
-          &MainWindow::setNightOwlTheme);
-
-  m_solarizedLightThemeAction = new QAction("Solarized Light主题", this);
+  m_solarizedLightThemeAction = new QAction("📜 暖阳羊皮 (Solarized Light)", this);
   m_solarizedLightThemeAction->setCheckable(true);
   connect(m_solarizedLightThemeAction, &QAction::triggered, this,
           &MainWindow::setSolarizedLightTheme);
 
-  m_materialLightThemeAction = new QAction("Material Light主题", this);
+  m_githubDarkThemeAction = new QAction("🐙 GitHub Dark", this);
+  m_githubDarkThemeAction->setCheckable(true);
+  connect(m_githubDarkThemeAction, &QAction::triggered, this,
+          &MainWindow::setGithubDarkTheme);
+
+  m_oneDarkThemeAction = new QAction("⚛️ One Dark", this);
+  m_oneDarkThemeAction->setCheckable(true);
+  connect(m_oneDarkThemeAction, &QAction::triggered, this,
+          &MainWindow::setOneDarkTheme);
+
+  m_xcodeDarkThemeAction = new QAction("🍎 Xcode Dark", this);
+  m_xcodeDarkThemeAction->setCheckable(true);
+  connect(m_xcodeDarkThemeAction, &QAction::triggered, this,
+          &MainWindow::setXcodeDarkTheme);
+
+  m_monokaiProThemeAction = new QAction("🎨 Monokai Pro", this);
+  m_monokaiProThemeAction->setCheckable(true);
+  connect(m_monokaiProThemeAction, &QAction::triggered, this,
+          &MainWindow::setMonokaiProTheme);
+
+  m_nightOwlThemeAction = new QAction("🦉 Night Owl", this);
+  m_nightOwlThemeAction->setCheckable(true);
+  connect(m_nightOwlThemeAction, &QAction::triggered, this,
+          &MainWindow::setNightOwlTheme);
+
+  m_materialLightThemeAction = new QAction("💎 Material Light", this);
   m_materialLightThemeAction->setCheckable(true);
   connect(m_materialLightThemeAction, &QAction::triggered, this,
           &MainWindow::setMaterialLightTheme);
 
-  m_atomMaterialThemeAction = new QAction("Atom Material主题", this);
+  m_atomMaterialThemeAction = new QAction("Atom Material", this);
   m_atomMaterialThemeAction->setCheckable(true);
   connect(m_atomMaterialThemeAction, &QAction::triggered, this,
           &MainWindow::setAtomMaterialTheme);
 
-  m_atomOneThemeAction = new QAction("Atom One主题", this);
+  m_atomOneThemeAction = new QAction("Atom One", this);
   m_atomOneThemeAction->setCheckable(true);
   connect(m_atomOneThemeAction, &QAction::triggered, this,
           &MainWindow::setAtomOneTheme);
 
-  m_gerryThemeAction = new QAction("Gerry主题", this);
+  m_gerryThemeAction = new QAction("Gerry", this);
   m_gerryThemeAction->setCheckable(true);
   connect(m_gerryThemeAction, &QAction::triggered, this,
           &MainWindow::setGerryTheme);
 
-  m_materialIconsThemeAction = new QAction("Material Icons主题", this);
+  m_materialIconsThemeAction = new QAction("Material Icons", this);
   m_materialIconsThemeAction->setCheckable(true);
   connect(m_materialIconsThemeAction, &QAction::triggered, this,
           &MainWindow::setMaterialIconsTheme);
+
+  m_noctisThemeAction = new QAction("Noctis", this);
+  m_noctisThemeAction->setCheckable(true);
+  connect(m_noctisThemeAction, &QAction::triggered, this,
+          &MainWindow::setNoctisTheme);
 
   // Create action group to make theme actions exclusive
   // m_themeActionGroup = new QActionGroup(this);
@@ -2727,41 +2684,62 @@ void MainWindow::createActions() {
           &MainWindow::setBreakpoint);
 
   // Tools menu actions
+  auto createToolActionIcon = [](ushort unicodeChar, const QColor &color) -> QIcon {
+    QPixmap pix(24, 24);
+    pix.fill(Qt::transparent);
+    QPainter painter(&pix);
+    painter.setRenderHint(QPainter::Antialiasing);
+    painter.setRenderHint(QPainter::TextAntialiasing);
+    try {
+      QFont font = CIconFont::instance()->getIconFont(20);
+      font.setPixelSize(20);
+      painter.setFont(font);
+    } catch (...) {}
+    painter.setPen(color);
+    painter.drawText(QRect(0, 0, 24, 24), Qt::AlignCenter, QString(QChar(unicodeChar)));
+    return QIcon(pix);
+  };
+
   m_configureToolchainAction = new QAction("配置工具链", this);
-  m_configureToolchainAction->setIcon(
-      QIcon(":/icons/ToosSetting.png")); // 需要添加相应图标
+  m_configureToolchainAction->setIcon(QIcon(":/icons/ToosSetting.png"));
   m_configureToolchainAction->setStatusTip("配置编译和调试工具链");
   m_configureToolchainAction->setToolTip("配置编译和调试工具链");
   connect(m_configureToolchainAction, &QAction::triggered, this,
           &MainWindow::configureToolchain);
 
-  // 添加串口调试助手动作
+  // 添加数字示波器动作 (ICON 图标 0xe86e)
+  m_oscilloscopeAction = new QAction("数字示波器", this);
+  m_oscilloscopeAction->setIcon(createToolActionIcon(0xe86e, QColor("#0EA5E9")));
+  m_oscilloscopeAction->setStatusTip("打开独立多通信接口数字示波器 (支持串口/Modbus/CAN/以太网/USB)");
+  m_oscilloscopeAction->setToolTip("打开独立多通信接口数字示波器");
+  connect(m_oscilloscopeAction, &QAction::triggered, this, &MainWindow::openOscilloscopeTool);
+
+  // 添加串口调试助手动作 (ICON 图标 0xe661)
   m_serialToolAction = new QAction("串口调试助手", this);
-  m_serialToolAction->setIcon(
-      QIcon(":/icons/serialport.png")); // 需要添加相应图标
+  m_serialToolAction->setIcon(createToolActionIcon(0xe661, QColor("#8B5CF6")));
   m_serialToolAction->setStatusTip("打开串口调试助手");
+  m_serialToolAction->setToolTip("打开串口调试助手");
   connect(m_serialToolAction, &QAction::triggered, this,
           &MainWindow::openSerialTool);
 
-  // 添加网络调试助手动作
+  // 添加网络调试助手动作 (ICON 图标 0xe7d2)
   m_networkToolAction = new QAction("网络调试助手", this);
-  m_networkToolAction->setIcon(
-      QIcon(":/icons/network_tool.png")); // 需要添加相应图标
+  m_networkToolAction->setIcon(createToolActionIcon(0xe7d2, QColor("#3B82F6")));
   m_networkToolAction->setStatusTip("打开网络调试助手");
   m_networkToolAction->setToolTip("打开网络调试助手");
   connect(m_networkToolAction, &QAction::triggered, this,
           &MainWindow::openNetworkTool);
 
-  // 添加CAN调试助手动作
+  // 添加CAN调试助手动作 (ICON 图标 0xe8a2)
   m_canToolAction = new QAction("CAN调试助手", this);
-  m_canToolAction->setIcon(QIcon(":/icons/CAN.png")); // 需要添加相应图标
+  m_canToolAction->setIcon(createToolActionIcon(0xe8a2, QColor("#FF6D00")));
   m_canToolAction->setStatusTip("打开CAN调试助手");
   m_canToolAction->setToolTip("打开CAN调试助手");
   connect(m_canToolAction, &QAction::triggered, this, &MainWindow::openCANTool);
 
-  // 添加IAP升级工具动作
+  // 添加IAP升级工具动作 (ICON 图标 0xe8bf)
   m_iapToolAction = new QAction("STM32 IAP升级工具", this);
-  m_iapToolAction->setIcon(QIcon(":/icons/IAP.png")); // 需要添加相应图标
+  m_iapToolAction->setIcon(createToolActionIcon(0xe8bf, QColor("#10B981")));
   m_iapToolAction->setStatusTip("打开STM32 IAP升级工具");
   m_iapToolAction->setToolTip("打开STM32 IAP升级工具");
   connect(m_iapToolAction, &QAction::triggered, this, &MainWindow::openIAPTool);
@@ -2872,6 +2850,7 @@ void MainWindow::createMenus() {
   QMenu *toolsMenu = menuBar->addMenu("工具");
   toolsMenu->addAction(m_configureToolchainAction);
   toolsMenu->addSeparator();
+  toolsMenu->addAction(m_oscilloscopeAction); // 添加数字示波器工具按钮
   toolsMenu->addAction(m_serialToolAction); // 添加串口调试助手工具按钮
   toolsMenu->addAction(m_networkToolAction); // 添加网络调试助手工具按钮
   toolsMenu->addAction(m_canToolAction); // 添加CAN调试助手工具按钮
@@ -3941,17 +3920,24 @@ void MainWindow::clearProjectTree() {
 
 // 添加在MainWindow类的实现部分末尾
 
+// 打开独立多通信接口数字示波器
+void MainWindow::openOscilloscopeTool() {
+  if (!m_oscilloscopeWindow) {
+    m_oscilloscopeWindow = new OscilloscopeWindow();
+  }
+  m_oscilloscopeWindow->show();
+  m_oscilloscopeWindow->raise();
+  m_oscilloscopeWindow->activateWindow();
+}
+
 // 打开串口调试助手
 void MainWindow::openSerialTool() {
   if (!m_serialPlot) {
     m_serialPlot = new SerialPortContainer();
     m_serialPlot->setWindowTitle("串口调试助手");
+    m_serialPlot->setWindowIcon(m_serialToolAction->icon());
     m_serialPlot->resize(1000, 600);
-
-    // 如果 SerialPortContainer 可以获取当前的 Session
-    // 假设 SerialPortContainer 内部有 getActiveSession()
-    // 由于我们不知道其内部接口，我们可以安全地做这一步：
-    // 若后续发现 SerialPortContainer 有提供 view menu 我们就在这加。
+    m_serialPlot->applyGlobalTheme(m_currentTheme);
   }
   m_serialPlot->show();
   m_serialPlot->raise();

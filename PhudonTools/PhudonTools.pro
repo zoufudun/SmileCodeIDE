@@ -74,7 +74,8 @@ SOURCES += \
     canviewpanel.cpp \
     canopenviewpanel.cpp \
     devicemonitordialog.cpp \
-    canbusutilizationdialog.cpp
+    canbusutilizationdialog.cpp \
+    oscilloscopewindow.cpp
 
 # 头文件
 HEADERS += \
@@ -112,7 +113,10 @@ HEADERS += \
     canviewpanel.h \
     canopenviewpanel.h \
     devicemonitordialog.h \
-    canbusutilizationdialog.h
+    canbusutilizationdialog.h \
+    scopetheme.h \
+    idetheme.h \
+    oscilloscopewindow.h
 
 # 默认规则
 QMAKE_CXXFLAGS += -Wall -Wextra -Wpedantic

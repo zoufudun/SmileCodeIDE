@@ -1,5 +1,6 @@
 #include "verticaltabwidget.h"
 #include "TOOLS/CIconFont.h"
+#include "idetheme.h"
 #include <QEasingCurve>
 #include <QEnterEvent>
 #include <QEvent>
@@ -64,6 +65,13 @@ void ChromeTabButton::setTabInfo(const QString &iconCode) {
   update();
 }
 
+static QString g_activeVtTheme = "dark";
+
+void ChromeTabButton::applyTheme(const QString &themeName) {
+  g_activeVtTheme = themeName;
+  update();
+}
+
 void ChromeTabButton::setHoverOpacity(qreal v) {
   m_hoverOpacity = v;
   update();
@@ -108,37 +116,39 @@ void ChromeTabButton::paintEvent(QPaintEvent *) {
   const bool active = isChecked();
   const int w = width();
   const int h = height();
+  const IdeTheme::ThemePalette pal = IdeTheme::paletteFor(g_activeVtTheme);
 
   // ── Background ──────────────────────────────────────────
   if (active) {
-    // White pill blending into right content pane
+    // Fill blending into right content card pane
     QPainterPath bg;
     bg.addRoundedRect(QRectF(4, 3, w - 4, h - 6), 10, 10);
     // Clip right edge flush (no rounded corner on right)
     QPainterPath clip;
     clip.addRect(QRectF(0, 0, w + 2, h));
     p.setClipPath(clip);
-    p.fillPath(bg, QColor("#FFFFFF"));
+    p.fillPath(bg, QColor(pal.cardBg));
     p.setClipping(false);
   } else if (m_hoverOpacity > 0.0) {
     QPainterPath bg;
     bg.addRoundedRect(QRectF(4, 3, w - 4, h - 6), 10, 10);
-    QColor hover(200, 212, 226, (int)(m_hoverOpacity * 90));
-    p.fillPath(bg, hover);
+    QColor hoverColor(pal.menuHover);
+    hoverColor.setAlpha(qBound(30, (int)(m_hoverOpacity * 180), 240));
+    p.fillPath(bg, hoverColor);
   }
 
-  // ── Blue active indicator bar ────────────────────────────
+  // ── Theme accent active indicator bar ────────────────────
   if (active) {
     QPainterPath bar;
-    bar.addRoundedRect(QRectF(1, 14, 3, h - 28), 2, 2);
-    p.fillPath(bar, QColor("#1A73E8"));
+    bar.addRoundedRect(QRectF(1, 14, 3.5, h - 28), 2, 2);
+    p.fillPath(bar, QColor(pal.accent));
   }
 
   // ── Icon ────────────────────────────────────────────────
   QRect iconRect(0, 10, w, h - 10);
   QColor iconColor =
-      active ? QColor("#1A73E8")
-             : (m_hoverOpacity > 0.5 ? QColor("#3C4043") : QColor("#5F6368"));
+      active ? QColor(pal.accent)
+             : (m_hoverOpacity > 0.5 ? QColor(pal.textMain) : QColor(pal.textSub));
 
   if (!m_iconCode.isEmpty()) {
     int iconPx = qRound(qMin(iconRect.width(), iconRect.height()) * 0.60);
@@ -171,6 +181,15 @@ VerticalTabWidget::VerticalTabWidget(QWidget *parent) : QWidget(parent) {
   setupUi();
 }
 
+void VerticalTabWidget::applyTheme(const QString &themeName) {
+  g_activeVtTheme = themeName;
+  for (QPushButton *btn : m_tabButtons) {
+    ChromeTabButton *cbtn = qobject_cast<ChromeTabButton*>(btn);
+    if (cbtn) cbtn->applyTheme(themeName);
+  }
+  update();
+}
+
 void VerticalTabWidget::setupUi() {
   QHBoxLayout *root = new QHBoxLayout(this);
   root->setContentsMargins(0, 0, 0, 0);
@@ -179,11 +198,7 @@ void VerticalTabWidget::setupUi() {
   // ── Left sidebar container ──────────────────────────────────
   QWidget *sidebar = new QWidget();
   sidebar->setObjectName("vtSidebar");
-  sidebar->setFixedWidth(80);
-  sidebar->setStyleSheet("QWidget#vtSidebar {"
-                         "  background: #F1F3F4;"
-                         "  border-right: 1px solid #DADCE0;"
-                         "}");
+  sidebar->setFixedWidth(72);
 
   QVBoxLayout *sidebarLayout = new QVBoxLayout(sidebar);
   sidebarLayout->setContentsMargins(0, 0, 0, 0);
@@ -191,20 +206,10 @@ void VerticalTabWidget::setupUi() {
 
   // ── "New Tab" button at top ─────────────────────────────────
   m_btnNewTab = new QPushButton("+");
+  m_btnNewTab->setObjectName("vtNewTabBtn");
   m_btnNewTab->setFixedHeight(40);
   m_btnNewTab->setCursor(Qt::PointingHandCursor);
   m_btnNewTab->setToolTip("新建标签页");
-  m_btnNewTab->setStyleSheet("QPushButton {"
-                             "  background: transparent;"
-                             "  color: #5F6368;"
-                             "  font-size: 20px;"
-                             "  font-weight: 300;"
-                             "  border: none;"
-                             "}"
-                             "QPushButton:hover {"
-                             "  background: #E8EAED;"
-                             "  color: #1A73E8;"
-                             "}");
   sidebarLayout->addWidget(m_btnNewTab);
   connect(m_btnNewTab, &QPushButton::clicked, this,
           &VerticalTabWidget::newTabRequested);
@@ -215,28 +220,10 @@ void VerticalTabWidget::setupUi() {
   m_scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
   m_scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
   m_scrollArea->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-  // 4px ultra-thin scrollbar
-  m_scrollArea->setStyleSheet(
-      "QScrollArea { background: transparent; border: none; }"
-      "QScrollBar:vertical {"
-      "  width: 4px;"
-      "  background: transparent;"
-      "  margin: 0;"
-      "}"
-      "QScrollBar::handle:vertical {"
-      "  background: #BDC1C6;"
-      "  border-radius: 2px;"
-      "  min-height: 20px;"
-      "}"
-      "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { "
-      "height:0; }"
-      "QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { "
-      "background: none; }");
+  m_scrollArea->setStyleSheet("QScrollArea { background: transparent; border: none; }");
 
   QWidget *tabContainer = new QWidget();
   tabContainer->setObjectName("vtTabContainer");
-  tabContainer->setStyleSheet(
-      "QWidget#vtTabContainer { background: transparent; }");
   m_tabLayout = new QVBoxLayout(tabContainer);
   m_tabLayout->setContentsMargins(4, 4, 4, 4);
   m_tabLayout->setSpacing(2);
@@ -250,8 +237,8 @@ void VerticalTabWidget::setupUi() {
 
   // ── Right content area ──────────────────────────────────────
   m_stackedWidget = new QStackedWidget();
-  m_stackedWidget->setStyleSheet(
-      "QStackedWidget { background: #FFFFFF; border: none; }");
+  m_stackedWidget->setObjectName("vtStacked");
+  m_stackedWidget->setStyleSheet("QStackedWidget { background: transparent; border: none; }");
   root->addWidget(m_stackedWidget, 1);
 }
 

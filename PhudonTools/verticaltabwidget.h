@@ -33,6 +33,7 @@ public:
 
   void setTabInfo(const QString &iconCode);
   void setTabIndex(int idx) { m_tabIndex = idx; }
+  void applyTheme(const QString &themeName);
 
   qreal hoverOpacity() const { return m_hoverOpacity; }
   void setHoverOpacity(qreal v);
@@ -77,6 +78,9 @@ public:
 
   // 动态更新标签图标
   void updateTabIcon(int index, const QString &iconCode);
+
+  // 主题切换
+  void applyTheme(const QString &themeName);
 
   // 获取页面
   QWidget *widget(int index) const;

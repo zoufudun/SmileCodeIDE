@@ -52,7 +52,7 @@ private:
 
   // 连接 / 设备管理
   QPushButton *m_deviceButton;
-  QComboBox *m_themeCombo;
+  QToolButton *m_btnTheme = nullptr;
   QLabel *m_statusLabel;
   CanDeviceDialog *m_deviceDialog = nullptr;
   QString m_currentStyle;

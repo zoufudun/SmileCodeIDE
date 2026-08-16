@@ -1,4 +1,5 @@
 #include "serialportplot.h"
+#include "idetheme.h"
 #include "TOOLS/CIconFont.h"
 #include "curvesettings.h"
 #include "customwidget.h"
@@ -61,62 +62,7 @@ void ensureUnifiedToolTipStyle() {
   QToolTip::setFont(toolTipFont);
 }
 
-QString neutralDataDockStyleSheet() {
-  return QStringLiteral(R"(
-    QDockWidget#dataDock {
-        background: #FFFFFF;
-        border: 1px solid #D8DEE6;
-        border-radius: 14px;
-    }
-    QDockWidget#dataDock::title {
-        background: #F3F4F6;
-        padding-top: 6px;
-        padding-bottom: 6px;
-        padding-left: 12px;
-        padding-right: 80px;
-        font-weight: bold;
-        font-size: 11pt;
-        color: #374151;
-        border: none;
-        border-bottom: 1px solid #E5E7EB;
-        border-top-left-radius: 14px;
-        border-top-right-radius: 14px;
-        min-height: 32px;
-    }
-    QDockWidget#dataDock QWidget#dockContentWidget {
-        background: #FFFFFF;
-        border: none;
-        border-bottom-left-radius: 14px;
-        border-bottom-right-radius: 14px;
-    }
-    QDockWidget#dataDock::close-button,
-    QDockWidget#dataDock::float-button {
-        background: transparent;
-        border: none;
-        border-radius: 4px;
-        padding: 2px;
-        icon-size: 16px;
-        subcontrol-position: center right;
-        subcontrol-origin: margin;
-        width: 24px;
-        height: 24px;
-    }
-    QDockWidget#dataDock::close-button {
-        right: 6px;
-    }
-    QDockWidget#dataDock::float-button {
-        right: 34px;
-    }
-    QDockWidget#dataDock::close-button:hover,
-    QDockWidget#dataDock::float-button:hover {
-        background: rgba(148, 163, 184, 0.18);
-    }
-    QDockWidget#dataDock::close-button:pressed,
-    QDockWidget#dataDock::float-button:pressed {
-        background: rgba(100, 116, 139, 0.24);
-    }
-  )");
-}
+
 
 class ScaledAxisTicker : public QCPAxisTicker {
 public:
@@ -323,26 +269,6 @@ void SerialSession::setupUi() {
   dataDockHost->setCentralWidget(dataDockPlaceholder);
   m_mainHorizSplitter->addWidget(dataDockHost);
   m_dataSplitter = dataDockHost;
-
-  // Global Stylesheet for Custom Cards
-  this->setStyleSheet("SerialPortPlot { background-color: #f5f5f5; }"
-                      "QWidget#cardWidget { "
-                      "    background-color: #FFFFFF; "
-                      "    border: 1px solid #E0E0E0; "
-                      "    border-radius: 12px; "
-                      "}"
-                      "QLabel#cardTitle { "
-                      "    font-weight: bold; "
-                      "    font-size: 13px; "
-                      "    color: #333333; "
-                      "    padding-bottom: 5px; "
-                      "}"
-                      "QTextEdit { "
-                      "    border: 1px solid #4CAF50; "
-                      "    border-radius: 10px; "
-                      "    padding: 5px; "
-                      "    background-color: #FAFAFA; "
-                      "}");
 
   // 1. Port Settings
   QWidget *grpPort = new QWidget();
@@ -1113,7 +1039,6 @@ void SerialSession::setupUi() {
                              QDockWidget::DockWidgetClosable);
   m_dockReceive->setAllowedAreas(Qt::AllDockWidgetAreas);
   m_dockReceive->setWidget(grpData);
-  m_dockReceive->setStyleSheet(neutralDataDockStyleSheet());
   dataDockHost->addDockWidget(Qt::TopDockWidgetArea, m_dockReceive);
 
   // --- Send Area Container - 改为DockWidget ---
@@ -1128,45 +1053,8 @@ void SerialSession::setupUi() {
 
   // --- Send Area: 4-tab QTabWidget ---
   m_sendTabWidget = new QTabWidget();
+  m_sendTabWidget->setObjectName("serialSendTabs");
   m_sendTabWidget->setDocumentMode(false);
-  // 消除标签页面板左上角遮挡条框
-  m_sendTabWidget->setStyleSheet(R"(
-    QTabWidget::pane {
-        border: 1px solid #C8C8C8;
-        border-top: none;
-        background: transparent;
-    }
-    QTabWidget::left-corner {
-        background: transparent;
-        border: none;
-        width: 0px;
-        height: 0px;
-    }
-    QTabWidget::right-corner {
-        background: transparent;
-        border: none;
-        width: 0px;
-        height: 0px;
-    }
-    QTabWidget::tab-bar { left: 0px; }
-    QTabBar::tab {
-        background: #F0F0F0;
-        border: 1px solid #C8C8C8;
-        border-bottom: none;
-        border-top-left-radius: 6px;
-        border-top-right-radius: 6px;
-        min-width: 70px;
-        padding: 4px 12px;
-        margin-right: 1px;
-    }
-    QTabBar::tab:selected {
-        background: #FFFFFF;
-        font-weight: bold;
-        color: #1565C0;
-    }
-    QTabBar::tab:hover:!selected { background: #E8EDF5; }
-    QTabBar::tab:first { margin-left: 0px; }
-  )");
 
   // ========== Tab 0: 单条发送 ==========
   QWidget *tabSingle = new QWidget();
@@ -1488,7 +1376,6 @@ void SerialSession::setupUi() {
                           QDockWidget::DockWidgetClosable);
   m_dockSend->setAllowedAreas(Qt::AllDockWidgetAreas);
   m_dockSend->setWidget(grpSend);
-  m_dockSend->setStyleSheet(neutralDataDockStyleSheet());
   dataDockHost->addDockWidget(Qt::TopDockWidgetArea, m_dockSend);
   dataDockHost->splitDockWidget(m_dockReceive, m_dockSend, Qt::Vertical);
   dataDockHost->resizeDocks({m_dockReceive, m_dockSend}, {3, 2}, Qt::Vertical);
@@ -1558,19 +1445,21 @@ void SerialSession::setupUi() {
   // 移除了内部多余的 m_mainTabWidget，直接将主分割器添加到布局中
 
   // --- Status Bar ---
-  QHBoxLayout *statusBarLayout = new QHBoxLayout();
-  statusBarLayout->setContentsMargins(5, 2, 5, 2);
+  QWidget *sessionStatusBar = new QWidget();
+  sessionStatusBar->setObjectName("sessionStatusBar");
+  sessionStatusBar->setFixedHeight(28);
+  QHBoxLayout *statusBarLayout = new QHBoxLayout(sessionStatusBar);
+  statusBarLayout->setContentsMargins(10, 0, 10, 0);
 
   // Status Icon/Text
   m_lblPortInfo = new QLabel("串口关闭");
-  m_lblPortInfo->setStyleSheet("color: red; font-weight: bold;");
+  m_lblPortInfo->setObjectName("sessionStatusPort");
+  m_lblPortInfo->setStyleSheet("color: #EF4444; font-weight: bold;");
 
-  // Scrolling Message - wider label for smooth scrolling
+  // Scrolling Message
   m_lblWelcome = new ScrollingLabel();
-  m_lblWelcome->setStyleSheet("color: blue; font-style: italic;");
-  // m_lblWelcome->setAlignment(Qt::AlignLeft | Qt::AlignVCenter); // Not
-  // needed for custom widget
-  m_lblWelcome->setMinimumWidth(400); // Fixed width for scrolling area
+  m_lblWelcome->setObjectName("sessionStatusWelcome");
+  m_lblWelcome->setMinimumWidth(320);
   m_lblWelcome->setText(m_welcomeText);
 
   statusBarLayout->addWidget(m_lblPortInfo);
@@ -1578,20 +1467,20 @@ void SerialSession::setupUi() {
 
   // RX/TX Statistics
   QLabel *lblRxText = new QLabel("RX:");
-  lblRxText->setStyleSheet("font-weight: bold; color: #555;");
+  lblRxText->setObjectName("sessionStatusStat");
   statusBarLayout->addWidget(lblRxText);
   statusBarLayout->addWidget(m_lblRxCount);
   statusBarLayout->addSpacing(15);
 
   QLabel *lblTxText = new QLabel("TX:");
-  lblTxText->setStyleSheet("font-weight: bold; color: #555;");
+  lblTxText->setObjectName("sessionStatusStat");
   statusBarLayout->addWidget(lblTxText);
   statusBarLayout->addWidget(m_lblTxCount);
   statusBarLayout->addSpacing(20);
 
   statusBarLayout->addWidget(m_lblWelcome);
 
-  mainLayout->addLayout(statusBarLayout);
+  mainLayout->addWidget(sessionStatusBar);
 }
 
 void SerialSession::setupChart() {
@@ -3704,37 +3593,60 @@ void SerialSession::exportMultiData() {
 void SerialSession::sendAll() { sendSelectedMulti(); }
 
 void SerialSession::applyTheme(const QString &themeMode) {
-  if (!m_customPlot)
-    return;
-  bool isDark = themeMode.contains("dark", Qt::CaseInsensitive) ||
-                themeMode.contains("one", Qt::CaseInsensitive);
+  const IdeTheme::ThemePalette p = IdeTheme::paletteFor(themeMode);
 
-  QColor bgColor = isDark ? QColor("#1E1E1E") : QColor("#FFFFFF");
-  QColor textColor = isDark ? QColor("#DCDCDC") : QColor("#000000");
-  QColor gridColor = isDark ? QColor("#3E3E42") : QColor("#E0E0E0");
+  if (m_leftTabWidget) {
+    m_leftTabWidget->applyTheme(themeMode);
+  }
 
-  m_customPlot->setBackground(bgColor);
-  m_customPlot->axisRect()->setBackground(bgColor);
+  if (m_customPlot) {
+    m_customPlot->setBackground(QBrush(p.plotBg));
+    if (m_customPlot->axisRect()) {
+      m_customPlot->axisRect()->setBackground(QBrush(p.plotBg));
+    }
 
-  // X Axis
-  m_customPlot->xAxis->setBasePen(QPen(textColor));
-  m_customPlot->xAxis->setTickPen(QPen(textColor));
-  m_customPlot->xAxis->setSubTickPen(QPen(textColor));
-  m_customPlot->xAxis->setTickLabelColor(textColor);
-  m_customPlot->xAxis->setLabelColor(textColor);
-  m_customPlot->xAxis->grid()->setPen(QPen(gridColor, 1, Qt::DotLine));
-  m_customPlot->xAxis->grid()->setZeroLinePen(QPen(gridColor));
+    if (m_customPlot->xAxis) {
+      m_customPlot->xAxis->setBasePen(QPen(p.plotAxis, 1));
+      m_customPlot->xAxis->setTickPen(QPen(p.plotTick, 1));
+      m_customPlot->xAxis->setSubTickPen(QPen(p.plotSubTick, 1));
+      m_customPlot->xAxis->setTickLabelColor(p.plotTick);
+      m_customPlot->xAxis->setLabelColor(p.plotTick);
+      if (m_customPlot->xAxis->grid()) {
+        m_customPlot->xAxis->grid()->setPen(QPen(p.plotGrid, 1, Qt::DashLine));
+        m_customPlot->xAxis->grid()->setSubGridPen(QPen(p.plotSubGrid, 1, Qt::DotLine));
+        m_customPlot->xAxis->grid()->setSubGridVisible(true);
+        m_customPlot->xAxis->grid()->setZeroLinePen(QPen(p.plotAxis, 1));
+      }
+    }
 
-  // Y Axis
-  m_customPlot->yAxis->setBasePen(QPen(textColor));
-  m_customPlot->yAxis->setTickPen(QPen(textColor));
-  m_customPlot->yAxis->setSubTickPen(QPen(textColor));
-  m_customPlot->yAxis->setTickLabelColor(textColor);
-  m_customPlot->yAxis->setLabelColor(textColor);
-  m_customPlot->yAxis->grid()->setPen(QPen(gridColor, 1, Qt::DotLine));
-  m_customPlot->yAxis->grid()->setZeroLinePen(QPen(gridColor));
+    // Y Axis
+    if (m_customPlot->yAxis) {
+      m_customPlot->yAxis->setBasePen(QPen(p.plotAxis, 1));
+      m_customPlot->yAxis->setTickPen(QPen(p.plotTick, 1));
+      m_customPlot->yAxis->setSubTickPen(QPen(p.plotSubTick, 1));
+      m_customPlot->yAxis->setTickLabelColor(p.plotTick);
+      m_customPlot->yAxis->setLabelColor(p.plotTick);
+      if (m_customPlot->yAxis->grid()) {
+        m_customPlot->yAxis->grid()->setPen(QPen(p.plotGrid, 1, Qt::DashLine));
+        m_customPlot->yAxis->grid()->setSubGridPen(QPen(p.plotSubGrid, 1, Qt::DotLine));
+        m_customPlot->yAxis->grid()->setSubGridVisible(true);
+        m_customPlot->yAxis->grid()->setZeroLinePen(QPen(p.plotAxis, 1));
+      }
+    }
 
-  m_customPlot->replot();
+    // 多曲线预设高亮配色 (安全空检查)
+    for (int i = 0; i < m_customPlot->graphCount() && i < p.chartCurves.size(); ++i) {
+      QCPGraph *g = m_customPlot->graph(i);
+      if (g) {
+        QPen graphPen = g->pen();
+        graphPen.setColor(p.chartCurves[i]);
+        graphPen.setWidthF(1.5);
+        g->setPen(graphPen);
+      }
+    }
+
+    m_customPlot->replot(QCustomPlot::rpQueuedReplot);
+  }
 }
 
 // =========================================================================
@@ -3763,6 +3675,8 @@ SerialPortPlot::SerialPortPlot(QWidget *parent)
 
   // Split actions corner widget
   QWidget *cornerWidget = new QWidget(this);
+  cornerWidget->setObjectName("tabCornerWidget");
+  cornerWidget->setStyleSheet("background: transparent; border: none;");
   QHBoxLayout *cornerLayout = new QHBoxLayout(cornerWidget);
   cornerLayout->setContentsMargins(0, 0, 0, 0);
   cornerLayout->setSpacing(2);
@@ -3797,61 +3711,6 @@ SerialPortPlot::SerialPortPlot(QWidget *parent)
   connect(btnCloseSplit, &QToolButton::clicked, this,
           &SerialPortPlot::onCloseSplit);
   m_sessionTabs->setMovable(true);
-
-  // 应用仿浏览器圆角标签页样式
-  m_sessionTabs->setStyleSheet(R"(
-    QTabWidget::pane {
-        border-top: 1px solid #C0C0C0;
-        background-color: transparent;
-        margin-top: -1px;
-    }
-    QTabWidget::left-corner {
-        background: transparent;
-        border: none;
-        width: 0px;
-    }
-    QTabWidget::right-corner {
-        background: transparent;
-        border: none;
-    }
-    QTabBar::tab {
-        background: #E8E8E8;
-        border: 1px solid #C0C0C0;
-        border-bottom-color: #C0C0C0;
-        border-top-left-radius: 8px;
-        border-top-right-radius: 8px;
-        min-width: 100px;
-        padding: 6px 16px;
-        margin-right: 2px;
-        margin-top: 4px;
-    }
-    QTabBar::tab:selected, QTabBar::tab:hover {
-        background: #FFFFFF;
-        border-bottom-color: #FFFFFF;
-    }
-    QTabBar::tab:selected {
-        margin-top: 0px;
-        font-weight: bold;
-    }
-    QTabBar::tab:first {
-        margin-left: 0px;
-    }
-    /* 针对我们特殊的加号标签稍作样式调整 */
-    QTabBar::tab:last {
-        min-width: 30px;
-        padding: 6px 8px;
-        background: transparent;
-        border: none;
-        margin-top: 4px;
-        font-weight: bold;
-        color: #555555;
-    }
-    QTabBar::tab:last:hover {
-        background: #D0D0D0;
-        border-radius: 8px;
-        color: #000000;
-    }
-  )");
 
   // 安装事件过滤器用于监听双击重命名和“+”号假选项卡的点击
   m_sessionTabs->tabBar()->installEventFilter(this);
@@ -3906,8 +3765,9 @@ void SerialPortPlot::addNewSession() {
   }
   m_sessionCounter++;
 
-  // The user requested View toolbar inside the inner session instead of main
-  // window. We will configure the local toolbar inside SerialSession.
+  if (!m_currentTheme.isEmpty()) {
+    session->applyTheme(m_currentTheme);
+  }
 
   // 插入到 "  ➕  " 号前面
   int addIndex = m_sessionTabs->count() - 1;
@@ -3926,31 +3786,18 @@ SerialSession *SerialPortPlot::getActiveSession() const {
 }
 
 void SerialPortPlot::toggleDock(int dockType, bool checked) {
-  // Get current session
-  int currentIndex = m_sessionTabs->currentIndex();
-  if (currentIndex < 0 || currentIndex >= m_sessionTabs->count() - 1)
-    return;
-
-  SerialSession *session =
-      qobject_cast<SerialSession *>(m_sessionTabs->widget(currentIndex));
-  if (!session)
-    return;
-
-  switch (dockType) {
-  case 0:
-    // m_dockPort已改为标签页，不再需要setVisible
-    // session->m_dockPort->setVisible(checked);
-    break;
-  case 1:
-    session->m_dockRx->setVisible(checked);
-    break;
-  case 2:
-    session->m_dockTx->setVisible(checked);
-    break;
-  case 3:
-    // m_dockScopeSettings已改为标签页，不再需要setVisible
-    // session->m_dockScopeSettings->setVisible(checked);
-    break;
+  SerialSession *active = getActiveSession();
+  if (active) {
+    switch (dockType) {
+    case 1:
+      if (active->m_dockRx) active->m_dockRx->setVisible(checked);
+      break;
+    case 2:
+      if (active->m_dockTx) active->m_dockTx->setVisible(checked);
+      break;
+    default:
+      break;
+    }
   }
 }
 
@@ -3967,50 +3814,25 @@ void SerialPortPlot::onTabDoubleClicked(int index) {
 }
 
 void SerialPortPlot::onTabCloseRequested(int index) {
-  // 禁止关闭 "+" 号标签页
-  if (index == m_sessionTabs->count() - 1)
-    return;
-
-  // 保持至少一个真实会话，避免误关闭整个串口工具窗口
   if (m_sessionTabs->count() <= 2) {
+    QMessageBox::information(this, "提示", "至少保留一个会话页面！");
     return;
   }
-
-  // 记录即将关闭前要跳转到的索引，防止跳到 "+" 标签
-  int nextIndex = -1;
-  if (m_sessionTabs->currentIndex() == index) {
-    if (index > 0) {
-      nextIndex = index - 1; // 优先跳到左边
-    } else if (index < m_sessionTabs->count() - 2) {
-      nextIndex = index + 1; // 不可能的话跳到右边的真实标签
-    }
-  }
-
-  QWidget *widget = m_sessionTabs->widget(index);
-  if (widget) {
-    widget->deleteLater();
-  }
+  QWidget *w = m_sessionTabs->widget(index);
   m_sessionTabs->removeTab(index);
-
-  // 切换到合适的索引，防止激活 "+" 标签
-  if (nextIndex >= 0) {
-    m_sessionTabs->setCurrentIndex(nextIndex);
-  } else {
-    // 默认情况如果跑到了 "+" 标签，则强制跳回最后一个真实标签
-    if (m_sessionTabs->currentIndex() == m_sessionTabs->count() - 1) {
+  delete w;
+  if (m_sessionTabs->currentIndex() == m_sessionTabs->count() - 1) {
+    if (m_sessionTabs->count() > 1) {
       m_sessionTabs->setCurrentIndex(m_sessionTabs->count() - 2);
     }
   }
 }
 
 void SerialPortPlot::applyGlobalTheme(const QString &themeFile) {
-  QFile file(QString(":/resources/styles/") + themeFile);
-  if (file.open(QFile::ReadOnly)) {
-    QString styleSheet = QLatin1String(file.readAll());
-    qApp->setStyleSheet(styleSheet + unifiedToolTipStyleSheet());
-    ensureUnifiedToolTipStyle();
-    file.close();
-  }
+  m_currentTheme = themeFile;
+  QString styleSheet = IdeTheme::generateStyleSheet(themeFile);
+  setStyleSheet(styleSheet + unifiedToolTipStyleSheet());
+  ensureUnifiedToolTipStyle();
 
   // Also pass to internal sessions
   for (int i = 0; i < m_sessionTabs->count() - 1; i++) {
@@ -4039,6 +3861,7 @@ void SerialPortPlot::onCloseSplit() { emit requestCloseSplit(this); }
 // =========================================================================
 
 SerialPortContainer::SerialPortContainer(QWidget *parent) : QWidget(parent) {
+  setObjectName("serialContainer");
   QVBoxLayout *layout = new QVBoxLayout(this);
   layout->setContentsMargins(0, 0, 0, 0);
 
@@ -4049,14 +3872,81 @@ SerialPortContainer::SerialPortContainer(QWidget *parent) : QWidget(parent) {
   // Settings
   m_toolbar->addAction("设置");
 
-  // --------- Theme (Menu) ---------
+  // Help
+  m_toolbar->addAction("帮助");
+
+  // About
+  m_toolbar->addAction("关于");
+
+  // 视图 (View)
+  QToolButton *btnView = new QToolButton(this);
+  btnView->setText("视图");
+  btnView->setPopupMode(QToolButton::InstantPopup);
+  QMenu *menuView = new QMenu(btnView);
+
+  connect(menuView, &QMenu::aboutToShow, this, [this, menuView]() {
+    menuView->clear();
+    if (m_plotHistory.isEmpty())
+      return;
+
+    SerialPortPlot *activePlot = nullptr;
+    for (SerialPortPlot *plot : m_plotHistory) {
+      if (plot->isAncestorOf(QApplication::focusWidget()) || plot->hasFocus()) {
+        activePlot = plot;
+        break;
+      }
+    }
+    if (!activePlot)
+      activePlot = m_plotHistory.last();
+
+    SerialSession *session = activePlot->getActiveSession();
+    if (session) {
+      menuView->addAction(session->m_dockRx->toggleViewAction());
+      menuView->addAction(session->m_dockTx->toggleViewAction());
+      menuView->addSeparator();
+      menuView->addAction(session->m_dockReceive->toggleViewAction());
+      menuView->addAction(session->m_dockSend->toggleViewAction());
+    } else {
+      menuView->addAction("当前无活动会话")->setEnabled(false);
+    }
+  });
+
+  btnView->setMenu(menuView);
+  m_toolbar->addWidget(btnView);
+
+  // 弹簧占位，将主题按钮推至工具栏最右侧
+  QWidget *spacer = new QWidget(this);
+  spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+  m_toolbar->addWidget(spacer);
+
+  // --------- 主题 (图标 0xe622，放置在最右侧) ---------
   QToolButton *btnTheme = new QToolButton(this);
-  btnTheme->setText("主题");
+  btnTheme->setObjectName("btnThemeIcon");
+  try {
+    QFont iconFont = CIconFont::instance()->getIconFont(18);
+    iconFont.setPixelSize(18);
+    btnTheme->setFont(iconFont);
+  } catch (...) {
+  }
+  btnTheme->setText(QString(QChar(0xe622)));
+  btnTheme->setToolTip("切换主题");
   btnTheme->setPopupMode(QToolButton::InstantPopup);
+  btnTheme->setStyleSheet("QToolButton::menu-indicator { image: none; }");
   QMenu *menuTheme = new QMenu(btnTheme);
 
   // 1. Color Theme Submenu
   QMenu *menuColorTheme = menuTheme->addMenu("颜色主题");
+  // Flagship Themes
+  QMenu *menuFlagship = menuColorTheme->addMenu("🌟 旗舰奢华主题");
+  menuFlagship->addAction("⚡ 极客钛金 (Titanium Dark)", this, [this]() { applyGlobalTheme("dark"); });
+  menuFlagship->addAction("🌌 赛博霓虹 (Cyber Neon)", this, [this]() { applyGlobalTheme("cyberneon"); });
+  menuFlagship->addAction("🌋 熔岩黑金 (Obsidian Gold)", this, [this]() { applyGlobalTheme("obsidiangold"); });
+  menuFlagship->addAction("🔮 星云紫晶 (Nebula Violet)", this, [this]() { applyGlobalTheme("dracula"); });
+  menuFlagship->addAction("🌊 碧海深渊 (Abyssal Ocean)", this, [this]() { applyGlobalTheme("nord"); });
+  menuFlagship->addAction("🌲 极客翡翠 (Emerald Matrix)", this, [this]() { applyGlobalTheme("vue"); });
+  menuFlagship->addAction("☀️ 纯白曜石 (Crystal Light)", this, [this]() { applyGlobalTheme("light"); });
+  menuFlagship->addAction("📜 暖阳羊皮 (Solarized Light)", this, [this]() { applyGlobalTheme("solarizedlight"); });
+
   // Github
   QMenu *menuGithub = menuColorTheme->addMenu("Github");
   menuGithub->addAction("Dark", this,
@@ -4097,58 +3987,15 @@ SerialPortContainer::SerialPortContainer(QWidget *parent) : QWidget(parent) {
   btnTheme->setMenu(menuTheme);
   m_toolbar->addWidget(btnTheme);
 
-  // Help
-  m_toolbar->addAction("帮助");
-
-  // About
-  m_toolbar->addAction("关于");
-
-  // 视图 (View)
-  QToolButton *btnView = new QToolButton(this);
-  btnView->setText("视图");
-  btnView->setPopupMode(QToolButton::InstantPopup);
-  QMenu *menuView = new QMenu(btnView);
-
-  connect(menuView, &QMenu::aboutToShow, this, [this, menuView]() {
-    menuView->clear();
-    if (m_plotHistory.isEmpty())
-      return;
-
-    SerialPortPlot *activePlot = nullptr;
-    for (SerialPortPlot *plot : m_plotHistory) {
-      if (plot->isAncestorOf(QApplication::focusWidget()) || plot->hasFocus()) {
-        activePlot = plot;
-        break;
-      }
-    }
-    if (!activePlot)
-      activePlot = m_plotHistory.last();
-
-    SerialSession *session = activePlot->getActiveSession();
-    if (session) {
-      // m_dockPort和m_dockScopeSettings已改为标签页，不再添加到菜单
-      // menuView->addAction(session->m_dockPort->toggleViewAction());
-      menuView->addAction(session->m_dockRx->toggleViewAction());
-      menuView->addAction(session->m_dockTx->toggleViewAction());
-      menuView->addSeparator();
-      menuView->addAction(session->m_dockReceive->toggleViewAction());
-      menuView->addAction(session->m_dockSend->toggleViewAction());
-      // menuView->addAction(session->m_dockScopeSettings->toggleViewAction());
-    } else {
-      menuView->addAction("当前无活动会话")->setEnabled(false);
-    }
-  });
-
-  btnView->setMenu(menuView);
-  m_toolbar->addWidget(btnView);
-
   layout->addWidget(m_toolbar);
 
   m_mainSplitter = new QSplitter(Qt::Horizontal, this);
   layout->addWidget(m_mainSplitter);
 
+  m_currentTheme = "dark";
   SerialPortPlot *initialPlot = createNewPlot();
   m_mainSplitter->addWidget(initialPlot);
+  applyGlobalTheme(m_currentTheme);
 }
 
 SerialPortContainer::~SerialPortContainer() {}

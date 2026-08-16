@@ -50,6 +50,7 @@
 class SerialPortPlot;
 class SerialPortContainer;
 class IAPTool;
+class OscilloscopeWindow;
 
 class MainWindow : public QMainWindow {
   Q_OBJECT
@@ -133,6 +134,7 @@ private slots:
   void openNetworkTool(); // 打开网络调试助手
   void openCANTool();     // 打开CAN调试助手
   void openIAPTool();     // 打开IAP升级工具
+  void openOscilloscopeTool(); // 打开独立多通信接口数字示波器
 
   void showWelcomeScreen(); // 显示欢迎界面
   void checkForUpdates();   // 检查更新
@@ -147,6 +149,11 @@ private:
   void loadSettings();
   void saveSettings();
   void executeCommand(const QString &command, const QStringList &arguments);
+
+  void createStatusBar();
+  void updateRecentFileActions();
+  void setCurrentFile(const QString &fileName);
+  void updateWindowTitle();
 
   // 添加菜单相关的成员变量
   QAction *m_openProjectAction;
@@ -289,8 +296,6 @@ private:
   // 更新菜单状态
   void updateMenuState();
 
-  void updateWindowTitle();
-
   bool saveEditorContent(QsciScintilla *editor, const QString &filePath);
 
   /* Existing code */
@@ -298,9 +303,11 @@ private:
   QAction *m_networkToolAction; // 网络调试助手动作
   QAction *m_canToolAction;     // CAN调试助手动作
   QAction *m_iapToolAction;     // IAP升级工具动作
+  QAction *m_oscilloscopeAction;// 独立多通信接口数字示波器动作
 
   SerialPortContainer *m_serialPlot; // 串口调试助手窗口
   IAPTool *m_iapTool;                // IAP升级工具窗口
+  OscilloscopeWindow *m_oscilloscopeWindow = nullptr; // 独立多通信接口数字示波器窗口
 
 protected:
   void keyPressEvent(QKeyEvent *event) override;

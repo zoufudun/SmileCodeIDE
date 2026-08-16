@@ -32,21 +32,19 @@ void CanOpenViewPanel::setupUi() {
   // 1. Header with title and close button
   m_headerWidget = new QWidget();
   m_headerWidget->setObjectName("viewHeader");
-  m_headerWidget->setStyleSheet("QWidget#viewHeader { background-color: #2f343f; border-radius: 4px; }");
   m_headerWidget->setFixedHeight(32);
 
   QHBoxLayout *headerLayout = new QHBoxLayout(m_headerWidget);
   headerLayout->setContentsMargins(10, 0, 10, 0);
 
   m_titleLabel = new QLabel(QString("视图 %1: CANopen 测试").arg(m_viewId));
-  m_titleLabel->setStyleSheet("color: #ffffff; font-weight: bold; font-size: 13px;");
+  m_titleLabel->setObjectName("viewTitle");
   headerLayout->addWidget(m_titleLabel);
   headerLayout->addStretch();
 
   m_closeBtn = new QPushButton("✕");
-  m_closeBtn->setFixedSize(20, 20);
-  m_closeBtn->setStyleSheet("QPushButton { background-color: transparent; color: #abb2bf; border: none; font-weight: bold; font-size: 12px; }"
-                            "QPushButton:hover { background-color: #e06c75; color: white; border-radius: 3px; }");
+  m_closeBtn->setObjectName("viewCloseBtn");
+  m_closeBtn->setFixedSize(22, 22);
   connect(m_closeBtn, &QPushButton::clicked, this, [this]() { emit closeRequested(this); });
   headerLayout->addWidget(m_closeBtn);
 
@@ -140,7 +138,6 @@ void CanOpenViewPanel::setupUi() {
 
 void CanOpenViewPanel::applyThemeStyle(const QString &qss) {
   setStyleSheet(qss);
-  m_headerWidget->setStyleSheet("QWidget#viewHeader { background-color: #2f343f; border-radius: 4px; }");
 }
 
 void CanOpenViewPanel::onNmtSend() {

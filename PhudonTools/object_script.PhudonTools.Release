@@ -33,6 +33,7 @@ release/canviewpanel.o
 release/canopenviewpanel.o
 release/devicemonitordialog.o
 release/canbusutilizationdialog.o
+release/oscilloscopewindow.o
 release/qrc_resources.o
 release/qrc_darkstyle.o
 release/moc_qcustomplot.o
@@ -68,3 +69,4 @@ release/moc_canviewpanel.o
 release/moc_canopenviewpanel.o
 release/moc_devicemonitordialog.o
 release/moc_canbusutilizationdialog.o
+release/moc_oscilloscopewindow.o

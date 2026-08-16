@@ -8,6 +8,7 @@
  */
 
 #include "codeeditor.h"
+#include "idetheme.h"
 #include <QAction>      // 添加动作头文件
 #include <QApplication> // 添加此行以使用QStyle
 #include <QFile>
@@ -18,6 +19,7 @@
 #include <QPair> // 添加QPair头文件
 #include <QRegExp>
 #include <QRegularExpression> // Add this line to include
+#include <QSettings>
 #include <QStack>
 #include <QStyle> // Add this for QStyle class
 #include <QTextCodec>
@@ -88,8 +90,10 @@ CodeEditor::CodeEditor(QWidget *parent)
   // 初始化函数列表
   updateFunctionList();
 
-  // Apply default theme (Light) to initialize all styles including Style 34
-  applyTheme("light");
+  // 读取系统上次保存的主题或默认使用深色暗夜主题
+  QSettings settings("PhudonTools", "Settings");
+  QString currentTheme = settings.value("theme", "dark").toString();
+  applyTheme(currentTheme);
 }
 
 CodeEditor::~CodeEditor() {
@@ -268,206 +272,137 @@ bool CodeEditor::saveFile(const QString &filePath) {
 // }
 
 void CodeEditor::applyTheme(const QString &themeName) {
-  if (themeName == "dark") {
-    // 深色主题
-    for (QsciScintilla *editor : m_editors) {
-      // 设置编辑器背景色和默认文本颜色
-      editor->setColor(QColor("#DCDCDC"));
-      editor->setPaper(QColor("#1E1E1E"));
+  const IdeTheme::ThemePalette p = IdeTheme::paletteFor(themeName);
+  m_isDarkTheme = p.isDark;
 
-      // 设置行号边距颜色
-      editor->setMarginsBackgroundColor(QColor("#1E1E1E"));
-      editor->setMarginsForegroundColor(QColor("#858585"));
+  // 1. 设置编辑器 QsciScintilla 核心配色 (消除纯白背景与硬编码边距色)
+  for (QsciScintilla *editor : m_editors) {
+    if (!editor)
+      continue;
 
-      // 设置折叠边距颜色
-      editor->setFoldMarginColors(QColor("#1E1E1E"), QColor("#1E1E1E"));
+    editor->setColor(QColor(p.textMain));
+    editor->setPaper(QColor(p.editorBg));
 
-      // 设置选中文本的颜色
-      editor->setSelectionBackgroundColor(QColor("#264F78"));
-      editor->setSelectionForegroundColor(QColor("#FFFFFF"));
+    // 行号边距颜色
+    editor->setMarginsBackgroundColor(QColor(p.marginBg));
+    editor->setMarginsForegroundColor(QColor(p.marginFg));
 
-      // Set up Rainbow Brackets for Dark Theme
-      setupRainbowBrackets(editor);
-    }
+    // 折叠边距颜色
+    editor->setFoldMarginColors(QColor(p.foldMarginBg), QColor(p.foldMarginBg));
 
-    // 设置函数列表深色主题样式
-    if (m_functionList) {
-      m_functionList->setStyleSheet("QListWidget {"
-                                    "    background-color: #252526;"
-                                    "    border: 1px solid #3E3E42;"
-                                    "    color: #DCDCDC;"
-                                    "}"
-                                    "QListWidget::item {"
-                                    "    padding: 4px;"
-                                    "    border-bottom: 1px solid #3E3E42;"
-                                    "}"
-                                    "QListWidget::item:selected {"
-                                    "    background-color: #0078D7;"
-                                    "    color: white;"
-                                    "}"
-                                    "QListWidget::item:alternate {"
-                                    "    background-color: #2D2D30;"
-                                    "}");
+    // 选中文本高亮颜色
+    editor->setSelectionBackgroundColor(QColor(p.selectionBg));
+    editor->setSelectionForegroundColor(QColor(p.selectionText));
 
-      // 设置函数列表标题标签样式
-      if (m_functionList->parentWidget() &&
-          m_functionList->parentWidget()->layout()) {
-        QLayoutItem *item = m_functionList->parentWidget()->layout()->itemAt(0);
-        if (item && item->widget()) {
-          QLabel *titleLabel = qobject_cast<QLabel *>(item->widget());
-          if (titleLabel) {
-            titleLabel->setStyleSheet("font-weight: bold; "
-                                      "padding: 5px; "
-                                      "color: #DCDCDC; "
-                                      "background-color: #2D2D30; "
-                                      "border-bottom: 1px solid #3E3E42;");
-          }
-        }
-      }
-    }
+    // 光标与活动行高亮
+    editor->setCaretForegroundColor(p.caretColor);
+    editor->setCaretLineVisible(true);
+    editor->setCaretLineBackgroundColor(p.caretLineBg);
 
-    // 设置语法高亮颜色
-    m_lexerCPP->setColor(QColor("#569CD6"), QsciLexerCPP::Keyword); // 关键字
-    m_lexerCPP->setColor(QColor("#CE9178"),
-                         QsciLexerCPP::DoubleQuotedString); // 字符串
-    m_lexerCPP->setColor(QColor("#CE9178"),
-                         QsciLexerCPP::SingleQuotedString);         // 字符
-    m_lexerCPP->setColor(QColor("#B5CEA8"), QsciLexerCPP::Number);  // 数字
-    m_lexerCPP->setColor(QColor("#608B4E"), QsciLexerCPP::Comment); // 注释
-    m_lexerCPP->setColor(QColor("#608B4E"),
-                         QsciLexerCPP::CommentLine); // 行注释
-    m_lexerCPP->setColor(QColor("#C586C0"),
-                         QsciLexerCPP::PreProcessor); // 预处理器
-    m_lexerCPP->setColor(QColor("#4EC9B0"), QsciLexerCPP::GlobalClass); // 类名
+    // 设置活动行号样式
+    editor->SendScintilla(QsciScintilla::SCI_STYLESETFORE, 34,
+                          (p.accent.startsWith('#') ? QColor(p.accent).rgb() & 0xFFFFFF : 0x00AA00));
+    editor->SendScintilla(QsciScintilla::SCI_STYLESETBACK, 34,
+                          p.caretLineBg.rgb() & 0xFFFFFF);
+    editor->SendScintilla(QsciScintilla::SCI_STYLESETFONT, 34, "Consolas");
+    editor->SendScintilla(QsciScintilla::SCI_STYLESETSIZE, 34, 10);
+    editor->SendScintilla(QsciScintilla::SCI_STYLESETBOLD, 34, 1);
 
-    // 添加函数名颜色设置 - 橙色
-    // m_lexerCPP->setColor(QColor("#CE9178"), QsciLexerCPP::Identifier); //
-    // 标识符(包括函数名)
-    // 或者使用更专门的函数名样式
-    // m_lexerCPP->setColor(QColor("#DCDCAA"),
-    // QsciLexerCPP::FunctionMethodName); // 函数方法名 恢复标识符的默认颜色
-    m_lexerCPP->setColor(QColor("#DCDCDC"),
-                         QsciLexerCPP::Identifier); // 标识符恢复默认颜色
-
-    // 设置函数名为橙色 - 使用GlobalFunction样式
-
-    // 设置背景色
-    m_lexerCPP->setPaper(QColor("#1E1E1E"));
-
-    // 设置默认字体
-    QFont font("Consolas", 10);
-    m_lexerCPP->setFont(font);
-
-    // 设置自定义函数名高亮
-    setupFunctionNameHighlighting(true);
-  } else if (themeName == "light") {
-    // 浅色主题
-    for (QsciScintilla *editor : m_editors) {
-      // 设置编辑器背景色和默认文本颜色
-      editor->setColor(QColor("#000000"));
-      editor->setPaper(QColor("#FFFFFF"));
-
-      // 设置行号边距颜色
-      // User Request: Black line numbers for Light Theme
-      editor->setMarginsBackgroundColor(QColor("#F0F0F0"));
-      editor->setMarginsForegroundColor(QColor("#000000")); // Global Black
-
-      // Define Style 34 for Active Line Number (Green Text)
-      // Style 34 is an arbitrary user-defined style index (usually safe 32-39
-      // or higher) We set its foreground to Green and background to match
-      // margin
-      editor->SendScintilla(QsciScintilla::SCI_STYLESETFORE, 34,
-                            0x00AA00); // Green (0xBBGGRR -> 0x00AA00)
-      editor->SendScintilla(
-          QsciScintilla::SCI_STYLESETBACK, 34,
-          0xE6FFCC); // Match active line background (Light Green)
-      editor->SendScintilla(QsciScintilla::SCI_STYLESETFONT, 34, "Consolas");
-      editor->SendScintilla(QsciScintilla::SCI_STYLESETSIZE, 34, 10);
-      editor->SendScintilla(QsciScintilla::SCI_STYLESETBOLD, 34,
-                            1); // Make active line number bold
-
-      // 设置当前行高亮 - 选中的行数字显示绿色 (Simulated via Caret Line
-      // Background)
-      editor->setCaretLineVisible(true);
-      editor->setCaretLineBackgroundColor(
-          QColor("#E6FFCC")); // Light Green Background to simulate highlight
-
-      // 设置折叠边距颜色
-      editor->setFoldMarginColors(QColor("#F0F0F0"), QColor("#F0F0F0"));
-
-      // 设置选中文本的颜色
-      editor->setSelectionBackgroundColor(QColor("#ADD6FF"));
-      editor->setSelectionForegroundColor(QColor("#000000"));
-
-      // Set up Rainbow Brackets for Light Theme
-      setupRainbowBrackets(editor);
-    }
-
-    // 设置函数列表浅色主题样式
-    if (m_functionList) {
-      m_functionList->setStyleSheet("QListWidget {"
-                                    "    background-color: #F5F5F5;"
-                                    "    border: 1px solid #DDD;"
-                                    "    color: #000000;"
-                                    "}"
-                                    "QListWidget::item {"
-                                    "    padding: 4px;"
-                                    "    border-bottom: 1px solid #EEE;"
-                                    "}"
-                                    "QListWidget::item:selected {"
-                                    "    background-color: #0078D7;"
-                                    "    color: white;"
-                                    "}"
-                                    "QListWidget::item:alternate {"
-                                    "    background-color: #F9F9F9;"
-                                    "}");
-
-      // 设置函数列表标题标签样式
-      if (m_functionList->parentWidget() &&
-          m_functionList->parentWidget()->layout()) {
-        QLayoutItem *item = m_functionList->parentWidget()->layout()->itemAt(0);
-        if (item && item->widget()) {
-          QLabel *titleLabel = qobject_cast<QLabel *>(item->widget());
-          if (titleLabel) {
-            titleLabel->setStyleSheet("font-weight: bold; "
-                                      "padding: 5px; "
-                                      "color: #000000; "
-                                      "background-color: #E0E0E0; "
-                                      "border-bottom: 1px solid #CCC;");
-          }
-        }
-      }
-    }
-
-    // 设置语法高亮颜色
-    m_lexerCPP->setColor(QColor("#0000FF"), QsciLexerCPP::Keyword); // 关键字
-    m_lexerCPP->setColor(QColor("#A31515"),
-                         QsciLexerCPP::DoubleQuotedString); // 字符串
-    m_lexerCPP->setColor(QColor("#A31515"),
-                         QsciLexerCPP::SingleQuotedString);         // 字符
-    m_lexerCPP->setColor(QColor("#098658"), QsciLexerCPP::Number);  // 数字
-    m_lexerCPP->setColor(QColor("#008000"), QsciLexerCPP::Comment); // 注释
-    m_lexerCPP->setColor(QColor("#008000"),
-                         QsciLexerCPP::CommentLine); // 行注释
-    m_lexerCPP->setColor(QColor("#800000"),
-                         QsciLexerCPP::PreProcessor); // 预处理器
-    m_lexerCPP->setColor(QColor("#267F99"), QsciLexerCPP::GlobalClass); // 类名
-
-    // 添加函数名颜色设置 - 橙色
-    m_lexerCPP->setColor(QColor("#000000"),
-                         QsciLexerCPP::Identifier); // 标识符(包括函数名)
-
-    // 设置背景色
-    m_lexerCPP->setPaper(QColor("#FFFFFF"));
-
-    // 设置默认字体
-    QFont font("Consolas", 10);
-    m_lexerCPP->setFont(font);
-
-    // 设置自定义函数名高亮
-    setupFunctionNameHighlighting(false);
+    // 设置彩虹括号
+    setupRainbowBrackets(editor);
   }
-  // 可以添加更多主题...
+
+  // 2. 深度定制函数大纲列表 QListWidget 与容器标题栏
+  if (m_functionList) {
+    m_functionList->setStyleSheet(QString(
+        "QListWidget {"
+        "    background-color: %1;"
+        "    border: 1px solid %2;"
+        "    color: %3;"
+        "    font-family: 'Consolas', 'Segoe UI', monospace;"
+        "    outline: 0;"
+        "}"
+        "QListWidget::item {"
+        "    padding: 5px 6px;"
+        "    border-bottom: 1px solid %4;"
+        "    color: %3;"
+        "}"
+        "QListWidget::item:hover {"
+        "    background-color: %5;"
+        "}"
+        "QListWidget::item:selected {"
+        "    background-color: %6;"
+        "    color: %7;"
+        "    font-weight: bold;"
+        "}"
+        "QListWidget::item:alternate {"
+        "    background-color: %8;"
+        "}").arg(p.sidebarBg, p.border, p.textMain, p.borderDark, p.menuHover, p.accent, p.accentText, p.baseAltBg));
+
+    // 设置函数列表标题标签样式
+    if (m_functionList->parentWidget() &&
+        m_functionList->parentWidget()->layout()) {
+      QLayoutItem *item = m_functionList->parentWidget()->layout()->itemAt(0);
+      if (item && item->widget()) {
+        QLabel *titleLabel = qobject_cast<QLabel *>(item->widget());
+        if (titleLabel) {
+          titleLabel->setStyleSheet(QString(
+              "font-weight: bold;"
+              "padding: 6px;"
+              "color: %1;"
+              "background-color: %2;"
+              "border-bottom: 1px solid %3;").arg(p.textMain, p.panelBg, p.border));
+        }
+      }
+    }
+  }
+
+  // 3. 语法高亮 C/C++ 词法分析器 (QsciLexerCPP)
+  if (m_lexerCPP) {
+    m_lexerCPP->setColor(p.synKeyword, QsciLexerCPP::Keyword);
+    m_lexerCPP->setColor(p.synString, QsciLexerCPP::DoubleQuotedString);
+    m_lexerCPP->setColor(p.synChar, QsciLexerCPP::SingleQuotedString);
+    m_lexerCPP->setColor(p.synNumber, QsciLexerCPP::Number);
+    m_lexerCPP->setColor(p.synComment, QsciLexerCPP::Comment);
+    m_lexerCPP->setColor(p.synComment, QsciLexerCPP::CommentLine);
+    m_lexerCPP->setColor(p.synComment, QsciLexerCPP::CommentDoc);
+    m_lexerCPP->setColor(p.synComment, QsciLexerCPP::CommentLineDoc);
+    m_lexerCPP->setColor(p.synPreprocessor, QsciLexerCPP::PreProcessor);
+    m_lexerCPP->setColor(p.synGlobalClass, QsciLexerCPP::GlobalClass);
+    m_lexerCPP->setColor(p.synIdentifier, QsciLexerCPP::Identifier);
+    m_lexerCPP->setColor(p.synOperator, QsciLexerCPP::Operator);
+    m_lexerCPP->setPaper(QColor(p.editorBg));
+
+    QFont font("Consolas", 10);
+    m_lexerCPP->setFont(font);
+  }
+
+  // 4. 自定义函数名与类名高亮设置
+  setupFunctionNameHighlighting(p.isDark);
+
+  // 5. 编辑器迷你工具栏配色
+  if (m_toolBar) {
+    m_toolBar->setStyleSheet(QString(
+        "QToolBar {"
+        "    background-color: %1;"
+        "    border-bottom: 1px solid %2;"
+        "    spacing: 3px;"
+        "    padding: 2px 4px;"
+        "}"
+        "QToolButton {"
+        "    background: transparent;"
+        "    border: 1px solid transparent;"
+        "    border-radius: 3px;"
+        "    padding: 2px;"
+        "}"
+        "QToolButton:hover {"
+        "    background-color: %3;"
+        "    border: 1px solid %2;"
+        "}"
+        "QToolButton:pressed {"
+        "    background-color: %4;"
+        "}").arg(p.panelBg, p.border, p.menuHover, p.accent));
+  }
 }
 
 void CodeEditor::setupFunctionNameHighlighting(bool isDarkTheme) {
@@ -1082,14 +1017,12 @@ void CodeEditor::setupEditor(QsciScintilla *editor) {
   // // 方括号 []
   // editor->setUnmatchedBraceForegroundColor(QColor("#0000FF"));  // 蓝色
   // editor->setUnmatchedBraceBackgroundColor(QColor("#E6E6FA"));  //
-  // 浅蓝色背景
-
-  // 大括号 {}
-  editor->setCaretForegroundColor(QColor("#008000"));   // 绿色
-  editor->setMarginsForegroundColor(QColor("#90EE90")); // 浅绿色背景
+  // 光标与活动行
+  editor->setCaretWidth(2);
+  editor->setCaretLineVisible(true);
+  editor->setCaretLineBackgroundColor(QColor("#1C202B"));
 
   // 设置括号匹配的样式和颜色
-  // 注意：QScintilla默认只支持一种括号匹配颜色，但我们可以通过设置不同的样式来区分
   editor->setMatchedBraceBackgroundColor(QColor("#3B514D")); // 匹配的括号背景色
   editor->setMatchedBraceForegroundColor(
       QColor("#FFD700")); // 匹配的括号前景色 - 金色
@@ -1100,9 +1033,6 @@ void CodeEditor::setupEditor(QsciScintilla *editor) {
 
   // 设置自动换行
   editor->setWrapMode(QsciScintilla::WrapNone);
-
-  // 设置光标宽度
-  editor->setCaretWidth(2);
 
   // 设置行尾可见
   editor->setEolVisibility(false);
