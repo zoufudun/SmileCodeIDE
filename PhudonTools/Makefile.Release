@@ -288,7 +288,7 @@ release/PhudonTools_resource_res.o: PhudonTools_resource.rc
 	windres -i PhudonTools_resource.rc -o release\PhudonTools_resource_res.o --include-dir=. $(DEFINES)
 
 qmake: FORCE
-	@$(QMAKE) -o Makefile.Release PhudonTools.pro
+	@$(QMAKE) -o Makefile.Release PhudonTools.pro -spec win32-g++
 
 qmake_all: FORCE
 
@@ -1346,6 +1346,11 @@ release/moc_codeeditor.cpp: codeeditor.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qcontiguouscache.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qsharedpointer.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qsharedpointer_impl.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QDir \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qdir.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qfileinfo.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qfile.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qfiledevice.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QDockWidget \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qdockwidget.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qtwidgetsglobal.h \
@@ -1382,16 +1387,32 @@ release/moc_codeeditor.cpp: codeeditor.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/qevent.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qurl.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qurlquery.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qfile.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qfiledevice.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/qvector2d.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/qtouchdevice.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QListWidget \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qlistwidget.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qlistview.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QHBoxLayout \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qboxlayout.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qlayout.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qlayoutitem.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qgridlayout.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QLabel \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qlabel.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qframe.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QSet \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QSplitter \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qsplitter.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QToolBar \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qtoolbar.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qaction.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/qicon.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qactiongroup.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QToolButton \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qtoolbutton.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qabstractbutton.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QTreeWidget \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qtreewidget.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qtreeview.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qabstractitemview.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qabstractscrollarea.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qframe.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qabstractitemmodel.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qitemselectionmodel.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qabstractitemdelegate.h \
@@ -1399,20 +1420,15 @@ release/moc_codeeditor.cpp: codeeditor.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qabstractspinbox.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/qvalidator.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qregularexpression.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/qicon.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qslider.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qabstractslider.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qstyle.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qtabbar.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qtabwidget.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qrubberband.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QSet \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QSplitter \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qsplitter.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QToolBar \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qtoolbar.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qaction.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qactiongroup.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qtreewidgetitemiterator.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QTreeWidgetItem \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QVBoxLayout \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QWidget \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/Qsci/qsciapis.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QList \
@@ -1637,16 +1653,22 @@ release/moc_mainwindow.cpp: mainwindow.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/Qsci/qscilexermakefile.h \
 		codeeditor.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QDebug \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QDir \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QDockWidget \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qdockwidget.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QListWidget \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qlistwidget.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qlistview.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QHBoxLayout \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QSet \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QSplitter \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qsplitter.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QToolBar \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qtoolbar.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QToolButton \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qtoolbutton.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QTreeWidget \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qtreewidget.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qtreewidgetitemiterator.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QTreeWidgetItem \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QVBoxLayout \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QWidget \
 		buildsystem.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QFileInfo \
@@ -1657,9 +1679,6 @@ release/moc_mainwindow.cpp: mainwindow.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qradiobutton.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QSpinBox \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qspinbox.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QTreeWidget \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qtreewidget.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qtreewidgetitemiterator.h \
 		normalsenddialog.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QTableWidget \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qtablewidget.h \
@@ -1670,7 +1689,6 @@ release/moc_mainwindow.cpp: mainwindow.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QtGlobal \
 		canopenmaster.h \
 		terminalwidget.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QVBoxLayout \
 		release/moc_predefs.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/bin/moc.exe
 	D:\Soft\Qt\5.15.2\mingw81_64\bin\moc.exe $(DEFINES) --include M:/TOPFIRE/SmileCodeIDEUpdate/PhudonTools/release/moc_predefs.h -ID:/Soft/Qt/5.15.2/mingw81_64/mkspecs/win32-g++ -IM:/TOPFIRE/SmileCodeIDEUpdate/PhudonTools -ID:/Soft/Qt/5.15.2/mingw81_64/include/Qsci -IM:/TOPFIRE/SmileCodeIDEUpdate/PhudonTools/USBCANFD -IM:/TOPFIRE/SmileCodeIDEUpdate/PhudonTools/CXCAN -ID:/Soft/Qt/5.15.2/mingw81_64/include -ID:/Soft/Qt/5.15.2/mingw81_64/include/QtPrintSupport -ID:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets -ID:/Soft/Qt/5.15.2/mingw81_64/include/QtGui -ID:/Soft/Qt/5.15.2/mingw81_64/include/QtANGLE -ID:/Soft/Qt/5.15.2/mingw81_64/include/QtSerialPort -ID:/Soft/Qt/5.15.2/mingw81_64/include/QtWebSockets -ID:/Soft/Qt/5.15.2/mingw81_64/include/QtNetwork -ID:/Soft/Qt/5.15.2/mingw81_64/include/QtCore -IE:/Toolchains/mingw/mingw641310/lib/gcc/x86_64-w64-mingw32/13.1.0/include/c++ -IE:/Toolchains/mingw/mingw641310/lib/gcc/x86_64-w64-mingw32/13.1.0/include/c++/x86_64-w64-mingw32 -IE:/Toolchains/mingw/mingw641310/lib/gcc/x86_64-w64-mingw32/13.1.0/include/c++/backward -IE:/Toolchains/mingw/mingw641310/lib/gcc/x86_64-w64-mingw32/13.1.0/include -IE:/Toolchains/mingw/mingw641310/lib/gcc/x86_64-w64-mingw32/13.1.0/include-fixed -IE:/Toolchains/mingw/mingw641310/x86_64-w64-mingw32/include mainwindow.h -o release\moc_mainwindow.cpp
@@ -7724,6 +7742,11 @@ release/codeeditor.o: codeeditor.cpp codeeditor.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qcontiguouscache.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qsharedpointer.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qsharedpointer_impl.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QDir \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qdir.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qfileinfo.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qfile.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qfiledevice.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QDockWidget \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qdockwidget.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qtwidgetsglobal.h \
@@ -7760,16 +7783,32 @@ release/codeeditor.o: codeeditor.cpp codeeditor.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/qevent.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qurl.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qurlquery.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qfile.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qfiledevice.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/qvector2d.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/qtouchdevice.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QListWidget \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qlistwidget.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qlistview.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QHBoxLayout \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qboxlayout.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qlayout.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qlayoutitem.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qgridlayout.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QLabel \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qlabel.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qframe.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QSet \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QSplitter \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qsplitter.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QToolBar \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qtoolbar.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qaction.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/qicon.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qactiongroup.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QToolButton \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qtoolbutton.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qabstractbutton.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QTreeWidget \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qtreewidget.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qtreeview.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qabstractitemview.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qabstractscrollarea.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qframe.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qabstractitemmodel.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qitemselectionmodel.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qabstractitemdelegate.h \
@@ -7777,20 +7816,15 @@ release/codeeditor.o: codeeditor.cpp codeeditor.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qabstractspinbox.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/qvalidator.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qregularexpression.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/qicon.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qslider.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qabstractslider.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qstyle.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qtabbar.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qtabwidget.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qrubberband.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QSet \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QSplitter \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qsplitter.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QToolBar \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qtoolbar.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qaction.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qactiongroup.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qtreewidgetitemiterator.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QTreeWidgetItem \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QVBoxLayout \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QWidget \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/Qsci/qsciapis.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QList \
@@ -7829,13 +7863,16 @@ release/codeeditor.o: codeeditor.cpp codeeditor.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/qinputmethod.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QFile \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QFileInfo \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qfileinfo.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/QIcon \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QLabel \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qlabel.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QMenu \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qmenu.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QMessageBox \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qmessagebox.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qdialog.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/QPainter \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/qpainter.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/qtextoption.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/qpen.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QRegExp \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QRegularExpression \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QSettings \
@@ -7846,11 +7883,8 @@ release/codeeditor.o: codeeditor.cpp codeeditor.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QTextCodec \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qtextcodec.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QTextStream \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QVBoxLayout \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qboxlayout.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qlayout.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qlayoutitem.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qgridlayout.h
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QStyledItemDelegate \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qstyleditemdelegate.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o release\codeeditor.o codeeditor.cpp
 
 release/main.o: main.cpp TOOLS/CIconFont.h \
@@ -8050,16 +8084,22 @@ release/main.o: main.cpp TOOLS/CIconFont.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/Qsci/qscilexermakefile.h \
 		codeeditor.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QDebug \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QDir \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QDockWidget \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qdockwidget.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QListWidget \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qlistwidget.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qlistview.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QHBoxLayout \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QSet \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QSplitter \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qsplitter.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QToolBar \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qtoolbar.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QToolButton \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qtoolbutton.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QTreeWidget \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qtreewidget.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qtreewidgetitemiterator.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QTreeWidgetItem \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QVBoxLayout \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QWidget \
 		buildsystem.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QFileInfo \
@@ -8070,9 +8110,6 @@ release/main.o: main.cpp TOOLS/CIconFont.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qradiobutton.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QSpinBox \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qspinbox.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QTreeWidget \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qtreewidget.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qtreewidgetitemiterator.h \
 		normalsenddialog.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QTableWidget \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qtablewidget.h \
@@ -8083,7 +8120,6 @@ release/main.o: main.cpp TOOLS/CIconFont.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QtGlobal \
 		canopenmaster.h \
 		terminalwidget.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QVBoxLayout \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QApplication \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qapplication.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qcoreapplication.h \
@@ -8289,16 +8325,22 @@ release/mainwindow.o: mainwindow.cpp mainwindow.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/Qsci/qscilexermakefile.h \
 		codeeditor.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QDebug \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QDir \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QDockWidget \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qdockwidget.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QListWidget \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qlistwidget.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qlistview.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QHBoxLayout \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QSet \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QSplitter \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qsplitter.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QToolBar \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qtoolbar.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QToolButton \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qtoolbutton.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QTreeWidget \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qtreewidget.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qtreewidgetitemiterator.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QTreeWidgetItem \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QVBoxLayout \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QWidget \
 		buildsystem.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QFileInfo \
@@ -8309,9 +8351,6 @@ release/mainwindow.o: mainwindow.cpp mainwindow.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qradiobutton.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QSpinBox \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qspinbox.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QTreeWidget \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qtreewidget.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qtreewidgetitemiterator.h \
 		normalsenddialog.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QTableWidget \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qtablewidget.h \
@@ -8322,7 +8361,6 @@ release/mainwindow.o: mainwindow.cpp mainwindow.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QtGlobal \
 		canopenmaster.h \
 		terminalwidget.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QVBoxLayout \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QApplication \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qapplication.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qcoreapplication.h \
@@ -8330,11 +8368,9 @@ release/mainwindow.o: mainwindow.cpp mainwindow.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qdesktopwidget.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/qguiapplication.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/qinputmethod.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QDir \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QFile \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QGroupBox \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qgroupbox.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QHBoxLayout \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QInputDialog \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qinputdialog.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QMenuBar \
@@ -8363,8 +8399,6 @@ release/mainwindow.o: mainwindow.cpp mainwindow.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtSerialPort/qserialportglobal.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtSerialPort/QSerialPortInfo \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtSerialPort/qserialportinfo.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QToolButton \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qtoolbutton.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QVector \
 		../qcustomplot/qcustomplot.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QSharedPointer \
@@ -8643,6 +8677,8 @@ release/mainwindow.o: mainwindow.cpp mainwindow.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qkeyeventtransition.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qkeysequenceedit.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qlcdnumber.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qlistview.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qlistwidget.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qmdiarea.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qmdisubwindow.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qmouseeventtransition.h \
@@ -9295,19 +9331,21 @@ release/serialportplot.o: serialportplot.cpp serialportplot.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/Qsci/qscilexer.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/Qsci/qscilexermakefile.h \
 		codeeditor.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QListWidget \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QDir \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QHBoxLayout \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QSet \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QSplitter \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QTreeWidget \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QTreeWidgetItem \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QVBoxLayout \
 		buildsystem.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QFileInfo \
 		cantool.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QTreeWidget \
 		normalsenddialog.h \
 		caninterface.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QtGlobal \
 		canopenmaster.h \
 		terminalwidget.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QVBoxLayout \
 		toastwidget.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/QGuiApplication \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QPropertyAnimation \
@@ -9318,7 +9356,6 @@ release/serialportplot.o: serialportplot.cpp serialportplot.h \
 		widgetdesigner.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QApplication \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/QClipboard \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QHBoxLayout \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QHeaderView \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QMessageBox \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QPlainTextEdit \
@@ -9821,6 +9858,9 @@ release/cantool.o: cantool.cpp cantool.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QString \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QtGlobal \
 		canopenmaster.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QAction \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qaction.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qactiongroup.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/QFont \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/QFontDatabase \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/qfontdatabase.h \
@@ -9834,8 +9874,12 @@ release/cantool.o: cantool.cpp cantool.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QHBoxLayout \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QHeaderView \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qheaderview.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QMenu \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qmenu.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QMessageBox \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qmessagebox.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/QPainter \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/qpainter.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QPlainTextEdit \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qplaintextedit.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qtextedit.h \
@@ -9844,83 +9888,22 @@ release/cantool.o: cantool.cpp cantool.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/qtextlayout.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/qglyphrun.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/qrawfont.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QVBoxLayout \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QToolButton \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qtoolbutton.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QMenu \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qmenu.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qaction.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qactiongroup.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QAction \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/QPainter \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/qpainter.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QProcess \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qprocess.h \
-		candevicedialog.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QToolButton \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qtoolbutton.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QVBoxLayout \
+		TOOLS/CIconFont.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/QIcon \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QMap \
-		cantheme.h \
-		idetheme.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QStringList \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/QColor \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QVector \
-		devicemonitorpanel.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QHash \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QJsonArray \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qjsonarray.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qjsonvalue.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qcborvalue.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qcborcommon.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/quuid.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QJsonDocument \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qjsondocument.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QJsonObject \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qjsonobject.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QRect \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWebSockets/QWebSocket \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWebSockets/qwebsocket.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QUrl \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtNetwork/QAbstractSocket \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtNetwork/qabstractsocket.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtNetwork/qtnetworkglobal.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtNetwork/qtnetwork-config.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtNetwork/QNetworkRequest \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtNetwork/qnetworkrequest.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QSharedDataPointer \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QVariant \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtNetwork/QNetworkProxy \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtNetwork/qnetworkproxy.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtNetwork/qhostaddress.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtNetwork/QSslError \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtNetwork/qsslerror.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtNetwork/qsslcertificate.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qcryptographichash.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtNetwork/qssl.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QFlags \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtNetwork/QSslConfiguration \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtNetwork/qsslconfiguration.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtNetwork/qsslsocket.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtNetwork/qtcpsocket.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWebSockets/qwebsockets_global.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWebSockets/qwebsocketprotocol.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWebSockets/QWebSocketServer \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWebSockets/qwebsocketserver.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtNetwork/QHostAddress \
-		canprotocolconfigdialog.h \
-		protocolconfigdialog.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QStackedWidget \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qstackedwidget.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QFormLayout \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qformlayout.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QLayout \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QDialogButtonBox \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qdialogbuttonbox.h \
-		devicestatuswidget.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/QPixmap \
-		ringbuffer.h \
-		devicemonitordialog.h \
-		canviewpanel.h \
-		canopenviewpanel.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QChar \
+		USBCANFD/zlgcan.h \
+		USBCANFD/canframe.h \
+		USBCANFD/typedef.h \
+		USBCANFD/config.h \
 		canbusutilizationdialog.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QHash \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QVector \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QElapsedTimer \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qelapsedtimer.h \
 		../qcustomplot/qcustomplot.h \
@@ -9930,7 +9913,9 @@ release/cantool.o: cantool.cpp cantool.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/QPaintEvent \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/QMouseEvent \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/QWheelEvent \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/QPixmap \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QMultiMap \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QFlags \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QDebug \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QStack \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qstack.h \
@@ -9963,6 +9948,7 @@ release/cantool.o: cantool.cpp cantool.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/QWindow \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/qwindow.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QEvent \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QRect \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtOpenGL/QGLPixelBuffer \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtOpenGL/qglpixelbuffer.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtOpenGL/qgl.h \
@@ -9989,6 +9975,9 @@ release/cantool.o: cantool.cpp cantool.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qbytearraymatcher.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qcalendar.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qcborarray.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qcborvalue.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qcborcommon.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/quuid.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qcbormap.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qcborstream.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qcborstreamreader.h \
@@ -9999,6 +9988,7 @@ release/cantool.o: cantool.cpp cantool.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qcommandlineparser.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qcoreapplication.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qconcatenatetablesproxymodel.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qcryptographichash.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qdeadlinetimer.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qdir.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qfileinfo.h \
@@ -10009,6 +9999,7 @@ release/cantool.o: cantool.cpp cantool.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qexception.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qfactoryinterface.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qfileselector.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QStringList \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qfilesystemwatcher.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qfinalstate.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qfuture.h \
@@ -10020,6 +10011,10 @@ release/cantool.o: cantool.cpp cantool.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qhistorystate.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qidentityproxymodel.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qisenum.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qjsonarray.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qjsonvalue.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qjsondocument.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qjsonobject.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qlibrary.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qlibraryinfo.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qversionnumber.h \
@@ -10110,6 +10105,7 @@ release/cantool.o: cantool.cpp cantool.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/qopenglextrafunctions.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/qopenglfunctions.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/qopenglpixeltransferoptions.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QSharedDataPointer \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/qopenglshaderprogram.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/qopengltexture.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/qopengltextureblitter.h \
@@ -10161,6 +10157,7 @@ release/cantool.o: cantool.cpp cantool.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qdatawidgetmapper.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qdatetimeedit.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qdial.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qdialogbuttonbox.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qdirmodel.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qfileiconprovider.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qdockwidget.h \
@@ -10171,6 +10168,8 @@ release/cantool.o: cantool.cpp cantool.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qfocusframe.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qfontcombobox.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qfontdialog.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qformlayout.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QLayout \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qgesture.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qgesturerecognizer.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qgraphicsanchorlayout.h \
@@ -10213,10 +10212,12 @@ release/cantool.o: cantool.cpp cantool.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QScrollerProperties \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qscrollerproperties.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QMetaType \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QVariant \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qshortcut.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qsizegrip.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qsplashscreen.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qstackedlayout.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qstackedwidget.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qstatusbar.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qstyleditemdelegate.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qstylefactory.h \
@@ -10247,10 +10248,49 @@ release/cantool.o: cantool.cpp cantool.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtPrintSupport/qprintpreviewwidget.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtPrintSupport/qtprintsupportversion.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QTimeZone \
-		USBCANFD/zlgcan.h \
-		USBCANFD/canframe.h \
-		USBCANFD/typedef.h \
-		USBCANFD/config.h
+		candevicedialog.h \
+		canopenviewpanel.h \
+		cantheme.h \
+		idetheme.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/QColor \
+		canviewpanel.h \
+		ringbuffer.h \
+		devicemonitordialog.h \
+		devicemonitorpanel.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QJsonArray \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QJsonDocument \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QJsonObject \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWebSockets/QWebSocket \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWebSockets/qwebsocket.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QUrl \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtNetwork/QAbstractSocket \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtNetwork/qabstractsocket.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtNetwork/qtnetworkglobal.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtNetwork/qtnetwork-config.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtNetwork/QNetworkRequest \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtNetwork/qnetworkrequest.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtNetwork/QNetworkProxy \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtNetwork/qnetworkproxy.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtNetwork/qhostaddress.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtNetwork/QSslError \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtNetwork/qsslerror.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtNetwork/qsslcertificate.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtNetwork/qssl.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtNetwork/QSslConfiguration \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtNetwork/qsslconfiguration.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtNetwork/qsslsocket.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtNetwork/qtcpsocket.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWebSockets/qwebsockets_global.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWebSockets/qwebsocketprotocol.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWebSockets/QWebSocketServer \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWebSockets/qwebsocketserver.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtNetwork/QHostAddress \
+		canprotocolconfigdialog.h \
+		protocolconfigdialog.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QStackedWidget \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QFormLayout \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QDialogButtonBox \
+		devicestatuswidget.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o release\cantool.o cantool.cpp
 
 release/normalsenddialog.o: normalsenddialog.cpp normalsenddialog.h \
@@ -14094,6 +14134,9 @@ release/verticaltabwidget.o: verticaltabwidget.cpp verticaltabwidget.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/QFont \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QMap \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QChar \
+		idetheme.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QStringList \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/QColor \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QEasingCurve \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/QEnterEvent \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QEvent \

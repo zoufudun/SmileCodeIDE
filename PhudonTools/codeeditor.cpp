@@ -9,53 +9,551 @@
 
 #include "codeeditor.h"
 #include "idetheme.h"
-#include <QAction>      // 添加动作头文件
-#include <QApplication> // 添加此行以使用QStyle
+#include <QAction>
+#include <QApplication>
 #include <QFile>
 #include <QFileInfo>
-#include <QIcon>  // 添加图标头文件
-#include <QLabel> // 添加标签头文件
+#include <QHBoxLayout>
+#include <QIcon>
+#include <QLabel>
+#include <QMenu>
 #include <QMessageBox>
-#include <QPair> // 添加QPair头文件
+#include <QPainter>
+#include <QPair>
 #include <QRegExp>
-#include <QRegularExpression> // Add this line to include
+#include <QRegularExpression>
 #include <QSettings>
 #include <QStack>
-#include <QStyle> // Add this for QStyle class
+#include <QStyle>
 #include <QTextCodec>
 #include <QTextStream>
-#include <QTimer>   // 添加定时器头文件
-#include <QToolBar> // 添加工具栏头文件
+#include <QTimer>
+#include <QToolBar>
+#include <QToolButton>
 #include <QVBoxLayout>
-#include <vector> // Add this for std::vector
+#include <cmath>
+#include <QStyledItemDelegate>
+#include <vector>
+
+// 绘制函数/方法/槽矢量图标（紫色 3D 棱箱/立方体线框，1:1 严格对齐截图 2、截图 3 呈现风格）
+static QIcon createSymbolIcon(const QColor &color = QColor("#A855F7"), int size = 18) {
+  QPixmap pix(size, size);
+  pix.fill(Qt::transparent);
+  QPainter painter(&pix);
+  painter.setRenderHint(QPainter::Antialiasing);
+  painter.setPen(QPen(color, 1.4, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+  painter.setBrush(QColor(color.red(), color.green(), color.blue(), 30));
+
+  qreal cx = size / 2.0;
+  qreal cy = size / 2.0;
+  qreal r = size * 0.42;
+  qreal dx = r * 0.8660254; // cos(30 deg)
+  qreal dy = r * 0.5;       // sin(30 deg)
+
+  QPointF pTop(cx, cy - r);
+  QPointF pTopRight(cx + dx, cy - dy);
+  QPointF pBottomRight(cx + dx, cy + dy);
+  QPointF pBottom(cx, cy + r);
+  QPointF pBottomLeft(cx - dx, cy + dy);
+  QPointF pTopLeft(cx - dx, cy - dy);
+  QPointF pCenter(cx, cy);
+
+  QPolygonF hex;
+  hex << pTop << pTopRight << pBottomRight << pBottom << pBottomLeft << pTopLeft;
+  painter.drawPolygon(hex);
+
+  // 绘制 3 条中心棱线构成经典 3D 几何立方体
+  painter.drawLine(pCenter, pTop);
+  painter.drawLine(pCenter, pBottomLeft);
+  painter.drawLine(pCenter, pBottomRight);
+
+  return QIcon(pix);
+}
+
+// 绘制函数大纲列表矢量图标
+static QIcon createOutlineIcon(const QColor &color = QColor("#A855F7"), int size = 16) {
+  QPixmap pix(size, size);
+  pix.fill(Qt::transparent);
+  QPainter p(&pix);
+  p.setRenderHint(QPainter::Antialiasing);
+  p.setPen(QPen(color, 1.4, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+
+  int yPositions[] = {3, 8, 13};
+  for (int y : yPositions) {
+    p.setBrush(QBrush(color));
+    p.drawEllipse(QPointF(3, y), 1.2, 1.2);
+    p.drawLine(QPointF(6, y), QPointF(13, y));
+  }
+  return QIcon(pix);
+}
+
+// 绘制变量矢量图标（青色方形小徽章，对齐图 3 风格）
+static QIcon createVariableIcon(const QColor &color = QColor("#06B6D4"), int size = 18) {
+  QPixmap pix(size, size);
+  pix.fill(Qt::transparent);
+  QPainter painter(&pix);
+  painter.setRenderHint(QPainter::Antialiasing);
+  painter.setPen(QPen(color, 1.4, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+  painter.setBrush(QColor(color.red(), color.green(), color.blue(), 35));
+
+  painter.drawRoundedRect(QRectF(2.5, 2.5, size - 5, size - 5), 3, 3);
+  painter.setBrush(color);
+  painter.setPen(Qt::NoPen);
+  painter.drawEllipse(QPointF(size / 2.0, size / 2.0), 1.6, 1.6);
+  return QIcon(pix);
+}
+
+// 绘制文件类型徽标 (如 C, C++, H 浅青色徽章)
+static QIcon createFileBadgeIcon(const QString &badge, const QColor &color = QColor("#00E5FF"), int size = 16) {
+  int w = (badge.length() > 2) ? size * 2 : size + 6;
+  QPixmap pix(w, size);
+  pix.fill(Qt::transparent);
+  QPainter painter(&pix);
+  painter.setRenderHint(QPainter::Antialiasing);
+  painter.setRenderHint(QPainter::TextAntialiasing);
+
+  QFont font("Segoe UI", 9, QFont::Bold);
+  painter.setFont(font);
+  painter.setPen(color);
+  painter.drawText(QRectF(0, 0, w, size), Qt::AlignCenter, badge);
+  return QIcon(pix);
+}
+
+// 绘制宏定义矢量图标（金黄色 # 徽标）
+static QIcon createMacroIcon(const QColor &color = QColor("#F59E0B"), int size = 18) {
+  QPixmap pix(size, size);
+  pix.fill(Qt::transparent);
+  QPainter painter(&pix);
+  painter.setRenderHint(QPainter::Antialiasing);
+  painter.setPen(QPen(color, 1.4, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+  painter.setBrush(Qt::NoBrush);
+
+  painter.drawRoundedRect(QRectF(1.5, 1.5, size - 3, size - 3), 3.5, 3.5);
+
+  QFont font("Consolas", 10, QFont::Bold);
+  painter.setFont(font);
+  painter.setPen(color);
+  painter.drawText(QRectF(0, 0, size, size), Qt::AlignCenter, "#");
+  return QIcon(pix);
+}
+
+// 绘制类矢量图标（金黄色类符号）
+static QIcon createClassIcon(const QColor &color = QColor("#EAB308"), int size = 18) {
+  QPixmap pix(size, size);
+  pix.fill(Qt::transparent);
+  QPainter painter(&pix);
+  painter.setRenderHint(QPainter::Antialiasing);
+  painter.setPen(QPen(color, 1.4, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+  painter.setBrush(QColor(color.red(), color.green(), color.blue(), 30));
+
+  painter.drawRoundedRect(QRectF(2, 2, size - 4, size - 4), 3, 3);
+  painter.drawLine(QPointF(2, 6.5), QPointF(size - 2, 6.5));
+  painter.drawLine(QPointF(6.5, 6.5), QPointF(6.5, size - 2));
+  return QIcon(pix);
+}
+
+// 绘制结构体矢量图标（翡翠绿十字结构体徽标）
+static QIcon createStructIcon(const QColor &color = QColor("#10B981"), int size = 18) {
+  QPixmap pix(size, size);
+  pix.fill(Qt::transparent);
+  QPainter painter(&pix);
+  painter.setRenderHint(QPainter::Antialiasing);
+  painter.setPen(QPen(color, 1.4, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+  painter.setBrush(QColor(color.red(), color.green(), color.blue(), 30));
+
+  painter.drawRoundedRect(QRectF(2, 2, size - 4, size - 4), 3, 3);
+  painter.drawLine(QPointF(size / 2.0, 3.5), QPointF(size / 2.0, size - 3.5));
+  painter.drawLine(QPointF(3.5, size / 2.0), QPointF(size - 3.5, size / 2.0));
+  return QIcon(pix);
+}
+
+// 绘制联合体矢量图标（橙色 U 徽标）
+static QIcon createUnionIcon(const QColor &color = QColor("#F97316"), int size = 18) {
+  QPixmap pix(size, size);
+  pix.fill(Qt::transparent);
+  QPainter painter(&pix);
+  painter.setRenderHint(QPainter::Antialiasing);
+  painter.setPen(QPen(color, 1.4, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+  painter.setBrush(Qt::NoBrush);
+  painter.drawRoundedRect(QRectF(1.5, 1.5, size - 3, size - 3), 3.5, 3.5);
+
+  QFont font("Segoe UI", 9, QFont::Bold);
+  painter.setFont(font);
+  painter.setPen(color);
+  painter.drawText(QRectF(0, 0, size, size), Qt::AlignCenter, "U");
+  return QIcon(pix);
+}
+
+// 绘制枚举矢量图标（浅紫色 E 徽标）
+static QIcon createEnumIcon(const QColor &color = QColor("#8B5CF6"), int size = 18) {
+  QPixmap pix(size, size);
+  pix.fill(Qt::transparent);
+  QPainter painter(&pix);
+  painter.setRenderHint(QPainter::Antialiasing);
+  painter.setPen(QPen(color, 1.4, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+  painter.setBrush(Qt::NoBrush);
+  painter.drawRoundedRect(QRectF(1.5, 1.5, size - 3, size - 3), 3.5, 3.5);
+
+  QFont font("Segoe UI", 9, QFont::Bold);
+  painter.setFont(font);
+  painter.setPen(color);
+  painter.drawText(QRectF(0, 0, size, size), Qt::AlignCenter, "E");
+  return QIcon(pix);
+}
+
+// 根据符号类型获取对应的矢量图标
+static QIcon getIconForSymbol(CodeEditor::SymbolType type) {
+  switch (type) {
+  case CodeEditor::SymbolVariable:
+    return createVariableIcon(QColor("#06B6D4"), 18);
+  case CodeEditor::SymbolMacro:
+    return createMacroIcon(QColor("#F59E0B"), 18);
+  case CodeEditor::SymbolClass:
+    return createClassIcon(QColor("#EAB308"), 18);
+  case CodeEditor::SymbolStruct:
+    return createStructIcon(QColor("#10B981"), 18);
+  case CodeEditor::SymbolUnion:
+    return createUnionIcon(QColor("#F97316"), 18);
+  case CodeEditor::SymbolEnum:
+    return createEnumIcon(QColor("#8B5CF6"), 18);
+  case CodeEditor::SymbolFunction:
+  default:
+    return createSymbolIcon(QColor("#A855F7"), 18);
+  }
+}
+
+// 格式化符号显示文本 (1:1 严格对齐图 3 格式: 函数名 返回类型 参数列表 / 变量名 类型)
+static QString formatSymbolDisplay(const CodeEditor::FunctionInfo &info) {
+  if (info.type == CodeEditor::SymbolClass || info.type == CodeEditor::SymbolStruct ||
+      info.type == CodeEditor::SymbolUnion || info.type == CodeEditor::SymbolEnum) {
+    return info.scopedName;
+  }
+
+  if (info.type == CodeEditor::SymbolVariable) {
+    if (!info.returnType.isEmpty()) {
+      return QString("%1 %2").arg(info.scopedName, info.returnType);
+    }
+    return info.scopedName;
+  }
+
+  // SymbolFunction: 构造函数与析构函数
+  if (info.returnType.isEmpty() || info.scopedName.startsWith('~') ||
+      info.scopedName == info.parentClass || (!info.parentClass.isEmpty() && info.scopedName == info.parentClass + "::" + info.parentClass)) {
+    return QString("%1 %2").arg(info.scopedName, info.params.isEmpty() ? "()" : info.params);
+  }
+
+  // 普通函数与成员方法: FuncName ReturnType Params (如 Wait_SDCARD_Ready int (void))
+  return QString("%1 %2 %3").arg(info.scopedName, info.returnType, info.params.isEmpty() ? "(void)" : info.params);
+}
+
+// 将复杂函数形参签名清洗为纯类型签名，例如：
+// "(const QColor &color = QColor(...), int size = 18)" -> "(const QColor &, int)"
+// "(uint8_t *data, int len)" -> "(uint8_t *, int)"
+// "(void)" -> "(void)"
+static QString normalizeParamTypes(const QString &rawParamStr) {
+  QString raw = rawParamStr.trimmed();
+  if (raw.isEmpty()) return "(void)";
+  if (!raw.startsWith('(')) raw = "(" + raw;
+  if (!raw.endsWith(')')) raw = raw + ")";
+  if (raw == "()") return "(void)";
+  if (raw == "(void)") return raw;
+
+  QString inner = raw.mid(1, raw.length() - 2).trimmed();
+  if (inner.isEmpty()) return "(void)";
+  if (inner == "void") return "(void)";
+
+  // 按逗号分割形参（保护嵌套的括号、尖括号、方括号）
+  QStringList rawParams;
+  int pDepth = 0, aDepth = 0, bDepth = 0;
+  int last = 0;
+  for (int i = 0; i < inner.length(); ++i) {
+    QChar c = inner[i];
+    if (c == '(') ++pDepth;
+    else if (c == ')') --pDepth;
+    else if (c == '<') ++aDepth;
+    else if (c == '>') --aDepth;
+    else if (c == '[') ++bDepth;
+    else if (c == ']') --bDepth;
+    else if (c == ',' && pDepth == 0 && aDepth == 0 && bDepth == 0) {
+      rawParams.append(inner.mid(last, i - last).trimmed());
+      last = i + 1;
+    }
+  }
+  if (last < inner.length()) {
+    rawParams.append(inner.mid(last).trimmed());
+  }
+
+  QStringList cleanParams;
+  for (QString p : rawParams) {
+    p = p.trimmed();
+    if (p.isEmpty()) continue;
+
+    // 1. 去除默认参数值 (例如: = 18, = QColor("#A855F7"), = nullptr)
+    int eqIndex = -1;
+    pDepth = 0; aDepth = 0; bDepth = 0;
+    for (int i = 0; i < p.length(); ++i) {
+      QChar c = p[i];
+      if (c == '(') ++pDepth;
+      else if (c == ')') --pDepth;
+      else if (c == '<') ++aDepth;
+      else if (c == '>') --aDepth;
+      else if (c == '[') ++bDepth;
+      else if (c == ']') --bDepth;
+      else if (c == '=' && pDepth == 0 && aDepth == 0 && bDepth == 0) {
+        eqIndex = i;
+        break;
+      }
+    }
+    if (eqIndex != -1) {
+      p = p.left(eqIndex).trimmed();
+    }
+
+    if (p == "void" || p == "...") {
+      cleanParams.append(p);
+      continue;
+    }
+
+    // 2. 去除变量名，保留纯类型 (如 "uint8_t *data" -> "uint8_t *", "int ms" -> "int")
+    p.replace(QRegularExpression(R"(\s+)"), " ");
+    QStringList tokens = p.split(' ', Qt::SkipEmptyParts);
+    if (tokens.size() > 1) {
+      QString lastTok = tokens.last();
+      if (!lastTok.contains('*') && !lastTok.contains('&')) {
+        if (lastTok.contains('[')) {
+          int bIdx = lastTok.indexOf('[');
+          QString arr = lastTok.mid(bIdx);
+          tokens.removeLast();
+          p = tokens.join(" ") + arr;
+        } else {
+          tokens.removeLast();
+          p = tokens.join(" ");
+        }
+      } else if (lastTok.startsWith('*') || lastTok.startsWith('&')) {
+        QString sym = lastTok.startsWith('*') ? "*" : "&";
+        QString varName = lastTok.mid(1).trimmed();
+        if (!varName.isEmpty()) {
+          tokens.removeLast();
+          tokens.append(sym);
+          p = tokens.join(" ");
+        }
+      }
+    }
+
+    p = p.trimmed();
+    p.replace(" *", " *");
+    p.replace(" &", " &");
+    p.replace(QRegularExpression(R"(\s+)"), " ");
+    cleanParams.append(p);
+  }
+
+  return "(" + cleanParams.join(", ") + ")";
+}
+
+// 自定义函数与符号大纲树绘制委托 (1:1 严格对齐图 2 与图 3 风格排版与配色)
+class SymbolTreeDelegate : public QStyledItemDelegate {
+public:
+  explicit SymbolTreeDelegate(QObject *parent = nullptr) : QStyledItemDelegate(parent) {}
+
+  void paint(QPainter *painter, const QStyleOptionViewItem &option,
+             const QModelIndex &index) const override {
+    painter->save();
+    painter->setRenderHint(QPainter::Antialiasing);
+    painter->setRenderHint(QPainter::TextAntialiasing);
+
+    bool isSelected = (option.state & QStyle::State_Selected);
+    bool isHovered = (option.state & QStyle::State_MouseOver);
+
+    // 1. 绘制项背景
+    if (isSelected) {
+      painter->setPen(QPen(QColor("#007ACC"), 1));
+      painter->setBrush(QColor(0, 122, 204, 50));
+      painter->drawRoundedRect(option.rect.adjusted(1, 1, -1, -1), 3, 3);
+    } else if (isHovered) {
+      painter->setPen(Qt::NoPen);
+      painter->setBrush(QColor(255, 255, 255, 12));
+      painter->drawRoundedRect(option.rect.adjusted(1, 1, -1, -1), 3, 3);
+    }
+
+    // 2. 获取项属性
+    QIcon icon = qvariant_cast<QIcon>(index.data(Qt::DecorationRole));
+    QString name = index.data(Qt::UserRole + 1).toString();
+    QString retType = index.data(Qt::UserRole + 6).toString();
+    QString params = index.data(Qt::UserRole + 7).toString();
+    int refCount = index.data(Qt::UserRole + 3).toInt();
+    int symbolType = index.data(Qt::UserRole + 8).toInt();
+
+    if (name.isEmpty()) {
+      name = index.data(Qt::DisplayRole).toString();
+    }
+
+    bool hasChildren = index.model()->hasChildren(index);
+    int curX = option.rect.left() + 4;
+    int centerY = option.rect.top() + option.rect.height() / 2;
+
+    // 3. 绘制展开/折叠矢量 Chevron 箭头 (对齐图 2 样式: 展开为向下箭头 ∨, 折叠为向右箭头 >)
+    if (hasChildren) {
+      const QTreeView *treeView = qobject_cast<const QTreeView *>(option.widget);
+      bool isExpanded = treeView ? treeView->isExpanded(index) : (bool)(option.state & QStyle::State_Open);
+
+      painter->setPen(QPen(isHovered ? QColor("#A855F7") : QColor("#9CA3AF"), 1.8, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+      painter->setBrush(Qt::NoBrush);
+
+      if (isExpanded) {
+        // 向下箭头 ∨ (图 2 展开状态)
+        QPolygonF poly;
+        poly << QPointF(curX + 1, centerY - 2)
+             << QPointF(curX + 5.5, centerY + 2.5)
+             << QPointF(curX + 10, centerY - 2);
+        painter->drawPolyline(poly);
+      } else {
+        // 向右箭头 > (图 2 折叠状态)
+        QPolygonF poly;
+        poly << QPointF(curX + 3, centerY - 4.5)
+             << QPointF(curX + 7.5, centerY)
+             << QPointF(curX + 3, centerY + 4.5);
+        painter->drawPolyline(poly);
+      }
+      curX += 15;
+    } else {
+      if (!index.parent().isValid()) {
+        curX += 15;
+      }
+    }
+
+    // 4. 绘制符号类型矢量图标
+    int iconSize = 16;
+    int iconY = option.rect.top() + (option.rect.height() - iconSize) / 2;
+    QRect iconRect(curX, iconY, iconSize, iconSize);
+    if (!icon.isNull()) {
+      icon.paint(painter, iconRect, Qt::AlignCenter);
+    }
+    curX = iconRect.right() + 6;
+
+    // 5. 绘制右侧调用/引用频次徽标 (如 1, +9, 2)
+    int rightLimit = option.rect.right() - 6;
+    QFont subFont("Consolas", 9);
+    QFontMetrics fmSub(subFont);
+
+    if (refCount > 0) {
+      QString countStr = (refCount > 5) ? QString("+%1").arg(refCount) : QString::number(refCount);
+      int countW = fmSub.horizontalAdvance(countStr) + 8;
+      QRect countRect(rightLimit - countW, option.rect.top(), countW, option.rect.height());
+      painter->setFont(subFont);
+      painter->setPen(QColor("#E5C07B")); // 暖橙色
+      painter->drawText(countRect, Qt::AlignRight | Qt::AlignVCenter, countStr);
+      rightLimit -= countW + 4;
+    }
+
+    // 6. 绘制符号主体文本: 函数名 (红色/高亮色) + 返回类型 (灰白色) + 参数 (灰色)
+    QFont nameFont("Consolas", 9, (symbolType == CodeEditor::SymbolClass || symbolType == CodeEditor::SymbolStruct) ? QFont::Bold : QFont::Normal);
+    QFontMetrics fmName(nameFont);
+
+    int textY = option.rect.top();
+    int textH = option.rect.height();
+
+    // 绘制名称
+    painter->setFont(nameFont);
+    QColor nameColor = isSelected ? QColor("#FFFFFF") : QColor("#ECEFF4");
+    if (symbolType == CodeEditor::SymbolFunction) {
+      nameColor = isSelected ? QColor("#FFAAAA") : QColor("#E06C75"); // 珊瑚红
+    } else if (symbolType == CodeEditor::SymbolVariable) {
+      nameColor = isSelected ? QColor("#B5E853") : QColor("#E06C75");
+    } else if (symbolType == CodeEditor::SymbolClass) {
+      nameColor = isSelected ? QColor("#FFE082") : QColor("#EAB308"); // 亮黄
+    } else if (symbolType == CodeEditor::SymbolStruct) {
+      nameColor = isSelected ? QColor("#A7F3D0") : QColor("#10B981"); // 翠绿
+    }
+    painter->setPen(nameColor);
+    int nameW = fmName.horizontalAdvance(name);
+    if (curX + nameW > rightLimit) nameW = qMax(0, rightLimit - curX);
+    painter->drawText(QRect(curX, textY, nameW, textH), Qt::AlignLeft | Qt::AlignVCenter, name);
+    curX += nameW;
+
+    // 绘制返回类型 (例如 int, void, QString, bool)
+    if (!retType.isEmpty() && curX + 10 < rightLimit) {
+      curX += 6;
+      painter->setFont(subFont);
+      painter->setPen(isSelected ? QColor("#D1D5DB") : QColor("#94A3B8"));
+      int retW = fmSub.horizontalAdvance(retType);
+      if (curX + retW > rightLimit) retW = qMax(0, rightLimit - curX);
+      painter->drawText(QRect(curX, textY, retW, textH), Qt::AlignLeft | Qt::AlignVCenter, retType);
+      curX += retW;
+    }
+
+    // 绘制参数列表 (例如 (const QString &), (void), (int, int))
+    if (!params.isEmpty() && curX + 10 < rightLimit) {
+      curX += 4;
+      painter->setFont(subFont);
+      painter->setPen(isSelected ? QColor("#9CA3AF") : QColor("#6B7280"));
+      int paramW = fmSub.horizontalAdvance(params);
+      if (curX + paramW > rightLimit) paramW = qMax(0, rightLimit - curX);
+      painter->drawText(QRect(curX, textY, paramW, textH), Qt::AlignLeft | Qt::AlignVCenter, params);
+      curX += paramW;
+    }
+
+    painter->restore();
+  }
+
+  QSize sizeHint(const QStyleOptionViewItem &option, const QModelIndex &index) const override {
+    QString name = index.data(Qt::UserRole + 1).toString();
+    if (name.isEmpty()) name = index.data(Qt::DisplayRole).toString();
+    QString retType = index.data(Qt::UserRole + 6).toString();
+    QString params = index.data(Qt::UserRole + 7).toString();
+    int refCount = index.data(Qt::UserRole + 3).toInt();
+
+    QFont nameFont("Consolas", 9, QFont::Bold);
+    QFontMetrics fmName(nameFont);
+    QFont subFont("Consolas", 9);
+    QFontMetrics fmSub(subFont);
+
+    int w = 24 + 18 + 10;
+    w += fmName.horizontalAdvance(name);
+    if (!retType.isEmpty()) w += 6 + fmSub.horizontalAdvance(retType);
+    if (!params.isEmpty()) w += 4 + fmSub.horizontalAdvance(params);
+    if (refCount > 0) {
+      QString countStr = (refCount > 5) ? QString("+%1").arg(refCount) : QString::number(refCount);
+      w += 10 + fmSub.horizontalAdvance(countStr);
+    }
+    w += 36;
+    return QSize(qMax(option.rect.width(), w), 24);
+  }
+};
 
 CodeEditor::CodeEditor(QWidget *parent)
     : QWidget(parent), m_currentEditor(nullptr), m_apiCPP(nullptr),
-      m_functionList(nullptr), m_isDarkTheme(false) // Add this initialization
+      m_breadcrumbBar(nullptr), m_bcPathContainer(nullptr), m_bcPathLayout(nullptr),
+      m_bcFileButton(nullptr), m_bcFuncButton(nullptr), m_outlineToggleBtn(nullptr),
+      m_functionListContainer(nullptr), m_outlineTitleLabel(nullptr),
+      m_functionTree(nullptr), m_isDarkTheme(false)
 {
   // 创建主布局
   QVBoxLayout *layout = new QVBoxLayout(this);
   layout->setContentsMargins(0, 0, 0, 0);
+  layout->setSpacing(0);
 
   // 创建工具栏
   createToolBar();
   layout->addWidget(m_toolBar);
 
+  // 创建 VS Code 风格面包屑导航栏
+  createBreadcrumbBar();
+  layout->addWidget(m_breadcrumbBar);
+
   // 创建主分割器
   m_mainSplitter = new QSplitter(Qt::Horizontal, this);
   layout->addWidget(m_mainSplitter);
 
-  // 创建函数列表控件 - 移到主分割器创建之后
-  createFunctionList();
-
   // 创建C++词法分析器
   m_lexerCPP = new QsciLexerCPP();
 
-  // 创建第一个编辑器
+  // 创建第一个编辑器（主编辑区域位于左侧/中央）
   QsciScintilla *editor = new QsciScintilla(this);
   m_editors.append(editor);
   m_currentEditor = editor;
   m_mainSplitter->addWidget(editor);
+
+  // 创建函数大纲列表控件（位于右侧侧边栏，默认不显示）
+  createFunctionList();
 
   // 设置编辑器属性
   setupEditor(editor);
@@ -63,18 +561,11 @@ CodeEditor::CodeEditor(QWidget *parent)
   // 设置自动补全
   setupAutoCompletion(editor);
 
-  // 设置初始分割器比例 (1:6)
-  // 注意：此时两个组件都已添加到分割器中
+  // 设置初始分割器比例 (主编辑器占比 100%，大纲默认隐藏)
   m_mainSplitter->setStretchFactor(0, 1);
-  m_mainSplitter->setStretchFactor(1, 6);
-  m_mainSplitter->setCollapsible(0, false); // 禁止折叠函数列表
-  m_mainSplitter->setCollapsible(1, false);
-
-  // 设置初始大小 (假设总宽度1000)
-  QList<int> sizes;
-  sizes << 200 << 1200;
-  m_mainSplitter->setSizes(sizes);
-  setupAutoCompletion(editor);
+  m_mainSplitter->setStretchFactor(1, 0);
+  m_mainSplitter->setCollapsible(0, false);
+  m_mainSplitter->setCollapsible(1, true);
 
   // 设置示例代码
   editor->setText(
@@ -312,49 +803,99 @@ void CodeEditor::applyTheme(const QString &themeName) {
     setupRainbowBrackets(editor);
   }
 
-  // 2. 深度定制函数大纲列表 QListWidget 与容器标题栏
-  if (m_functionList) {
-    m_functionList->setStyleSheet(QString(
-        "QListWidget {"
+  // 2. 深度定制面包屑导航栏与函数大纲列表
+  if (m_breadcrumbBar) {
+    m_breadcrumbBar->setStyleSheet(QString(
+        "#breadcrumbBar {"
         "    background-color: %1;"
+        "    border-bottom: 1px solid %2;"
+        "    padding: 0 8px;"
+        "}"
+        "#breadcrumbBar QLabel {"
+        "    color: %3;"
+        "    font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;"
+        "    font-size: 12px;"
+        "}"
+        "#breadcrumbBar QToolButton {"
+        "    background: transparent;"
+        "    border: 1px solid transparent;"
+        "    border-radius: 4px;"
+        "    color: %4;"
+        "    font-family: 'Segoe UI', 'Microsoft YaHei', 'Consolas', sans-serif;"
+        "    font-size: 12px;"
+        "    padding: 2px 8px;"
+        "}"
+        "#breadcrumbBar QToolButton:hover {"
+        "    background-color: %5;"
         "    border: 1px solid %2;"
+        "}"
+        "#breadcrumbBar QToolButton:checked {"
+        "    background-color: rgba(168, 85, 247, 0.22);"
+        "    border: 1px solid %6;"
+        "    color: %6;"
+        "    font-weight: 600;"
+        "}"
+        "#breadcrumbBar QToolButton:pressed {"
+        "    background-color: %7;"
+        "}").arg(p.panelBg, p.border, p.textSub, p.textMain, p.menuHover, p.accent, p.cardBg));
+  }
+
+  if (m_functionListContainer) {
+    m_functionListContainer->setStyleSheet(QString(
+        "#functionListContainer {"
+        "    background-color: %1;"
+        "    border-left: 1px solid %2;"
+        "}"
+        "#outlineHeaderWidget {"
+        "    background-color: %3;"
+        "    border-bottom: 1px solid %2;"
+        "}"
+        "#outlineHeaderWidget QLabel {"
+        "    color: %4;"
+        "    font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;"
+        "    font-size: 11px;"
+        "    font-weight: bold;"
+        "}").arg(p.sidebarBg, p.border, p.panelBg, p.textMain));
+  }
+
+  if (m_functionTree) {
+    m_functionTree->setStyleSheet(QString(
+        "QTreeWidget {"
+        "    background-color: %1;"
+        "    border: none;"
         "    color: %3;"
         "    font-family: 'Consolas', 'Segoe UI', monospace;"
         "    outline: 0;"
         "}"
-        "QListWidget::item {"
-        "    padding: 5px 6px;"
+        "QTreeWidget::item {"
+        "    padding: 3px 2px;"
         "    border-bottom: 1px solid %4;"
         "    color: %3;"
         "}"
-        "QListWidget::item:hover {"
+        "QTreeWidget::item:hover {"
         "    background-color: %5;"
         "}"
-        "QListWidget::item:selected {"
+        "QTreeWidget::item:selected {"
         "    background-color: %6;"
         "    color: %7;"
         "    font-weight: bold;"
         "}"
-        "QListWidget::item:alternate {"
-        "    background-color: %8;"
+        "QTreeWidget::branch:has-children:!has-siblings:closed,"
+        "QTreeWidget::branch:closed:has-children:has-siblings {"
+        "    image: url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='9 18 15 12 9 6'></polyline></svg>\");"
+        "}"
+        "QTreeWidget::branch:has-children:!has-siblings:closed:hover,"
+        "QTreeWidget::branch:closed:has-children:has-siblings:hover {"
+        "    image: url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23A855F7' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><polyline points='9 18 15 12 9 6'></polyline></svg>\");"
+        "}"
+        "QTreeWidget::branch:open:has-children:!has-siblings,"
+        "QTreeWidget::branch:open:has-children:has-siblings {"
+        "    image: url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'></polyline></svg>\");"
+        "}"
+        "QTreeWidget::branch:open:has-children:!has-siblings:hover,"
+        "QTreeWidget::branch:open:has-children:has-siblings:hover {"
+        "    image: url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23A855F7' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'></polyline></svg>\");"
         "}").arg(p.sidebarBg, p.border, p.textMain, p.borderDark, p.menuHover, p.accent, p.accentText, p.baseAltBg));
-
-    // 设置函数列表标题标签样式
-    if (m_functionList->parentWidget() &&
-        m_functionList->parentWidget()->layout()) {
-      QLayoutItem *item = m_functionList->parentWidget()->layout()->itemAt(0);
-      if (item && item->widget()) {
-        QLabel *titleLabel = qobject_cast<QLabel *>(item->widget());
-        if (titleLabel) {
-          titleLabel->setStyleSheet(QString(
-              "font-weight: bold;"
-              "padding: 6px;"
-              "color: %1;"
-              "background-color: %2;"
-              "border-bottom: 1px solid %3;").arg(p.textMain, p.panelBg, p.border));
-        }
-      }
-    }
   }
 
   // 3. 语法高亮 C/C++ 词法分析器 (QsciLexerCPP)
@@ -605,10 +1146,8 @@ void CodeEditor::createSplitView(Qt::Orientation orientation) {
   m_editors.append(newEditor);
 
   // 初始化函数列表控件
-  if (!m_functionList) {
-    m_functionList = new QListWidget();
-    m_functionList->setMinimumWidth(200);
-    m_mainSplitter->addWidget(m_functionList);
+  if (!m_functionTree) {
+    createFunctionList();
   }
 
   // // 设置编辑器属性
@@ -1068,12 +1607,17 @@ void CodeEditor::setupEditor(QsciScintilla *editor) {
       editor->SendScintilla(QsciScintilla::SCI_GETMARGINMASKN, 0) |
           (1 << CURRENT_LINE_MARKER));
 
-  // 连接信号
+  // 连接光标移动信号以实时更新高亮与面包屑当前函数
   connect(editor, &QsciScintilla::cursorPositionChanged, this,
-          &CodeEditor::highlightCurrentLineNumber);
+          [this](int line, int col) {
+            Q_UNUSED(col);
+            highlightCurrentLineNumber();
+            updateBreadcrumb(line);
+          });
 
-  // Initialize line number highlighting
+  // Initialize line number highlighting & breadcrumb
   highlightCurrentLineNumber();
+  updateBreadcrumb();
 }
 
 void CodeEditor::setupRainbowBrackets(QsciScintilla *editor) {
@@ -1463,198 +2007,1676 @@ void CodeEditor::setupAutoCompletion(QsciScintilla *editor) {
   editor->setAutoCompletionFillupsEnabled(true);
 }
 
-void CodeEditor::createFunctionList() {
-  // 创建函数列表容器
-  QWidget *functionListContainer = new QWidget(this);
-  QVBoxLayout *containerLayout = new QVBoxLayout(functionListContainer);
-  containerLayout->setContentsMargins(0, 0, 0, 0);
+void CodeEditor::createBreadcrumbBar() {
+  m_breadcrumbBar = new QWidget(this);
+  m_breadcrumbBar->setObjectName("breadcrumbBar");
+  m_breadcrumbBar->setFixedHeight(28);
 
-  // 添加标题标签
-  QLabel *titleLabel = new QLabel("函数列表", functionListContainer);
-  titleLabel->setAlignment(Qt::AlignCenter);
-  titleLabel->setStyleSheet(
-      "font-weight: bold; padding: 5px; background-color: #e0e0e0; "
-      "border-bottom: 1px solid #ccc;");
+  QHBoxLayout *layout = new QHBoxLayout(m_breadcrumbBar);
+  layout->setContentsMargins(8, 0, 8, 0);
+  layout->setSpacing(4);
 
-  containerLayout->addWidget(titleLabel);
+  // 1. 路径容器 (支持多级目录: e.g. User > sdmmc >)
+  m_bcPathContainer = new QWidget(m_breadcrumbBar);
+  m_bcPathLayout = new QHBoxLayout(m_bcPathContainer);
+  m_bcPathLayout->setContentsMargins(0, 0, 0, 0);
+  m_bcPathLayout->setSpacing(4);
 
-  // 创建函数列表控件
-  m_functionList = new QListWidget(functionListContainer);
-  containerLayout->addWidget(m_functionList);
+  // 2. 文件按钮 (显示 C / C++ / H 徽标和文件名，点击弹出同目录所有文件菜单)
+  m_bcFileButton = new QToolButton(m_breadcrumbBar);
+  m_bcFileButton->setObjectName("bcFileButton");
+  m_bcFileButton->setIcon(createFileBadgeIcon("C++", QColor("#00E5FF"), 16));
+  m_bcFileButton->setText("untitled.cpp");
+  m_bcFileButton->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+  m_bcFileButton->setCursor(Qt::PointingHandCursor);
+  m_bcFileButton->setToolTip("点击浏览并切换同目录下的其他 C/C++ 源文件或头文件");
+  connect(m_bcFileButton, &QToolButton::clicked, this, &CodeEditor::showBreadcrumbFilesMenu);
 
-  // 设置函数列表属性
-  m_functionList->setFont(QFont("Consolas", 10));
-  m_functionList->setAlternatingRowColors(true);
-  m_functionList->setSelectionMode(QAbstractItemView::SingleSelection);
-  m_functionList->setSortingEnabled(false);
-  // m_functionList->setMinimumWidth(200);
-  // m_functionList->setMaximumWidth(300);
+  // 3. 分隔符 2
+  QLabel *sep2 = new QLabel("›", m_breadcrumbBar);
+  sep2->setStyleSheet("color: #666666; font-size: 13px; font-weight: bold;");
 
-  // 设置样式表
-  m_functionList->setStyleSheet("QListWidget {"
-                                "    background-color: #f5f5f5;"
-                                "    border: 1px solid #ddd;"
-                                "}"
-                                "QListWidget::item {"
-                                "    padding: 4px;"
-                                "    border-bottom: 1px solid #eee;"
-                                "}"
-                                "QListWidget::item:selected {"
-                                "    background-color: #0078d7;"
-                                "    color: white;"
-                                "}"
-                                "QListWidget::item:alternate {"
-                                "    background-color: #f9f9f9;"
-                                "}");
+  // 4. 当前函数符号按钮 (VS Code 风格，紫色 3D 棱箱图标)
+  m_bcFuncButton = new QToolButton(m_breadcrumbBar);
+  m_bcFuncButton->setObjectName("bcFuncButton");
+  m_bcFuncButton->setIcon(createSymbolIcon(QColor("#A855F7"), 16));
+  m_bcFuncButton->setText("...");
+  m_bcFuncButton->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+  m_bcFuncButton->setCursor(Qt::PointingHandCursor);
+  m_bcFuncButton->setToolTip("点击浏览并跳转当前文件的所有函数 (VS Code 风格)");
+  connect(m_bcFuncButton, &QToolButton::clicked, this, &CodeEditor::showBreadcrumbFunctionsMenu);
 
-  // 将函数列表容器添加到主分割器
-  m_mainSplitter->addWidget(functionListContainer);
+  layout->addWidget(m_bcPathContainer);
+  layout->addWidget(m_bcFileButton);
+  layout->addWidget(sep2);
+  layout->addWidget(m_bcFuncButton);
+  layout->addStretch();
 
-  // 确保列表不会太宽
-  if (m_functionList) {
-    m_functionList->setMaximumWidth(400);
-    m_functionList->setMinimumWidth(150);
+  // 5. 函数大纲显隐切换按钮
+  m_outlineToggleBtn = new QToolButton(m_breadcrumbBar);
+  m_outlineToggleBtn->setObjectName("outlineToggleBtn");
+  m_outlineToggleBtn->setIcon(createOutlineIcon(QColor("#A855F7"), 16));
+  m_outlineToggleBtn->setText(" 函数大纲");
+  m_outlineToggleBtn->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+  m_outlineToggleBtn->setCheckable(true);
+  m_outlineToggleBtn->setChecked(false);
+  m_outlineToggleBtn->setCursor(Qt::PointingHandCursor);
+  m_outlineToggleBtn->setToolTip("开启/关闭右侧函数大纲列表 (Alt+O)");
+  connect(m_outlineToggleBtn, &QToolButton::toggled, this, &CodeEditor::setFunctionOutlineVisible);
+
+  layout->addWidget(m_outlineToggleBtn);
+}
+
+void CodeEditor::setFunctionOutlineVisible(bool visible) {
+  if (m_functionListContainer) {
+    m_functionListContainer->setVisible(visible);
+    if (visible) {
+      QList<int> sizes = m_mainSplitter->sizes();
+      if (sizes.size() >= 2) {
+        int total = sizes[0] + sizes[1];
+        if (total <= 0) total = 1000;
+        int outlineWidth = qBound(200, total / 4, 320);
+        m_mainSplitter->setSizes({total - outlineWidth, outlineWidth});
+      }
+    }
   }
-  // 连接信号和槽 - 使用Qt::UniqueConnection避免重复连接
-  // connect(m_functionList, &QListWidget::currentRowChanged, this,
-  // &CodeEditor::jumpToFunction, Qt::UniqueConnection);
+  if (m_outlineToggleBtn && m_outlineToggleBtn->isChecked() != visible) {
+    m_outlineToggleBtn->blockSignals(true);
+    m_outlineToggleBtn->setChecked(visible);
+    m_outlineToggleBtn->blockSignals(false);
+  }
+}
 
-  // 连接函数列表项点击信号 - 简化跳转逻辑
-  connect(m_functionList, &QListWidget::itemClicked, this,
-          [this](QListWidgetItem *item) {
-            if (!m_currentEditor || !item) {
-              return;
+void CodeEditor::toggleFunctionOutline() {
+  bool nextVisible = m_functionListContainer ? !m_functionListContainer->isVisible() : true;
+  setFunctionOutlineVisible(nextVisible);
+}
+
+static int findSymbolColumnInLine(const QString &lineText, const QString &symbolName, int expectedCol = -1) {
+  if (lineText.isEmpty() || symbolName.isEmpty()) return -1;
+
+  int symLen = symbolName.length();
+
+  // 1. 若期望列号处恰好精确匹配该符号名，且不在行内 // 注释中，直接返回
+  if (expectedCol >= 0 && expectedCol + symLen <= lineText.length()) {
+    if (lineText.mid(expectedCol, symLen) == symbolName) {
+      int commentIdx = lineText.indexOf("//");
+      if (commentIdx == -1 || expectedCol < commentIdx) {
+        return expectedCol;
+      }
+    }
+  }
+
+  // 2. 剥离行尾 // 注释
+  QString codeOnly = lineText;
+  int commentIdx = codeOnly.indexOf("//");
+  if (commentIdx != -1) {
+    codeOnly = codeOnly.left(commentIdx);
+  }
+
+  // 若整行代码已是注释行（/* ... */ 或 * ...），则排除
+  QString trimmed = codeOnly.trimmed();
+  if (trimmed.startsWith("/*") || trimmed.startsWith('*') || trimmed.startsWith("//")) {
+    return -1;
+  }
+
+  // 3. 在非注释代码部分以完整词边界正则查找
+  QString esc = QRegularExpression::escape(symbolName);
+  QString pattern = symbolName.startsWith('~') ?
+      QString(R"(~(?<![A-Za-z0-9_])%1(?![A-Za-z0-9_]))").arg(QRegularExpression::escape(symbolName.mid(1))) :
+      QString(R"((?<![A-Za-z0-9_])%1(?![A-Za-z0-9_]))").arg(esc);
+  QRegularExpression re(pattern);
+  QRegularExpressionMatch match = re.match(codeOnly);
+  if (match.hasMatch()) {
+    return match.capturedStart();
+  }
+
+  // 4. 次级容错查找
+  int idx = codeOnly.lastIndexOf(symbolName);
+  if (idx != -1) {
+    return idx;
+  }
+
+  return -1;
+}
+
+void CodeEditor::navigateToSymbol(const FunctionInfo &info) {
+  if (!m_currentEditor) return;
+
+  int targetLine = info.startLine;
+  int targetCol = info.startCol;
+  QString baseName = info.scopedName;
+  if (baseName.contains("::")) {
+    baseName = baseName.split("::").last();
+  }
+
+  int totalLines = m_currentEditor->lines();
+  if (targetLine >= totalLines) targetLine = totalLines - 1;
+  if (targetLine < 0) targetLine = 0;
+
+  // 在目标行验证并校准列号 (严格排除注释干扰，优先精准匹配 baseName)
+  QString lineText = m_currentEditor->text(targetLine);
+  int foundCol = findSymbolColumnInLine(lineText, baseName, targetCol);
+  if (foundCol == -1 && baseName.startsWith('~')) {
+    foundCol = findSymbolColumnInLine(lineText, baseName.mid(1), targetCol);
+  }
+
+  if (foundCol == -1) {
+    // 若因用户即时编辑发生微小偏移，在前后 12 行内智能检索该符号名 (严格排除注释行与注释内容)
+    for (int delta = 1; delta <= 12; ++delta) {
+      if (targetLine + delta < totalLines) {
+        QString nextLine = m_currentEditor->text(targetLine + delta);
+        int c = findSymbolColumnInLine(nextLine, baseName);
+        if (c == -1 && baseName.startsWith('~')) c = findSymbolColumnInLine(nextLine, baseName.mid(1));
+        if (c != -1) {
+          targetLine = targetLine + delta;
+          foundCol = c;
+          break;
+        }
+      }
+      if (targetLine - delta >= 0) {
+        QString prevLine = m_currentEditor->text(targetLine - delta);
+        int c = findSymbolColumnInLine(prevLine, baseName);
+        if (c == -1 && baseName.startsWith('~')) c = findSymbolColumnInLine(prevLine, baseName.mid(1));
+        if (c != -1) {
+          targetLine = targetLine - delta;
+          foundCol = c;
+          break;
+        }
+      }
+    }
+  }
+
+  if (foundCol != -1) {
+    targetCol = foundCol;
+  }
+
+  int nameLen = baseName.length();
+
+  // 1. 设置光标位置并确保行可见
+  m_currentEditor->setCursorPosition(targetLine, targetCol);
+  m_currentEditor->ensureLineVisible(targetLine);
+
+  // 2. 将目标行平滑滚动至视口大约 1/3 黄金阅读位置
+  int visibleLines = m_currentEditor->SendScintilla(QsciScintilla::SCI_LINESONSCREEN);
+  int scrollLine = qMax(0, targetLine - visibleLines / 3);
+  m_currentEditor->SendScintilla(QsciScintilla::SCI_SETFIRSTVISIBLELINE, scrollLine);
+
+  // 3. 精准高亮/选中符号名称（函数名、构造/析构函数名、变量名或结构体名）
+  m_currentEditor->setSelection(targetLine, targetCol, targetLine, targetCol + nameLen);
+  m_currentEditor->setFocus();
+
+  // 4. 实时更新面包屑导航
+  updateBreadcrumb(targetLine);
+}
+
+void CodeEditor::showBreadcrumbFilesMenu() {
+  QDir dir;
+  if (!m_currentFilePath.isEmpty()) {
+    dir = QFileInfo(m_currentFilePath).dir();
+  } else {
+    dir = QDir::current();
+  }
+
+  QStringList filters = {"*.c", "*.cpp", "*.cc", "*.cxx", "*.h", "*.hpp"};
+  QFileInfoList fileList = dir.entryInfoList(filters, QDir::Files | QDir::Readable, QDir::Name | QDir::IgnoreCase);
+
+  QMenu menu(this);
+  menu.setObjectName("breadcrumbFilesMenu");
+  menu.setStyleSheet(
+      "QMenu {"
+      "    background-color: #1E1E2E;"
+      "    border: 1px solid #3B4252;"
+      "    border-radius: 6px;"
+      "    padding: 4px;"
+      "    font-family: 'Consolas', 'Segoe UI', monospace;"
+      "    font-size: 12px;"
+      "}"
+      "QMenu::item {"
+      "    padding: 6px 24px 6px 8px;"
+      "    border-radius: 4px;"
+      "    color: #ECEFF4;"
+      "}"
+      "QMenu::item:selected {"
+      "    background-color: rgba(0, 229, 255, 0.18);"
+      "    border: 1px solid #00E5FF;"
+      "    color: #FFFFFF;"
+      "}");
+
+  if (fileList.isEmpty()) {
+    QAction *emptyAct = menu.addAction("(同目录下未检测到其他源文件)");
+    emptyAct->setEnabled(false);
+  } else {
+    for (const QFileInfo &fInfo : fileList) {
+      QString ext = fInfo.suffix().toLower();
+      QString badge = "C";
+      if (ext == "cpp" || ext == "cc" || ext == "cxx") badge = "C++";
+      else if (ext == "h" || ext == "hpp") badge = "H";
+
+      QIcon fileIcon = createFileBadgeIcon(badge, QColor("#00E5FF"), 16);
+      QAction *act = menu.addAction(fileIcon, fInfo.fileName());
+
+      if (!m_currentFilePath.isEmpty() && fInfo.absoluteFilePath() == QFileInfo(m_currentFilePath).absoluteFilePath()) {
+        QFont f = act->font();
+        f.setBold(true);
+        act->setFont(f);
+      }
+
+      connect(act, &QAction::triggered, this, [this, fInfo]() {
+        openFile(fInfo.absoluteFilePath());
+      });
+    }
+  }
+
+  QPoint globalPos = m_bcFileButton->mapToGlobal(QPoint(0, m_bcFileButton->height() + 2));
+  menu.exec(globalPos);
+}
+
+void CodeEditor::showBreadcrumbFunctionsMenu() {
+  if (m_functions.isEmpty() && m_currentEditor) {
+    parseFunctions(m_currentEditor->text());
+  }
+
+  // 创建悬浮弹出窗口 (VS Code 风格树状大纲弹窗，支持一级类/结构体展开与收缩)
+  QFrame *popup = new QFrame(this, Qt::Popup | Qt::FramelessWindowHint);
+  popup->setAttribute(Qt::WA_DeleteOnClose);
+  popup->setObjectName("breadcrumbTreePopup");
+  popup->setStyleSheet(
+      "#breadcrumbTreePopup {"
+      "    background-color: #1E1E2E;"
+      "    border: 1px solid #3B4252;"
+      "    border-radius: 6px;"
+      "}"
+      "QTreeWidget {"
+      "    background-color: transparent;"
+      "    border: none;"
+      "    color: #ECEFF4;"
+      "    font-family: 'Consolas', 'Segoe UI', monospace;"
+      "    outline: 0;"
+      "}"
+      "QTreeWidget::item {"
+      "    padding: 3px 2px;"
+      "    border-bottom: 1px solid rgba(255, 255, 255, 0.05);"
+      "    color: #ECEFF4;"
+      "}"
+      "QTreeWidget::item:hover {"
+      "    background-color: rgba(168, 85, 247, 0.18);"
+      "}"
+      "QTreeWidget::item:selected {"
+      "    background-color: rgba(168, 85, 247, 0.35);"
+      "    color: #FFFFFF;"
+      "    font-weight: bold;"
+      "}"
+      "QTreeWidget::branch:has-children:!has-siblings:closed,"
+      "QTreeWidget::branch:closed:has-children:has-siblings {"
+      "    image: url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='9 18 15 12 9 6'></polyline></svg>\");"
+      "}"
+      "QTreeWidget::branch:has-children:!has-siblings:closed:hover,"
+      "QTreeWidget::branch:closed:has-children:has-siblings:hover {"
+      "    image: url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23A855F7' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><polyline points='9 18 15 12 9 6'></polyline></svg>\");"
+      "}"
+      "QTreeWidget::branch:open:has-children:!has-siblings,"
+      "QTreeWidget::branch:open:has-children:has-siblings {"
+      "    image: url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'></polyline></svg>\");"
+      "}"
+      "QTreeWidget::branch:open:has-children:!has-siblings:hover,"
+      "QTreeWidget::branch:open:has-children:has-siblings:hover {"
+      "    image: url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23A855F7' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'></polyline></svg>\");"
+      "}");
+
+  QVBoxLayout *popupLayout = new QVBoxLayout(popup);
+  popupLayout->setContentsMargins(4, 4, 4, 4);
+  popupLayout->setSpacing(0);
+
+  QTreeWidget *tree = new QTreeWidget(popup);
+  tree->setObjectName("breadcrumbOutlineTree");
+  tree->setHeaderHidden(true);
+  tree->setRootIsDecorated(true);
+  tree->setIndentation(18);
+  tree->setAnimated(true);
+  tree->setExpandsOnDoubleClick(true);
+  tree->setItemDelegate(new SymbolTreeDelegate(tree));
+  tree->setFont(QFont("Consolas", 10));
+  tree->setSelectionMode(QAbstractItemView::SingleSelection);
+  tree->setSortingEnabled(false);
+  popupLayout->addWidget(tree);
+
+  int currentCursorLine = 0;
+  if (m_currentEditor) {
+    int col = 0;
+    m_currentEditor->getCursorPosition(&currentCursorLine, &col);
+  }
+
+  QTreeWidgetItem *activeItem = nullptr;
+
+  if (m_functions.isEmpty()) {
+    QTreeWidgetItem *emptyItem = new QTreeWidgetItem(tree);
+    emptyItem->setText(0, " (未检测到符号定义)");
+    emptyItem->setIcon(0, createSymbolIcon(QColor("#A855F7"), 16));
+  } else {
+    // 1. 搜集所有类 / 结构体顶级节点
+    QList<FunctionInfo> containerList;
+    for (const FunctionInfo &info : m_functions) {
+      if (info.type == SymbolClass || info.type == SymbolStruct) {
+        containerList.append(info);
+      }
+    }
+
+    // 2. 将类/结构体及其挂载的二级成员加入树状结构
+    QSet<QString> addedContainers;
+    for (const FunctionInfo &cls : containerList) {
+      if (addedContainers.contains(cls.scopedName)) continue;
+      addedContainers.insert(cls.scopedName);
+
+      QTreeWidgetItem *classItem = new QTreeWidgetItem(tree);
+      int clsIdx = m_functions.indexOf(cls);
+      classItem->setData(0, Qt::UserRole, clsIdx);
+      classItem->setData(0, Qt::UserRole + 1, cls.scopedName);
+      classItem->setData(0, Qt::UserRole + 8, (int)cls.type);
+      classItem->setIcon(0, getIconForSymbol(cls.type));
+
+      if (currentCursorLine >= cls.startLine && currentCursorLine <= cls.endLine) {
+        activeItem = classItem;
+      }
+
+      // 挂载该类/结构体的所有二级成员
+      for (int i = 0; i < m_functions.size(); ++i) {
+        const FunctionInfo &mem = m_functions[i];
+        if (mem.parentClass == cls.scopedName) {
+          QTreeWidgetItem *memItem = new QTreeWidgetItem(classItem);
+          memItem->setData(0, Qt::UserRole, i);
+          memItem->setData(0, Qt::UserRole + 1, mem.scopedName);
+          memItem->setData(0, Qt::UserRole + 6, mem.returnType);
+          memItem->setData(0, Qt::UserRole + 7, mem.params);
+          memItem->setData(0, Qt::UserRole + 3, mem.refCount);
+          memItem->setData(0, Qt::UserRole + 8, (int)mem.type);
+          memItem->setIcon(0, getIconForSymbol(mem.type));
+
+          if (currentCursorLine >= mem.startLine && currentCursorLine <= mem.endLine) {
+            activeItem = memItem;
+          }
+        }
+      }
+
+      // 默认展开一级目录
+      classItem->setExpanded(true);
+    }
+
+    // 3. 将未挂载在任何类/结构体下面的全局函数、全局变量、宏定义等作为顶级项加入
+    for (int i = 0; i < m_functions.size(); ++i) {
+      const FunctionInfo &info = m_functions[i];
+      if (info.parentClass.isEmpty() && info.type != SymbolClass && info.type != SymbolStruct) {
+        QTreeWidgetItem *item = new QTreeWidgetItem(tree);
+        item->setData(0, Qt::UserRole, i);
+        item->setData(0, Qt::UserRole + 1, info.scopedName);
+        item->setData(0, Qt::UserRole + 6, info.returnType);
+        item->setData(0, Qt::UserRole + 7, info.params);
+        item->setData(0, Qt::UserRole + 3, info.refCount);
+        item->setData(0, Qt::UserRole + 8, (int)info.type);
+        item->setIcon(0, getIconForSymbol(info.type));
+
+        if (currentCursorLine >= info.startLine && currentCursorLine <= info.endLine) {
+          activeItem = item;
+        }
+      }
+    }
+  }
+
+  if (activeItem) {
+    tree->setCurrentItem(activeItem);
+    tree->scrollToItem(activeItem);
+  }
+
+  connect(tree, &QTreeWidget::itemClicked, popup, [this, popup](QTreeWidgetItem *item) {
+    if (!item) return;
+    if (item->childCount() > 0) {
+      item->setExpanded(!item->isExpanded());
+      return;
+    }
+    int index = item->data(0, Qt::UserRole).toInt();
+    if (index >= 0 && index < m_functions.size()) {
+      navigateToSymbol(m_functions[index]);
+    }
+    popup->close();
+  });
+
+  // 计算弹窗高度与宽度 (确保完整显示长参数签名，对齐图 2 样式)
+  int totalVisibleItems = 0;
+  for (int i = 0; i < tree->topLevelItemCount(); ++i) {
+    ++totalVisibleItems;
+    QTreeWidgetItem *top = tree->topLevelItem(i);
+    if (top && top->isExpanded()) {
+      totalVisibleItems += top->childCount();
+    }
+  }
+  int calculatedHeight = qBound(140, totalVisibleItems * 26 + 18, 450);
+
+  int maxContentWidth = 380;
+  QFont nameFont("Consolas", 9, QFont::Bold);
+  QFontMetrics fmName(nameFont);
+  QFont subFont("Consolas", 9);
+  QFontMetrics fmSub(subFont);
+
+  for (int i = 0; i < m_functions.size(); ++i) {
+    const FunctionInfo &info = m_functions[i];
+    int itemW = 55 + fmName.horizontalAdvance(info.scopedName);
+    if (!info.returnType.isEmpty()) itemW += 6 + fmSub.horizontalAdvance(info.returnType);
+    if (!info.params.isEmpty()) itemW += 6 + fmSub.horizontalAdvance(info.params);
+    if (info.refCount > 0) itemW += 25;
+    if (itemW > maxContentWidth) maxContentWidth = itemW;
+  }
+  int calculatedWidth = qBound(380, maxContentWidth + 40, 700);
+  popup->resize(calculatedWidth, calculatedHeight);
+
+  QPoint globalPos = m_bcFuncButton->mapToGlobal(QPoint(0, m_bcFuncButton->height() + 2));
+  popup->move(globalPos);
+  popup->show();
+}
+
+void CodeEditor::updateBreadcrumb(int cursorLine) {
+  if (!m_breadcrumbBar || !m_currentEditor) return;
+
+  // 1. 更新多级路径组件 (e.g. User > sdmmc > 或 PhudonTools >)
+  if (m_bcPathLayout) {
+    QLayoutItem *child;
+    while ((child = m_bcPathLayout->takeAt(0)) != nullptr) {
+      if (child->widget()) child->widget()->deleteLater();
+      delete child;
+    }
+
+    QStringList pathSegments;
+    if (!m_currentFilePath.isEmpty()) {
+      QDir dir = QFileInfo(m_currentFilePath).dir();
+      QString dirPath = dir.absolutePath();
+      dirPath.replace('\\', '/');
+      QStringList parts = dirPath.split('/', Qt::SkipEmptyParts);
+      if (parts.size() >= 2) {
+        pathSegments.append(parts[parts.size() - 2]);
+        pathSegments.append(parts[parts.size() - 1]);
+      } else if (parts.size() == 1) {
+        pathSegments.append(parts.first());
+      } else {
+        pathSegments.append("PhudonTools");
+      }
+    } else {
+      pathSegments.append("PhudonTools");
+    }
+
+    for (int i = 0; i < pathSegments.size(); ++i) {
+      QLabel *pLabel = new QLabel(pathSegments[i], m_bcPathContainer);
+      pLabel->setStyleSheet("color: #888888; font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif; font-size: 12px;");
+      m_bcPathLayout->addWidget(pLabel);
+
+      QLabel *pSep = new QLabel("›", m_bcPathContainer);
+      pSep->setStyleSheet("color: #666666; font-size: 13px; font-weight: bold;");
+      m_bcPathLayout->addWidget(pSep);
+    }
+  }
+
+  // 2. 更新文件按钮 (显示 C / C++ 徽标与文件名)
+  QString fileName = m_currentFilePath.isEmpty() ? "untitled.cpp" : QFileInfo(m_currentFilePath).fileName();
+  QString ext = QFileInfo(fileName).suffix().toLower();
+  QString badge = "C++";
+  if (ext == "c") badge = "C";
+  else if (ext == "h" || ext == "hpp") badge = "H";
+
+  if (m_bcFileButton) {
+    m_bcFileButton->setIcon(createFileBadgeIcon(badge, QColor("#00E5FF"), 16));
+    m_bcFileButton->setText(fileName);
+  }
+
+  // 3. 当前光标所在函数/符号
+  if (cursorLine < 0) {
+    int col = 0;
+    m_currentEditor->getCursorPosition(&cursorLine, &col);
+  }
+
+  QString currentFuncName = "...";
+  QIcon currentFuncIcon = createSymbolIcon(QColor("#A855F7"), 16);
+
+  for (const FunctionInfo &info : m_functions) {
+    if (cursorLine >= info.startLine && cursorLine <= info.endLine) {
+      currentFuncName = info.scopedName;
+      currentFuncIcon = getIconForSymbol(info.type);
+      break;
+    }
+  }
+
+  if (currentFuncName == "..." && !m_functions.isEmpty()) {
+    for (int i = m_functions.size() - 1; i >= 0; --i) {
+      if (m_functions[i].startLine <= cursorLine) {
+        currentFuncName = m_functions[i].scopedName;
+        currentFuncIcon = getIconForSymbol(m_functions[i].type);
+        break;
+      }
+    }
+  }
+
+  if (currentFuncName == "..." && !m_functions.isEmpty()) {
+    currentFuncName = m_functions.first().scopedName;
+    currentFuncIcon = getIconForSymbol(m_functions.first().type);
+  }
+
+  if (m_bcFuncButton) {
+    m_bcFuncButton->setIcon(currentFuncIcon);
+    m_bcFuncButton->setText(currentFuncName);
+  }
+}
+
+void CodeEditor::createFunctionList() {
+  m_functionListContainer = new QWidget(this);
+  m_functionListContainer->setObjectName("functionListContainer");
+  QVBoxLayout *containerLayout = new QVBoxLayout(m_functionListContainer);
+  containerLayout->setContentsMargins(0, 0, 0, 0);
+  containerLayout->setSpacing(0);
+
+  // 顶部标题栏 + 关闭按钮
+  QWidget *headerWidget = new QWidget(m_functionListContainer);
+  headerWidget->setObjectName("outlineHeaderWidget");
+  QHBoxLayout *headerLayout = new QHBoxLayout(headerWidget);
+  headerLayout->setContentsMargins(8, 4, 6, 4);
+  headerLayout->setSpacing(4);
+
+  m_outlineTitleLabel = new QLabel("大纲 (0)", headerWidget);
+  m_outlineTitleLabel->setStyleSheet("font-weight: 600; font-size: 11px;");
+
+  QToolButton *closeBtn = new QToolButton(headerWidget);
+  closeBtn->setText("✕");
+  closeBtn->setCursor(Qt::PointingHandCursor);
+  closeBtn->setToolTip("关闭函数大纲");
+  closeBtn->setStyleSheet(
+      "QToolButton { background: transparent; border: none; font-size: 12px; font-weight: bold; color: #888888; padding: 2px 4px; border-radius: 3px; }"
+      "QToolButton:hover { background-color: rgba(239, 68, 68, 0.2); color: #EF4444; }");
+  connect(closeBtn, &QToolButton::clicked, this, [this]() {
+    setFunctionOutlineVisible(false);
+  });
+
+  headerLayout->addWidget(m_outlineTitleLabel);
+  headerLayout->addStretch();
+  headerLayout->addWidget(closeBtn);
+
+  containerLayout->addWidget(headerWidget);
+
+  // 创建函数与类大纲树状控件 (QTreeWidget 支持一级类/结构体、二级成员自由收缩/展开)
+  m_functionTree = new QTreeWidget(m_functionListContainer);
+  m_functionTree->setObjectName("outlineTreeWidget");
+  m_functionTree->setHeaderHidden(true);
+  m_functionTree->setRootIsDecorated(true);
+  m_functionTree->setIndentation(18);
+  m_functionTree->setAnimated(true);
+  m_functionTree->setExpandsOnDoubleClick(true);
+  m_functionTree->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+  m_functionTree->setTextElideMode(Qt::ElideNone);
+  m_functionTree->setItemDelegate(new SymbolTreeDelegate(m_functionTree));
+  containerLayout->addWidget(m_functionTree);
+
+  // 设置属性
+  m_functionTree->setFont(QFont("Consolas", 10));
+  m_functionTree->setSelectionMode(QAbstractItemView::SingleSelection);
+  m_functionTree->setSortingEnabled(false);
+
+  // 将大纲容器添加到主分割器（默认隐藏）
+  m_mainSplitter->addWidget(m_functionListContainer);
+  m_functionListContainer->setVisible(false);
+
+  if (m_functionTree) {
+    m_functionTree->setMaximumWidth(550);
+    m_functionTree->setMinimumWidth(220);
+  }
+
+  // 点击树节点跳转
+  connect(m_functionTree, &QTreeWidget::itemClicked, this,
+          [this](QTreeWidgetItem *item) {
+            if (!m_currentEditor || !item) return;
+            if (item->childCount() > 0) {
+              item->setExpanded(!item->isExpanded());
             }
-
-            // 获取存储的行号
-            int line = item->data(Qt::UserRole).toInt();
-
-            // 确保行号有效
-            if (line >= 0 && line < m_currentEditor->lines()) {
-              // 直接跳转到指定行的开始位置
-              m_currentEditor->setCursorPosition(line, 0);
-
-              // 确保目标行可见
-              m_currentEditor->ensureLineVisible(line);
-
-              // 将目标行居中显示
-              int visibleLines = m_currentEditor->SendScintilla(
-                  QsciScintilla::SCI_LINESONSCREEN);
-              int targetLine = qMax(0, line - visibleLines / 2);
-              m_currentEditor->SendScintilla(
-                  QsciScintilla::SCI_SETFIRSTVISIBLELINE, targetLine);
-
-              // 高亮显示当前行
-              m_currentEditor->setCaretLineVisible(true);
-              m_currentEditor->setCaretLineBackgroundColor(
-                  QColor(255, 255, 0, 100)); // 淡黄色背景
-
-              // 设置焦点到编辑器
-              m_currentEditor->setFocus();
-
-              // 可选：选择整行以便用户看到跳转位置
-              QString lineText = m_currentEditor->text(line);
-              int lineLength = lineText.length();
-              if (lineLength > 0) {
-                // 选择从行首到行尾（不包括换行符）
-                m_currentEditor->setSelection(line, 0, line, lineLength);
-              }
+            int index = item->data(0, Qt::UserRole).toInt();
+            if (index >= 0 && index < m_functions.size()) {
+              navigateToSymbol(m_functions[index]);
             }
           });
 }
 
-// 解析代码中的函数
-void CodeEditor::parseFunctions(const QString &code) {
-  try {
-    // 清空函数列表
-    m_functions.clear();
+// 在已屏蔽注释与字符串的 clean 文本切片 [startLimit, endLimit] 中，精准定位符号名称在整篇代码中的绝对字符索引
+static int findExactSymbolOffsetInClean(const QString &cleanText, int startLimit, int endLimit,
+                                        const QString &baseName, const QString &scopedName = QString(),
+                                        int parenPos = -1) {
+  if (startLimit < 0) startLimit = 0;
+  if (endLimit > cleanText.length()) endLimit = cleanText.length();
+  if (startLimit >= endLimit || baseName.isEmpty()) return startLimit;
 
-    if (code.isEmpty()) {
-      return;
+  // 策略 1: 若提供了形参左括号 parenPos（函数/方法），从 '(' 往前跳过空白字符，其前面紧邻的必定是函数名末尾
+  if (parenPos != -1 && parenPos <= endLimit && parenPos > startLimit) {
+    int p = parenPos - 1;
+    while (p >= startLimit && cleanText[p].isSpace()) {
+      --p;
+    }
+    if (p >= startLimit) {
+      int bLen = baseName.length();
+      if (p - bLen + 1 >= startLimit) {
+        if (cleanText.mid(p - bLen + 1, bLen) == baseName) {
+          return p - bLen + 1;
+        }
+      }
+    }
+  }
+
+  // 策略 2: 若带有类作用域 (如 ClassName::FuncName)，先精确寻找完整作用域名
+  if (!scopedName.isEmpty() && scopedName.contains("::")) {
+    int scIdx = cleanText.lastIndexOf(scopedName, endLimit);
+    if (scIdx >= startLimit && scIdx <= endLimit) {
+      int colonIdx = scopedName.lastIndexOf("::");
+      return scIdx + colonIdx + 2;
+    }
+    // 带有空格的作用域 (ClassName :: FuncName) 正则匹配
+    QString escapedCls = QRegularExpression::escape(scopedName.split("::").first());
+    QString escapedBase = QRegularExpression::escape(baseName);
+    QRegularExpression scopeRe(QString(R"(\b%1\s*::\s*(%2)\b)").arg(escapedCls, escapedBase));
+    QRegularExpressionMatchIterator iter = scopeRe.globalMatch(cleanText.mid(startLimit, endLimit - startLimit));
+    int lastMatch = -1;
+    while (iter.hasNext()) {
+      QRegularExpressionMatch m = iter.next();
+      lastMatch = startLimit + m.capturedStart(1);
+    }
+    if (lastMatch != -1) {
+      return lastMatch;
+    }
+  }
+
+  // 策略 3: 在 [startLimit, endLimit] 范围内通过正则完整词边界查找 baseName
+  QString esc = QRegularExpression::escape(baseName);
+  QString pattern = baseName.startsWith('~') ?
+      QString(R"(~(?<![A-Za-z0-9_])%1(?![A-Za-z0-9_]))").arg(QRegularExpression::escape(baseName.mid(1))) :
+      QString(R"((?<![A-Za-z0-9_])%1(?![A-Za-z0-9_]))").arg(esc);
+  QRegularExpression re(pattern);
+  QRegularExpressionMatchIterator iter = re.globalMatch(cleanText.mid(startLimit, endLimit - startLimit));
+  int bestPos = -1;
+  while (iter.hasNext()) {
+    QRegularExpressionMatch m = iter.next();
+    int candidate = startLimit + m.capturedStart();
+    if (parenPos != -1) {
+      // 优先选择最靠近 '(' 的那个匹配项（避免匹配到返回类型中的同名符号）
+      if (candidate < parenPos) {
+        bestPos = candidate;
+      }
+    } else {
+      bestPos = candidate;
+    }
+  }
+  if (bestPos != -1) {
+    return bestPos;
+  }
+
+  // 策略 4: 兜底最后一次出现
+  int idx = cleanText.lastIndexOf(baseName, endLimit);
+  if (idx >= startLimit) {
+    return idx;
+  }
+  idx = cleanText.indexOf(baseName, startLimit);
+  if (idx != -1 && idx <= endLimit) {
+    return idx;
+  }
+
+  // 策略 5: 寻找 startLimit 之后第一个非空白字符
+  int p = startLimit;
+  while (p < endLimit && cleanText[p].isSpace()) ++p;
+  return p < endLimit ? p : startLimit;
+}
+
+void CodeEditor::parseFunctions(const QString &code) {
+  m_functions.clear();
+  if (code.isEmpty()) return;
+
+  const int codeLen = code.length();
+  bool isHeader = m_currentFilePath.endsWith(".h", Qt::CaseInsensitive) ||
+                  m_currentFilePath.endsWith(".hpp", Qt::CaseInsensitive);
+
+  // 步骤 1：精确屏蔽注释与字符串字面量，并严格隔离预处理指令 (#include, #define 等)
+  QString clean = code;
+  bool inBlockComment = false;
+  bool inLineComment = false;
+  bool inString = false;
+  bool inChar = false;
+  bool inRawString = false;
+  QString rawStringDelimiter;
+
+  for (int i = 0; i < codeLen; ++i) {
+    QChar ch = code[i];
+    QChar nextCh = (i + 1 < codeLen) ? code[i + 1] : QChar('\0');
+
+    if (inBlockComment) {
+      if (ch == '*' && nextCh == '/') {
+        clean[i] = ' ';
+        clean[i + 1] = ' ';
+        inBlockComment = false;
+        ++i;
+      } else if (ch != '\n') {
+        clean[i] = ' ';
+      }
+      continue;
     }
 
-    // 常见的C/C++关键字列表（用于过滤）
-    static const QSet<QString> keywords = {
-        "if",       "for",       "while",    "switch",   "return", "else",
-        "do",       "case",      "break",    "continue", "goto",   "sizeof",
-        "typedef",  "volatile",  "register", "extern",   "static", "auto",
-        "const",    "struct",    "union",    "enum",     "class",  "template",
-        "typename", "namespace", "using",    "try",      "catch",  "throw",
-        "new",      "delete"};
+    if (inLineComment) {
+      if (ch == '\n') {
+        inLineComment = false;
+      } else {
+        clean[i] = ' ';
+      }
+      continue;
+    }
 
-    // 1. 普通函数正则
-    // 匹配: [返回类型] [类名::]函数名(参数) [修饰符] {
-    // 注意：支持多行匹配
-    // 改进: 使用非贪婪匹配允许 * 紧贴函数名
-    QRegularExpression functionRegex(
-        R"((?:^|\n)\s*(?:template\s*<[^>]*>\s*)?(?:(?:static|virtual|inline|explicit|friend|constexpr)\s+)*(?:[\w<>:.*&]+\s*)*?(\w+(?:::\w+)*)\s*\([^)]*\)\s*(?:const|override|final|noexcept|try|\s)*\{)");
+    if (inRawString) {
+      if (ch == ')' && code.mid(i + 1).startsWith(rawStringDelimiter + "\"")) {
+        int endPos = i + 1 + rawStringDelimiter.length() + 1;
+        for (int k = i; k < endPos && k < codeLen; ++k) {
+          if (clean[k] != '\n') clean[k] = ' ';
+        }
+        i = endPos - 1;
+        inRawString = false;
+      } else if (ch != '\n') {
+        clean[i] = ' ';
+      }
+      continue;
+    }
 
-    // 2. 构造/析构函数正则
-    // 匹配: [类名::][~]类名(参数) [初始化列表] {
-    QRegularExpression ctorDtorRegex(
-        R"((?:^|\n)\s*(?:explicit\s+)?(\w+(?:::\w+)*)\s*\([^)]*\)\s*(?::\s*[^{]+)?\s*\{)");
+    if (inString) {
+      if (ch == '\\' && i + 1 < codeLen) {
+        clean[i] = ' ';
+        if (clean[i + 1] != '\n') clean[i + 1] = ' ';
+        ++i;
+      } else if (ch == '"') {
+        clean[i] = ' ';
+        inString = false;
+      } else if (ch != '\n') {
+        clean[i] = ' ';
+      }
+      continue;
+    }
 
-    // 3. 析构函数 (带~)
-    QRegularExpression dtorRegex(
-        R"((?:^|\n)\s*(?:virtual\s+)?((?:\w+::)?~\w+)\s*\([^)]*\)\s*(?:override|final|noexcept|\s)*\{)");
+    if (inChar) {
+      if (ch == '\\' && i + 1 < codeLen) {
+        clean[i] = ' ';
+        if (clean[i + 1] != '\n') clean[i + 1] = ' ';
+        ++i;
+      } else if (ch == '\'') {
+        clean[i] = ' ';
+        inChar = false;
+      } else if (ch != '\n') {
+        clean[i] = ' ';
+      }
+      continue;
+    }
 
-    // 辅助函数：添加匹配项
-    auto addMatch = [&](const QRegularExpressionMatch &match, int capGroup) {
-      QString funcName = match.captured(capGroup);
-      if (keywords.contains(funcName) || funcName.isEmpty())
-        return;
+    // 检查是否进入注释或字符串
+    if (ch == '/' && nextCh == '*') {
+      clean[i] = ' ';
+      clean[i + 1] = ' ';
+      inBlockComment = true;
+      ++i;
+    } else if (ch == '/' && nextCh == '/') {
+      clean[i] = ' ';
+      clean[i + 1] = ' ';
+      inLineComment = true;
+      ++i;
+    } else if (ch == 'R' && nextCh == '"' && i + 2 < codeLen) {
+      int openParen = code.indexOf('(', i + 2);
+      if (openParen != -1 && openParen - (i + 2) < 16) {
+        rawStringDelimiter = code.mid(i + 2, openParen - (i + 2));
+        inRawString = true;
+        for (int k = i; k <= openParen && k < codeLen; ++k) {
+          if (clean[k] != '\n') clean[k] = ' ';
+        }
+        i = openParen;
+      } else {
+        clean[i] = ' ';
+        clean[i + 1] = ' ';
+        inString = true;
+        ++i;
+      }
+    } else if (ch == '"') {
+      clean[i] = ' ';
+      inString = true;
+    } else if (ch == '\'') {
+      clean[i] = ' ';
+      inChar = true;
+    }
+  }
 
-      // 获取行号
-      int index = match.capturedStart();
-      // 简单的行号计算（性能可能一般，但对于普通文件足够）
-      int line = code.left(index).count('\n');
+  // 预处理指令行 (#include, #define, #pragma, #ifdef 等) 严格屏蔽，保留换行符
+  for (int i = 0; i < codeLen; ++i) {
+    if (clean[i] == '#') {
+      int lineStart = clean.lastIndexOf('\n', i - 1) + 1;
+      QString prefix = clean.mid(lineStart, i - lineStart).trimmed();
+      if (prefix.isEmpty()) {
+        int lineEnd = clean.indexOf('\n', i);
+        if (lineEnd == -1) lineEnd = codeLen;
+        while (lineEnd > 0 && lineEnd < codeLen && clean[lineEnd - 1] == '\\') {
+          lineEnd = clean.indexOf('\n', lineEnd + 1);
+          if (lineEnd == -1) { lineEnd = codeLen; break; }
+        }
+        for (int k = i; k < lineEnd; ++k) {
+          if (clean[k] != '\n') clean[k] = ' ';
+        }
+        i = lineEnd - 1;
+      }
+    }
+  }
 
-      FunctionInfo info;
-      info.name = funcName; // 仅显示函数名，后续可以扩展显示完整签名
-      info.line = line;
+  // 关键字黑名单
+  static const QSet<QString> keywords = {
+      "if", "for", "while", "switch", "catch", "return", "else", "do",
+      "case", "default", "sizeof", "decltype", "typedef", "struct", "union",
+      "enum", "class", "template", "typename", "namespace", "using", "try",
+      "throw", "public", "protected", "private", "signals", "slots", "Q_OBJECT",
+      "Q_PROPERTY", "Q_DISABLE_COPY", "Q_DECLARE_METATYPE", "emit", "new", "delete",
+      "static_assert", "alignas", "alignof", "constexpr", "consteval", "static_cast",
+      "dynamic_cast", "reinterpret_cast", "const_cast", "typeid", "noexcept",
+      "connect", "disconnect", "goto"
+  };
 
-      // 简单的去重（如果同一行已经有了）
-      for (const auto &f : m_functions) {
-        if (f.line == line && f.name == funcName)
-          return;
+  // 步骤 2：扫描类与结构体定义 (class, struct, typedef struct) 以及其内部所有成员 (方法、成员变量/字段、内嵌结构体)
+  QRegularExpression containerDefRegex(R"(\b(?:(?:typedef\s+)?(class|struct)\s+([A-Za-z_]\w*)?|typedef\s+struct)\s*(?::[^{;]*)?\{)");
+  QRegularExpressionMatchIterator containerIter = containerDefRegex.globalMatch(clean);
+  QList<QPair<int, int>> containerRanges; // 记录每个类/结构体的 [startPos, endPos] 范围
+
+  while (containerIter.hasNext()) {
+    QRegularExpressionMatch containerMatch = containerIter.next();
+    QString keyword = containerMatch.captured(1);
+    QString tagName = containerMatch.captured(2).trimmed();
+    int containerOpenBrace = containerMatch.capturedEnd() - 1; // '{'
+
+    // 找到结束大括号 '}'
+    int bCount = 1;
+    int containerEndBrace = containerOpenBrace + 1;
+    while (containerEndBrace < codeLen && bCount > 0) {
+      if (clean[containerEndBrace] == '{') ++bCount;
+      else if (clean[containerEndBrace] == '}') --bCount;
+      if (bCount == 0) break;
+      ++containerEndBrace;
+    }
+
+    // 检查 typedef struct / struct 结尾处的别名 (如 } StructName;)
+    QString containerName = tagName;
+    int endStmtPos = containerEndBrace;
+    if (containerEndBrace < codeLen) {
+      int semiPos = clean.indexOf(';', containerEndBrace);
+      if (semiPos != -1 && semiPos - containerEndBrace < 100) {
+        QString afterBrace = clean.mid(containerEndBrace + 1, semiPos - containerEndBrace - 1).trimmed();
+        if (!afterBrace.isEmpty()) {
+          QRegularExpression aliasRegex(R"(^([A-Za-z_]\w*)$)");
+          QRegularExpressionMatch aliasMatch = aliasRegex.match(afterBrace);
+          if (aliasMatch.hasMatch()) {
+            containerName = aliasMatch.captured(1);
+            endStmtPos = semiPos;
+          }
+        }
+      }
+    }
+
+    if (containerName.isEmpty()) {
+      if (!tagName.isEmpty()) containerName = tagName;
+      else containerName = "Anonymous";
+    }
+
+    int namePos = containerMatch.capturedStart();
+    int line = code.left(namePos).count('\n');
+    int lineStart = code.lastIndexOf('\n', namePos - 1) + 1;
+    int col = namePos - lineStart;
+
+    containerRanges.append(qMakePair(containerMatch.capturedStart(), endStmtPos));
+
+    bool isClass = (keyword == "class");
+    FunctionInfo containerInfo;
+    containerInfo.scopedName = containerName;
+    containerInfo.returnType = "";
+    containerInfo.params = "";
+    containerInfo.type = isClass ? SymbolClass : SymbolStruct;
+    containerInfo.indentLevel = 0;
+    containerInfo.startLine = line;
+    containerInfo.startCol = col;
+    containerInfo.endLine = code.left(endStmtPos < codeLen ? endStmtPos : codeLen).count('\n');
+    m_functions.append(containerInfo);
+
+    // 扫描类/结构体内部成员 (方法、字段/成员变量、内嵌结构体)
+    QList<FunctionInfo> containerMembers;
+    int memPos = containerOpenBrace + 1;
+    int memStmtStart = memPos;
+    int memBraceDepth = 0;
+
+    while (memPos < containerEndBrace && memPos < codeLen) {
+      QChar ch = clean[memPos];
+
+      if (ch == '{') {
+        QString stmt = clean.mid(memStmtStart, memPos - memStmtStart).trimmed();
+        QRegularExpression structRegex(R"(\b(?:struct|class)\s+([A-Za-z_]\w*)\s*$)");
+        QRegularExpressionMatch structMatch = structRegex.match(stmt);
+        if (structMatch.hasMatch() && memBraceDepth == 0) {
+          QString structName = structMatch.captured(1);
+          int structNamePos = clean.lastIndexOf(structName, memPos);
+          int sLine = code.left(structNamePos).count('\n');
+          int sLineStart = code.lastIndexOf('\n', structNamePos - 1) + 1;
+          int sCol = structNamePos - sLineStart;
+
+          int sb = 1;
+          int sEnd = memPos + 1;
+          while (sEnd < containerEndBrace && sb > 0) {
+            if (clean[sEnd] == '{') ++sb;
+            else if (clean[sEnd] == '}') --sb;
+            if (sb == 0) break;
+            ++sEnd;
+          }
+
+          FunctionInfo structInfo;
+          structInfo.scopedName = structName;
+          structInfo.type = stmt.contains("class") ? SymbolClass : SymbolStruct;
+          structInfo.indentLevel = 1;
+          structInfo.parentClass = containerName;
+          structInfo.startLine = sLine;
+          structInfo.startCol = sCol;
+          structInfo.endLine = code.left(sEnd).count('\n');
+          containerMembers.append(structInfo);
+
+          memPos = sEnd;
+          memStmtStart = memPos + 1;
+          continue;
+        }
+
+        // 内联成员函数/构造函数定义 (剥离初始化列表)
+        if (!stmt.isEmpty() && memBraceDepth == 0) {
+          QString cleanStmt = stmt;
+          int pD = 0, aD = 0;
+          for (int k = 0; k < cleanStmt.length(); ++k) {
+            QChar c = cleanStmt[k];
+            if (c == '(') ++pD;
+            else if (c == ')') --pD;
+            else if (c == '<') ++aD;
+            else if (c == '>') --aD;
+            else if (c == ':' && pD == 0 && aD == 0) {
+              bool isScope = (k > 0 && cleanStmt[k - 1] == ':') || (k + 1 < cleanStmt.length() && cleanStmt[k + 1] == ':');
+              if (!isScope) {
+                int parenIdx = cleanStmt.lastIndexOf(')', k);
+                if (parenIdx != -1) {
+                  cleanStmt = cleanStmt.left(k).trimmed();
+                  break;
+                }
+              }
+            }
+          }
+
+          int openParen = cleanStmt.lastIndexOf('(');
+          if (openParen != -1) {
+            int closeParen = cleanStmt.indexOf(')', openParen);
+            if (closeParen == -1) closeParen = cleanStmt.length() - 1;
+            QString beforeParen = cleanStmt.left(openParen).trimmed();
+            if (beforeParen.contains('\n')) {
+              beforeParen = beforeParen.split('\n').last().trimmed();
+            }
+            beforeParen.remove(QRegularExpression(R"(\b(public|protected|private|signals|slots|Q_SIGNALS|Q_SLOTS)\s*:\s*)"));
+            beforeParen.remove(QRegularExpression(R"(\b(Q_OBJECT|Q_DISABLE_COPY|explicit|virtual|inline|static|constexpr|friend)\b)"));
+            beforeParen = beforeParen.trimmed();
+
+            QRegularExpression nameRegex(R"((?:(operator\s*(?:[^\s\w]+|\(\)|\[\]|\w+))|(~?[A-Za-z_]\w*))\s*$)");
+            QRegularExpressionMatch nameMatch = nameRegex.match(beforeParen);
+            if (nameMatch.hasMatch()) {
+              QString funcName = nameMatch.captured(0).trimmed();
+              QString retType = beforeParen.left(nameMatch.capturedStart()).trimmed();
+
+              if (!keywords.contains(funcName) && funcName != "Q_OBJECT") {
+                int absOpenParen = clean.lastIndexOf('(', memPos);
+                if (absOpenParen < memStmtStart) absOpenParen = memPos;
+                int funcNamePosInClean = findExactSymbolOffsetInClean(clean, memStmtStart, memPos, funcName, QString(), absOpenParen);
+
+                int absCloseParen = clean.indexOf(')', absOpenParen);
+                QString rawParams = (absOpenParen != -1 && absCloseParen != -1) ? clean.mid(absOpenParen, absCloseParen - absOpenParen + 1) : "()";
+                QString normParams = normalizeParamTypes(rawParams);
+
+                QString afterParen = cleanStmt.mid(closeParen + 1).trimmed();
+                if (afterParen.contains(QRegularExpression(R"(\bconst\b)"))) {
+                  normParams += " const";
+                }
+
+                int inBraces = 1;
+                int inBodyEnd = memPos + 1;
+                while (inBodyEnd < containerEndBrace && inBraces > 0) {
+                  if (clean[inBodyEnd] == '{') ++inBraces;
+                  else if (clean[inBodyEnd] == '}') --inBraces;
+                  if (inBraces == 0) break;
+                  ++inBodyEnd;
+                }
+
+                int memLine = code.left(funcNamePosInClean).count('\n');
+                int memLineStart = code.lastIndexOf('\n', funcNamePosInClean - 1) + 1;
+                int memCol = funcNamePosInClean - memLineStart;
+
+                FunctionInfo memInfo;
+                memInfo.scopedName = funcName;
+                memInfo.returnType = (funcName == containerName || funcName == "~" + containerName || funcName.startsWith('~')) ? "" : (retType.isEmpty() ? "void" : retType);
+                memInfo.params = normParams;
+                memInfo.type = SymbolFunction;
+                memInfo.indentLevel = 1;
+                memInfo.parentClass = containerName;
+                memInfo.startLine = memLine;
+                memInfo.startCol = memCol;
+                memInfo.endLine = code.left(inBodyEnd).count('\n');
+                containerMembers.append(memInfo);
+
+                memPos = inBodyEnd;
+                memStmtStart = memPos + 1;
+                continue;
+              }
+            }
+          }
+        }
+
+        ++memBraceDepth;
+        memStmtStart = memPos + 1;
+        ++memPos;
+        continue;
       }
 
-      m_functions.append(info);
-    };
+      if (ch == '}') {
+        if (memBraceDepth > 0) --memBraceDepth;
+        memStmtStart = memPos + 1;
+        ++memPos;
+        continue;
+      }
 
-    // 执行匹配 - 普通函数
-    QRegularExpressionMatchIterator i = functionRegex.globalMatch(code);
-    while (i.hasNext()) {
-      addMatch(i.next(), 1);
+      if (ch == ';') {
+        QString stmt = clean.mid(memStmtStart, memPos - memStmtStart).trimmed();
+        if (!stmt.isEmpty() && memBraceDepth == 0) {
+          int openParen = stmt.lastIndexOf('(');
+          if (openParen != -1) {
+            // 成员函数原型声明
+            int closeParen = stmt.indexOf(')', openParen);
+            if (closeParen != -1) {
+              QString beforeParen = stmt.left(openParen).trimmed();
+              if (beforeParen.contains('\n')) {
+                beforeParen = beforeParen.split('\n').last().trimmed();
+              }
+              beforeParen.remove(QRegularExpression(R"(\b(public|protected|private|signals|slots|Q_SIGNALS|Q_SLOTS)\s*:\s*)"));
+              beforeParen.remove(QRegularExpression(R"(\b(Q_OBJECT|Q_DISABLE_COPY|explicit|virtual|inline|static|constexpr|friend)\b)"));
+              beforeParen = beforeParen.trimmed();
+
+              QRegularExpression nameRegex(R"((?:(operator\s*(?:[^\s\w]+|\(\)|\[\]|\w+))|(~?[A-Za-z_]\w*))\s*$)");
+              QRegularExpressionMatch nameMatch = nameRegex.match(beforeParen);
+              if (nameMatch.hasMatch()) {
+                QString funcName = nameMatch.captured(0).trimmed();
+                QString retType = beforeParen.left(nameMatch.capturedStart()).trimmed();
+
+                if (!keywords.contains(funcName) && funcName != "Q_OBJECT") {
+                  int absOpenParen = clean.lastIndexOf('(', memPos);
+                  if (absOpenParen < memStmtStart) absOpenParen = memPos;
+                  int funcNamePosInClean = findExactSymbolOffsetInClean(clean, memStmtStart, memPos, funcName, QString(), absOpenParen);
+
+                  int absCloseParen = clean.indexOf(')', absOpenParen);
+                  QString rawParams = (absOpenParen != -1 && absCloseParen != -1) ? clean.mid(absOpenParen, absCloseParen - absOpenParen + 1) : "()";
+                  QString normParams = normalizeParamTypes(rawParams);
+
+                  QString afterParen = stmt.mid(closeParen + 1).trimmed();
+                  if (afterParen.contains(QRegularExpression(R"(\bconst\b)"))) {
+                    normParams += " const";
+                  }
+
+                  int memLine = code.left(funcNamePosInClean).count('\n');
+                  int memLineStart = code.lastIndexOf('\n', funcNamePosInClean - 1) + 1;
+                  int memCol = funcNamePosInClean - memLineStart;
+
+                  FunctionInfo memInfo;
+                  memInfo.scopedName = funcName;
+                  memInfo.returnType = (funcName == containerName || funcName == "~" + containerName || funcName.startsWith('~')) ? "" : (retType.isEmpty() ? "void" : retType);
+                  memInfo.params = normParams;
+                  memInfo.type = SymbolFunction;
+                  memInfo.indentLevel = 1;
+                  memInfo.parentClass = containerName;
+                  memInfo.startLine = memLine;
+                  memInfo.startCol = memCol;
+                  memInfo.endLine = memLine;
+                  containerMembers.append(memInfo);
+                }
+              }
+            }
+          } else {
+            // 类 / 结构体内成员变量与字段 (例如 int count;, char buf[64];, SD_HandleTypeDef uSdHandle;)
+            QString varDecl = stmt;
+            varDecl.remove(QRegularExpression(R"(\b(public|protected|private|signals|slots|Q_SIGNALS|Q_SLOTS)\s*:\s*)"));
+            varDecl.remove(QRegularExpression(R"(\b(static|constexpr|const|volatile|mutable)\b)"));
+            varDecl = varDecl.trimmed();
+
+            if (!varDecl.isEmpty() && !varDecl.startsWith('#') && !varDecl.startsWith("class ") && !varDecl.startsWith("struct ")) {
+              int eqIdx = varDecl.indexOf('=');
+              if (eqIdx != -1) varDecl = varDecl.left(eqIdx).trimmed();
+
+              int lastCloseAngle = varDecl.lastIndexOf('>');
+              QString typePart;
+              QString namesPart;
+
+              if (lastCloseAngle != -1) {
+                int angleStart = varDecl.indexOf('<');
+                typePart = varDecl.left(angleStart).trimmed();
+                namesPart = varDecl.mid(lastCloseAngle + 1).trimmed();
+              } else {
+                int lastSpace = varDecl.lastIndexOf(' ');
+                int lastStar = varDecl.lastIndexOf('*');
+                int splitIdx = qMax(lastSpace, lastStar);
+                if (splitIdx != -1) {
+                  typePart = varDecl.left(splitIdx + 1).trimmed();
+                  namesPart = varDecl.mid(splitIdx + 1).trimmed();
+                }
+              }
+
+              if (!typePart.isEmpty() && !namesPart.isEmpty()) {
+                QStringList varNames = namesPart.split(',', Qt::SkipEmptyParts);
+                for (QString vName : varNames) {
+                  vName = vName.trimmed();
+                  QString finalType = typePart;
+                  if (vName.startsWith('*')) {
+                    finalType += " *";
+                    vName = vName.mid(1).trimmed();
+                  }
+                  if (vName.contains('[')) {
+                    vName = vName.left(vName.indexOf('[')).trimmed();
+                  }
+
+                  if (!keywords.contains(vName) && !keywords.contains(finalType) && vName != "Q_OBJECT") {
+                    int namePosInClean = findExactSymbolOffsetInClean(clean, memStmtStart, memPos, vName, QString(), -1);
+                    int memLine = code.left(namePosInClean).count('\n');
+                    int memLineStart = code.lastIndexOf('\n', namePosInClean - 1) + 1;
+                    int memCol = namePosInClean - memLineStart;
+
+                    FunctionInfo vInfo;
+                    vInfo.scopedName = vName;
+                    vInfo.returnType = finalType;
+                    vInfo.params = "";
+                    vInfo.type = SymbolVariable;
+                    vInfo.indentLevel = 1;
+                    vInfo.parentClass = containerName;
+                    vInfo.startLine = memLine;
+                    vInfo.startCol = memCol;
+                    vInfo.endLine = memLine;
+                    containerMembers.append(vInfo);
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        memStmtStart = memPos + 1;
+        ++memPos;
+        continue;
+      }
+
+      ++memPos;
     }
 
-    // 执行匹配 - 构造函数
-    // 注意：构造函数正则可能会误判普通函数调用，需要小心，但在函数外层的
-    // { 前面通常是定义
-    i = ctorDtorRegex.globalMatch(code);
-    while (i.hasNext()) {
-      // 排除看起来像函数调用的 (如果有返回类型，会被functionRegex捕获)
-      // 这里主要捕获没有返回类型的
-      addMatch(i.next(), 1);
+    // 内部成员按名称字母升序排序
+    std::sort(containerMembers.begin(), containerMembers.end(), [](const FunctionInfo &a, const FunctionInfo &b) {
+      return a.scopedName.compare(b.scopedName, Qt::CaseInsensitive) < 0;
+    });
+
+    for (const FunctionInfo &mem : containerMembers) {
+      m_functions.append(mem);
+    }
+  }
+
+  // 步骤 3：扫描类与结构体外部的函数/方法定义与声明 (包含全局函数与在 .cpp 中定义的 ClassName::MethodName)
+  int pos = 0;
+  int stmtStart = 0;
+  int braceDepth = 0;
+
+  auto isInContainerRange = [&](int p) -> bool {
+    for (const auto &rng : containerRanges) {
+      if (p >= rng.first && p <= rng.second) return true;
+    }
+    return false;
+  };
+
+  QList<FunctionInfo> globalSymbols;
+  QMap<QString, FunctionInfo> outOfClassClasses; // 在 .cpp 中发现的类分组
+
+  while (pos < codeLen) {
+    if (isInContainerRange(pos)) {
+      for (const auto &rng : containerRanges) {
+        if (pos >= rng.first && pos <= rng.second) {
+          pos = rng.second;
+        }
+      }
+      stmtStart = pos + 1;
+      ++pos;
+      continue;
     }
 
-    // 执行匹配 - 析构函数
-    i = dtorRegex.globalMatch(code);
-    while (i.hasNext()) {
-      addMatch(i.next(), 1);
+    QChar ch = clean[pos];
+
+    if (ch == '{') {
+      QString stmt = clean.mid(stmtStart, pos - stmtStart).trimmed();
+      if (!stmt.isEmpty() && braceDepth == 0) {
+        // 关键修复 (图 2 Bug): 剥离 C++ 构造函数初始化列表 (如 ClassName(...) : BaseClass(...), m_var(nullptr))
+        QString cleanStmt = stmt;
+        int pD = 0, aD = 0;
+        for (int k = 0; k < cleanStmt.length(); ++k) {
+          QChar c = cleanStmt[k];
+          if (c == '(') ++pD;
+          else if (c == ')') --pD;
+          else if (c == '<') ++aD;
+          else if (c == '>') --aD;
+          else if (c == ':' && pD == 0 && aD == 0) {
+            bool isScope = (k > 0 && cleanStmt[k - 1] == ':') || (k + 1 < cleanStmt.length() && cleanStmt[k + 1] == ':');
+            if (!isScope) {
+              int parenIdx = cleanStmt.lastIndexOf(')', k);
+              if (parenIdx != -1) {
+                cleanStmt = cleanStmt.left(k).trimmed();
+                break;
+              }
+            }
+          }
+        }
+
+        int openParen = cleanStmt.lastIndexOf('(');
+        if (openParen != -1) {
+          int closeParen = cleanStmt.indexOf(')', openParen);
+          if (closeParen == -1) closeParen = cleanStmt.length() - 1;
+
+          QString beforeParen = cleanStmt.left(openParen).trimmed();
+          if (beforeParen.contains('\n')) {
+            beforeParen = beforeParen.split('\n').last().trimmed();
+          }
+
+          QRegularExpression nameRegex(R"((?:(operator\s*(?:[^\s\w]+|\(\)|\[\]|\w+))|((?:~?[A-Za-z_]\w*(?:\s*<[^>]*>)?::)*~?[A-Za-z_]\w*(?:\s*<[^>]*>)?))\s*$)");
+          QRegularExpressionMatch nameMatch = nameRegex.match(beforeParen);
+          if (nameMatch.hasMatch()) {
+            QString rawFuncName = nameMatch.captured(0).trimmed();
+            QString baseName = rawFuncName;
+            QString parentCls = "";
+
+            if (rawFuncName.contains("::")) {
+              QStringList parts = rawFuncName.split("::");
+              baseName = parts.last().trimmed();
+              parentCls = parts[parts.size() - 2].trimmed();
+              if (parentCls.contains('<')) parentCls = parentCls.left(parentCls.indexOf('<')).trimmed();
+            }
+
+            QString cleanCheckName = baseName;
+            if (cleanCheckName.startsWith('~')) cleanCheckName = cleanCheckName.mid(1);
+
+            if (!keywords.contains(cleanCheckName) && !keywords.contains(rawFuncName)) {
+              QString retType = beforeParen.left(nameMatch.capturedStart()).trimmed();
+              if (retType.contains('\n')) {
+                retType = retType.split('\n').last().trimmed();
+              }
+              bool isControl = false;
+              for (const char *kw : {"if", "for", "while", "switch", "catch", "return", "else", "case"}) {
+                if (retType.contains(QRegularExpression(QString(R"(\b%1\b)").arg(kw)))) {
+                  isControl = true;
+                  break;
+                }
+              }
+
+              if (!isControl) {
+                retType.remove(QRegularExpression(R"(\b(inline|virtual|static|explicit|friend|constexpr|consteval|Q_INVOKABLE|Q_SLOT|Q_SIGNAL|extern)\b)"));
+                retType = retType.trimmed();
+
+                if (retType.isEmpty()) {
+                  if (!parentCls.isEmpty() && (baseName == parentCls || baseName == "~" + parentCls)) {
+                    retType = "";
+                  } else if (baseName.startsWith('~')) {
+                    retType = "";
+                  } else if (rawFuncName == "main") {
+                    retType = "int";
+                  }
+                }
+
+                int absOpenParen = clean.lastIndexOf('(', pos);
+                if (absOpenParen < stmtStart) absOpenParen = pos;
+
+                int funcNamePosInClean = findExactSymbolOffsetInClean(clean, stmtStart, pos, baseName, rawFuncName, absOpenParen);
+
+                int absCloseParen = clean.indexOf(')', absOpenParen);
+                QString rawParams = (absOpenParen != -1 && absCloseParen != -1) ? clean.mid(absOpenParen, absCloseParen - absOpenParen + 1) : "()";
+                QString normParams = normalizeParamTypes(rawParams);
+
+                QString afterParen = cleanStmt.mid(closeParen + 1).trimmed();
+                if (afterParen.contains(QRegularExpression(R"(\bconst\b)"))) {
+                  normParams += " const";
+                }
+
+                int bodyBraces = 1;
+                int bodyEnd = pos + 1;
+                while (bodyEnd < codeLen && bodyBraces > 0) {
+                  if (clean[bodyEnd] == '{') ++bodyBraces;
+                  else if (clean[bodyEnd] == '}') --bodyBraces;
+                  if (bodyBraces == 0) break;
+                  ++bodyEnd;
+                }
+
+                int line = code.left(funcNamePosInClean).count('\n');
+                int lineStart = code.lastIndexOf('\n', funcNamePosInClean - 1) + 1;
+                int col = funcNamePosInClean - lineStart;
+                int endLine = code.left(bodyEnd < codeLen ? bodyEnd : codeLen).count('\n');
+
+                FunctionInfo info;
+                info.scopedName = baseName;
+                info.returnType = (baseName.contains("~") || (!parentCls.isEmpty() && baseName == parentCls)) ? "" : (retType.isEmpty() ? "void" : retType);
+                info.params = normParams;
+                info.type = SymbolFunction;
+                info.indentLevel = parentCls.isEmpty() ? 0 : 1;
+                info.parentClass = parentCls;
+                info.startLine = line;
+                info.startCol = col;
+                info.endLine = endLine;
+
+                if (!parentCls.isEmpty() && !outOfClassClasses.contains(parentCls)) {
+                  FunctionInfo clsInfo;
+                  clsInfo.scopedName = parentCls;
+                  clsInfo.returnType = "";
+                  clsInfo.params = "";
+                  clsInfo.type = SymbolClass;
+                  clsInfo.indentLevel = 0;
+                  clsInfo.startLine = line;
+                  clsInfo.startCol = 0;
+                  clsInfo.endLine = endLine;
+                  outOfClassClasses.insert(parentCls, clsInfo);
+                }
+
+                globalSymbols.append(info);
+
+                pos = bodyEnd;
+                stmtStart = pos + 1;
+                continue;
+              }
+            }
+          }
+        }
+      }
+
+      ++braceDepth;
+      stmtStart = pos + 1;
+      ++pos;
+      continue;
     }
 
-    // 排序（按行号）
-    std::sort(m_functions.begin(), m_functions.end(),
-              [](const FunctionInfo &a, const FunctionInfo &b) {
-                return a.line < b.line;
-              });
+    if (ch == ';') {
+      QString stmt = clean.mid(stmtStart, pos - stmtStart).trimmed();
+      if (!stmt.isEmpty() && (braceDepth == 0 || isHeader) && !stmt.startsWith('#')) {
+        int openParen = stmt.lastIndexOf('(');
+        if (openParen != -1) {
+          int closeParen = stmt.indexOf(')', openParen);
+          if (closeParen != -1) {
+            QString beforeParen = stmt.left(openParen).trimmed();
+            if (beforeParen.contains('\n')) {
+              beforeParen = beforeParen.split('\n').last().trimmed();
+            }
 
-    qDebug() << "解析函数: 找到" << m_functions.size() << "个函数";
-  } catch (const std::exception &e) {
-    qDebug() << "解析函数时发生异常: " << e.what();
-  } catch (...) {
-    qDebug() << "解析函数时发生未知异常";
+            QRegularExpression nameRegex(R"((?:(operator\s*(?:[^\s\w]+|\(\)|\[\]|\w+))|((?:~?[A-Za-z_]\w*(?:\s*<[^>]*>)?::)*~?[A-Za-z_]\w*(?:\s*<[^>]*>)?))\s*$)");
+            QRegularExpressionMatch nameMatch = nameRegex.match(beforeParen);
+            if (nameMatch.hasMatch()) {
+              QString rawFuncName = nameMatch.captured(0).trimmed();
+              QString baseName = rawFuncName;
+              QString parentCls = "";
+
+              if (rawFuncName.contains("::")) {
+                QStringList parts = rawFuncName.split("::");
+                baseName = parts.last().trimmed();
+                parentCls = parts[parts.size() - 2].trimmed();
+                if (parentCls.contains('<')) parentCls = parentCls.left(parentCls.indexOf('<')).trimmed();
+              }
+
+              QString cleanCheckName = baseName;
+              if (cleanCheckName.startsWith('~')) cleanCheckName = cleanCheckName.mid(1);
+
+              if (!keywords.contains(cleanCheckName) && !keywords.contains(rawFuncName)) {
+                QString retType = beforeParen.left(nameMatch.capturedStart()).trimmed();
+                if (retType.contains('\n')) {
+                  retType = retType.split('\n').last().trimmed();
+                }
+                retType.remove(QRegularExpression(R"(\b(inline|virtual|static|explicit|friend|constexpr|consteval|Q_INVOKABLE|Q_SLOT|Q_SIGNAL|extern)\b)"));
+                retType = retType.trimmed();
+
+                int absOpenParen = clean.lastIndexOf('(', pos);
+                if (absOpenParen < stmtStart) absOpenParen = pos;
+
+                int funcNamePosInClean = findExactSymbolOffsetInClean(clean, stmtStart, pos, baseName, rawFuncName, absOpenParen);
+
+                int absCloseParen = clean.indexOf(')', absOpenParen);
+                QString rawParams = (absOpenParen != -1 && absCloseParen != -1) ? clean.mid(absOpenParen, absCloseParen - absOpenParen + 1) : "()";
+                QString normParams = normalizeParamTypes(rawParams);
+
+                int line = code.left(funcNamePosInClean).count('\n');
+                int lineStart = code.lastIndexOf('\n', funcNamePosInClean - 1) + 1;
+                int col = funcNamePosInClean - lineStart;
+
+                FunctionInfo info;
+                info.scopedName = baseName;
+                info.returnType = retType.isEmpty() ? (baseName.startsWith('~') ? "" : "void") : retType;
+                info.params = normParams;
+                info.type = SymbolFunction;
+                info.indentLevel = parentCls.isEmpty() ? 0 : 1;
+                info.parentClass = parentCls;
+                info.startLine = line;
+                info.startCol = col;
+                info.endLine = line;
+
+                if (!parentCls.isEmpty() && !outOfClassClasses.contains(parentCls)) {
+                  FunctionInfo clsInfo;
+                  clsInfo.scopedName = parentCls;
+                  clsInfo.returnType = "";
+                  clsInfo.params = "";
+                  clsInfo.type = SymbolClass;
+                  clsInfo.indentLevel = 0;
+                  clsInfo.startLine = line;
+                  clsInfo.startCol = 0;
+                  clsInfo.endLine = line;
+                  outOfClassClasses.insert(parentCls, clsInfo);
+                }
+
+                globalSymbols.append(info);
+              }
+            }
+          }
+        } else {
+          // 全局变量声明 (例如: SD_HandleTypeDef uSdHandle; int count = 0;)
+          QString varDecl = stmt;
+          varDecl.remove(QRegularExpression(R"(\b(static|constexpr|const|volatile|extern)\b)"));
+          varDecl = varDecl.trimmed();
+
+          if (!varDecl.isEmpty() && !varDecl.startsWith("class ") && !varDecl.startsWith("struct ") && !varDecl.startsWith("typedef ")) {
+            int eqIdx = varDecl.indexOf('=');
+            if (eqIdx != -1) varDecl = varDecl.left(eqIdx).trimmed();
+
+            int lastCloseAngle = varDecl.lastIndexOf('>');
+            QString typePart;
+            QString namesPart;
+
+            if (lastCloseAngle != -1) {
+              int angleStart = varDecl.indexOf('<');
+              typePart = varDecl.left(angleStart).trimmed();
+              namesPart = varDecl.mid(lastCloseAngle + 1).trimmed();
+            } else {
+              int lastSpace = varDecl.lastIndexOf(' ');
+              int lastStar = varDecl.lastIndexOf('*');
+              int splitIdx = qMax(lastSpace, lastStar);
+              if (splitIdx != -1) {
+                typePart = varDecl.left(splitIdx + 1).trimmed();
+                namesPart = varDecl.mid(splitIdx + 1).trimmed();
+              }
+            }
+
+            if (!typePart.isEmpty() && !namesPart.isEmpty()) {
+              QStringList varNames = namesPart.split(',', Qt::SkipEmptyParts);
+              for (QString vName : varNames) {
+                vName = vName.trimmed();
+                QString finalType = typePart;
+                if (vName.startsWith('*')) {
+                  finalType += " *";
+                  vName = vName.mid(1).trimmed();
+                }
+                if (vName.contains('[')) {
+                  vName = vName.left(vName.indexOf('[')).trimmed();
+                }
+
+                if (!keywords.contains(vName) && !keywords.contains(finalType)) {
+                  int namePosInClean = findExactSymbolOffsetInClean(clean, stmtStart, pos, vName, QString(), -1);
+                  int memLine = code.left(namePosInClean).count('\n');
+                  int memLineStart = code.lastIndexOf('\n', namePosInClean - 1) + 1;
+                  int memCol = namePosInClean - memLineStart;
+
+                  FunctionInfo vInfo;
+                  vInfo.scopedName = vName;
+                  vInfo.returnType = finalType;
+                  vInfo.params = "";
+                  vInfo.type = SymbolVariable;
+                  vInfo.indentLevel = 0;
+                  vInfo.startLine = memLine;
+                  vInfo.startCol = memCol;
+                  vInfo.endLine = memLine;
+                  globalSymbols.append(vInfo);
+                }
+              }
+            }
+          }
+        }
+      }
+
+      stmtStart = pos + 1;
+      ++pos;
+      continue;
+    }
+
+    ++pos;
+  }
+
+  // 将 .cpp 中发现的类加入顶层
+  for (const FunctionInfo &cls : outOfClassClasses.values()) {
+    bool alreadyExists = false;
+    for (const FunctionInfo &f : m_functions) {
+      if (f.scopedName == cls.scopedName && (f.type == SymbolClass || f.type == SymbolStruct)) {
+        alreadyExists = true;
+        break;
+      }
+    }
+    if (!alreadyExists) {
+      m_functions.append(cls);
+    }
+  }
+
+  // 追加全局符号
+  m_functions.append(globalSymbols);
+
+  // 计算每个符号在当前文件内的引用/调用计数 (对齐图 3 右侧 +9, 1, 2 显示)
+  for (int i = 0; i < m_functions.size(); ++i) {
+    QString name = m_functions[i].scopedName;
+    if (!name.isEmpty() && name != "main") {
+      QRegularExpression refRegex(QString(R"(\b%1\b)").arg(QRegularExpression::escape(name)));
+      int count = 0;
+      auto matchIter = refRegex.globalMatch(code);
+      while (matchIter.hasNext()) {
+        matchIter.next();
+        ++count;
+      }
+      m_functions[i].refCount = count;
+    } else {
+      m_functions[i].refCount = 0;
+    }
+  }
+
+  // 去重 (相同名称且相同行号与父类只保留一条)
+  QList<FunctionInfo> uniqueList;
+  for (const FunctionInfo &info : m_functions) {
+    bool dup = false;
+    for (const FunctionInfo &u : uniqueList) {
+      if (u.scopedName == info.scopedName && u.startLine == info.startLine && u.parentClass == info.parentClass) {
+        dup = true;
+        break;
+      }
+    }
+    if (!dup) {
+      uniqueList.append(info);
+    }
+  }
+  m_functions = uniqueList;
+}
+
+void CodeEditor::updateFunctionList() {
+  if (!m_currentEditor) return;
+
+  parseFunctions(m_currentEditor->text());
+
+  if (m_functionTree) {
+    m_functionTree->clear();
+
+    // 1. 搜集所有类 / 结构体顶级节点
+    QList<FunctionInfo> classList;
+    for (const FunctionInfo &info : m_functions) {
+      if (info.type == SymbolClass || info.type == SymbolStruct) {
+        classList.append(info);
+      }
+    }
+
+    // 2. 将类及其挂载的二级成员加入树状结构
+    QSet<QString> addedClasses;
+    for (const FunctionInfo &cls : classList) {
+      if (addedClasses.contains(cls.scopedName)) continue;
+      addedClasses.insert(cls.scopedName);
+
+      QTreeWidgetItem *classItem = new QTreeWidgetItem(m_functionTree);
+      int clsIdx = m_functions.indexOf(cls);
+      classItem->setData(0, Qt::UserRole, clsIdx);
+      classItem->setData(0, Qt::UserRole + 1, cls.scopedName);
+      classItem->setData(0, Qt::UserRole + 8, (int)cls.type);
+      classItem->setIcon(0, getIconForSymbol(cls.type));
+      classItem->setToolTip(0, QString("【%1】行 %2: %3").arg(cls.type == SymbolClass ? "类" : "结构体").arg(cls.startLine + 1).arg(cls.scopedName));
+
+      // 挂载该类的所有二级成员
+      for (int i = 0; i < m_functions.size(); ++i) {
+        const FunctionInfo &mem = m_functions[i];
+        if (mem.parentClass == cls.scopedName) {
+          QTreeWidgetItem *memItem = new QTreeWidgetItem(classItem);
+          memItem->setData(0, Qt::UserRole, i);
+          memItem->setData(0, Qt::UserRole + 1, mem.scopedName);
+          memItem->setData(0, Qt::UserRole + 6, mem.returnType);
+          memItem->setData(0, Qt::UserRole + 7, mem.params);
+          memItem->setData(0, Qt::UserRole + 3, mem.refCount);
+          memItem->setData(0, Qt::UserRole + 8, (int)mem.type);
+          memItem->setIcon(0, getIconForSymbol(mem.type));
+          QString typeStr = (mem.type == SymbolVariable) ? "变量" : "函数";
+          memItem->setToolTip(0, QString("【%1】行 %2: %3").arg(typeStr).arg(mem.startLine + 1).arg(formatSymbolDisplay(mem)));
+        }
+      }
+
+      // 默认展开一级类目录
+      classItem->setExpanded(true);
+    }
+
+    // 3. 将未挂载在任何类下面的全局函数、全局变量、宏定义等作为顶级项加入
+    for (int i = 0; i < m_functions.size(); ++i) {
+      const FunctionInfo &info = m_functions[i];
+      if (info.parentClass.isEmpty() && info.type != SymbolClass && info.type != SymbolStruct) {
+        QTreeWidgetItem *item = new QTreeWidgetItem(m_functionTree);
+        item->setData(0, Qt::UserRole, i);
+        item->setData(0, Qt::UserRole + 1, info.scopedName);
+        item->setData(0, Qt::UserRole + 6, info.returnType);
+        item->setData(0, Qt::UserRole + 7, info.params);
+        item->setData(0, Qt::UserRole + 3, info.refCount);
+        item->setData(0, Qt::UserRole + 8, (int)info.type);
+        item->setIcon(0, getIconForSymbol(info.type));
+
+        QString typeStr = "函数";
+        if (info.type == SymbolVariable) typeStr = "变量";
+        else if (info.type == SymbolMacro) typeStr = "宏定义";
+        item->setToolTip(0, QString("【%1】行 %2: %3").arg(typeStr).arg(info.startLine + 1).arg(formatSymbolDisplay(info)));
+      }
+    }
+  }
+
+  if (m_outlineTitleLabel) {
+    m_outlineTitleLabel->setText(QString("大纲 (%1)").arg(m_functions.size()));
+  }
+
+  updateBreadcrumb();
+
+  if (m_currentEditor) {
+    highlightFunctionNames(m_currentEditor, FUNCTION_INDICATOR);
   }
 }
 
@@ -2015,234 +4037,7 @@ void CodeEditor::parseFunctions(const QString &code) {
 
 // }
 
-void CodeEditor::updateFunctionList() {
-  if (!m_currentEditor || !m_functionList) {
-    return;
-  }
 
-  // 清空函数列表
-  m_functionList->clear();
-
-  // 获取编辑器文本
-  QString text = m_currentEditor->text();
-  QStringList lines = text.split('\n');
-
-  // 存储函数名和行号的映射
-  QMap<QString, int> functionLineMap;
-
-  // 改进的多行函数识别
-  // 先预处理，将跨行的函数定义合并为单行
-  QStringList processedLines;
-  QList<int> originalLineNumbers;
-
-  for (int i = 0; i < lines.size(); i++) {
-    QString line = lines[i];
-    QString trimmed = line.trimmed();
-
-    // 跳过空行和注释
-    if (trimmed.isEmpty() || trimmed.startsWith("//") ||
-        trimmed.startsWith("/*")) {
-      processedLines.append(line);
-      originalLineNumbers.append(i);
-      continue;
-    }
-
-    // 检查是否是函数定义的开始（包含函数名和左括号）
-    if (trimmed.contains("(") && !trimmed.contains(";") &&
-        !trimmed.startsWith("#") && !trimmed.startsWith("if") &&
-        !trimmed.startsWith("for") && !trimmed.startsWith("while") &&
-        !trimmed.startsWith("switch")) {
-
-      QString multiLineFunction = line;
-      int startLineNum = i;
-
-      // 如果当前行没有右括号，继续合并后续行
-      if (!line.contains(")")) {
-        for (int j = i + 1; j < lines.size(); j++) {
-          QString nextLine = lines[j];
-          multiLineFunction += " " + nextLine.trimmed();
-
-          if (nextLine.contains(")")) {
-            i = j; // 更新外层循环的索引
-            break;
-          }
-
-          // 防止无限循环，最多合并10行
-          if (j - i > 10) {
-            break;
-          }
-        }
-      }
-
-      processedLines.append(multiLineFunction);
-      originalLineNumbers.append(startLineNum);
-    } else {
-      processedLines.append(line);
-      originalLineNumbers.append(i);
-    }
-  }
-
-  // 改进的C++函数识别正则表达式
-  QRegularExpression functionRegex(
-      R"(^\s*(?:(?:static|inline|virtual|extern|const|explicit|friend|template\s*<[^>]*>)\s+)*(?:[\w:]+(?:\s*[*&]+)?\s+)+([A-Za-z_]\w*(?:::\w+)*)\s*\([^;]*\)\s*(?:const\s*)?(?:override\s*)?(?:final\s*)?(?:noexcept\s*)?(?:->\s*[\w:]+\s*)?)");
-
-  // 构造函数识别正则表达式 - 支持类前缀
-  QRegularExpression constructorRegex(
-      R"(^\s*(?:explicit\s+)?(?:([A-Za-z_]\w*)::)?([A-Za-z_]\w*)\s*\([^;]*\)\s*(?::\s*[^{;]*)?\s*(?:\{|$))");
-
-  // 析构函数识别正则表达式 - 支持类前缀
-  QRegularExpression destructorRegex(
-      R"(^\s*(?:virtual\s+)?(?:([A-Za-z_]\w*)::)?~([A-Za-z_]\w*)\s*\(\s*\)\s*(?:override\s*)?(?:final\s*)?(?:noexcept\s*)?)");
-
-  // 类定义正则表达式
-  QRegularExpression classRegex(
-      R"(^\s*(?:class|struct|enum)\s+(\w+)(?:\s*:[^{]*)?)");
-
-  // 宏定义正则表达式
-  QRegularExpression macroRegex(R"(^\s*#define\s+(\w+)(?:\([^)]*\))?)");
-
-  // 存储已识别的类名，用于构造函数识别
-  QSet<QString> classNames;
-
-  // 关键字过滤列表
-  QSet<QString> keywords = {
-      "if",       "for",       "while",    "switch",   "catch",  "return",
-      "else",     "do",        "break",    "continue", "goto",   "sizeof",
-      "typedef",  "volatile",  "register", "extern",   "static", "auto",
-      "const",    "struct",    "union",    "enum",     "class",  "template",
-      "typename", "namespace", "using",    "try",      "throw",  "new",
-      "delete",   "case",      "default"};
-
-  // 逐行分析
-  for (int lineNum = 0; lineNum < lines.size(); lineNum++) {
-    QString line = lines[lineNum];
-    QString trimmedLine = line.trimmed();
-
-    // 跳过空行和注释行
-    if (trimmedLine.isEmpty() || trimmedLine.startsWith("//") ||
-        trimmedLine.startsWith("/*")) {
-      continue;
-    }
-
-    // 跳过多行注释块
-    if (trimmedLine.contains("/*") && !trimmedLine.contains("*/")) {
-      while (lineNum < lines.size() - 1) {
-        lineNum++;
-        if (lines[lineNum].contains("*/")) {
-          break;
-        }
-      }
-      continue;
-    }
-
-    // 跳过预处理指令（除了#define）
-    if (trimmedLine.startsWith("#") && !trimmedLine.startsWith("#define")) {
-      continue;
-    }
-
-    // 1. 识别类定义
-    QRegularExpressionMatch classMatch = classRegex.match(line);
-    if (classMatch.hasMatch()) {
-      QString className = classMatch.captured(1);
-      if (!keywords.contains(className)) {
-        functionLineMap["📦 class " + className] = lineNum;
-        classNames.insert(className); // 记录类名
-      }
-      continue;
-    }
-
-    // 匹配析构函数
-    QRegularExpressionMatch destructorMatch = destructorRegex.match(line);
-    if (destructorMatch.hasMatch()) {
-      QString classPrefix = destructorMatch.captured(1); // 类前缀
-      QString className = destructorMatch.captured(2);   // 类名
-
-      if (!keywords.contains(className) &&
-          isValidFunctionDefinition(line, lineNum, lines)) {
-        QString displayName;
-        if (!classPrefix.isEmpty()) {
-          displayName = classPrefix + "::~" + className + "()";
-        } else {
-          displayName = "~" + className + "()";
-        }
-        functionLineMap["🔧 " + displayName] = lineNum;
-      }
-    }
-    // 匹配构造函数
-    else {
-      QRegularExpressionMatch constructorMatch = constructorRegex.match(line);
-      if (constructorMatch.hasMatch()) {
-        QString classPrefix = constructorMatch.captured(1);  // 类前缀
-        QString functionName = constructorMatch.captured(2); // 函数名
-
-        if (!keywords.contains(functionName) &&
-            isValidFunctionDefinition(line, lineNum, lines) &&
-            isLikelyConstructor(functionName, line)) {
-
-          QString displayName;
-          if (!classPrefix.isEmpty()) {
-            displayName = classPrefix + "::" + functionName + "()";
-          } else {
-            displayName = functionName + "()";
-          }
-          functionLineMap["🏗️ " + displayName] = lineNum;
-        }
-      }
-      // 最后匹配普通C++函数定义
-      else {
-        QRegularExpressionMatch funcMatch = functionRegex.match(line);
-        if (funcMatch.hasMatch()) {
-          QString functionName = funcMatch.captured(1);
-
-          // 移除命名空间前缀以获取纯函数名
-          QString pureFunctionName = functionName;
-          if (functionName.contains("::")) {
-            pureFunctionName = functionName.split("::").last();
-          }
-
-          // 过滤关键字和已识别的构造函数
-          if (!keywords.contains(functionName) &&
-              !classNames.contains(functionName) &&
-              isValidFunctionDefinition(line, lineNum, lines)) {
-
-            // 检查是否为main函数
-            if (functionName == "main") {
-              functionLineMap["🚀 " + functionName + "()"] = lineNum;
-            } else {
-              // functionLineMap["⚙️" + functionName + "()"] = lineNum;
-              //  functionLineMap["🟥" + functionName + "()"] = lineNum;
-              functionLineMap["⚡" + functionName + "()"] = lineNum;
-            }
-          }
-          continue;
-        }
-      }
-    }
-
-    // 匹配宏定义
-    QRegularExpressionMatch macroMatch = macroRegex.match(line);
-    if (macroMatch.hasMatch()) {
-      QString macroName = macroMatch.captured(1);
-      if (!keywords.contains(macroName)) {
-        functionLineMap["🔧 #define " + macroName] = lineNum; // 添加宏图标
-      }
-    }
-  }
-
-  // 按函数名排序并添加到列表
-  QStringList functionNames = functionLineMap.keys();
-  functionNames.sort(Qt::CaseInsensitive);
-
-  for (const QString &functionName : functionNames) {
-    QListWidgetItem *item = new QListWidgetItem(functionName);
-    item->setData(Qt::UserRole, functionLineMap[functionName]);
-    m_functionList->addItem(item);
-  }
-  // 同时更新函数名高亮
-  if (m_currentEditor) {
-    highlightFunctionNames(m_currentEditor, FUNCTION_INDICATOR);
-  }
-}
 
 void CodeEditor::updateVariableList() {
   // 检查编辑器是否存在

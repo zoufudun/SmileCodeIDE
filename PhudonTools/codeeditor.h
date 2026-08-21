@@ -10,17 +10,22 @@
 #define CODEEDITOR_H
 
 #include <QDebug>
-#include <QDockWidget> // 添加停靠窗口头文件
-#include <QListWidget> // 添加列表控件头文件
+#include <QDir>
+#include <QDockWidget>
+#include <QHBoxLayout>
+#include <QLabel>
 #include <QSet>
 #include <QSplitter>
-#include <QToolBar> // 添加工具栏头文件
+#include <QToolBar>
+#include <QToolButton>
+#include <QTreeWidget>
+#include <QTreeWidgetItem>
+#include <QVBoxLayout>
 #include <QWidget>
 #include <Qsci/qsciapis.h>
 #include <Qsci/qscilexercpp.h>
 #include <Qsci/qsciscintilla.h>
 
-// Constants
 // Constants
 static const int FUNCTION_INDICATOR = 20;
 
@@ -115,30 +120,86 @@ private:
   // 工具栏
   QToolBar *m_toolBar;
 
-  // 函数列表控件
-  QListWidget *m_functionList;
+  // 面包屑导航栏控件 (VS Code 风格)
+  QWidget *m_breadcrumbBar;
+  QWidget *m_bcPathContainer;
+  QHBoxLayout *m_bcPathLayout;
+  QToolButton *m_bcFileButton;
+  QToolButton *m_bcFuncButton;
+  QToolButton *m_outlineToggleBtn;
 
-  // 存储函数信息的结构体
-  struct FunctionInfo {
-    QString name;      // 函数名
-    int line;          // 行号
-    QString signature; // 函数签名
+  // 函数大纲列表容器与控件 (升级为 QTreeWidget 支持类与成员二级收缩/展开)
+  QWidget *m_functionListContainer;
+  QLabel *m_outlineTitleLabel;
+  QTreeWidget *m_functionTree;
+
+public:
+  // 符号类型定义 (函数/全局变量/宏定义/类/结构体/联合体/枚举)
+  enum SymbolType {
+    SymbolFunction,
+    SymbolVariable,
+    SymbolMacro,
+    SymbolClass,
+    SymbolStruct,
+    SymbolUnion,
+    SymbolEnum
   };
 
-  // 函数信息列表
+  // 存储符号信息的结构体
+  struct FunctionInfo {
+    QString scopedName; // 符号名 (如 Key_Scan, uart_buff, RoomWidget, roomId)
+    QString returnType; // 返回值/类型 (如 void, uint8_t, class, QString)
+    QString params;     // 参数列表/数组大小/修饰符 (如 "(int)", "[1024]", "() const")
+    SymbolType type = SymbolFunction; // 符号类型
+    int startLine = 0;  // 符号起始行号 (0-indexed)
+    int startCol = 0;   // 符号名称起始列 (0-indexed)
+    int endLine = 0;    // 结束行号 (0-indexed)
+    int refCount = 0;   // 在当前文件中的引用/调用次数 (如 +9, 6, 2, 1)
+    int indentLevel = 0;// 缩进层级 (0为顶级，1为类成员)
+    QString parentClass;// 所属父类名称
+
+    bool operator==(const FunctionInfo &other) const {
+      return scopedName == other.scopedName &&
+             startLine == other.startLine &&
+             parentClass == other.parentClass &&
+             type == other.type;
+    }
+  };
+
+private:
+  // 符号信息列表
   QList<FunctionInfo> m_functions;
 
   // 主题相关
   bool m_isDarkTheme;
 
-  // 解析代码中的函数
+  // 解析代码中的符号（函数、全局/静态变量、宏定义、类与成员）
   void parseFunctions(const QString &code);
 
-  // 更新函数列表
+  // 更新函数列表与大纲
   void updateFunctionList();
+
+  // 精准跳转并高亮符号名称
+  void navigateToSymbol(const FunctionInfo &info);
 
   // 创建函数列表控件
   void createFunctionList();
+
+  // 控制函数大纲显隐
+  void setFunctionOutlineVisible(bool visible);
+  void toggleFunctionOutline();
+
+  // 创建面包屑导航栏
+  void createBreadcrumbBar();
+
+  // 更新面包屑显示
+  void updateBreadcrumb(int cursorLine = -1);
+
+  // 弹出同目录其他 C/C++ 源文件与头文件切换菜单
+  void showBreadcrumbFilesMenu();
+
+  // 弹出函数快速跳转菜单
+  void showBreadcrumbFunctionsMenu();
 
   // 括号高亮
   void updateBracketHighlighting(QsciScintilla *editor);

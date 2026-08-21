@@ -70,14 +70,8 @@ MainWindow::MainWindow(QWidget *parent)
   // 创建构建系统
   m_buildSystem = new BuildSystem(this);
 
-  // 创建输出窗口
-  m_outputWindow = new QTextEdit(this);
-  m_outputWindow->setReadOnly(true);
-
-  // 添加输出窗口到底部
-  QDockWidget *outputDock = new QDockWidget("编译输出", this);
-  outputDock->setWidget(m_outputWindow);
-  addDockWidget(Qt::BottomDockWidgetArea, outputDock);
+  // 统一输出窗口至中央界面的 m_outputConsole (m_tabWidget)，取消多余的底栏 QDockWidget
+  m_outputWindow = m_outputConsole;
 
   // 连接构建系统信号
   connect(m_buildSystem, &BuildSystem::buildOutput, this,
