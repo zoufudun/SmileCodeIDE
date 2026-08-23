@@ -7861,30 +7861,45 @@ release/codeeditor.o: codeeditor.cpp codeeditor.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qdesktopwidget.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/qguiapplication.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/qinputmethod.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QCheckBox \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qcheckbox.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QDialog \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qdialog.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QFile \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QFileInfo \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/QIcon \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/QKeyEvent \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QLineEdit \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qlineedit.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/qtextcursor.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/qtextformat.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/qpen.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/qtextoption.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QListWidget \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qlistwidget.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qlistview.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QMenu \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qmenu.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QMessageBox \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qmessagebox.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qdialog.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/QPainter \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/qpainter.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/qtextoption.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtGui/qpen.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QPushButton \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qpushbutton.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QRegExp \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QRegularExpression \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QSettings \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qsettings.h \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QShortcut \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qshortcut.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QStack \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qstack.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QStyle \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QStyledItemDelegate \
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qstyleditemdelegate.h \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QTextCodec \
 		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/qtextcodec.h \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QTextStream \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/QStyledItemDelegate \
-		D:/Soft/Qt/5.15.2/mingw81_64/include/QtWidgets/qstyleditemdelegate.h
+		D:/Soft/Qt/5.15.2/mingw81_64/include/QtCore/QTextStream
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o release\codeeditor.o codeeditor.cpp
 
 release/main.o: main.cpp TOOLS/CIconFont.h \

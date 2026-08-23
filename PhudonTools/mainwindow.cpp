@@ -563,6 +563,17 @@ void MainWindow::setupUi() {
 
   // 创建代码编辑器 - 使用新的 CodeEditor 类替换原来的 QsciScintilla
   m_codeEditor = new CodeEditor(this);
+  connect(m_codeEditor, &CodeEditor::fileOpened, this, [this](const QString &filePath) {
+    m_currentFilePath = filePath;
+    QFileInfo fi(filePath);
+    if (m_projectPath.isEmpty()) {
+      m_codeEditor->setProjectRootPath(fi.dir().absolutePath());
+    } else {
+      m_codeEditor->setProjectRootPath(m_projectPath);
+    }
+    statusBar()->showMessage(tr("Opened: %1").arg(fi.fileName()), 2500);
+    setWindowTitle("PhudonTools - " + fi.fileName());
+  });
   editorOutputSplitter->addWidget(m_codeEditor);
 
   // 目标选择
@@ -1275,6 +1286,12 @@ void MainWindow::openFile(const QModelIndex &index) {
       // 更新当前文件路径
       m_currentFilePath = filePath;
 
+      if (!m_projectPath.isEmpty()) {
+        m_codeEditor->setProjectRootPath(m_projectPath);
+      } else {
+        m_codeEditor->setProjectRootPath(fileInfo.dir().absolutePath());
+      }
+
       // 更新状态栏显示当前文件名
       statusBar()->showMessage(tr("Opened: %1").arg(fileInfo.fileName()));
     } else {
@@ -1565,6 +1582,9 @@ void MainWindow::openProject() {
   if (!dir.isEmpty()) {
     m_projectPath = dir;
     updateProjectTree(dir);
+    if (m_codeEditor) {
+      m_codeEditor->setProjectRootPath(dir);
+    }
     statusBar()->showMessage("已打开项目: " + dir);
   }
 }

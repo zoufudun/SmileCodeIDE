@@ -11,20 +11,31 @@
 #include "idetheme.h"
 #include <QAction>
 #include <QApplication>
+#include <QCheckBox>
+#include <QDialog>
+#include <QDir>
+#include <QDirIterator>
 #include <QFile>
 #include <QFileInfo>
 #include <QHBoxLayout>
 #include <QIcon>
+#include <QKeyEvent>
 #include <QLabel>
+#include <QLineEdit>
+#include <QListWidget>
 #include <QMenu>
 #include <QMessageBox>
 #include <QPainter>
 #include <QPair>
+#include <QPushButton>
 #include <QRegExp>
 #include <QRegularExpression>
+#include <QScrollBar>
 #include <QSettings>
+#include <QShortcut>
 #include <QStack>
 #include <QStyle>
+#include <QStyledItemDelegate>
 #include <QTextCodec>
 #include <QTextStream>
 #include <QTimer>
@@ -32,7 +43,6 @@
 #include <QToolButton>
 #include <QVBoxLayout>
 #include <cmath>
-#include <QStyledItemDelegate>
 #include <vector>
 
 // 绘制函数/方法/槽矢量图标（紫色 3D 棱箱/立方体线框，1:1 严格对齐截图 2、截图 3 呈现风格）
@@ -519,12 +529,1065 @@ public:
   }
 };
 
+// 预处理 C/C++ 源代码：将行注释、块注释、字符串字面量、非 define 预处理指令等宽掩码置空为空格，保留原始换行符、字符偏移与 #define 宏定义
+static QString generateCleanCppCode(const QString &code) {
+  const int codeLen = code.length();
+  QString clean = code;
+  bool inBlockComment = false;
+  bool inLineComment = false;
+  bool inString = false;
+  bool inChar = false;
+  bool inRawString = false;
+  QString rawStringDelimiter;
+
+  for (int i = 0; i < codeLen; ++i) {
+    QChar ch = code[i];
+    QChar nextCh = (i + 1 < codeLen) ? code[i + 1] : QChar('\0');
+
+    if (inBlockComment) {
+      if (ch == '*' && nextCh == '/') {
+        clean[i] = ' ';
+        clean[i + 1] = ' ';
+        inBlockComment = false;
+        ++i;
+      } else if (ch != '\n') {
+        clean[i] = ' ';
+      }
+      continue;
+    }
+
+    if (inLineComment) {
+      if (ch == '\n') {
+        inLineComment = false;
+      } else {
+        clean[i] = ' ';
+      }
+      continue;
+    }
+
+    if (inRawString) {
+      if (ch == ')' && code.mid(i + 1).startsWith(rawStringDelimiter + "\"")) {
+        int endPos = i + 1 + rawStringDelimiter.length() + 1;
+        for (int k = i; k < endPos && k < codeLen; ++k) {
+          if (clean[k] != '\n') clean[k] = ' ';
+        }
+        i = endPos - 1;
+        inRawString = false;
+      } else if (ch != '\n') {
+        clean[i] = ' ';
+      }
+      continue;
+    }
+
+    if (inString) {
+      if (ch == '\\' && i + 1 < codeLen) {
+        clean[i] = ' ';
+        if (clean[i + 1] != '\n') clean[i + 1] = ' ';
+        ++i;
+      } else if (ch == '"') {
+        clean[i] = ' ';
+        inString = false;
+      } else if (ch != '\n') {
+        clean[i] = ' ';
+      }
+      continue;
+    }
+
+    if (inChar) {
+      if (ch == '\\' && i + 1 < codeLen) {
+        clean[i] = ' ';
+        if (clean[i + 1] != '\n') clean[i + 1] = ' ';
+        ++i;
+      } else if (ch == '\'') {
+        clean[i] = ' ';
+        inChar = false;
+      } else if (ch != '\n') {
+        clean[i] = ' ';
+      }
+      continue;
+    }
+
+    // 检查是否进入注释或字符串
+    if (ch == '/' && nextCh == '*') {
+      clean[i] = ' ';
+      clean[i + 1] = ' ';
+      inBlockComment = true;
+      ++i;
+    } else if (ch == '/' && nextCh == '/') {
+      clean[i] = ' ';
+      clean[i + 1] = ' ';
+      inLineComment = true;
+      ++i;
+    } else if (ch == 'R' && nextCh == '"' && i + 2 < codeLen) {
+      int openParen = code.indexOf('(', i + 2);
+      if (openParen != -1 && openParen - (i + 2) < 16) {
+        rawStringDelimiter = code.mid(i + 2, openParen - (i + 2));
+        inRawString = true;
+        for (int k = i; k <= openParen && k < codeLen; ++k) {
+          if (clean[k] != '\n') clean[k] = ' ';
+        }
+        i = openParen;
+      } else {
+        clean[i] = ' ';
+        clean[i + 1] = ' ';
+        inString = true;
+        ++i;
+      }
+    } else if (ch == '"') {
+      clean[i] = ' ';
+      inString = true;
+    } else if (ch == '\'') {
+      clean[i] = ' ';
+      inChar = true;
+    }
+  }
+
+  // 仅屏蔽非 define 的预处理指令 (#include, #pragma, #undef, #error 等)，完整保留 #define 宏定义及其名称
+  for (int i = 0; i < codeLen; ++i) {
+    if (clean[i] == '#') {
+      int lineStart = clean.lastIndexOf('\n', i - 1) + 1;
+      QString prefix = clean.mid(lineStart, i - lineStart).trimmed();
+      if (prefix.isEmpty()) {
+        int lineEnd = clean.indexOf('\n', i);
+        if (lineEnd == -1) lineEnd = codeLen;
+        while (lineEnd > 0 && lineEnd < codeLen && clean[lineEnd - 1] == '\\') {
+          lineEnd = clean.indexOf('\n', lineEnd + 1);
+          if (lineEnd == -1) { lineEnd = codeLen; break; }
+        }
+        QString dirLine = clean.mid(i, lineEnd - i);
+        // 如果是 #define，保留 "#define MACRO_NAME"，仅将后面的展开表达式主体安全置为空格
+        QRegularExpression defRe(R"(^#[ \t]*define[ \t]+([A-Za-z_]\w*)(?:\(([^)]*)\))?)");
+        QRegularExpressionMatch defMatch = defRe.match(dirLine);
+        if (defMatch.hasMatch()) {
+          int keepEnd = i + defMatch.capturedEnd();
+          for (int k = keepEnd; k < lineEnd; ++k) {
+            if (clean[k] != '\n') clean[k] = ' ';
+          }
+        } else {
+          // 其他预处理指令全部置为空格
+          for (int k = i; k < lineEnd; ++k) {
+            if (clean[k] != '\n') clean[k] = ' ';
+          }
+        }
+        i = lineEnd - 1;
+      }
+    }
+  }
+
+  return clean;
+}
+
+// 现代 VS Code 风格右上角浮动查找与替换栏
+class FindReplaceWidget : public QWidget {
+public:
+  explicit FindReplaceWidget(CodeEditor *editor, QWidget *parent = nullptr)
+      : QWidget(parent), m_editor(editor) {
+    setObjectName("FindReplaceWidget");
+    setAttribute(Qt::WA_StyledBackground, true);
+    setAutoFillBackground(true);
+
+    QVBoxLayout *mainLayout = new QVBoxLayout(this);
+    mainLayout->setContentsMargins(8, 6, 8, 6);
+    mainLayout->setSpacing(4);
+
+    // 第 1 行：查找输入行
+    QHBoxLayout *findRow = new QHBoxLayout();
+    findRow->setContentsMargins(0, 0, 0, 0);
+    findRow->setSpacing(4);
+
+    m_toggleReplaceBtn = new QToolButton(this);
+    m_toggleReplaceBtn->setText("▼");
+    m_toggleReplaceBtn->setToolTip("展开/折叠替换 (Ctrl+H)");
+    m_toggleReplaceBtn->setCheckable(true);
+    m_toggleReplaceBtn->setFixedSize(20, 24);
+    findRow->addWidget(m_toggleReplaceBtn);
+
+    m_findEdit = new QLineEdit(this);
+    m_findEdit->setPlaceholderText("查找 (Ctrl+F)");
+    m_findEdit->setMinimumWidth(180);
+    m_findEdit->setFixedHeight(24);
+    findRow->addWidget(m_findEdit, 1);
+
+    m_matchCaseBtn = new QToolButton(this);
+    m_matchCaseBtn->setText("Aa");
+    m_matchCaseBtn->setToolTip("区分大小写 (Alt+C)");
+    m_matchCaseBtn->setCheckable(true);
+    m_matchCaseBtn->setFixedSize(24, 24);
+    findRow->addWidget(m_matchCaseBtn);
+
+    m_matchWordBtn = new QToolButton(this);
+    m_matchWordBtn->setText("\\b");
+    m_matchWordBtn->setToolTip("全词匹配 (Alt+W)");
+    m_matchWordBtn->setCheckable(true);
+    m_matchWordBtn->setFixedSize(24, 24);
+    findRow->addWidget(m_matchWordBtn);
+
+    m_regexBtn = new QToolButton(this);
+    m_regexBtn->setText(".*");
+    m_regexBtn->setToolTip("使用正则表达式 (Alt+R)");
+    m_regexBtn->setCheckable(true);
+    m_regexBtn->setFixedSize(24, 24);
+    findRow->addWidget(m_regexBtn);
+
+    m_matchCountLabel = new QLabel(this);
+    m_matchCountLabel->setText("无结果");
+    m_matchCountLabel->setStyleSheet("color: #9CA3AF; font-size: 11px; padding: 0 4px;");
+    findRow->addWidget(m_matchCountLabel);
+
+    m_prevBtn = new QToolButton(this);
+    m_prevBtn->setText("▲");
+    m_prevBtn->setToolTip("上一个 (Shift+Enter / Shift+F3)");
+    m_prevBtn->setFixedSize(24, 24);
+    findRow->addWidget(m_prevBtn);
+
+    m_nextBtn = new QToolButton(this);
+    m_nextBtn->setText("▼");
+    m_nextBtn->setToolTip("下一个 (Enter / F3)");
+    m_nextBtn->setFixedSize(24, 24);
+    findRow->addWidget(m_nextBtn);
+
+    m_closeBtn = new QToolButton(this);
+    m_closeBtn->setText("✕");
+    m_closeBtn->setToolTip("关闭 (Esc)");
+    m_closeBtn->setFixedSize(20, 24);
+    findRow->addWidget(m_closeBtn);
+
+    mainLayout->addLayout(findRow);
+
+    // 第 2 行：替换输入行
+    m_replaceRowWidget = new QWidget(this);
+    QHBoxLayout *replaceRow = new QHBoxLayout(m_replaceRowWidget);
+    replaceRow->setContentsMargins(0, 0, 0, 0);
+    replaceRow->setSpacing(4);
+
+    QLabel *spacer = new QLabel(this);
+    spacer->setFixedWidth(20);
+    replaceRow->addWidget(spacer);
+
+    m_replaceEdit = new QLineEdit(this);
+    m_replaceEdit->setPlaceholderText("替换为...");
+    m_replaceEdit->setMinimumWidth(180);
+    m_replaceEdit->setFixedHeight(24);
+    replaceRow->addWidget(m_replaceEdit, 1);
+
+    m_replaceBtn = new QToolButton(this);
+    m_replaceBtn->setText("替换");
+    m_replaceBtn->setToolTip("替换当前匹配项");
+    m_replaceBtn->setFixedHeight(24);
+    replaceRow->addWidget(m_replaceBtn);
+
+    m_replaceAllBtn = new QToolButton(this);
+    m_replaceAllBtn->setText("全部替换");
+    m_replaceAllBtn->setToolTip("替换全部匹配项");
+    m_replaceAllBtn->setFixedHeight(24);
+    replaceRow->addWidget(m_replaceAllBtn);
+
+    mainLayout->addWidget(m_replaceRowWidget);
+    m_replaceRowWidget->setVisible(false);
+
+    // 统一样式
+    setStyleSheet(
+        "#FindReplaceWidget {"
+        "  background-color: #252526;"
+        "  border: 1px solid #3E4451;"
+        "  border-radius: 6px;"
+        "}"
+        "QLineEdit {"
+        "  background-color: #1E1E1E;"
+        "  color: #D4D4D4;"
+        "  border: 1px solid #3E4451;"
+        "  border-radius: 3px;"
+        "  padding: 2px 6px;"
+        "  font-family: 'Consolas', monospace;"
+        "  font-size: 12px;"
+        "}"
+        "QLineEdit:focus {"
+        "  border: 1px solid #007ACC;"
+        "}"
+        "QToolButton {"
+        "  background-color: transparent;"
+        "  color: #CCCCCC;"
+        "  border: 1px solid transparent;"
+        "  border-radius: 3px;"
+        "  font-weight: bold;"
+        "  font-size: 11px;"
+        "  padding: 1px 4px;"
+        "}"
+        "QToolButton:hover {"
+        "  background-color: #383B40;"
+        "  border: 1px solid #4B5263;"
+        "}"
+        "QToolButton:checked {"
+        "  background-color: #0E639C;"
+        "  color: #FFFFFF;"
+        "  border: 1px solid #1177BB;"
+        "}"
+        "QToolButton:pressed {"
+        "  background-color: #007ACC;"
+        "}");
+
+    // 信号连接
+    connect(m_toggleReplaceBtn, &QToolButton::toggled, this, &FindReplaceWidget::setReplaceVisible);
+    connect(m_findEdit, &QLineEdit::textChanged, this, &FindReplaceWidget::onSearchTextChanged);
+    connect(m_findEdit, &QLineEdit::returnPressed, this, [this]() { findText(true); });
+    connect(m_nextBtn, &QToolButton::clicked, this, [this]() { findText(true); });
+    connect(m_prevBtn, &QToolButton::clicked, this, [this]() { findText(false); });
+    connect(m_closeBtn, &QToolButton::clicked, this, &FindReplaceWidget::hide);
+    connect(m_matchCaseBtn, &QToolButton::toggled, this, [this]() { onSearchTextChanged(m_findEdit->text()); });
+    connect(m_matchWordBtn, &QToolButton::toggled, this, [this]() { onSearchTextChanged(m_findEdit->text()); });
+    connect(m_regexBtn, &QToolButton::toggled, this, [this]() { onSearchTextChanged(m_findEdit->text()); });
+    connect(m_replaceBtn, &QToolButton::clicked, this, &FindReplaceWidget::replaceSingle);
+    connect(m_replaceAllBtn, &QToolButton::clicked, this, &FindReplaceWidget::replaceAll);
+    connect(m_replaceEdit, &QLineEdit::returnPressed, this, &FindReplaceWidget::replaceSingle);
+  }
+
+  void setReplaceVisible(bool visible) {
+    m_toggleReplaceBtn->setChecked(visible);
+    m_toggleReplaceBtn->setText(visible ? "▲" : "▼");
+    m_replaceRowWidget->setVisible(visible);
+    adjustSize();
+    updatePosition();
+  }
+
+  void showFind(const QString &prefill = QString()) {
+    if (!prefill.isEmpty()) {
+      m_findEdit->setText(prefill);
+      m_findEdit->selectAll();
+    }
+    show();
+    raise();
+    updatePosition();
+    m_findEdit->setFocus();
+    onSearchTextChanged(m_findEdit->text());
+  }
+
+  void showReplace(const QString &prefill = QString()) {
+    setReplaceVisible(true);
+    showFind(prefill);
+    if (!prefill.isEmpty()) {
+      m_replaceEdit->setFocus();
+      m_replaceEdit->selectAll();
+    }
+  }
+
+  void updatePosition() {
+    if (!m_editor) return;
+    int rightMargin = 25;
+    if (m_editor->m_functionListContainer && m_editor->m_functionListContainer->isVisible()) {
+      rightMargin += m_editor->m_functionListContainer->width();
+    }
+    int x = m_editor->width() - width() - rightMargin;
+    int y = (m_editor->m_breadcrumbBar && m_editor->m_breadcrumbBar->isVisible()) ?
+            (m_editor->m_breadcrumbBar->geometry().bottom() + 4) : 4;
+    if (x < 10) x = 10;
+    move(x, y);
+  }
+
+  bool findText(bool forward) {
+    if (!m_editor || !m_editor->currentEditor()) return false;
+    QsciScintilla *curEditor = m_editor->currentEditor();
+    QString query = m_findEdit->text();
+    if (query.isEmpty()) return false;
+
+    bool cs = m_matchCaseBtn->isChecked();
+    bool wo = m_matchWordBtn->isChecked();
+    bool re = m_regexBtn->isChecked();
+
+    bool found = curEditor->findFirst(query, re, cs, wo, true, forward);
+    if (!found) {
+      found = curEditor->findFirst(query, re, cs, wo, true, forward, 0, 0);
+    }
+    updateMatchCount();
+    return found;
+  }
+
+  void replaceSingle() {
+    if (!m_editor || !m_editor->currentEditor()) return;
+    QsciScintilla *curEditor = m_editor->currentEditor();
+    if (curEditor->hasSelectedText()) {
+      curEditor->replace(m_replaceEdit->text());
+    }
+    findText(true);
+  }
+
+  void replaceAll() {
+    if (!m_editor || !m_editor->currentEditor()) return;
+    QsciScintilla *curEditor = m_editor->currentEditor();
+    QString query = m_findEdit->text();
+    QString rep = m_replaceEdit->text();
+    if (query.isEmpty()) return;
+
+    curEditor->SendScintilla(QsciScintilla::SCI_BEGINUNDOACTION);
+    bool cs = m_matchCaseBtn->isChecked();
+    bool wo = m_matchWordBtn->isChecked();
+    bool re = m_regexBtn->isChecked();
+
+    if (curEditor->findFirst(query, re, cs, wo, false, true, 0, 0)) {
+      do {
+        curEditor->replace(rep);
+      } while (curEditor->findNext());
+    }
+    curEditor->SendScintilla(QsciScintilla::SCI_ENDUNDOACTION);
+    updateMatchCount();
+  }
+
+  void onSearchTextChanged(const QString &text) {
+    if (text.isEmpty()) {
+      m_matchCountLabel->setText("无结果");
+      return;
+    }
+    updateMatchCount();
+  }
+
+  void updateMatchCount() {
+    if (!m_editor || !m_editor->currentEditor()) return;
+    QString query = m_findEdit->text();
+    if (query.isEmpty()) {
+      m_matchCountLabel->setText("无结果");
+      return;
+    }
+
+    QString code = m_editor->currentEditor()->text();
+    QRegularExpression::PatternOptions opt = QRegularExpression::NoPatternOption;
+    if (!m_matchCaseBtn->isChecked()) {
+      opt |= QRegularExpression::CaseInsensitiveOption;
+    }
+    QString pattern = m_regexBtn->isChecked() ? query : QRegularExpression::escape(query);
+    if (m_matchWordBtn->isChecked()) {
+      pattern = QString(R"(\b%1\b)").arg(pattern);
+    }
+    QRegularExpression regex(pattern, opt);
+    if (!regex.isValid()) {
+      m_matchCountLabel->setText("正则错误");
+      return;
+    }
+
+    int total = 0;
+    QRegularExpressionMatchIterator it = regex.globalMatch(code);
+    while (it.hasNext()) {
+      it.next();
+      ++total;
+    }
+
+    if (total == 0) {
+      m_matchCountLabel->setText("无结果");
+    } else {
+      m_matchCountLabel->setText(QString("%1 处匹配").arg(total));
+    }
+  }
+
+protected:
+  void keyPressEvent(QKeyEvent *e) override {
+    if (e->key() == Qt::Key_Escape) {
+      hide();
+      if (m_editor && m_editor->currentEditor()) {
+        m_editor->currentEditor()->setFocus();
+      }
+      e->accept();
+      return;
+    }
+    QWidget::keyPressEvent(e);
+  }
+
+private:
+  CodeEditor *m_editor;
+  QLineEdit *m_findEdit;
+  QLineEdit *m_replaceEdit;
+  QLabel *m_matchCountLabel;
+  QToolButton *m_toggleReplaceBtn;
+  QToolButton *m_matchCaseBtn;
+  QToolButton *m_matchWordBtn;
+  QToolButton *m_regexBtn;
+  QToolButton *m_prevBtn;
+  QToolButton *m_nextBtn;
+  QToolButton *m_closeBtn;
+  QToolButton *m_replaceBtn;
+  QToolButton *m_replaceAllBtn;
+  QWidget *m_replaceRowWidget;
+};
+
+using DefinitionCandidate = CodeEditor::DefinitionCandidate;
+
+// 转到定义多候选跳转对话框
+class GoToDefinitionDialog : public QDialog {
+public:
+  GoToDefinitionDialog(const QString &symbolName, const QList<CodeEditor::DefinitionCandidate> &candidates,
+                       CodeEditor *editor, QWidget *parent = nullptr)
+      : QDialog(parent), m_editor(editor), m_candidates(candidates) {
+    setWindowTitle(QString("转到定义: %1 (共发现 %2 处候选定义)").arg(symbolName).arg(candidates.size()));
+    resize(760, 380);
+    setStyleSheet(
+        "QDialog {"
+        "  background-color: #1E1E2E;"
+        "  color: #D4D4D4;"
+        "}"
+        "QListWidget {"
+        "  background-color: #181825;"
+        "  border: 1px solid #313244;"
+        "  border-radius: 6px;"
+        "  color: #CDD6F4;"
+        "  font-family: 'Consolas', 'Courier New', monospace;"
+        "  font-size: 13px;"
+        "  padding: 4px;"
+        "}"
+        "QListWidget::item {"
+        "  padding: 8px 10px;"
+        "  border-bottom: 1px solid #282A3A;"
+        "  border-radius: 4px;"
+        "}"
+        "QListWidget::item:hover {"
+        "  background-color: #313244;"
+        "  color: #89B4FA;"
+        "}"
+        "QListWidget::item:selected {"
+        "  background-color: #45475A;"
+        "  color: #89B4FA;"
+        "}");
+
+    QVBoxLayout *layout = new QVBoxLayout(this);
+    layout->setContentsMargins(14, 14, 14, 14);
+    layout->setSpacing(10);
+
+    QLabel *headerLabel = new QLabel(QString("符号 <b><font color='#89B4FA'>%1</font></b> 存在多处候选定义与声明（双击或选中回车直接跳转）：").arg(symbolName), this);
+    headerLabel->setStyleSheet("color: #BAC2DE; font-size: 13px; font-weight: 500;");
+    layout->addWidget(headerLabel);
+
+    m_listWidget = new QListWidget(this);
+    for (int i = 0; i < candidates.size(); ++i) {
+      const auto &cand = candidates[i];
+      QString fileName = QFileInfo(cand.filePath).fileName();
+      QString itemText = QString("[%1]  %2  (第 %3 行)\n    %4")
+                             .arg(cand.type, -10)
+                             .arg(fileName)
+                             .arg(cand.line + 1)
+                             .arg(cand.preview.trimmed());
+      QListWidgetItem *item = new QListWidgetItem(itemText, m_listWidget);
+      item->setData(Qt::UserRole, i);
+      if (i == 0) m_listWidget->setCurrentItem(item);
+    }
+    layout->addWidget(m_listWidget);
+
+    auto triggerJump = [this]() {
+      QListWidgetItem *item = m_listWidget->currentItem();
+      if (item && m_editor) {
+        int idx = item->data(Qt::UserRole).toInt();
+        if (idx >= 0 && idx < m_candidates.size()) {
+          m_editor->openDefinitionCandidate(m_candidates[idx]);
+        }
+      }
+      accept();
+    };
+
+    connect(m_listWidget, &QListWidget::itemDoubleClicked, this, triggerJump);
+    connect(m_listWidget, &QListWidget::itemActivated, this, triggerJump);
+  }
+
+protected:
+  void keyPressEvent(QKeyEvent *event) override {
+    if (event->key() == Qt::Key_Return || event->key() == Qt::Key_Enter) {
+      QListWidgetItem *item = m_listWidget->currentItem();
+      if (item && m_editor) {
+        int idx = item->data(Qt::UserRole).toInt();
+        if (idx >= 0 && idx < m_candidates.size()) {
+          m_editor->openDefinitionCandidate(m_candidates[idx]);
+        }
+      }
+      accept();
+      return;
+    }
+    QDialog::keyPressEvent(event);
+  }
+
+private:
+  CodeEditor *m_editor;
+  QListWidget *m_listWidget;
+  QList<CodeEditor::DefinitionCandidate> m_candidates;
+};
+
+// 局部变量重命名对话框
+class RenameSymbolDialog : public QDialog {
+public:
+  RenameSymbolDialog(const QString &oldName, const QString &scopeDesc, int count, QWidget *parent = nullptr)
+      : QDialog(parent) {
+    setWindowTitle("重命名符号 (Rename Symbol)");
+    setMinimumWidth(380);
+    setStyleSheet(
+        "QDialog {"
+        "  background-color: #252526;"
+        "  color: #D4D4D4;"
+        "}"
+        "QLabel {"
+        "  color: #D4D4D4;"
+        "  font-size: 12px;"
+        "}"
+        "QLineEdit {"
+        "  background-color: #1E1E1E;"
+        "  color: #FFFFFF;"
+        "  border: 1px solid #007ACC;"
+        "  border-radius: 4px;"
+        "  padding: 4px 8px;"
+        "  font-family: 'Consolas', monospace;"
+        "  font-size: 13px;"
+        "}"
+        "QPushButton {"
+        "  background-color: #0E639C;"
+        "  color: #FFFFFF;"
+        "  border: 1px solid #1177BB;"
+        "  border-radius: 4px;"
+        "  padding: 4px 14px;"
+        "  font-size: 12px;"
+        "}"
+        "QPushButton:hover {"
+        "  background-color: #1177BB;"
+        "}"
+        "QPushButton#cancelBtn {"
+        "  background-color: #383B40;"
+        "  border: 1px solid #4B5263;"
+        "}"
+        "QPushButton#cancelBtn:hover {"
+        "  background-color: #4B5263;"
+        "}");
+
+    QVBoxLayout *layout = new QVBoxLayout(this);
+    layout->setSpacing(10);
+    layout->setContentsMargins(16, 16, 16, 16);
+
+    QLabel *infoLabel = new QLabel(QString("<b>作用域：</b>%1<br><b>引用计数：</b>共发现 <span style='color:#EAB308;'>%2</span> 处引用").arg(scopeDesc).arg(count), this);
+    infoLabel->setTextFormat(Qt::RichText);
+    layout->addWidget(infoLabel);
+
+    QLabel *nameLabel = new QLabel("请输入新名称：", this);
+    layout->addWidget(nameLabel);
+
+    m_nameEdit = new QLineEdit(this);
+    m_nameEdit->setText(oldName);
+    m_nameEdit->selectAll();
+    layout->addWidget(m_nameEdit);
+
+    QHBoxLayout *btnLayout = new QHBoxLayout();
+    btnLayout->addStretch();
+
+    QPushButton *okBtn = new QPushButton("执行重命名 (Enter)", this);
+    okBtn->setDefault(true);
+    QPushButton *cancelBtn = new QPushButton("取消", this);
+    cancelBtn->setObjectName("cancelBtn");
+
+    btnLayout->addWidget(okBtn);
+    btnLayout->addWidget(cancelBtn);
+    layout->addLayout(btnLayout);
+
+    connect(okBtn, &QPushButton::clicked, this, &QDialog::accept);
+    connect(cancelBtn, &QPushButton::clicked, this, &QDialog::reject);
+  }
+
+  QString newName() const { return m_nameEdit->text().trimmed(); }
+
+private:
+  QLineEdit *m_nameEdit;
+};
+
+// 全工程符号重命名对话框
+class ProjectRenameDialog : public QDialog {
+public:
+  ProjectRenameDialog(const QString &oldName, const QString &scopeDesc,
+                      const QMap<QString, QList<CodeEditor::SymbolOccurrence>> &fileOccurrences,
+                      QWidget *parent = nullptr)
+      : QDialog(parent) {
+    setWindowTitle("全工程重命名符号 (Project-Wide Rename)");
+    setMinimumWidth(560);
+    setStyleSheet(
+        "QDialog {"
+        "  background-color: #252526;"
+        "  color: #D4D4D4;"
+        "}"
+        "QLabel {"
+        "  color: #D4D4D4;"
+        "  font-size: 12px;"
+        "}"
+        "QLineEdit {"
+        "  background-color: #1E1E1E;"
+        "  color: #FFFFFF;"
+        "  border: 1px solid #007ACC;"
+        "  border-radius: 4px;"
+        "  padding: 4px 8px;"
+        "  font-family: 'Consolas', monospace;"
+        "  font-size: 13px;"
+        "}"
+        "QListWidget {"
+        "  background-color: #1E1E1E;"
+        "  border: 1px solid #3E4451;"
+        "  color: #D4D4D4;"
+        "  font-family: 'Consolas', monospace;"
+        "  font-size: 11px;"
+        "}"
+        "QPushButton {"
+        "  background-color: #0E639C;"
+        "  color: #FFFFFF;"
+        "  border: 1px solid #1177BB;"
+        "  border-radius: 4px;"
+        "  padding: 5px 16px;"
+        "  font-size: 12px;"
+        "}"
+        "QPushButton:hover {"
+        "  background-color: #1177BB;"
+        "}"
+        "QPushButton#cancelBtn {"
+        "  background-color: #383B40;"
+        "  border: 1px solid #4B5263;"
+        "}"
+        "QPushButton#cancelBtn:hover {"
+        "  background-color: #4B5263;"
+        "}");
+
+    QVBoxLayout *layout = new QVBoxLayout(this);
+    layout->setSpacing(10);
+    layout->setContentsMargins(16, 16, 16, 16);
+
+    int totalOccs = 0;
+    for (auto it = fileOccurrences.begin(); it != fileOccurrences.end(); ++it) {
+      totalOccs += it.value().size();
+    }
+
+    QLabel *infoLabel = new QLabel(
+        QString("<b>作用域：</b>%1<br><b>全工程统计：</b>将在 <b>%2</b> 个源文件中重命名，共 <b>%3</b> 处引用")
+            .arg(scopeDesc).arg(fileOccurrences.size()).arg(totalOccs), this);
+    infoLabel->setTextFormat(Qt::RichText);
+    layout->addWidget(infoLabel);
+
+    QLabel *fileListLabel = new QLabel("涉及文件清单：", this);
+    layout->addWidget(fileListLabel);
+
+    QListWidget *fileListWidget = new QListWidget(this);
+    fileListWidget->setMaximumHeight(130);
+    for (auto it = fileOccurrences.begin(); it != fileOccurrences.end(); ++it) {
+      QString fName = QFileInfo(it.key()).fileName();
+      fileListWidget->addItem(QString("📄 %1  (%2 处引用) - %3").arg(fName).arg(it.value().size()).arg(it.key()));
+    }
+    layout->addWidget(fileListWidget);
+
+    QLabel *nameLabel = new QLabel("请输入新符号名称：", this);
+    layout->addWidget(nameLabel);
+
+    m_nameEdit = new QLineEdit(this);
+    m_nameEdit->setText(oldName);
+    m_nameEdit->selectAll();
+    layout->addWidget(m_nameEdit);
+
+    QHBoxLayout *btnLayout = new QHBoxLayout();
+    btnLayout->addStretch();
+
+    QPushButton *okBtn = new QPushButton("执行全工程重命名 (Enter)", this);
+    okBtn->setDefault(true);
+    QPushButton *cancelBtn = new QPushButton("取消", this);
+    cancelBtn->setObjectName("cancelBtn");
+
+    btnLayout->addWidget(okBtn);
+    btnLayout->addWidget(cancelBtn);
+    layout->addLayout(btnLayout);
+
+    connect(okBtn, &QPushButton::clicked, this, &QDialog::accept);
+    connect(cancelBtn, &QPushButton::clicked, this, &QDialog::reject);
+  }
+
+  QString newName() const { return m_nameEdit->text().trimmed(); }
+
+private:
+  QLineEdit *m_nameEdit;
+};
+
+// 查找所有引用展示弹窗 (References Dialog)
+class ReferencesDialog : public QDialog {
+public:
+  ReferencesDialog(const QString &symbolName, const QList<CodeEditor::SymbolOccurrence> &occurrences,
+                   const QString &filePath, CodeEditor *editor, QWidget *parent = nullptr)
+      : QDialog(parent), m_editor(editor), m_occurrences(occurrences), m_filePath(filePath) {
+    setWindowTitle(QString("查找引用: %1 (共 %2 处)").arg(symbolName).arg(occurrences.size()));
+    resize(660, 380);
+    setStyleSheet(
+        "QDialog {"
+        "  background-color: #1E1E2E;"
+        "  color: #D4D4D4;"
+        "}"
+        "QListWidget {"
+        "  background-color: #181825;"
+        "  border: 1px solid #313244;"
+        "  color: #CDD6F4;"
+        "  font-family: 'Consolas', monospace;"
+        "  font-size: 12px;"
+        "}"
+        "QListWidget::item {"
+        "  padding: 6px 8px;"
+        "  border-bottom: 1px solid #313244;"
+        "}"
+        "QListWidget::item:hover {"
+        "  background-color: #313244;"
+        "}"
+        "QListWidget::item:selected {"
+        "  background-color: #45475A;"
+        "  color: #89B4FA;"
+        "}");
+
+    QVBoxLayout *layout = new QVBoxLayout(this);
+    layout->setContentsMargins(12, 12, 12, 12);
+    layout->setSpacing(8);
+
+    QLabel *headerLabel = new QLabel(QString("符号 <b>%1</b> 的所有引用列表（双击可直接跳转）：").arg(symbolName), this);
+    headerLabel->setStyleSheet("color: #BAC2DE; font-size: 13px;");
+    layout->addWidget(headerLabel);
+
+    m_listWidget = new QListWidget(this);
+    for (int i = 0; i < occurrences.size(); ++i) {
+      const auto &occ = occurrences[i];
+      QString itemText = QString("第 %1 行 [列 %2]:  %3").arg(occ.line + 1, 4).arg(occ.col + 1, 3).arg(occ.lineContent.trimmed());
+      QListWidgetItem *item = new QListWidgetItem(itemText, m_listWidget);
+      item->setData(Qt::UserRole, occ.line);
+      item->setData(Qt::UserRole + 1, occ.col);
+      item->setData(Qt::UserRole + 2, occ.length);
+    }
+    layout->addWidget(m_listWidget);
+
+    connect(m_listWidget, &QListWidget::itemDoubleClicked, this, [this](QListWidgetItem *item) {
+      if (item && m_editor && m_editor->currentEditor()) {
+        int line = item->data(Qt::UserRole).toInt();
+        int col = item->data(Qt::UserRole + 1).toInt();
+        int len = item->data(Qt::UserRole + 2).toInt();
+        m_editor->currentEditor()->setCursorPosition(line, col);
+        m_editor->currentEditor()->ensureLineVisible(line);
+        m_editor->currentEditor()->setSelection(line, col, line, col + len);
+        m_editor->currentEditor()->setFocus();
+      }
+      accept();
+    });
+  }
+
+private:
+  CodeEditor *m_editor;
+  QListWidget *m_listWidget;
+  QList<CodeEditor::SymbolOccurrence> m_occurrences;
+  QString m_filePath;
+};
+
+// 粘性滚动 (Sticky Scroll) / 顶部悬挂函数头控件 (1:1 像素级复现 VS Code 风格)
+class StickyScrollWidget : public QWidget {
+public:
+  StickyScrollWidget(CodeEditor *codeEditor, QWidget *parent = nullptr)
+      : QWidget(parent), m_codeEditor(codeEditor), m_targetLine(-1), m_targetCol(0),
+        m_marginWidth(48), m_xOffset(0), m_isHovered(false),
+        m_editorBg("#1E1E1E"), m_marginBg("#1E1E1E"), m_marginFg("#858585"),
+        m_borderColor("#3E4451"), m_accentColor("#89B4FA"),
+        m_keywordColor("#569CD6"), m_typeColor("#4EC9B0"),
+        m_funcColor("#DCDCAA"), m_textColor("#D4D4D4")
+  {
+    setAttribute(Qt::WA_OpaquePaintEvent, false);
+    setMouseTracking(true);
+    setCursor(Qt::PointingHandCursor);
+    m_font = QFont("Consolas", 10);
+    m_font.setFixedPitch(true);
+    setFont(m_font);
+  }
+
+  void updateTheme(const IdeTheme::ThemePalette &p) {
+    m_editorBg = QColor(p.editorBg);
+    m_marginBg = QColor(p.marginBg);
+    m_marginFg = QColor(p.marginFg);
+    m_borderColor = QColor(p.border);
+    m_accentColor = QColor(p.accent);
+    m_keywordColor = QColor(p.synKeyword);
+    m_typeColor = QColor(p.synGlobalClass);
+    m_funcColor = QColor(p.isDark ? "#DCDCAA" : "#795E26");
+    m_textColor = QColor(p.textMain);
+    update();
+  }
+
+  void setFunctionHeader(int startLine, int startCol, const QString &scopedName, const QString &fullLineText,
+                         int marginWidth, int xOffset, int lineHeight) {
+    m_targetLine = startLine;
+    m_targetCol = startCol;
+    m_scopedName = scopedName;
+    m_rawLineText = fullLineText;
+    m_lineNumStr = QString::number(startLine + 1);
+    m_marginWidth = marginWidth;
+    m_xOffset = xOffset;
+    setFixedHeight(qBound(22, lineHeight + 2, 34));
+    setToolTip(QString("📍 点击跳转至函数定义: %1 (第 %2 行)").arg(scopedName).arg(startLine + 1));
+    update();
+  }
+
+  int targetLine() const { return m_targetLine; }
+
+protected:
+  void paintEvent(QPaintEvent *) override {
+    QPainter painter(this);
+    painter.setRenderHint(QPainter::Antialiasing, true);
+    painter.setRenderHint(QPainter::TextAntialiasing, true);
+    painter.setFont(m_font);
+
+    QFontMetrics fm = painter.fontMetrics();
+    int h = height();
+    int w = width();
+    int marginW = m_marginWidth;
+
+    // 1. 绘制左侧行号边距区域 (与 Scintilla 边距 100% 对齐)
+    QRect marginRect(0, 0, marginW, h);
+    painter.fillRect(marginRect, m_marginBg);
+
+    // 绘制行号 (右对齐，距离右侧分割线 6px)
+    painter.setPen(m_isHovered ? m_accentColor : m_marginFg);
+    painter.drawText(marginRect.adjusted(0, 0, -6, 0), Qt::AlignRight | Qt::AlignVCenter, m_lineNumStr);
+
+    // 绘制边距分割竖线
+    painter.setPen(m_borderColor);
+    painter.drawLine(marginW - 1, 0, marginW - 1, h);
+
+    // 2. 绘制代码内容区域背景 (悬停时微亮呈现可交互感)
+    QRect contentRect(marginW, 0, w - marginW, h);
+    QColor contentBg = m_isHovered ?
+        (m_editorBg.lightness() < 128 ? m_editorBg.lighter(118) : m_editorBg.darker(106)) :
+        m_editorBg;
+    painter.fillRect(contentRect, contentBg);
+
+    // 3. 绘制函数定义代码 (支持水平滚动偏移与关键字语法着色)
+    painter.save();
+    painter.setClipRect(contentRect);
+
+    int textX = marginW + 4 - m_xOffset;
+    int textY = (h + fm.ascent() - fm.descent()) / 2;
+
+    renderStyledCode(painter, m_rawLineText, textX, textY, fm);
+
+    painter.restore();
+
+    // 4. 绘制底部悬浮分割线与微阴影效果
+    painter.setPen(QPen(m_isHovered ? m_accentColor : m_borderColor, 1));
+    painter.drawLine(0, h - 1, w, h - 1);
+  }
+
+  void renderStyledCode(QPainter &painter, const QString &line, int startX, int baselineY, const QFontMetrics &fm) {
+    static const QSet<QString> keywords = {
+        "static", "inline", "virtual", "explicit", "const", "constexpr", "volatile",
+        "void", "int", "char", "short", "long", "float", "double", "bool", "auto",
+        "uint8_t", "uint16_t", "uint32_t", "uint64_t", "int8_t", "int16_t", "int32_t", "int64_t",
+        "size_t", "class", "struct", "enum", "union", "template", "typename", "namespace",
+        "override", "final", "noexcept", "public", "protected", "private", "signals", "slots", "emit"
+    };
+
+    int curX = startX;
+    int len = line.length();
+    int i = 0;
+
+    while (i < len) {
+      if (line[i].isSpace()) {
+        int spaceStart = i;
+        while (i < len && line[i].isSpace()) ++i;
+        QString spaces = line.mid(spaceStart, i - spaceStart);
+        curX += fm.horizontalAdvance(spaces);
+        continue;
+      }
+
+      if (line[i].isLetter() || line[i] == '_' || line[i] == '~') {
+        int wordStart = i;
+        while (i < len && (line[i].isLetterOrNumber() || line[i] == '_' || line[i] == '~' || line[i] == ':')) {
+          if (line[i] == ':' && (i + 1 >= len || line[i + 1] != ':') && (i == 0 || line[i - 1] != ':')) {
+            break;
+          }
+          ++i;
+        }
+        QString word = line.mid(wordStart, i - wordStart);
+        QString bareWord = word;
+        if (bareWord.contains("::")) {
+          bareWord = bareWord.split("::").last();
+        }
+
+        if (keywords.contains(word) || keywords.contains(bareWord)) {
+          painter.setPen(m_keywordColor);
+        } else if (word.startsWith("Q") || word.endsWith("_t") || word.endsWith("TypeDef") ||
+                   (word.length() > 0 && word[0].isUpper() && !word.contains('('))) {
+          painter.setPen(m_typeColor);
+        } else if (i < len && (line[i] == '(' || (i + 1 < len && line[i].isSpace() && line.indexOf('(', i) != -1))) {
+          painter.setPen(m_funcColor);
+          QFont f = painter.font();
+          f.setBold(true);
+          painter.setFont(f);
+          painter.drawText(curX, baselineY, word);
+          f.setBold(false);
+          painter.setFont(f);
+          curX += fm.horizontalAdvance(word);
+          continue;
+        } else {
+          painter.setPen(m_textColor);
+        }
+
+        painter.drawText(curX, baselineY, word);
+        curX += fm.horizontalAdvance(word);
+        continue;
+      }
+
+      // 标点符号与运算符
+      QString opStr = line.mid(i, 1);
+      painter.setPen(m_textColor);
+      painter.drawText(curX, baselineY, opStr);
+      curX += fm.horizontalAdvance(opStr);
+      ++i;
+    }
+  }
+
+  void mousePressEvent(QMouseEvent *event) override {
+    if (event->button() == Qt::LeftButton && m_targetLine >= 0 && m_codeEditor) {
+      QsciScintilla *editor = m_codeEditor->currentEditor();
+      if (editor) {
+        editor->setCursorPosition(m_targetLine, m_targetCol);
+        editor->ensureLineVisible(m_targetLine);
+        int visibleLines = editor->SendScintilla(QsciScintilla::SCI_LINESONSCREEN);
+        int scrollLine = qMax(0, m_targetLine - visibleLines / 3);
+        editor->SendScintilla(QsciScintilla::SCI_SETFIRSTVISIBLELINE, scrollLine);
+        editor->setFocus();
+        m_codeEditor->updateBreadcrumb(m_targetLine);
+      }
+    }
+    QWidget::mousePressEvent(event);
+  }
+
+  void enterEvent(QEvent *event) override {
+    m_isHovered = true;
+    update();
+    QWidget::enterEvent(event);
+  }
+
+  void leaveEvent(QEvent *event) override {
+    m_isHovered = false;
+    update();
+    QWidget::leaveEvent(event);
+  }
+
+private:
+  CodeEditor *m_codeEditor;
+  int m_targetLine;
+  int m_targetCol;
+  QString m_scopedName;
+  QString m_rawLineText;
+  QString m_lineNumStr;
+  int m_marginWidth;
+  int m_xOffset;
+  bool m_isHovered;
+  QFont m_font;
+
+  QColor m_editorBg;
+  QColor m_marginBg;
+  QColor m_marginFg;
+  QColor m_borderColor;
+  QColor m_accentColor;
+  QColor m_keywordColor;
+  QColor m_typeColor;
+  QColor m_funcColor;
+  QColor m_textColor;
+};
+
 CodeEditor::CodeEditor(QWidget *parent)
     : QWidget(parent), m_currentEditor(nullptr), m_apiCPP(nullptr),
       m_breadcrumbBar(nullptr), m_bcPathContainer(nullptr), m_bcPathLayout(nullptr),
       m_bcFileButton(nullptr), m_bcFuncButton(nullptr), m_outlineToggleBtn(nullptr),
       m_functionListContainer(nullptr), m_outlineTitleLabel(nullptr),
-      m_functionTree(nullptr), m_isDarkTheme(false)
+      m_functionTree(nullptr), m_findReplaceBar(nullptr), m_stickyScrollWidget(nullptr), m_isDarkTheme(false)
 {
   // 创建主布局
   QVBoxLayout *layout = new QVBoxLayout(this);
@@ -566,6 +1629,20 @@ CodeEditor::CodeEditor(QWidget *parent)
   m_mainSplitter->setStretchFactor(1, 0);
   m_mainSplitter->setCollapsible(0, false);
   m_mainSplitter->setCollapsible(1, true);
+
+  // 浮动查找与替换栏
+  m_findReplaceBar = new FindReplaceWidget(this, this);
+  m_findReplaceBar->hide();
+
+  // 粘性滚动 (Sticky Scroll) / 顶部悬挂函数头控件
+  m_stickyScrollWidget = new StickyScrollWidget(this, m_currentEditor);
+  m_stickyScrollWidget->hide();
+
+  // 符号同名高亮防抖定时器
+  m_occurrenceTimer = new QTimer(this);
+  m_occurrenceTimer->setSingleShot(true);
+  m_occurrenceTimer->setInterval(150);
+  connect(m_occurrenceTimer, &QTimer::timeout, this, &CodeEditor::onOccurrenceTimerTimeout);
 
   // 设置示例代码
   editor->setText(
@@ -635,6 +1712,12 @@ bool CodeEditor::openFile(const QString &filePath) {
       content = utf8Content;
     }
 
+    // 更新当前规范化绝对文件路径
+    m_currentFilePath = QFileInfo(filePath).canonicalFilePath();
+    if (m_currentFilePath.isEmpty()) {
+      m_currentFilePath = QFileInfo(filePath).absoluteFilePath();
+    }
+
     // 在当前编辑器中显示文件内容
     if (m_currentEditor) {
       m_currentEditor->setText(content);
@@ -643,15 +1726,13 @@ bool CodeEditor::openFile(const QString &filePath) {
       highlightFunctionNames(m_currentEditor, 20); // 20 is FUNCTION_INDICATOR
     }
 
-    // 更新当前文件路径
-    m_currentFilePath = filePath;
-
     // 解析文件中的变量并更新自动补全
     updateVariableList();
 
     // 更新函数列表
     updateFunctionList();
 
+    emit fileOpened(m_currentFilePath);
     return true;
   }
   return false;
@@ -669,8 +1750,12 @@ bool CodeEditor::saveFile(const QString &filePath) {
     file.close();
 
     // 更新当前文件路径
-    m_currentFilePath = filePath;
+    m_currentFilePath = QFileInfo(filePath).canonicalFilePath();
+    if (m_currentFilePath.isEmpty()) {
+      m_currentFilePath = QFileInfo(filePath).absoluteFilePath();
+    }
 
+    emit fileSaved(m_currentFilePath);
     return true;
   }
   return false;
@@ -801,6 +1886,13 @@ void CodeEditor::applyTheme(const QString &themeName) {
 
     // 设置彩虹括号
     setupRainbowBrackets(editor);
+
+    // 设置符号同名/引用高亮指示器 (OCCURRENCE_INDICATOR = 28)
+    editor->indicatorDefine(QsciScintilla::RoundBoxIndicator, OCCURRENCE_INDICATOR);
+    editor->setIndicatorForegroundColor(QColor(p.isDark ? "#89B4FA" : "#2563EB"), OCCURRENCE_INDICATOR);
+    editor->setIndicatorDrawUnder(false, OCCURRENCE_INDICATOR);
+    editor->SendScintilla(QsciScintilla::SCI_INDICSETALPHA, (unsigned long)OCCURRENCE_INDICATOR, (long)(p.isDark ? 75 : 70));
+    editor->SendScintilla(QsciScintilla::SCI_INDICSETOUTLINEALPHA, (unsigned long)OCCURRENCE_INDICATOR, (long)255);
   }
 
   // 2. 深度定制面包屑导航栏与函数大纲列表
@@ -944,6 +2036,12 @@ void CodeEditor::applyTheme(const QString &themeName) {
         "    background-color: %4;"
         "}").arg(p.panelBg, p.border, p.menuHover, p.accent));
   }
+
+  // 6. 粘性滚动 (Sticky Scroll) 主题更新
+  if (m_stickyScrollWidget) {
+    static_cast<StickyScrollWidget *>(m_stickyScrollWidget)->updateTheme(p);
+  }
+  updateStickyScroll();
 }
 
 void CodeEditor::setupFunctionNameHighlighting(bool isDarkTheme) {
@@ -1607,17 +2705,56 @@ void CodeEditor::setupEditor(QsciScintilla *editor) {
       editor->SendScintilla(QsciScintilla::SCI_GETMARGINMASKN, 0) |
           (1 << CURRENT_LINE_MARKER));
 
-  // 连接光标移动信号以实时更新高亮与面包屑当前函数
+  // 设置符号同名/引用高亮指示器 (OCCURRENCE_INDICATOR = 28)
+  editor->indicatorDefine(QsciScintilla::RoundBoxIndicator, OCCURRENCE_INDICATOR);
+  editor->setIndicatorForegroundColor(QColor(m_isDarkTheme ? "#89B4FA" : "#2563EB"), OCCURRENCE_INDICATOR);
+  editor->setIndicatorDrawUnder(false, OCCURRENCE_INDICATOR);
+  editor->SendScintilla(QsciScintilla::SCI_INDICSETALPHA, (unsigned long)OCCURRENCE_INDICATOR, (long)(m_isDarkTheme ? 75 : 70));
+  editor->SendScintilla(QsciScintilla::SCI_INDICSETOUTLINEALPHA, (unsigned long)OCCURRENCE_INDICATOR, (long)255);
+
+  // 设置上下文右键菜单
+  editor->setContextMenuPolicy(Qt::CustomContextMenu);
+  connect(editor, &QsciScintilla::customContextMenuRequested, this, &CodeEditor::onCustomContextMenuRequested);
+
+  // 连接光标移动与选区改变信号以实时更新高亮、面包屑、Sticky Scroll 与同名符号高亮
   connect(editor, &QsciScintilla::cursorPositionChanged, this,
           [this](int line, int col) {
             Q_UNUSED(col);
             highlightCurrentLineNumber();
             updateBreadcrumb(line);
+            updateStickyScroll();
+            if (m_occurrenceTimer) m_occurrenceTimer->start();
           });
+  connect(editor, &QsciScintilla::selectionChanged, this, [this]() {
+    if (m_occurrenceTimer) m_occurrenceTimer->start();
+  });
 
-  // Initialize line number highlighting & breadcrumb
+  // 监听垂直与水平滚动条以驱动 Sticky Scroll 顶部悬挂函数头
+  if (editor->verticalScrollBar()) {
+    connect(editor->verticalScrollBar(), &QScrollBar::valueChanged, this, [this](int) {
+      updateStickyScroll();
+    });
+  }
+  if (editor->horizontalScrollBar()) {
+    connect(editor->horizontalScrollBar(), &QScrollBar::valueChanged, this, [this](int) {
+      updateStickyScroll();
+    });
+  }
+
+  // 安装快捷键事件过滤器与快捷键对象 (确保 F12, Shift+F12, F2 100% 触发)
+  editor->installEventFilter(this);
+  if (editor->viewport()) {
+    editor->viewport()->installEventFilter(this);
+  }
+
+  new QShortcut(QKeySequence(Qt::Key_F12), editor, this, &CodeEditor::gotoDefinitionAtCursor);
+  new QShortcut(QKeySequence("Shift+F12"), editor, this, &CodeEditor::findReferencesAtCursor);
+  new QShortcut(QKeySequence(Qt::Key_F2), editor, this, &CodeEditor::renameSymbolAtCursor);
+
+  // Initialize line number highlighting, breadcrumb & sticky scroll
   highlightCurrentLineNumber();
   updateBreadcrumb();
+  updateStickyScroll();
 }
 
 void CodeEditor::setupRainbowBrackets(QsciScintilla *editor) {
@@ -2843,7 +3980,7 @@ void CodeEditor::parseFunctions(const QString &code) {
     }
   }
 
-  // 预处理指令行 (#include, #define, #pragma, #ifdef 等) 严格屏蔽，保留换行符
+  // 预处理指令行处理：提取 #define 宏定义至符号列表，并屏蔽其他无关预处理指令
   for (int i = 0; i < codeLen; ++i) {
     if (clean[i] == '#') {
       int lineStart = clean.lastIndexOf('\n', i - 1) + 1;
@@ -2855,8 +3992,34 @@ void CodeEditor::parseFunctions(const QString &code) {
           lineEnd = clean.indexOf('\n', lineEnd + 1);
           if (lineEnd == -1) { lineEnd = codeLen; break; }
         }
-        for (int k = i; k < lineEnd; ++k) {
-          if (clean[k] != '\n') clean[k] = ' ';
+        QString dirLine = clean.mid(i, lineEnd - i);
+        QRegularExpression defRe(R"(^#[ \t]*define[ \t]+([A-Za-z_]\w*)(?:\(([^)]*)\))?)");
+        QRegularExpressionMatch defMatch = defRe.match(dirLine);
+        if (defMatch.hasMatch()) {
+          QString macroName = defMatch.captured(1).trimmed();
+          int macroStart = i + defMatch.capturedStart(1);
+          int line = code.left(macroStart).count('\n');
+          int lStart = code.lastIndexOf('\n', macroStart - 1) + 1;
+          int col = macroStart - lStart;
+
+          FunctionInfo mInfo;
+          mInfo.scopedName = macroName;
+          mInfo.type = SymbolMacro;
+          mInfo.params = defMatch.captured(2).isNull() ? "" : QString("(%1)").arg(defMatch.captured(2).trimmed());
+          mInfo.indentLevel = 0;
+          mInfo.startLine = line;
+          mInfo.startCol = col;
+          mInfo.endLine = line;
+          m_functions.append(mInfo);
+
+          int keepEnd = i + defMatch.capturedEnd();
+          for (int k = keepEnd; k < lineEnd; ++k) {
+            if (clean[k] != '\n') clean[k] = ' ';
+          }
+        } else {
+          for (int k = i; k < lineEnd; ++k) {
+            if (clean[k] != '\n') clean[k] = ' ';
+          }
         }
         i = lineEnd - 1;
       }
@@ -3678,6 +4841,7 @@ void CodeEditor::updateFunctionList() {
   if (m_currentEditor) {
     highlightFunctionNames(m_currentEditor, FUNCTION_INDICATOR);
   }
+  updateStickyScroll();
 }
 
 // void
@@ -4267,13 +5431,15 @@ void CodeEditor::onEditorChanged(QsciScintilla *editor) {
   try {
     if (m_editors.contains(editor)) {
       m_currentEditor = editor;
+      if (m_stickyScrollWidget) {
+        m_stickyScrollWidget->setParent(m_currentEditor);
+      }
+      updateStickyScroll();
     }
   } catch (const std::exception &e) {
     qDebug() << "更新变量列表时发生异常: " << e.what();
-    // 确保在异常情况下释放资源
   } catch (...) {
     qDebug() << "更新变量列表时发生未知异常";
-    // 确保在异常情况下释放资源
   }
 }
 
@@ -4901,4 +6067,1212 @@ void CodeEditor::highlightCurrentLineNumber() {
 
     m_previousLine = currentLine;
   }
+}
+
+void CodeEditor::resizeEvent(QResizeEvent *event) {
+  QWidget::resizeEvent(event);
+  if (m_findReplaceBar && m_findReplaceBar->isVisible()) {
+    static_cast<FindReplaceWidget *>(m_findReplaceBar)->updatePosition();
+  }
+  updateStickyScroll();
+}
+
+bool CodeEditor::eventFilter(QObject *watched, QEvent *event) {
+  if (m_currentEditor && (watched == m_currentEditor || watched == m_currentEditor->viewport())) {
+    if (event->type() == QEvent::Resize || event->type() == QEvent::Move) {
+      updateStickyScroll();
+    }
+  }
+
+  if (event->type() == QEvent::KeyPress) {
+    QKeyEvent *keyEvent = static_cast<QKeyEvent *>(event);
+    if (keyEvent->matches(QKeySequence::Find) ||
+        (keyEvent->modifiers() == Qt::ControlModifier && keyEvent->key() == Qt::Key_F)) {
+      showFindReplaceBar(false);
+      return true;
+    }
+    if (keyEvent->matches(QKeySequence::Replace) ||
+        (keyEvent->modifiers() == Qt::ControlModifier && keyEvent->key() == Qt::Key_H)) {
+      showFindReplaceBar(true);
+      return true;
+    }
+    if (keyEvent->key() == Qt::Key_F12 && keyEvent->modifiers() == Qt::NoModifier) {
+      gotoDefinitionAtCursor();
+      return true;
+    }
+    if (keyEvent->key() == Qt::Key_F12 && keyEvent->modifiers() == Qt::ShiftModifier) {
+      findReferencesAtCursor();
+      return true;
+    }
+    if (keyEvent->key() == Qt::Key_F2 && keyEvent->modifiers() == Qt::NoModifier) {
+      renameSymbolAtCursor();
+      return true;
+    }
+    if (keyEvent->key() == Qt::Key_F3) {
+      if (m_findReplaceBar) {
+        if (!m_findReplaceBar->isVisible()) showFindReplaceBar(false);
+        static_cast<FindReplaceWidget *>(m_findReplaceBar)->findText(!(keyEvent->modifiers() & Qt::ShiftModifier));
+        return true;
+      }
+    }
+    if (keyEvent->key() == Qt::Key_Escape) {
+      if (m_findReplaceBar && m_findReplaceBar->isVisible()) {
+        hideFindReplaceBar();
+        return true;
+      }
+    }
+  } else if (event->type() == QEvent::MouseButtonRelease) {
+    QMouseEvent *mouseEvent = static_cast<QMouseEvent *>(event);
+    if (mouseEvent->button() == Qt::LeftButton && (mouseEvent->modifiers() & Qt::ControlModifier)) {
+      if (m_currentEditor) {
+        int pos = m_currentEditor->SendScintilla(QsciScintilla::SCI_CHARPOSITIONFROMPOINTCLOSE, mouseEvent->pos().x(), mouseEvent->pos().y());
+        if (pos >= 0) {
+          int line = m_currentEditor->SendScintilla(QsciScintilla::SCI_LINEFROMPOSITION, pos);
+          int lineStart = m_currentEditor->SendScintilla(QsciScintilla::SCI_POSITIONFROMLINE, line);
+          int col = pos - lineStart;
+          m_currentEditor->setCursorPosition(line, col);
+        }
+      }
+      gotoDefinitionAtCursor();
+      return true;
+    }
+  }
+  return QWidget::eventFilter(watched, event);
+}
+
+void CodeEditor::showFindReplaceBar(bool showReplace) {
+  if (!m_findReplaceBar) return;
+  QString selText = m_currentEditor ? m_currentEditor->selectedText().trimmed() : QString();
+  if (selText.isEmpty() && m_currentEditor) {
+    int line, col;
+    m_currentEditor->getCursorPosition(&line, &col);
+    selText = m_currentEditor->wordAtLineIndex(line, col);
+  }
+  if (showReplace) {
+    static_cast<FindReplaceWidget *>(m_findReplaceBar)->showReplace(selText);
+  } else {
+    static_cast<FindReplaceWidget *>(m_findReplaceBar)->showFind(selText);
+  }
+}
+
+void CodeEditor::hideFindReplaceBar() {
+  if (m_findReplaceBar) {
+    m_findReplaceBar->hide();
+    if (m_currentEditor) m_currentEditor->setFocus();
+  }
+}
+
+QString CodeEditor::projectRootPath() const {
+  if (!m_projectRootPath.isEmpty() && QDir(m_projectRootPath).exists()) {
+    return m_projectRootPath;
+  }
+  if (!m_currentFilePath.isEmpty()) {
+    QDir dir = QFileInfo(m_currentFilePath).dir();
+    QDir searchDir = dir;
+    for (int i = 0; i < 5; ++i) {
+      if (!searchDir.entryList(QStringList() << "*.pro" << "CMakeLists.txt" << "Makefile", QDir::Files).isEmpty()) {
+        return searchDir.absolutePath();
+      }
+      if (searchDir.exists(".git") || searchDir.exists(".svn")) {
+        return searchDir.absolutePath();
+      }
+      if (!searchDir.cdUp()) break;
+    }
+    return dir.absolutePath();
+  }
+  return QDir::currentPath();
+}
+
+QStringList CodeEditor::getAllProjectSourceFiles() const {
+  QSet<QString> fileSet;
+  QStringList roots;
+  if (!m_projectRootPath.isEmpty() && QDir(m_projectRootPath).exists()) {
+    roots.append(m_projectRootPath);
+  }
+  if (!m_currentFilePath.isEmpty()) {
+    QString curDir = QFileInfo(m_currentFilePath).dir().absolutePath();
+    if (!roots.contains(curDir)) roots.append(curDir);
+  }
+  QString pRoot = projectRootPath();
+  if (!roots.contains(pRoot)) roots.append(pRoot);
+
+  for (const QString &r : roots) {
+    QDirIterator it(r, QStringList() << "*.c" << "*.cpp" << "*.cxx" << "*.cc" << "*.h" << "*.hpp" << "*.hxx",
+                    QDir::Files | QDir::NoSymLinks, QDirIterator::Subdirectories);
+    while (it.hasNext()) {
+      QString filePath = it.next();
+      // 排除 build, release, debug, .git 目录
+      if (filePath.contains("/build/") || filePath.contains("\\build\\") ||
+          filePath.contains("/release/") || filePath.contains("\\release\\") ||
+          filePath.contains("/debug/") || filePath.contains("\\debug\\") ||
+          filePath.contains("/.git/") || filePath.contains("\\.git\\")) {
+        continue;
+      }
+      fileSet.insert(QDir::cleanPath(filePath));
+    }
+  }
+  return fileSet.values();
+}
+
+QString CodeEditor::getIdentifierAt(QsciScintilla *editor, int line, int col) {
+  if (!editor) return QString();
+  if (editor->hasSelectedText()) {
+    QString sel = editor->selectedText().trimmed();
+    QRegularExpression idRe(R"(^[~]?[A-Za-z_]\w*$)");
+    if (idRe.match(sel).hasMatch()) {
+      return sel;
+    }
+  }
+
+  QString lineText = editor->text(line);
+  if (lineText.isEmpty()) return QString();
+
+  int len = lineText.length();
+  if (col < 0) col = 0;
+  if (col > len) col = len;
+
+  int idx = col;
+  // 若光标位于非标识符字符处，但前一个字符是标识符，则回退 1 位
+  if (idx >= len || (!lineText[idx].isLetterOrNumber() && lineText[idx] != '_' && lineText[idx] != '~')) {
+    if (idx > 0 && (lineText[idx - 1].isLetterOrNumber() || lineText[idx - 1] == '_' || lineText[idx - 1] == '~')) {
+      idx = col - 1;
+    }
+  }
+
+  if (idx < 0 || idx >= len) return QString();
+  if (!lineText[idx].isLetterOrNumber() && lineText[idx] != '_' && lineText[idx] != '~') {
+    return QString();
+  }
+
+  int start = idx;
+  while (start > 0 && (lineText[start - 1].isLetterOrNumber() || lineText[start - 1] == '_' || lineText[start - 1] == '~')) {
+    --start;
+  }
+  int end = idx;
+  while (end < len && (lineText[end].isLetterOrNumber() || lineText[end] == '_')) {
+    ++end;
+  }
+
+  QString sym = lineText.mid(start, end - start).trimmed();
+  QRegularExpression idRe(R"(^[~]?[A-Za-z_]\w*$)");
+  if (idRe.match(sym).hasMatch()) {
+    return sym;
+  }
+  return QString();
+}
+
+QString CodeEditor::extractEnclosingClassName(int line, QsciScintilla *editor) const {
+  if (!editor) editor = m_currentEditor;
+  if (!editor) return QString();
+
+  // 1. 首先检查当前行所属函数在 m_functions 中记录的 parentClass
+  for (const FunctionInfo &fn : m_functions) {
+    if (line >= fn.startLine && line <= fn.endLine && !fn.parentClass.isEmpty()) {
+      return fn.parentClass;
+    }
+  }
+
+  // 2. 向上扫描是否包含 ClassName::Method 形式的函数签名
+  QRegularExpression methodHeaderRe(R"(\b([A-Za-z_]\w*)\s*::\s*~?[A-Za-z_]\w*\s*\()");
+  for (int l = line; l >= 0; --l) {
+    QString raw = editor->text(l);
+    QRegularExpressionMatch mm = methodHeaderRe.match(raw);
+    if (mm.hasMatch()) {
+      QString cls = mm.captured(1).trimmed();
+      if (!cls.isEmpty()) return cls;
+    }
+    // 3. 向上扫描是否在 class/struct 定义块内部
+    QRegularExpression classDefRe(R"(\b(?:class|struct)\s+(?:[A-Za-z_]\w*_EXPORT\s+|Q_DECL_EXPORT\s+)?([A-Za-z_]\w*)\b\s*(?::\s*[^{;]*)?\{?)");
+    QRegularExpressionMatch m = classDefRe.match(raw);
+    if (m.hasMatch()) {
+      QString clsName = m.captured(1).trimmed();
+      if (!clsName.isEmpty() && clsName != "struct" && clsName != "class") {
+        return clsName;
+      }
+    }
+  }
+  return QString();
+}
+
+CodeEditor::SymbolScopeResult CodeEditor::analyzeSymbolScopeAt(int line, int col, QsciScintilla *editor) {
+  if (!editor) editor = m_currentEditor;
+  if (!editor) return SymbolScopeResult();
+
+  // 确保 Scintilla 样式已着色至当前行
+  editor->SendScintilla(QsciScintilla::SCI_COLOURISE, 0, -1);
+
+  // 若光标（或选区起点）位于注释或字符串中，则不进行同名高亮
+  int pos = editor->SendScintilla(QsciScintilla::SCI_GETCURRENTPOS);
+  if (editor->hasSelectedText()) {
+    pos = editor->SendScintilla(QsciScintilla::SCI_GETSELECTIONSTART);
+  } else if (pos > 0) {
+    // 若光标停在词尾，回退探测前一个字符的样式
+    int prevStyle = editor->SendScintilla(QsciScintilla::SCI_GETSTYLEAT, pos - 1) & 0x3F;
+    int curStyle = editor->SendScintilla(QsciScintilla::SCI_GETSTYLEAT, pos) & 0x3F;
+    if (curStyle == 0 && prevStyle != 0) pos = pos - 1;
+  }
+  int style = editor->SendScintilla(QsciScintilla::SCI_GETSTYLEAT, pos) & 0x3F;
+  bool isCommentOrStr = (
+      style == QsciLexerCPP::Comment ||
+      style == QsciLexerCPP::CommentLine ||
+      style == QsciLexerCPP::CommentDoc ||
+      style == QsciLexerCPP::DoubleQuotedString ||
+      style == QsciLexerCPP::SingleQuotedString ||
+      style == 12 || // StringEOL
+      style == 13 || // VerbatimString
+      style == 20 || // RawString
+      style == 22    // HashQuotedString
+  );
+  if (isCommentOrStr) {
+    return SymbolScopeResult();
+  }
+
+  QString sym = getIdentifierAt(editor, line, col);
+  if (sym.isEmpty()) return SymbolScopeResult();
+
+  // 未手动选中文本时，过滤常见流程控制关键字与基础语法修饰词
+  if (!editor->hasSelectedText()) {
+    static const QSet<QString> flowKeywords = {
+        "if", "else", "for", "while", "do", "switch", "case", "default", "break",
+        "continue", "return", "goto", "try", "catch", "throw", "sizeof", "decltype",
+        "typeid", "new", "delete", "nullptr", "true", "false", "this", "public",
+        "protected", "private", "signals", "slots", "emit", "class", "struct", "enum", "union"
+    };
+    if (flowKeywords.contains(sym)) return SymbolScopeResult();
+  }
+
+  QString code = editor->text();
+  QString clean = generateCleanCppCode(code);
+  const int codeLen = code.length();
+
+  // 极速构建行起始偏移索引表，以 O(log L) 毫秒级换算行号与列号，彻底消除大文件 O(N^2) 内存切片与卡顿
+  QVector<int> lineStarts;
+  lineStarts.reserve(qMax(64, editor->lines() + 10));
+  lineStarts.append(0);
+  for (int i = 0; i < codeLen; ++i) {
+    if (code[i] == '\n') lineStarts.append(i + 1);
+  }
+
+  auto getLineAndColFromOffset = [&](int absOffset, int &outLine, int &outCol, QString &outLineContent) {
+    if (absOffset < 0 || absOffset >= codeLen) {
+      outLine = 0; outCol = 0; outLineContent.clear();
+      return;
+    }
+    auto it = std::upper_bound(lineStarts.begin(), lineStarts.end(), absOffset);
+    outLine = (it - lineStarts.begin()) - 1;
+    int lineStart = lineStarts[outLine];
+    outCol = absOffset - lineStart;
+    int lineEnd = (outLine + 1 < lineStarts.size()) ? lineStarts[outLine + 1] - 1 : codeLen;
+    outLineContent = code.mid(lineStart, lineEnd - lineStart);
+  };
+
+  SymbolScopeResult result;
+  result.symbolName = sym;
+  result.definitionFilePath = m_currentFilePath;
+
+  // 判断光标当前是否位于某个函数体内
+  FunctionInfo enclosingFunc;
+  bool inFunc = false;
+  for (const FunctionInfo &fn : m_functions) {
+    if (fn.type == SymbolFunction && line >= fn.startLine && line <= fn.endLine) {
+      enclosingFunc = fn;
+      inFunc = true;
+      break;
+    }
+  }
+
+  QString escSym = QRegularExpression::escape(sym);
+
+  // 若为函数体内局部变量或形参判定
+  if (inFunc) {
+    int funcStartOffset = (enclosingFunc.startLine < lineStarts.size()) ? lineStarts[enclosingFunc.startLine] : 0;
+    int funcEndOffset = (enclosingFunc.endLine + 1 < lineStarts.size()) ? lineStarts[enclosingFunc.endLine + 1] : codeLen;
+    funcStartOffset = qBound(0, funcStartOffset, codeLen);
+    funcEndOffset = qBound(funcStartOffset, funcEndOffset, codeLen);
+
+    QString funcClean = clean.mid(funcStartOffset, funcEndOffset - funcStartOffset);
+
+    int openBrace = funcClean.indexOf('{');
+    QString headerPart = openBrace != -1 ? funcClean.left(openBrace) : funcClean;
+    QRegularExpression paramRe(QString(R"(\b(?:const\s+)?([A-Za-z_]\w*(?:\s*<[^>]*>)?(?:\s*::\s*[A-Za-z_]\w*)*)(?:\s+|\s*[*&]+\s*)(%1)\b)").arg(escSym));
+    QRegularExpressionMatch pMatch = paramRe.match(headerPart);
+
+    QRegularExpression localRe(QString(R"((?<![.\->\w])(?:const\s+|static\s+|volatile\s+|auto\s+|unsigned\s+|signed\s+|struct\s+|enum\s+)*([A-Za-z_]\w*(?:\s*<[^>]*>)?(?:\s*::\s*[A-Za-z_]\w*)*)(?:\s+|\s*[*&]+\s*)(%1)\s*(?:[;=,\[\(\{]))").arg(escSym));
+    QRegularExpressionMatch lMatch;
+    if (openBrace != -1) {
+      QString bodyClean = funcClean.mid(openBrace);
+      QRegularExpressionMatchIterator iter = localRe.globalMatch(bodyClean);
+      while (iter.hasNext()) {
+        QRegularExpressionMatch m = iter.next();
+        QString typeName = m.captured(1).trimmed();
+        static const QSet<QString> nonTypes = {"return", "connect", "disconnect", "emit", "case", "sizeof", "new", "delete", "throw", "goto", "qobject_cast", "static_cast", "reinterpret_cast", "dynamic_cast", "SIGNAL", "SLOT"};
+        if (!nonTypes.contains(typeName)) {
+          lMatch = m;
+          break;
+        }
+      }
+    }
+
+    if (pMatch.hasMatch() || lMatch.hasMatch()) {
+      result.kind = pMatch.hasMatch() ? ScopeFunctionParam : ScopeLocalVariable;
+      result.scopeOwner = enclosingFunc.scopedName;
+      result.scopeStartLine = enclosingFunc.startLine;
+      result.scopeEndLine = enclosingFunc.endLine;
+
+      int declOffsetInFunc = pMatch.hasMatch() ? pMatch.capturedStart(2) : (openBrace + lMatch.capturedStart(2));
+      int absDeclOffset = funcStartOffset + declOffsetInFunc;
+      QString dummy;
+      getLineAndColFromOffset(absDeclOffset, result.definitionLine, result.definitionCol, dummy);
+
+      // 局部变量：精准高亮本函数体内的所有引用项
+      QString localPattern = sym.startsWith('~') ?
+          QString(R"(~(?<![A-Za-z0-9_])%1(?![A-Za-z0-9_]))").arg(QRegularExpression::escape(sym.mid(1))) :
+          QString(R"((?<![A-Za-z0-9_])%1(?![A-Za-z0-9_]))").arg(escSym);
+      QRegularExpression symRe(localPattern);
+      QRegularExpressionMatchIterator iter = symRe.globalMatch(funcClean);
+      while (iter.hasNext()) {
+        QRegularExpressionMatch m = iter.next();
+        int absOffset = funcStartOffset + m.capturedStart();
+        SymbolOccurrence occ;
+        occ.startOffset = absOffset;
+        occ.endOffset = absOffset + sym.length();
+        occ.length = sym.length();
+        getLineAndColFromOffset(absOffset, occ.line, occ.col, occ.lineContent);
+        result.occurrences.append(occ);
+      }
+      result.isValid = !result.occurrences.isEmpty();
+      return result;
+    }
+  }
+
+  // 非局部变量（全局变量/类成员/方法名/类型/宏/Qt关键字）：全文件匹配
+  result.kind = ScopeGlobalVariable;
+  for (const FunctionInfo &fn : m_functions) {
+    if (fn.scopedName == sym) {
+      if (fn.type == SymbolFunction) result.kind = ScopeFunction;
+      else if (fn.type == SymbolVariable) result.kind = fn.indentLevel > 0 ? ScopeMemberVariable : ScopeGlobalVariable;
+      else if (fn.type == SymbolClass || fn.type == SymbolStruct || fn.type == SymbolEnum || fn.type == SymbolUnion) result.kind = ScopeType;
+      else if (fn.type == SymbolMacro) result.kind = ScopeMacro;
+      result.definitionLine = fn.startLine;
+      result.definitionCol = fn.startCol;
+      result.scopeOwner = fn.parentClass.isEmpty() ? "全局作用域" : fn.parentClass;
+      break;
+    }
+  }
+
+  if (result.definitionLine == -1) {
+    result.scopeOwner = "全局作用域";
+    result.scopeStartLine = 0;
+    result.scopeEndLine = editor->lines() - 1;
+  }
+
+  QString symPattern = sym.startsWith('~') ?
+      QString(R"(~(?<![A-Za-z0-9_])%1(?![A-Za-z0-9_]))").arg(QRegularExpression::escape(sym.mid(1))) :
+      QString(R"((?<![A-Za-z0-9_])%1(?![A-Za-z0-9_]))").arg(escSym);
+  QRegularExpression globalSymRe(symPattern);
+  QRegularExpressionMatchIterator iter = globalSymRe.globalMatch(clean);
+
+  while (iter.hasNext()) {
+    QRegularExpressionMatch m = iter.next();
+    int absOffset = m.capturedStart();
+
+    SymbolOccurrence occ;
+    occ.startOffset = absOffset;
+    occ.endOffset = absOffset + sym.length();
+    occ.length = sym.length();
+    getLineAndColFromOffset(absOffset, occ.line, occ.col, occ.lineContent);
+    result.occurrences.append(occ);
+
+    if (result.definitionLine == -1) {
+      result.definitionLine = occ.line;
+      result.definitionCol = occ.col;
+    }
+  }
+
+  result.isValid = !result.occurrences.isEmpty();
+  return result;
+}
+
+void CodeEditor::clearOccurrenceHighlights(QsciScintilla *editor) {
+  if (!editor) editor = m_currentEditor;
+  if (!editor) return;
+  int docLen = editor->SendScintilla(QsciScintilla::SCI_GETTEXTLENGTH);
+  if (docLen <= 0) return;
+  editor->SendScintilla(QsciScintilla::SCI_SETINDICATORCURRENT, OCCURRENCE_INDICATOR);
+  editor->SendScintilla(QsciScintilla::SCI_INDICATORCLEARRANGE, 0, docLen);
+}
+
+void CodeEditor::highlightOccurrences(const SymbolScopeResult &scopeResult, QsciScintilla *editor) {
+  if (!editor) editor = m_currentEditor;
+  if (!editor) return;
+
+  clearOccurrenceHighlights(editor);
+  if (!scopeResult.isValid || scopeResult.occurrences.isEmpty()) return;
+
+  // 1:1 对标 Qt Creator / VS Code 现代圆角矩形指示器渲染
+  editor->indicatorDefine(QsciScintilla::RoundBoxIndicator, OCCURRENCE_INDICATOR);
+  editor->setIndicatorForegroundColor(QColor(m_isDarkTheme ? "#89B4FA" : "#2563EB"), OCCURRENCE_INDICATOR);
+  editor->setIndicatorDrawUnder(false, OCCURRENCE_INDICATOR);
+
+  // 配置半透明背景填充 (alpha: 75/70) 与清晰圆角轮廓描边 (outline alpha: 255)
+  editor->SendScintilla(QsciScintilla::SCI_INDICSETALPHA, (unsigned long)OCCURRENCE_INDICATOR, (long)(m_isDarkTheme ? 75 : 70));
+  editor->SendScintilla(QsciScintilla::SCI_INDICSETOUTLINEALPHA, (unsigned long)OCCURRENCE_INDICATOR, (long)255);
+
+  for (const SymbolOccurrence &occ : scopeResult.occurrences) {
+    editor->fillIndicatorRange(occ.line, occ.col, occ.line, occ.col + occ.length, OCCURRENCE_INDICATOR);
+  }
+}
+
+void CodeEditor::onOccurrenceTimerTimeout() {
+  if (!m_currentEditor) return;
+  int line, col;
+  m_currentEditor->getCursorPosition(&line, &col);
+  SymbolScopeResult res = analyzeSymbolScopeAt(line, col, m_currentEditor);
+  if (res.isValid && !res.occurrences.isEmpty()) {
+    highlightOccurrences(res, m_currentEditor);
+  } else {
+    clearOccurrenceHighlights(m_currentEditor);
+  }
+}
+
+QList<CodeEditor::DefinitionCandidate> CodeEditor::findSymbolDefinitionsInProject(const QString &symbolName, const QString &enclosingClass) {
+  QList<DefinitionCandidate> candidates;
+  if (symbolName.isEmpty()) return candidates;
+
+  QString escSym = QRegularExpression::escape(symbolName);
+  QString currentPath = m_currentFilePath;
+  bool isCurrentHeader = currentPath.endsWith(".h", Qt::CaseInsensitive) || currentPath.endsWith(".hpp", Qt::CaseInsensitive);
+
+  // 规则 1: 类方法跨行签名实现 (例如: ReturnType ClassName::Method(...) { 或 ClassName::~ClassName() {)
+  QRegularExpression methodImplMultiRe(QString(R"(\b([A-Za-z_]\w*)\s*::\s*(~?%1)\s*\()").arg(escSym));
+
+  // 规则 2: 普通/全局/内联/静态函数实现带大括号
+  QRegularExpression funcImplRe(QString(R"((?:^|[^\w:.])(?<!class\s)(?<!struct\s)(?<!enum\s)([A-Za-z_]\w*(?:\s*<[^>]*>)?(?:\s*::\s*[A-Za-z_]\w*)*\s+)?(?<!::)\b(%1)\s*\()").arg(escSym));
+
+  // 规则 3: 类 / 结构体 / 枚举 / 类型定义
+  QRegularExpression typeDeclRe(QString(R"(\b(?:class|struct|union|enum(?:\s+class|\s+struct)?)\s+(?:[A-Za-z_]\w*_EXPORT\s+|Q_DECL_EXPORT\s+)?(%1)\b\s*[:{])").arg(escSym));
+  QRegularExpression typedefRe(QString(R"(\btypedef\s+.*\b(%1)\s*;)").arg(escSym));
+  QRegularExpression usingRe(QString(R"(\busing\s+(%1)\s*=)").arg(escSym));
+
+  // 规则 4: 宏定义
+  QRegularExpression macroDefRe(QString(R"(^[ \t]*#[ \t]*define[ \t]+(%1)\b)").arg(escSym), QRegularExpression::MultilineOption);
+
+  // 规则 5: 全局变量 / 静态变量 / 成员定义
+  QRegularExpression globalVarRe(QString(R"(\b(?:[A-Za-z_]\w*(?:\s*<[^>]*>)?(?:\s*::\s*[A-Za-z_]\w*)*)\s+[*&]*\s*(%1)\s*(?:[;=,\[\)]))").arg(escSym));
+
+  // 规则 6: 函数声明 (头文件中)
+  QRegularExpression funcDeclRe(QString(R"(\b(%1)\s*\()").arg(escSym));
+  QRegularExpression signalDeclRe(QString(R"(signals:\s*void\s+(%1)\s*\()").arg(escSym));
+
+  // 收集工程文件并按最高优先级排序
+  QStringList projectFiles = getAllProjectSourceFiles();
+  QStringList prioritizedFiles;
+
+  // 优先级 1: 寻找配对文件 (如 foo.h -> foo.cpp / ../src/foo.cpp, foo.cpp -> foo.h / ../inc/foo.h)
+  if (!currentPath.isEmpty()) {
+    QFileInfo fi(currentPath);
+    QString base = fi.baseName();
+
+    QStringList pairedExtensions;
+    if (isCurrentHeader) {
+      pairedExtensions << ".cpp" << ".c" << ".cc" << ".cxx";
+    } else {
+      pairedExtensions << ".h" << ".hpp" << ".hxx" << ".inl";
+    }
+
+    // 同目录配对
+    for (const QString &ext : pairedExtensions) {
+      QString paired = fi.dir().filePath(base + ext);
+      if (QFile::exists(paired)) {
+        prioritizedFiles.append(QDir::cleanPath(paired));
+      }
+    }
+
+    // 兄弟 src/ 或 inc/ 目录配对
+    QStringList siblingDirs = {
+        fi.dir().filePath("../src"), fi.dir().filePath("../Src"), fi.dir().filePath("../source"),
+        fi.dir().filePath("../inc"), fi.dir().filePath("../Inc"), fi.dir().filePath("../include"),
+        fi.dir().filePath("../../Src"), fi.dir().filePath("../../Inc")
+    };
+    for (const QString &sDir : siblingDirs) {
+      for (const QString &ext : pairedExtensions) {
+        QString paired = QDir(sDir).filePath(base + ext);
+        if (QFile::exists(paired)) {
+          QString cleanPaired = QDir::cleanPath(paired);
+          if (!prioritizedFiles.contains(cleanPaired)) {
+            prioritizedFiles.append(cleanPaired);
+          }
+        }
+      }
+    }
+  }
+
+  // 优先级 2: 当前文件
+  if (!currentPath.isEmpty()) {
+    QString cleanCur = QDir::cleanPath(currentPath);
+    if (!prioritizedFiles.contains(cleanCur)) {
+      prioritizedFiles.append(cleanCur);
+    }
+  }
+
+  // 优先级 3: 其他所有工程源码文件
+  for (const QString &fPath : projectFiles) {
+    QString cleanP = QDir::cleanPath(fPath);
+    if (!prioritizedFiles.contains(cleanP)) {
+      prioritizedFiles.append(cleanP);
+    }
+  }
+
+  QSet<QString> visitedLocations;
+
+  for (const QString &fPath : prioritizedFiles) {
+    QString fCode;
+    if (fPath == currentPath && m_currentEditor) {
+      fCode = m_currentEditor->text();
+    } else {
+      QFile file(fPath);
+      if (!file.open(QIODevice::ReadOnly)) continue;
+      QByteArray data = file.readAll();
+      file.close();
+      QTextCodec::ConverterState state;
+      QTextCodec *codec = QTextCodec::codecForName("UTF-8");
+      fCode = codec->toUnicode(data.constData(), data.size(), &state);
+      if (state.invalidChars > 0) {
+        fCode = QTextCodec::codecForLocale()->toUnicode(data);
+      }
+    }
+
+    if (fCode.isEmpty()) continue;
+    QString cleanCode = generateCleanCppCode(fCode);
+    bool isHeader = fPath.endsWith(".h", Qt::CaseInsensitive) || fPath.endsWith(".hpp", Qt::CaseInsensitive);
+
+    // 建立快速行索引表
+    QVector<int> fLineStarts;
+    fLineStarts.reserve(500);
+    fLineStarts.append(0);
+    for (int i = 0; i < fCode.length(); ++i) {
+      if (fCode[i] == '\n') fLineStarts.append(i + 1);
+    }
+
+    auto addCandidate = [&](int symStartOffset, const QString &typeLabel, int baseScore) {
+      if (symStartOffset < 0 || symStartOffset >= fCode.length()) return;
+      int mLine = std::upper_bound(fLineStarts.begin(), fLineStarts.end(), symStartOffset) - fLineStarts.begin() - 1;
+      int lStart = fLineStarts[mLine];
+      int mCol = symStartOffset - lStart;
+      int lEnd = (mLine + 1 < fLineStarts.size()) ? fLineStarts[mLine + 1] - 1 : fCode.length();
+      QString preview = fCode.mid(lStart, lEnd - lStart).trimmed();
+
+      QString locKey = QString("%1:%2").arg(fPath).arg(mLine);
+      if (visitedLocations.contains(locKey)) return;
+      visitedLocations.insert(locKey);
+
+      DefinitionCandidate cand;
+      cand.filePath = fPath;
+      cand.line = mLine;
+      cand.col = mCol;
+      cand.length = symbolName.length();
+      cand.preview = preview;
+      cand.type = typeLabel;
+      cand.score = baseScore;
+
+      // 评分微调权重
+      if (isCurrentHeader && !isHeader) {
+        cand.score += 200; // 头文件查源文件实现极大加分
+      }
+      if (!isCurrentHeader && isHeader) {
+        cand.score += 100; // 源文件查头文件声明加分
+      }
+      if (!prioritizedFiles.isEmpty() && fPath == prioritizedFiles.first()) {
+        cand.score += 150; // 直系配对文件极大加分
+      }
+
+      candidates.append(cand);
+    };
+
+    // 扫描规则 1: 类方法实现
+    QRegularExpressionMatchIterator mIter = methodImplMultiRe.globalMatch(cleanCode);
+    while (mIter.hasNext()) {
+      QRegularExpressionMatch m = mIter.next();
+      QString clsName = m.captured(1).trimmed();
+      int matchStart = m.capturedStart();
+      int symOffset = m.capturedStart(2);
+
+      int searchLimit = qMin(cleanCode.length(), matchStart + 600);
+      int openBrace = cleanCode.indexOf('{', matchStart);
+      int semiColon = cleanCode.indexOf(';', matchStart);
+
+      if (openBrace != -1 && openBrace < searchLimit && (semiColon == -1 || openBrace < semiColon)) {
+        if (symOffset != -1) {
+          int score = 900;
+          QString label = "类方法实现";
+          if (!enclosingClass.isEmpty() && clsName.compare(enclosingClass, Qt::CaseInsensitive) == 0) {
+            score = 1000;
+            label = "目标类方法实现";
+          }
+          if (symbolName.startsWith('~') || clsName == symbolName) {
+            label = "构造/析构函数";
+          }
+          addCandidate(symOffset, label, score);
+        }
+      }
+    }
+
+    // 扫描规则 2: 普通/全局/内联/静态函数实现 (无论 .cpp 还是 .h 均支持)
+    QRegularExpressionMatchIterator fIter = funcImplRe.globalMatch(cleanCode);
+    while (fIter.hasNext()) {
+      QRegularExpressionMatch m = fIter.next();
+      int symOffset = m.capturedStart(2);
+      if (symOffset == -1) symOffset = m.capturedStart(1);
+      int openParen = cleanCode.indexOf('(', m.capturedStart());
+      if (openParen != -1) {
+        int searchLimit = qMin(cleanCode.length(), openParen + 600);
+        int openBrace = cleanCode.indexOf('{', openParen);
+        int semiColon = cleanCode.indexOf(';', openParen);
+        if (openBrace != -1 && openBrace < searchLimit && (semiColon == -1 || openBrace < semiColon)) {
+          if (symOffset != -1) {
+            addCandidate(symOffset, isHeader ? "头文件内联实现" : "函数实现", isHeader ? 860 : 880);
+          }
+        }
+      }
+    }
+
+    // 扫描规则 3: 类型定义 (class, struct, enum, typedef, using)
+    QRegularExpressionMatchIterator tIter = typeDeclRe.globalMatch(cleanCode);
+    while (tIter.hasNext()) {
+      QRegularExpressionMatch m = tIter.next();
+      int symOffset = m.capturedStart(1);
+      if (symOffset != -1) {
+        addCandidate(symOffset, "类型定义", 920);
+      }
+    }
+    QRegularExpressionMatchIterator tdIter = typedefRe.globalMatch(cleanCode);
+    while (tdIter.hasNext()) {
+      QRegularExpressionMatch m = tdIter.next();
+      int symOffset = m.capturedStart(1);
+      if (symOffset != -1) {
+        addCandidate(symOffset, "类型别名", 910);
+      }
+    }
+    QRegularExpressionMatchIterator uIter = usingRe.globalMatch(cleanCode);
+    while (uIter.hasNext()) {
+      QRegularExpressionMatch m = uIter.next();
+      int symOffset = m.capturedStart(1);
+      if (symOffset != -1) {
+        addCandidate(symOffset, "类型别名", 910);
+      }
+    }
+
+    // 扫描规则 4: 宏定义 (#define FOO ...)
+    QRegularExpressionMatchIterator macIter = macroDefRe.globalMatch(cleanCode);
+    while (macIter.hasNext()) {
+      QRegularExpressionMatch m = macIter.next();
+      int symOffset = m.capturedStart(1);
+      if (symOffset != -1) {
+        addCandidate(symOffset, "宏定义", 950);
+      }
+    }
+
+    // 扫描规则 5: 变量/成员定义
+    QRegularExpressionMatchIterator varIter = globalVarRe.globalMatch(cleanCode);
+    while (varIter.hasNext()) {
+      QRegularExpressionMatch m = varIter.next();
+      int symOffset = m.capturedStart(1);
+      if (symOffset != -1) {
+        addCandidate(symOffset, "变量定义", 750);
+      }
+    }
+
+    // 扫描规则 6: 函数声明 (头文件中)
+    if (isHeader) {
+      QRegularExpressionMatchIterator declIter = funcDeclRe.globalMatch(cleanCode);
+      while (declIter.hasNext()) {
+        QRegularExpressionMatch m = declIter.next();
+        int symOffset = m.capturedStart(1);
+        int openParen = cleanCode.indexOf('(', m.capturedStart());
+        if (openParen != -1) {
+          int searchLimit = qMin(cleanCode.length(), openParen + 400);
+          int semiColon = cleanCode.indexOf(';', openParen);
+          int openBrace = cleanCode.indexOf('{', openParen);
+          if (semiColon != -1 && semiColon < searchLimit && (openBrace == -1 || semiColon < openBrace)) {
+            if (symOffset != -1) {
+              addCandidate(symOffset, "函数声明", 650);
+            }
+          }
+        }
+      }
+      QRegularExpressionMatchIterator sigIter = signalDeclRe.globalMatch(cleanCode);
+      while (sigIter.hasNext()) {
+        QRegularExpressionMatch m = sigIter.next();
+        int symOffset = m.capturedStart(1);
+        if (symOffset != -1) {
+          addCandidate(symOffset, "信号声明", 650);
+        }
+      }
+    }
+  }
+
+  // 排序：按 score 从高到低
+  std::sort(candidates.begin(), candidates.end(), [](const DefinitionCandidate &a, const DefinitionCandidate &b) {
+    return a.score > b.score;
+  });
+
+  return candidates;
+}
+
+void CodeEditor::openDefinitionCandidate(const DefinitionCandidate &cand) {
+  if (cand.filePath.isEmpty()) return;
+  if (cand.filePath != m_currentFilePath) {
+    openFile(cand.filePath);
+  }
+  if (m_currentEditor) {
+    m_currentEditor->setCursorPosition(cand.line, cand.col);
+    m_currentEditor->ensureLineVisible(cand.line);
+    int visibleLines = m_currentEditor->SendScintilla(QsciScintilla::SCI_LINESONSCREEN);
+    int scrollLine = qMax(0, cand.line - visibleLines / 3);
+    m_currentEditor->SendScintilla(QsciScintilla::SCI_SETFIRSTVISIBLELINE, scrollLine);
+    m_currentEditor->setSelection(cand.line, cand.col, cand.line, cand.col + cand.length);
+    m_currentEditor->setFocus();
+    updateBreadcrumb(cand.line);
+    if (m_occurrenceTimer) m_occurrenceTimer->start();
+  }
+}
+
+void CodeEditor::gotoDefinitionAtCursor() {
+  if (!m_currentEditor) return;
+  int line, col;
+  m_currentEditor->getCursorPosition(&line, &col);
+
+  QString sym = getIdentifierAt(m_currentEditor, line, col);
+  if (sym.isEmpty()) return;
+
+  SymbolScopeResult res = analyzeSymbolScopeAt(line, col, m_currentEditor);
+
+  // 1. 若为当前函数内的局部变量或形参，且定义在当前文件中，直接在当前文件跳转
+  if (res.isValid && (res.kind == ScopeLocalVariable || res.kind == ScopeFunctionParam)) {
+    if (res.definitionLine != -1) {
+      if (res.definitionLine != line || res.definitionCol != col) {
+        m_currentEditor->setCursorPosition(res.definitionLine, res.definitionCol);
+        m_currentEditor->ensureLineVisible(res.definitionLine);
+        int visibleLines = m_currentEditor->SendScintilla(QsciScintilla::SCI_LINESONSCREEN);
+        int scrollLine = qMax(0, res.definitionLine - visibleLines / 3);
+        m_currentEditor->SendScintilla(QsciScintilla::SCI_SETFIRSTVISIBLELINE, scrollLine);
+        m_currentEditor->setSelection(res.definitionLine, res.definitionCol, res.definitionLine, res.definitionCol + sym.length());
+        m_currentEditor->setFocus();
+        updateBreadcrumb(res.definitionLine);
+        if (m_occurrenceTimer) m_occurrenceTimer->start();
+      }
+      return; // 已经属于当前局部变量/形参定义，无论是否处于定义行自身，都不向全工程盲目穿透
+    }
+  }
+
+  // 2. 提取外层类作用域
+  QString enclosingClass = extractEnclosingClassName(line, m_currentEditor);
+  QString curLineText = m_currentEditor->text(line);
+
+  // 检查当前行是否显式包含 ClassName::sym 或 &ClassName::sym
+  QRegularExpression explicitClassRe(QString(R"(&?([A-Za-z_]\w*)\s*::\s*%1\b)").arg(QRegularExpression::escape(sym)));
+  QRegularExpressionMatch ecMatch = explicitClassRe.match(curLineText);
+  if (ecMatch.hasMatch()) {
+    enclosingClass = ecMatch.captured(1).trimmed();
+  }
+
+  // 3. 全工程搜索候选定义
+  QList<DefinitionCandidate> candidates = findSymbolDefinitionsInProject(sym, enclosingClass);
+
+  // 若当前为头文件，过滤掉自身当前行的候选声明，优先跳转到源文件中的实现
+  bool isCurrentHeader = m_currentFilePath.endsWith(".h", Qt::CaseInsensitive) || m_currentFilePath.endsWith(".hpp", Qt::CaseInsensitive);
+  if (isCurrentHeader) {
+    QList<DefinitionCandidate> filtered;
+    for (const auto &c : candidates) {
+      if (c.filePath == m_currentFilePath && c.line == line) continue; // 排除当前声明行自身
+      filtered.append(c);
+    }
+    if (!filtered.isEmpty()) {
+      candidates = filtered;
+    }
+  }
+
+  if (candidates.isEmpty()) {
+    if (res.definitionLine != -1 && (res.definitionLine != line || res.definitionCol != col)) {
+      m_currentEditor->setCursorPosition(res.definitionLine, res.definitionCol);
+      m_currentEditor->ensureLineVisible(res.definitionLine);
+      m_currentEditor->setSelection(res.definitionLine, res.definitionCol, res.definitionLine, res.definitionCol + sym.length());
+      m_currentEditor->setFocus();
+      updateBreadcrumb(res.definitionLine);
+      if (m_occurrenceTimer) m_occurrenceTimer->start();
+    }
+    return;
+  }
+
+  // 4. 智能直跳决策：
+  // 若只有 1 个候选，或首个候选为高置信度实现/定义（score >= 950 或领先第二名 >= 100），直接平滑跳转！
+  bool shouldAutoJump = false;
+  if (candidates.size() == 1) {
+    shouldAutoJump = true;
+  } else if (candidates.first().score >= 950) {
+    shouldAutoJump = true;
+  } else if (candidates.size() > 1 && (candidates.first().score - candidates[1].score >= 100)) {
+    shouldAutoJump = true;
+  } else if (isCurrentHeader && (candidates.first().type.contains("实现") || candidates.first().type.contains("构造"))) {
+    shouldAutoJump = true;
+  }
+
+  if (shouldAutoJump) {
+    openDefinitionCandidate(candidates.first());
+    return;
+  }
+
+  // 5. 多个同分/近分候选时，弹出精美快速选择对话框
+  GoToDefinitionDialog dlg(sym, candidates, this, this);
+  dlg.exec();
+}
+
+void CodeEditor::findReferencesAtCursor() {
+  if (!m_currentEditor) return;
+  int line, col;
+  m_currentEditor->getCursorPosition(&line, &col);
+  SymbolScopeResult res = analyzeSymbolScopeAt(line, col, m_currentEditor);
+  if (!res.isValid || res.occurrences.isEmpty()) return;
+
+  ReferencesDialog dlg(res.symbolName, res.occurrences, m_currentFilePath, this, this);
+  dlg.exec();
+}
+
+void CodeEditor::renameSymbolAtCursor() {
+  if (!m_currentEditor) return;
+  int line, col;
+  m_currentEditor->getCursorPosition(&line, &col);
+  SymbolScopeResult res = analyzeSymbolScopeAt(line, col, m_currentEditor);
+  if (!res.isValid) return;
+
+  // 1. 如果是局部变量或形参：严格限制在当前函数内部重命名
+  if (res.kind == ScopeLocalVariable || res.kind == ScopeFunctionParam) {
+    QString scopeDesc = QString("【局部变量】当前函数 \"%1\" 作用域 (不影响其他函数/全局同名变量)").arg(res.scopeOwner);
+    RenameSymbolDialog dlg(res.symbolName, scopeDesc, res.occurrences.size(), this);
+    if (dlg.exec() == QDialog::Accepted) {
+      QString newName = dlg.newName();
+      if (!newName.isEmpty() && newName != res.symbolName) {
+        renameSymbolInScope(res, newName);
+      }
+    }
+    return;
+  }
+
+  // 2. 如果是全局/跨文件符号（全局变量、类成员、函数名、结构体、宏定义等）：执行全工程同作用域批量重命名
+  renameSymbolInProject(res.symbolName, res.kind, "");
+}
+
+void CodeEditor::renameSymbolInScope(const SymbolScopeResult &scopeResult, const QString &newName) {
+  if (!m_currentEditor || scopeResult.occurrences.isEmpty() || newName.isEmpty()) return;
+
+  m_currentEditor->SendScintilla(QsciScintilla::SCI_BEGINUNDOACTION);
+
+  // 从后向前倒序替换，防止前面的替换引起后续行/列坐标偏移
+  QList<SymbolOccurrence> sortedOccs = scopeResult.occurrences;
+  std::sort(sortedOccs.begin(), sortedOccs.end(), [](const SymbolOccurrence &a, const SymbolOccurrence &b) {
+    return a.startOffset > b.startOffset;
+  });
+
+  for (const SymbolOccurrence &occ : sortedOccs) {
+    m_currentEditor->setSelection(occ.line, occ.col, occ.line, occ.col + occ.length);
+    m_currentEditor->replaceSelectedText(newName);
+  }
+
+  m_currentEditor->SendScintilla(QsciScintilla::SCI_ENDUNDOACTION);
+
+  // 刷新函数列表与符号高亮
+  updateFunctionList();
+  if (m_occurrenceTimer) m_occurrenceTimer->start();
+}
+
+void CodeEditor::renameSymbolInProject(const QString &symbolName, ScopeKind kind, const QString &newName) {
+  Q_UNUSED(newName);
+  if (symbolName.isEmpty()) return;
+
+  QString escSym = QRegularExpression::escape(symbolName);
+  QString symPattern = symbolName.startsWith('~') ?
+      QString(R"(~(?<![A-Za-z0-9_])%1(?![A-Za-z0-9_]))").arg(QRegularExpression::escape(symbolName.mid(1))) :
+      QString(R"((?<![A-Za-z0-9_])%1(?![A-Za-z0-9_]))").arg(escSym);
+  QRegularExpression globalSymRe(symPattern);
+
+  QRegularExpression localDeclRe(QString(R"(\b(?:[A-Za-z_]\w*(?:\s*<[^>]*>)?(?:\s*::\s*[A-Za-z_]\w*)*)\s*[*&]*\s*(%1)\s*(?:[;=,\[\)]))").arg(escSym));
+  QRegularExpression paramDeclRe(QString(R"(\b(?:const\s+)?([A-Za-z_]\w*(?:\s*<[^>]*>)?(?:\s*::\s*[A-Za-z_]\w*)*)\s*[*&]*\s*(%1)\b)").arg(escSym));
+
+  QStringList projectFiles = getAllProjectSourceFiles();
+  QMap<QString, QList<SymbolOccurrence>> fileOccurrences;
+
+  for (const QString &fPath : projectFiles) {
+    QString code;
+    if (fPath == m_currentFilePath && m_currentEditor) {
+      code = m_currentEditor->text();
+    } else {
+      QFile file(fPath);
+      if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) continue;
+      code = QString::fromUtf8(file.readAll());
+    }
+
+    QString clean = generateCleanCppCode(code);
+    const int codeLen = code.length();
+
+    // 扫描该文件中的所有函数，识别存在局部同名变量遮蔽的区间
+    QList<QPair<int, int>> shadowedRanges;
+    QRegularExpression funcRe(R"((?:[A-Za-z_]\w*(?:\s*<[^>]*>)?(?:\s*::\s*[A-Za-z_]\w*)*\s+)?(?:[A-Za-z_]\w*::)*[A-Za-z_]\w*\s*\([^;]*\)\s*(?:const\s*)?\{)");
+    QRegularExpressionMatchIterator funcIter = funcRe.globalMatch(clean);
+    while (funcIter.hasNext()) {
+      QRegularExpressionMatch fm = funcIter.next();
+      int bodyStart = fm.capturedEnd() - 1; // '{' 位置
+      int braceDepth = 1;
+      int bodyEnd = bodyStart + 1;
+      while (bodyEnd < codeLen && braceDepth > 0) {
+        if (clean[bodyEnd] == '{') ++braceDepth;
+        else if (clean[bodyEnd] == '}') --braceDepth;
+        ++bodyEnd;
+      }
+      QString funcBodyClean = clean.mid(fm.capturedStart(), bodyEnd - fm.capturedStart());
+      if (paramDeclRe.match(funcBodyClean).hasMatch() || localDeclRe.match(funcBodyClean).hasMatch()) {
+        shadowedRanges.append(qMakePair(fm.capturedStart(), bodyEnd));
+      }
+    }
+
+    auto isShadowed = [&](int offset) -> bool {
+      for (const auto &rng : shadowedRanges) {
+        if (offset >= rng.first && offset < rng.second) return true;
+      }
+      return false;
+    };
+
+    QList<SymbolOccurrence> occs;
+    QRegularExpressionMatchIterator iter = globalSymRe.globalMatch(clean);
+    while (iter.hasNext()) {
+      QRegularExpressionMatch m = iter.next();
+      int absOffset = m.capturedStart();
+      if (isShadowed(absOffset)) continue;
+
+      SymbolOccurrence occ;
+      occ.startOffset = absOffset;
+      occ.endOffset = absOffset + symbolName.length();
+      occ.line = code.left(absOffset).count('\n');
+      int lineStart = code.lastIndexOf('\n', absOffset - 1) + 1;
+      occ.col = absOffset - lineStart;
+      occ.length = symbolName.length();
+      int lineEnd = code.indexOf('\n', absOffset);
+      if (lineEnd == -1) lineEnd = codeLen;
+      occ.lineContent = code.mid(lineStart, lineEnd - lineStart);
+      occs.append(occ);
+    }
+
+    if (!occs.isEmpty()) {
+      fileOccurrences.insert(fPath, occs);
+    }
+  }
+
+  if (fileOccurrences.isEmpty()) return;
+
+  QString scopeDesc = (kind == ScopeFunction) ? "【全工程函数】" : "【全工程全局/类成员符号】";
+  ProjectRenameDialog dlg(symbolName, scopeDesc, fileOccurrences, this);
+  if (dlg.exec() != QDialog::Accepted) return;
+
+  QString targetNewName = dlg.newName();
+  if (targetNewName.isEmpty() || targetNewName == symbolName) return;
+
+  int totalReplaced = 0;
+  // 执行全工程跨文件原子替换
+  for (auto it = fileOccurrences.begin(); it != fileOccurrences.end(); ++it) {
+    QString fPath = it.key();
+    QList<SymbolOccurrence> occs = it.value();
+    totalReplaced += occs.size();
+
+    // 倒序替换
+    std::sort(occs.begin(), occs.end(), [](const SymbolOccurrence &a, const SymbolOccurrence &b) {
+      return a.startOffset > b.startOffset;
+    });
+
+    if (fPath == m_currentFilePath && m_currentEditor) {
+      m_currentEditor->SendScintilla(QsciScintilla::SCI_BEGINUNDOACTION);
+      for (const auto &occ : occs) {
+        m_currentEditor->setSelection(occ.line, occ.col, occ.line, occ.col + occ.length);
+        m_currentEditor->replaceSelectedText(targetNewName);
+      }
+      m_currentEditor->SendScintilla(QsciScintilla::SCI_ENDUNDOACTION);
+    } else {
+      QFile file(fPath);
+      if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        QString fText = QString::fromUtf8(file.readAll());
+        file.close();
+
+        for (const auto &occ : occs) {
+          fText.replace(occ.startOffset, occ.length, targetNewName);
+        }
+
+        if (file.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
+          QTextStream out(&file);
+          out.setCodec("UTF-8");
+          out << fText;
+          file.close();
+        }
+      }
+    }
+  }
+
+  // 刷新当前编辑器的函数列表与符号高亮
+  updateFunctionList();
+  if (m_occurrenceTimer) m_occurrenceTimer->start();
+
+  QMessageBox::information(this, "重命名成功",
+      QString("符号 \"%1\" 已成功重命名为 \"%2\"\n涉及 %3 个文件，共更新 %4 处引用。")
+          .arg(symbolName).arg(targetNewName).arg(fileOccurrences.size()).arg(totalReplaced));
+}
+
+void CodeEditor::onCustomContextMenuRequested(const QPoint &pos) {
+  if (!m_currentEditor) return;
+
+  // 将光标定位到右键点击处（如果当前未选中文本）
+  if (!m_currentEditor->hasSelectedText()) {
+    long scintillaPos = m_currentEditor->SendScintilla(QsciScintilla::SCI_POSITIONFROMPOINT, pos.x(), pos.y());
+    if (scintillaPos >= 0) {
+      int clickLine = m_currentEditor->SendScintilla(QsciScintilla::SCI_LINEFROMPOSITION, scintillaPos);
+      int lineStartPos = m_currentEditor->SendScintilla(QsciScintilla::SCI_POSITIONFROMLINE, clickLine);
+      QString lineText = m_currentEditor->text(clickLine);
+      int byteOffsetInLine = scintillaPos - lineStartPos;
+      int clickCol = 0;
+      int curBytes = 0;
+      while (clickCol < lineText.length() && curBytes < byteOffsetInLine) {
+        curBytes += QString(lineText[clickCol]).toUtf8().length();
+        ++clickCol;
+      }
+      m_currentEditor->setCursorPosition(clickLine, clickCol);
+    }
+  }
+
+  QMenu menu(this);
+  menu.setStyleSheet(
+      "QMenu {"
+      "  background-color: #252526;"
+      "  color: #CCCCCC;"
+      "  border: 1px solid #3E4451;"
+      "  padding: 4px;"
+      "}"
+      "QMenu::item {"
+      "  padding: 5px 24px 5px 12px;"
+      "  border-radius: 3px;"
+      "}"
+      "QMenu::item:selected {"
+      "  background-color: #094771;"
+      "  color: #FFFFFF;"
+      "}"
+      "QMenu::separator {"
+      "  height: 1px;"
+      "  background: #3E4451;"
+      "  margin: 4px 0;"
+      "}");
+
+  QAction *defAct = menu.addAction(QString("🔍 转到定义 (F12)"));
+  connect(defAct, &QAction::triggered, this, &CodeEditor::gotoDefinitionAtCursor);
+
+  QAction *refAct = menu.addAction(QString("📑 查找所有引用 (Shift+F12)"));
+  connect(refAct, &QAction::triggered, this, &CodeEditor::findReferencesAtCursor);
+
+  QAction *renAct = menu.addAction(QString("✏️ 一键重命名符号 (F2)"));
+  connect(renAct, &QAction::triggered, this, &CodeEditor::renameSymbolAtCursor);
+
+  menu.addSeparator();
+
+  QAction *findAct = menu.addAction(QString("🔎 查找 (Ctrl+F)"));
+  connect(findAct, &QAction::triggered, this, [this]() { showFindReplaceBar(false); });
+
+  QAction *repAct = menu.addAction(QString("🔄 替换 (Ctrl+H)"));
+  connect(repAct, &QAction::triggered, this, [this]() { showFindReplaceBar(true); });
+
+  menu.addSeparator();
+
+  QAction *undoAct = menu.addAction("撤销 (Ctrl+Z)");
+  undoAct->setEnabled(m_currentEditor->isUndoAvailable());
+  connect(undoAct, &QAction::triggered, m_currentEditor, &QsciScintilla::undo);
+
+  QAction *redoAct = menu.addAction("重做 (Ctrl+Y)");
+  redoAct->setEnabled(m_currentEditor->isRedoAvailable());
+  connect(redoAct, &QAction::triggered, m_currentEditor, &QsciScintilla::redo);
+
+  menu.addSeparator();
+
+  QAction *cutAct = menu.addAction("剪切 (Ctrl+X)");
+  cutAct->setEnabled(m_currentEditor->hasSelectedText());
+  connect(cutAct, &QAction::triggered, m_currentEditor, &QsciScintilla::cut);
+
+  QAction *copyAct = menu.addAction("复制 (Ctrl+C)");
+  copyAct->setEnabled(m_currentEditor->hasSelectedText());
+  connect(copyAct, &QAction::triggered, m_currentEditor, &QsciScintilla::copy);
+
+  QAction *pasteAct = menu.addAction("粘贴 (Ctrl+V)");
+  connect(pasteAct, &QAction::triggered, m_currentEditor, &QsciScintilla::paste);
+
+  QAction *selAllAct = menu.addAction("全选 (Ctrl+A)");
+  connect(selAllAct, &QAction::triggered, m_currentEditor, &QsciScintilla::selectAll);
+
+  menu.exec(m_currentEditor->mapToGlobal(pos));
+}
+
+void CodeEditor::updateStickyScroll() {
+  if (!m_currentEditor || !m_stickyScrollWidget) return;
+
+  int firstVisibleLine = m_currentEditor->SendScintilla(QsciScintilla::SCI_GETFIRSTVISIBLELINE);
+  int totalLines = m_currentEditor->lines();
+  if (firstVisibleLine < 0 || firstVisibleLine >= totalLines) {
+    m_stickyScrollWidget->hide();
+    return;
+  }
+
+  // 寻找当前首行可见代码所在的最内层函数 / 类 / 结构体
+  const FunctionInfo *activeFunc = nullptr;
+  for (const FunctionInfo &fn : m_functions) {
+    if (fn.type == SymbolFunction || fn.type == SymbolClass || fn.type == SymbolStruct) {
+      if (firstVisibleLine > fn.startLine && firstVisibleLine <= fn.endLine) {
+        if (!activeFunc || (fn.startLine >= activeFunc->startLine && fn.endLine <= activeFunc->endLine)) {
+          activeFunc = &fn;
+        }
+      }
+    }
+  }
+
+  if (!activeFunc) {
+    m_stickyScrollWidget->hide();
+    return;
+  }
+
+  int defLine = activeFunc->startLine;
+  if (defLine < 0 || defLine >= totalLines) {
+    m_stickyScrollWidget->hide();
+    return;
+  }
+
+  QString lineText = m_currentEditor->text(defLine);
+  while (lineText.endsWith('\r') || lineText.endsWith('\n')) {
+    lineText.chop(1);
+  }
+
+  // 计算边距宽度、水平滚动偏移与行高 (与 Scintilla 视口 100% 像素对齐)
+  int margin0 = m_currentEditor->SendScintilla(QsciScintilla::SCI_GETMARGINWIDTHN, 0);
+  int margin1 = m_currentEditor->SendScintilla(QsciScintilla::SCI_GETMARGINWIDTHN, 1);
+  int margin2 = m_currentEditor->SendScintilla(QsciScintilla::SCI_GETMARGINWIDTHN, 2);
+  int totalMarginWidth = margin0 + margin1 + margin2;
+  int xOffset = m_currentEditor->SendScintilla(QsciScintilla::SCI_GETXOFFSET);
+  int lineHeight = m_currentEditor->SendScintilla(QsciScintilla::SCI_TEXTHEIGHT, 0);
+  if (lineHeight <= 0) lineHeight = 20;
+
+  static_cast<StickyScrollWidget *>(m_stickyScrollWidget)->setFunctionHeader(
+      activeFunc->startLine, activeFunc->startCol, activeFunc->scopedName,
+      lineText, totalMarginWidth, xOffset, lineHeight);
+
+  int vBarWidth = (m_currentEditor->verticalScrollBar() && m_currentEditor->verticalScrollBar()->isVisible())
+                      ? m_currentEditor->verticalScrollBar()->width()
+                      : 0;
+  int widgetWidth = m_currentEditor->width() - vBarWidth;
+  int widgetHeight = static_cast<StickyScrollWidget *>(m_stickyScrollWidget)->height();
+
+  if (m_stickyScrollWidget->parent() != m_currentEditor) {
+    m_stickyScrollWidget->setParent(m_currentEditor);
+  }
+  m_stickyScrollWidget->setGeometry(0, 0, widgetWidth, widgetHeight);
+  m_stickyScrollWidget->show();
+  m_stickyScrollWidget->raise();
 }

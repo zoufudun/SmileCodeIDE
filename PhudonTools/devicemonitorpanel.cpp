@@ -1,6 +1,19 @@
 #include "devicemonitorpanel.h"
 #include "roommanagerdialog.h"
 
+constexpr int DeviceMonitorPanel::CARD_W;
+constexpr int DeviceMonitorPanel::CARD_H;
+constexpr int DeviceMonitorPanel::GAP_X;
+constexpr int DeviceMonitorPanel::GAP_Y;
+constexpr int DeviceMonitorPanel::PAD_LEFT;
+constexpr int DeviceMonitorPanel::PAD_RIGHT;
+constexpr int DeviceMonitorPanel::PAD_TOP;
+constexpr int DeviceMonitorPanel::PAD_BOTTOM;
+constexpr int DeviceMonitorPanel::MIN_ROOM_W;
+constexpr int DeviceMonitorPanel::MIN_ROOM_H;
+constexpr int DeviceMonitorPanel::ROOM_GAP_X;
+constexpr int DeviceMonitorPanel::ROOM_GAP_Y;
+
 #include <QAction>
 #include <QComboBox>
 #include <QDateTime>
