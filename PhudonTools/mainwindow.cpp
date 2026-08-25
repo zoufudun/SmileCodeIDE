@@ -28,6 +28,7 @@
 
 #include "serialportplot.h"
 #include "oscilloscopewindow.h"
+#include "appmanager.h"
 #include "idetheme.h"
 #include "TOOLS/CIconFont.h"
 #include <QDialog>
@@ -249,6 +250,8 @@ void MainWindow::createToolbars() {
   QToolBar *toolsToolbar = addToolBar("调试工具");
   toolsToolbar->setMovable(true);
   toolsToolbar->setIconSize(unifiedIconSize);
+  toolsToolbar->addAction(m_appHubAction);       // 应用工作台 (0xe635)
+  toolsToolbar->addSeparator();
   toolsToolbar->addAction(m_configureToolchainAction);
   toolsToolbar->addSeparator();
   toolsToolbar->addAction(m_oscilloscopeAction); // 数字示波器 (0xe86e)
@@ -2721,6 +2724,13 @@ void MainWindow::createActions() {
   connect(m_configureToolchainAction, &QAction::triggered, this,
           &MainWindow::configureToolchain);
 
+  // 添加应用工作台动作 (ICON 图标 0xe635)
+  m_appHubAction = new QAction("应用工作台", this);
+  m_appHubAction->setIcon(createToolActionIcon(0xe635, QColor("#6C5CE7")));
+  m_appHubAction->setStatusTip("返回 SmileCode Studio 应用工作台 / APP 市场");
+  m_appHubAction->setToolTip("返回应用工作台 (APP 容器主界面)");
+  connect(m_appHubAction, &QAction::triggered, this, &MainWindow::openAppHub);
+
   // 添加数字示波器动作 (ICON 图标 0xe86e)
   m_oscilloscopeAction = new QAction("数字示波器", this);
   m_oscilloscopeAction->setIcon(createToolActionIcon(0xe86e, QColor("#0EA5E9")));
@@ -3936,130 +3946,35 @@ void MainWindow::clearProjectTree() {
 
 // 打开独立多通信接口数字示波器
 void MainWindow::openOscilloscopeTool() {
-  if (!m_oscilloscopeWindow) {
-    m_oscilloscopeWindow = new OscilloscopeWindow();
-  }
-  m_oscilloscopeWindow->show();
-  m_oscilloscopeWindow->raise();
-  m_oscilloscopeWindow->activateWindow();
+  AppManager::instance()->launchApp("oscilloscope");
 }
 
 // 打开串口调试助手
 void MainWindow::openSerialTool() {
-  if (!m_serialPlot) {
-    m_serialPlot = new SerialPortContainer();
-    m_serialPlot->setWindowTitle("串口调试助手");
-    m_serialPlot->setWindowIcon(m_serialToolAction->icon());
-    m_serialPlot->resize(1000, 600);
-    m_serialPlot->applyGlobalTheme(m_currentTheme);
-  }
-  m_serialPlot->show();
-  m_serialPlot->raise();
-  m_serialPlot->activateWindow();
+  AppManager::instance()->launchApp("serial_plot");
 }
 
 // 打开网络调试助手
 void MainWindow::openNetworkTool() {
-  // 创建网络调试助手窗口
-  QDialog *networkToolDialog = new QDialog(this);
-  networkToolDialog->setWindowTitle("网络调试助手");
-  networkToolDialog->setMinimumSize(600, 400);
-
-  // 创建布局
-  QVBoxLayout *mainLayout = new QVBoxLayout(networkToolDialog);
-
-  // 创建网络设置区域
-  QGroupBox *settingsGroup = new QGroupBox("网络设置");
-  QGridLayout *settingsLayout = new QGridLayout(settingsGroup);
-
-  // 添加协议选择
-  QLabel *protocolLabel = new QLabel("协议类型:");
-  QComboBox *protocolComboBox = new QComboBox();
-  protocolComboBox->addItem("TCP客户端");
-  protocolComboBox->addItem("TCP服务器");
-  protocolComboBox->addItem("UDP");
-
-  // 添加IP地址和端口
-  QLabel *ipLabel = new QLabel("IP地址:");
-  QLineEdit *ipLineEdit = new QLineEdit("127.0.0.1");
-
-  QLabel *portLabel = new QLabel("端口:");
-  QSpinBox *portSpinBox = new QSpinBox();
-  portSpinBox->setRange(1, 65535);
-  portSpinBox->setValue(8080);
-
-  // 添加连接/断开按钮
-  QPushButton *connectButton = new QPushButton("连接");
-
-  // 将控件添加到设置布局
-  settingsLayout->addWidget(protocolLabel, 0, 0);
-  settingsLayout->addWidget(protocolComboBox, 0, 1);
-  settingsLayout->addWidget(ipLabel, 1, 0);
-  settingsLayout->addWidget(ipLineEdit, 1, 1);
-  settingsLayout->addWidget(portLabel, 2, 0);
-  settingsLayout->addWidget(portSpinBox, 2, 1);
-  settingsLayout->addWidget(connectButton, 3, 0, 1, 2);
-
-  // 创建数据显示区域
-  QGroupBox *dataGroup = new QGroupBox("数据显示");
-  QVBoxLayout *dataLayout = new QVBoxLayout(dataGroup);
-
-  QTextEdit *receiveTextEdit = new QTextEdit();
-  receiveTextEdit->setReadOnly(true);
-
-  // 创建发送区域
-  QGroupBox *sendGroup = new QGroupBox("数据发送");
-  QVBoxLayout *sendLayout = new QVBoxLayout(sendGroup);
-
-  QTextEdit *sendTextEdit = new QTextEdit();
-  QPushButton *sendButton = new QPushButton("发送");
-
-  QHBoxLayout *sendOptionsLayout = new QHBoxLayout();
-  QCheckBox *hexDisplayCheckBox = new QCheckBox("HEX显示");
-  QCheckBox *hexSendCheckBox = new QCheckBox("HEX发送");
-  QCheckBox *autoSendCheckBox = new QCheckBox("自动发送");
-  QLabel *intervalLabel = new QLabel("间隔(ms):");
-  QSpinBox *intervalSpinBox = new QSpinBox();
-  intervalSpinBox->setRange(100, 10000);
-  intervalSpinBox->setValue(1000);
-  intervalSpinBox->setSingleStep(100);
-
-  sendOptionsLayout->addWidget(hexDisplayCheckBox);
-  sendOptionsLayout->addWidget(hexSendCheckBox);
-  sendOptionsLayout->addWidget(autoSendCheckBox);
-  sendOptionsLayout->addWidget(intervalLabel);
-  sendOptionsLayout->addWidget(intervalSpinBox);
-  sendOptionsLayout->addStretch();
-
-  sendLayout->addWidget(sendTextEdit);
-  sendLayout->addLayout(sendOptionsLayout);
-  sendLayout->addWidget(sendButton);
-
-  dataLayout->addWidget(receiveTextEdit);
-
-  // 将所有组添加到主布局
-  mainLayout->addWidget(settingsGroup);
-  mainLayout->addWidget(dataGroup);
-  mainLayout->addWidget(sendGroup);
-
-  // 显示对话框
-  networkToolDialog->setAttribute(Qt::WA_DeleteOnClose);
-  networkToolDialog->show();
+  AppManager::instance()->launchApp("network_tool");
 }
 
 // 打开CAN调试助手
 void MainWindow::openCANTool() {
-  CANTool *canTool = new CANTool(this);
-  canTool->show();
+  AppManager::instance()->launchApp("can_tool");
 }
 
+// 打开IAP升级工具
 void MainWindow::openIAPTool() {
-  if (!m_iapTool) {
-    m_iapTool = new IAPTool();
-    m_iapTool->setWindowTitle("STM32 IAP 升级工具");
-    m_iapTool->resize(600, 500);
+  AppManager::instance()->launchApp("iap_tool");
+}
+
+// 打开应用工作台主界面
+void MainWindow::openAppHub() {
+  QWidget *hub = AppManager::instance()->getRunningWidget("app_hub");
+  if (hub) {
+    hub->showNormal();
+    hub->raise();
+    hub->activateWindow();
   }
-  m_iapTool->show();
-  m_iapTool->raise();
-  m_iapTool->activateWindow();
 }

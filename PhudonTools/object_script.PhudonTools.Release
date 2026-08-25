@@ -34,6 +34,11 @@ release/canopenviewpanel.o
 release/devicemonitordialog.o
 release/canbusutilizationdialog.o
 release/oscilloscopewindow.o
+release/appmanager.o
+release/networktool.o
+release/appcardwidget.o
+release/pluginmanagerdialog.o
+release/apphubwindow.o
 release/qrc_resources.o
 release/qrc_darkstyle.o
 release/moc_qcustomplot.o
@@ -70,3 +75,8 @@ release/moc_canopenviewpanel.o
 release/moc_devicemonitordialog.o
 release/moc_canbusutilizationdialog.o
 release/moc_oscilloscopewindow.o
+release/moc_appmanager.o
+release/moc_networktool.o
+release/moc_appcardwidget.o
+release/moc_pluginmanagerdialog.o
+release/moc_apphubwindow.o

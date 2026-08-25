@@ -135,6 +135,7 @@ private slots:
   void openCANTool();     // 打开CAN调试助手
   void openIAPTool();     // 打开IAP升级工具
   void openOscilloscopeTool(); // 打开独立多通信接口数字示波器
+  void openAppHub();      // 打开/切换至应用工作台主界面
 
   void showWelcomeScreen(); // 显示欢迎界面
   void checkForUpdates();   // 检查更新
@@ -299,6 +300,7 @@ private:
   bool saveEditorContent(QsciScintilla *editor, const QString &filePath);
 
   /* Existing code */
+  QAction *m_appHubAction;      // 应用工作台主界面动作
   QAction *m_serialToolAction;  // 串口调试助手动作
   QAction *m_networkToolAction; // 网络调试助手动作
   QAction *m_canToolAction;     // CAN调试助手动作
