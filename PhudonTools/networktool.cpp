@@ -11,8 +11,9 @@
 #include <QScrollBar>
 
 NetworkTool::NetworkTool(QWidget *parent) : QWidget(parent) {
+    setObjectName("networkToolRoot");
     setWindowTitle(QStringLiteral("网络通信调试助手 Pro"));
-    setWindowIcon(QIcon(":/icons/network_tool.png"));
+    setWindowIcon(QIcon(":/icons/xptools2.png"));
     resize(960, 680);
     setMinimumSize(800, 550);
 
@@ -32,6 +33,11 @@ NetworkTool::NetworkTool(QWidget *parent) : QWidget(parent) {
 
     setupUi();
     onProtocolChanged(0);
+}
+
+void NetworkTool::applyTheme(const QString &themeId) {
+    Q_UNUSED(themeId);
+    update();
 }
 
 NetworkTool::~NetworkTool() {

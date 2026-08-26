@@ -1,4 +1,5 @@
 #include "cantool.h"
+#include "appmanager.h"
 #include "normalsenddialog.h"
 
 #include <QAction>
@@ -107,6 +108,7 @@ CANTool::~CANTool() = default;
 void CANTool::setupUi() {
   setObjectName("canRoot");
   setWindowTitle("CAN / CAN FD / CANopen 测试工具");
+  setWindowIcon(QIcon(":/icons/xptools2.png"));
   setMinimumSize(960, 720);
   setWindowFlags(windowFlags() | Qt::WindowMinMaxButtonsHint);
 
@@ -156,8 +158,10 @@ void CANTool::setupUi() {
 
   QMenu *menuTheme = new QMenu(m_btnTheme);
   for (const QString &themeName : CanTheme::names()) {
-    menuTheme->addAction(themeName, this,
-                         [this, themeName]() { applyTheme(themeName); });
+    menuTheme->addAction(themeName, this, [this, themeName]() {
+      applyTheme(themeName);
+      AppManager::instance()->setCurrentTheme(themeName);
+    });
   }
   m_btnTheme->setMenu(menuTheme);
 
@@ -168,8 +172,8 @@ void CANTool::setupUi() {
 
   setAttribute(Qt::WA_DeleteOnClose);
 
-  // 默认应用钛金深色主题
-  applyTheme(QStringLiteral("⚡ 极客钛金 (Titanium Dark)"));
+  // 默认应用当前全局主题
+  applyTheme(AppManager::instance()->getCurrentTheme());
 
   // 默认添加第一个 CAN 监视视图
   QAction *defaultAction = new QAction("新建CAN视图", this);

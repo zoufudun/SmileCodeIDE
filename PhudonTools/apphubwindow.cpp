@@ -1,5 +1,6 @@
 #include "apphubwindow.h"
 #include "pluginmanagerdialog.h"
+#include "idetheme.h"
 #include <QApplication>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -15,15 +16,17 @@
 #include <QDebug>
 
 AppHubWindow::AppHubWindow(QWidget *parent) : QMainWindow(parent) {
+    setObjectName("appHubRoot");
     setWindowTitle(QStringLiteral("SmileCode Studio - 嵌入式开发与调试工具应用工作台"));
-    setWindowIcon(QIcon(":/resources/logo.png"));
+    setWindowIcon(QIcon(":/icons/xptools2.png"));
     resize(1200, 780);
     setMinimumSize(960, 620);
 
     setupUi();
     setupTrayIcon();
 
-    // 监听应用状态变更
+    // 监听全局主题联动与应用状态变更
+    connect(AppManager::instance(), &AppManager::globalThemeChanged, this, &AppHubWindow::applyTheme);
     connect(AppManager::instance(), &AppManager::appStatusChanged, this, &AppHubWindow::onAppStatusChanged);
     connect(AppManager::instance(), &AppManager::pluginListChanged, this, &AppHubWindow::refreshAppGrid);
     connect(AppManager::instance(), &AppManager::appFavoriteChanged, this, [this](const QString &, bool) {
@@ -32,8 +35,9 @@ AppHubWindow::AppHubWindow(QWidget *parent) : QMainWindow(parent) {
         }
     });
 
-    // 初始载入
+    // 初始载入并应用当前主题
     refreshAppGrid();
+    applyTheme(AppManager::instance()->getCurrentTheme());
 }
 
 AppHubWindow::~AppHubWindow() {
@@ -41,6 +45,7 @@ AppHubWindow::~AppHubWindow() {
 
 void AppHubWindow::setupUi() {
     QWidget *centralWidget = new QWidget(this);
+    centralWidget->setObjectName("hubCentral");
     setCentralWidget(centralWidget);
 
     QVBoxLayout *rootLayout = new QVBoxLayout(centralWidget);
@@ -48,10 +53,11 @@ void AppHubWindow::setupUi() {
     rootLayout->setSpacing(0);
 
     setupHeader();
-    rootLayout->addWidget(m_searchEdit->parentWidget()); // 顶栏
+    rootLayout->addWidget(m_headerWidget);
 
     // 中部主要分割区（左侧导航 + 右侧卡片网格）
     QWidget *middleWidget = new QWidget(this);
+    middleWidget->setStyleSheet("background: transparent;");
     QHBoxLayout *middleLayout = new QHBoxLayout(middleWidget);
     middleLayout->setContentsMargins(0, 0, 0, 0);
     middleLayout->setSpacing(0);
@@ -75,56 +81,47 @@ void AppHubWindow::setupUi() {
 }
 
 void AppHubWindow::setupHeader() {
-    QWidget *headerWidget = new QWidget(this);
-    headerWidget->setFixedHeight(64);
-    headerWidget->setStyleSheet("background-color: rgba(30, 39, 46, 0.95); border-bottom: 1px solid rgba(255,255,255,0.08);");
+    m_headerWidget = new QWidget(this);
+    m_headerWidget->setObjectName("appHubHeader");
+    m_headerWidget->setFixedHeight(64);
 
-    QHBoxLayout *headerLayout = new QHBoxLayout(headerWidget);
+    QHBoxLayout *headerLayout = new QHBoxLayout(m_headerWidget);
     headerLayout->setContentsMargins(20, 10, 20, 10);
     headerLayout->setSpacing(16);
 
     // 1. 品牌 Logo 与标题
-    QLabel *logoLabel = new QLabel(headerWidget);
-    QPixmap logoPix(":/resources/logo.png");
+    QLabel *logoLabel = new QLabel(m_headerWidget);
+    QPixmap logoPix(":/icons/xptools2.png");
     if (!logoPix.isNull()) {
-        logoLabel->setPixmap(logoPix.scaled(36, 36, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+        logoLabel->setPixmap(logoPix.scaled(38, 38, Qt::KeepAspectRatio, Qt::SmoothTransformation));
     }
-    logoLabel->setFixedSize(36, 36);
+    logoLabel->setFixedSize(38, 38);
 
     QVBoxLayout *titleLayout = new QVBoxLayout();
     titleLayout->setSpacing(0);
-    QLabel *brandLabel = new QLabel(QStringLiteral("SmileCode Studio"), headerWidget);
-    brandLabel->setStyleSheet("font-size: 16px; font-weight: bold; color: #ffffff;");
-    QLabel *sloganLabel = new QLabel(QStringLiteral("嵌入式开发与调试工具应用市场容器"), headerWidget);
-    sloganLabel->setStyleSheet("font-size: 11px; color: #a4b0be;");
-    titleLayout->addWidget(brandLabel);
-    titleLayout->addWidget(sloganLabel);
+    m_brandLabel = new QLabel(QStringLiteral("SmileCode Studio"), m_headerWidget);
+    m_brandLabel->setStyleSheet("font-size: 16px; font-weight: bold;");
+    m_sloganLabel = new QLabel(QStringLiteral("嵌入式开发与调试工具应用市场容器"), m_headerWidget);
+    m_sloganLabel->setStyleSheet("font-size: 11px;");
+    titleLayout->addWidget(m_brandLabel);
+    titleLayout->addWidget(m_sloganLabel);
 
     // 2. 全局搜索栏
-    m_searchEdit = new QLineEdit(headerWidget);
+    m_searchEdit = new QLineEdit(m_headerWidget);
+    m_searchEdit->setObjectName("appHubSearchEdit");
     m_searchEdit->setPlaceholderText(QStringLiteral("🔍 搜索应用、工具、通信协议关键字 (Ctrl+F)..."));
     m_searchEdit->setClearButtonEnabled(true);
     m_searchEdit->setFixedWidth(380);
     m_searchEdit->setFixedHeight(34);
-    m_searchEdit->setStyleSheet(
-        "QLineEdit { "
-        "  background-color: rgba(255, 255, 255, 0.08); "
-        "  color: #ffffff; "
-        "  border: 1px solid rgba(255, 255, 255, 0.15); "
-        "  border-radius: 17px; "
-        "  padding: 0 16px; "
-        "  font-size: 13px; "
-        "} "
-        "QLineEdit:focus { border: 1px solid #74b9ff; background-color: rgba(255, 255, 255, 0.12); }");
     connect(m_searchEdit, &QLineEdit::textChanged, this, &AppHubWindow::onSearchTextChanged);
 
     // 3. 插件中心按钮
-    QPushButton *pluginBtn = new QPushButton(QStringLiteral("🧩 扩展与插件中心"), headerWidget);
+    QPushButton *pluginBtn = new QPushButton(QStringLiteral("🧩 扩展中心"), m_headerWidget);
     pluginBtn->setCursor(Qt::PointingHandCursor);
     pluginBtn->setFixedHeight(32);
     pluginBtn->setStyleSheet(
         "QPushButton { "
-        "  background-color: #6c5ce7; "
+        "  background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #6c5ce7, stop:1 #4834d4); "
         "  color: white; "
         "  font-weight: bold; "
         "  border: none; "
@@ -132,24 +129,30 @@ void AppHubWindow::setupHeader() {
         "  padding: 0 14px; "
         "  font-size: 12px; "
         "} "
-        "QPushButton:hover { background-color: #a29bfe; }");
+        "QPushButton:hover { background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #a29bfe, stop:1 #6c5ce7); }");
     connect(pluginBtn, &QPushButton::clicked, this, &AppHubWindow::onOpenPluginManagerClicked);
 
-    // 4. 主题切换器
-    m_themeCombo = new QComboBox(headerWidget);
+    // 4. 主题切换器 (全面支持旗舰级主题)
+    m_themeCombo = new QComboBox(m_headerWidget);
     m_themeCombo->setFixedHeight(32);
     m_themeCombo->setStyleSheet("QComboBox { border-radius: 6px; padding: 0 10px; font-size: 12px; }");
-    m_themeCombo->addItem(QStringLiteral("🌙 深色模式 (Dark)"), "dark");
-    m_themeCombo->addItem(QStringLiteral("☀️ 浅色模式 (Light)"), "light");
-    m_themeCombo->addItem(QStringLiteral("🟣 OneDark Pro"), "onedarkpro");
-    m_themeCombo->addItem(QStringLiteral("🧛 Dracula"), "dracula");
-    m_themeCombo->addItem(QStringLiteral("🐙 GitHub Dark"), "githubdark");
-    m_themeCombo->addItem(QStringLiteral("🌲 Nord"), "nord");
-    m_themeCombo->addItem(QStringLiteral("🌿 Vue Theme"), "vue");
+    m_themeCombo->addItem(QStringLiteral("⚡ 极客钛金 (Titanium Dark)"), "dark");
+    m_themeCombo->addItem(QStringLiteral("🌌 赛博霓虹 (Cyber Neon)"), "cyberneon");
+    m_themeCombo->addItem(QStringLiteral("🌋 熔岩黑金 (Obsidian Gold)"), "obsidiangold");
+    m_themeCombo->addItem(QStringLiteral("🔮 星云紫晶 (Dracula)"), "dracula");
+    m_themeCombo->addItem(QStringLiteral("🌊 碧海深渊 (Nord)"), "nord");
+    m_themeCombo->addItem(QStringLiteral("🌲 极客翡翠 (Vue Matrix)"), "vue");
+    m_themeCombo->addItem(QStringLiteral("☀️ 纯白曜石 (Crystal Light)"), "light");
+    m_themeCombo->addItem(QStringLiteral("📜 暖阳羊皮 (Solarized Light)"), "solarizedlight");
+
+    int curThemeIdx = m_themeCombo->findData(AppManager::instance()->getCurrentTheme());
+    if (curThemeIdx != -1) {
+        m_themeCombo->setCurrentIndex(curThemeIdx);
+    }
     connect(m_themeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &AppHubWindow::onThemeChanged);
 
     // 5. 关于按钮
-    QPushButton *aboutBtn = new QPushButton(QStringLiteral("ℹ️ 关于"), headerWidget);
+    QPushButton *aboutBtn = new QPushButton(QStringLiteral("ℹ️ 关于"), m_headerWidget);
     aboutBtn->setCursor(Qt::PointingHandCursor);
     aboutBtn->setFixedHeight(32);
     aboutBtn->setStyleSheet("QPushButton { border-radius: 6px; padding: 0 10px; font-size: 12px; }");
@@ -167,32 +170,9 @@ void AppHubWindow::setupHeader() {
 
 void AppHubWindow::setupSidebar() {
     m_sidebarList = new QListWidget(this);
+    m_sidebarList->setObjectName("appHubSidebar");
     m_sidebarList->setFixedWidth(210);
     m_sidebarList->setFrameShape(QFrame::NoFrame);
-    m_sidebarList->setStyleSheet(
-        "QListWidget { "
-        "  background-color: rgba(24, 28, 34, 0.95); "
-        "  border-right: 1px solid rgba(255,255,255,0.06); "
-        "  outline: none; "
-        "  padding-top: 12px; "
-        "} "
-        "QListWidget::item { "
-        "  height: 42px; "
-        "  color: #a4b0be; "
-        "  padding-left: 16px; "
-        "  margin: 2px 8px; "
-        "  border-radius: 8px; "
-        "  font-size: 13px; "
-        "} "
-        "QListWidget::item:hover { "
-        "  background-color: rgba(255, 255, 255, 0.05); "
-        "  color: #ffffff; "
-        "} "
-        "QListWidget::item:selected { "
-        "  background-color: #3867d6; "
-        "  color: #ffffff; "
-        "  font-weight: bold; "
-        "}");
 
     m_sidebarList->addItem(QStringLiteral("🏠 全部应用"));
     m_sidebarList->addItem(QStringLiteral("⭐ 常用推荐"));
@@ -208,9 +188,9 @@ void AppHubWindow::setupSidebar() {
 
 void AppHubWindow::setupCentralArea() {
     m_scrollArea = new QScrollArea(this);
+    m_scrollArea->setObjectName("appHubScrollArea");
     m_scrollArea->setFrameShape(QFrame::NoFrame);
     m_scrollArea->setWidgetResizable(true);
-    m_scrollArea->setStyleSheet("QScrollArea { background-color: rgba(18, 22, 28, 0.98); }");
 
     m_gridContainer = new QWidget(m_scrollArea);
     m_gridContainer->setStyleSheet("background-color: transparent;");
@@ -222,39 +202,33 @@ void AppHubWindow::setupCentralArea() {
     // ==========================================
     // 顶部 Hero 快捷推荐卡片
     // ==========================================
-    QFrame *heroFrame = new QFrame(m_gridContainer);
-    heroFrame->setObjectName("HeroBanner");
-    heroFrame->setStyleSheet(
-        "#HeroBanner { "
-        "  background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #2b5876, stop:1 #4e4376); "
-        "  border-radius: 14px; "
-        "  padding: 16px; "
-        "}");
-    heroFrame->setFixedHeight(110);
+    m_heroFrame = new QFrame(m_gridContainer);
+    m_heroFrame->setObjectName("HeroBanner");
+    m_heroFrame->setFixedHeight(110);
 
-    QHBoxLayout *heroLayout = new QHBoxLayout(heroFrame);
+    QHBoxLayout *heroLayout = new QHBoxLayout(m_heroFrame);
     heroLayout->setContentsMargins(20, 10, 20, 10);
     heroLayout->setSpacing(16);
 
     QVBoxLayout *heroTextLayout = new QVBoxLayout();
-    QLabel *heroTitle = new QLabel(QStringLiteral("✨ SmileCode 一站式嵌入式开发工作台"), heroFrame);
-    heroTitle->setStyleSheet("font-size: 16px; font-weight: bold; color: white;");
-    QLabel *heroSub = new QLabel(QStringLiteral("集合代码编辑、总线调试、实时波形测量与固件烧录，支持模块化插件扩展。"), heroFrame);
-    heroSub->setStyleSheet("font-size: 12px; color: #dcdde1;");
-    heroTextLayout->addWidget(heroTitle);
-    heroTextLayout->addWidget(heroSub);
+    m_heroTitle = new QLabel(QStringLiteral("✨ SmileCode 一站式嵌入式开发工作台"), m_heroFrame);
+    m_heroTitle->setStyleSheet("font-size: 16px; font-weight: bold; color: white;");
+    m_heroSub = new QLabel(QStringLiteral("集合代码编辑、总线调试、实时波形测量与固件烧录，支持模块化插件扩展。"), m_heroFrame);
+    m_heroSub->setStyleSheet("font-size: 12px; color: #dcdde1;");
+    heroTextLayout->addWidget(m_heroTitle);
+    heroTextLayout->addWidget(m_heroSub);
 
-    QPushButton *quickIdeBtn = new QPushButton(QStringLiteral("⚡ 启动代码编辑器"), heroFrame);
-    quickIdeBtn->setCursor(Qt::PointingHandCursor);
-    quickIdeBtn->setStyleSheet("background-color: #ffffff; color: #2f3542; font-weight: bold; padding: 8px 16px; border-radius: 6px;");
-    connect(quickIdeBtn, &QPushButton::clicked, this, [this]() {
+    m_quickIdeBtn = new QPushButton(QStringLiteral("⚡ 启动代码编辑器"), m_heroFrame);
+    m_quickIdeBtn->setCursor(Qt::PointingHandCursor);
+    m_quickIdeBtn->setStyleSheet("background-color: #ffffff; color: #2f3542; font-weight: bold; padding: 8px 16px; border-radius: 6px;");
+    connect(m_quickIdeBtn, &QPushButton::clicked, this, [this]() {
         AppManager::instance()->launchApp("smilecode_ide");
     });
 
     heroLayout->addLayout(heroTextLayout, 1);
-    heroLayout->addWidget(quickIdeBtn);
+    heroLayout->addWidget(m_quickIdeBtn);
 
-    containerLayout->addWidget(heroFrame);
+    containerLayout->addWidget(m_heroFrame);
 
     // ==========================================
     // 卡片网格布局
@@ -268,7 +242,7 @@ void AppHubWindow::setupCentralArea() {
     // 空状态提示
     m_emptyStateLabel = new QLabel(QStringLiteral("未找到匹配的应用，请检查搜索关键字或尝试在“扩展中心”安装插件"), m_gridContainer);
     m_emptyStateLabel->setAlignment(Qt::AlignCenter);
-    m_emptyStateLabel->setStyleSheet("font-size: 14px; color: #7f8c8d; padding: 40px;");
+    m_emptyStateLabel->setStyleSheet("font-size: 14px; padding: 40px;");
     m_emptyStateLabel->setVisible(false);
     containerLayout->addWidget(m_emptyStateLabel);
 
@@ -278,34 +252,34 @@ void AppHubWindow::setupCentralArea() {
 }
 
 void AppHubWindow::setupFooter() {
-    QWidget *footerWidget = new QWidget(this);
-    footerWidget->setFixedHeight(32);
-    footerWidget->setStyleSheet("background-color: rgba(24, 28, 34, 0.95); border-top: 1px solid rgba(255,255,255,0.06);");
+    m_footerWidget = new QWidget(this);
+    m_footerWidget->setObjectName("appHubFooter");
+    m_footerWidget->setFixedHeight(32);
 
-    QHBoxLayout *footerLayout = new QHBoxLayout(footerWidget);
+    QHBoxLayout *footerLayout = new QHBoxLayout(m_footerWidget);
     footerLayout->setContentsMargins(16, 0, 16, 0);
 
-    m_statusRunningLabel = new QLabel(QStringLiteral("🟢 运行中应用: 0 个"), footerWidget);
-    m_statusRunningLabel->setStyleSheet("color: #2ed573; font-size: 11px;");
+    m_statusRunningLabel = new QLabel(QStringLiteral("🟢 运行中应用: 0 个"), m_footerWidget);
+    m_statusRunningLabel->setStyleSheet("font-size: 11px;");
 
-    m_statusTotalLabel = new QLabel(QStringLiteral("📦 已集成应用: 0 个"), footerWidget);
-    m_statusTotalLabel->setStyleSheet("color: #747d8c; font-size: 11px;");
+    m_statusTotalLabel = new QLabel(QStringLiteral("📦 已集成应用: 0 个"), m_footerWidget);
+    m_statusTotalLabel->setStyleSheet("font-size: 11px;");
 
-    QLabel *verLabel = new QLabel(QStringLiteral("SmileCode Studio v2.1.0"), footerWidget);
-    verLabel->setStyleSheet("color: #747d8c; font-size: 11px;");
+    m_verLabel = new QLabel(QStringLiteral("SmileCode Studio v2.1.0"), m_footerWidget);
+    m_verLabel->setStyleSheet("font-size: 11px;");
 
     footerLayout->addWidget(m_statusRunningLabel);
     footerLayout->addSpacing(16);
     footerLayout->addWidget(m_statusTotalLabel);
     footerLayout->addStretch();
-    footerLayout->addWidget(verLabel);
+    footerLayout->addWidget(m_verLabel);
 
-    centralWidget()->layout()->addWidget(footerWidget);
+    centralWidget()->layout()->addWidget(m_footerWidget);
 }
 
 void AppHubWindow::setupTrayIcon() {
     m_trayIcon = new QSystemTrayIcon(this);
-    m_trayIcon->setIcon(QIcon(":/resources/logo.png"));
+    m_trayIcon->setIcon(QIcon(":/icons/xptools2.png"));
     m_trayIcon->setToolTip(QStringLiteral("SmileCode Studio 应用工作台"));
 
     m_trayMenu = new QMenu(this);
@@ -375,26 +349,76 @@ void AppHubWindow::onSearchTextChanged(const QString &text) {
 
 void AppHubWindow::onThemeChanged(int index) {
     QString themeKey = m_themeCombo->itemData(index).toString();
-    QString sheetPath;
-
-    if (themeKey == "dark") sheetPath = ":/resources/styles/dark.qss";
-    else if (themeKey == "light") sheetPath = ":/resources/styles/light.qss";
-    else if (themeKey == "onedarkpro") sheetPath = ":/resources/styles/onedarkpro.qss";
-    else if (themeKey == "dracula") sheetPath = ":/resources/styles/dracula.qss";
-    else if (themeKey == "githubdark") sheetPath = ":/resources/styles/githubdark.qss";
-    else if (themeKey == "nord") sheetPath = ":/resources/styles/nord.qss";
-    else if (themeKey == "vue") sheetPath = ":/resources/styles/vue.qss";
-
-    if (!sheetPath.isEmpty()) {
-        applyTheme(sheetPath);
+    if (!themeKey.isEmpty()) {
+        AppManager::instance()->setCurrentTheme(themeKey);
     }
 }
 
-void AppHubWindow::applyTheme(const QString &sheetPath) {
-    QFile f(sheetPath);
-    if (f.open(QFile::ReadOnly | QFile::Text)) {
-        QString qss = QString::fromUtf8(f.readAll());
-        qApp->setStyleSheet(qss);
+void AppHubWindow::applyTheme(const QString &themeName) {
+    const IdeTheme::ThemePalette pal = IdeTheme::paletteFor(themeName);
+
+    // 1. 同步更新组合框索引 (阻塞信号防止死循环)
+    int idx = m_themeCombo->findData(themeName);
+    if (idx != -1 && m_themeCombo->currentIndex() != idx) {
+        m_themeCombo->blockSignals(true);
+        m_themeCombo->setCurrentIndex(idx);
+        m_themeCombo->blockSignals(false);
+    }
+
+    // 2. 标题与说明字体颜色
+    if (m_brandLabel) m_brandLabel->setStyleSheet(QString("font-size: 16px; font-weight: bold; color: %1;").arg(pal.textMain));
+    if (m_sloganLabel) m_sloganLabel->setStyleSheet(QString("font-size: 11px; color: %1;").arg(pal.textSub));
+
+    // 3. 侧边栏细腻样式
+    if (m_sidebarList) {
+        m_sidebarList->setStyleSheet(QString(
+            "QListWidget#appHubSidebar { "
+            "  background-color: %1; "
+            "  border-right: 1px solid %2; "
+            "  outline: none; "
+            "  padding-top: 12px; "
+            "} "
+            "QListWidget#appHubSidebar::item { "
+            "  height: 42px; "
+            "  color: %3; "
+            "  padding-left: 16px; "
+            "  margin: 2px 8px; "
+            "  border-radius: 8px; "
+            "  font-size: 13px; "
+            "} "
+            "QListWidget#appHubSidebar::item:hover { "
+            "  background-color: %4; "
+            "  color: %5; "
+            "} "
+            "QListWidget#appHubSidebar::item:selected { "
+            "  background: %6; "
+            "  color: %7; "
+            "  font-weight: bold; "
+            "}").arg(pal.sidebarBg, pal.border, pal.textSub, pal.panelBg, pal.textMain, pal.accentGrad, pal.accentText));
+    }
+
+    // 4. Hero 渐变横幅
+    if (m_heroFrame) {
+        m_heroFrame->setStyleSheet(QString(
+            "#HeroBanner { "
+            "  background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 %1, stop:1 %2); "
+            "  border: 1px solid %3; "
+            "  border-radius: 14px; "
+            "  padding: 16px; "
+            "}").arg(pal.headerBg, pal.cardBg, pal.borderLight));
+    }
+
+    // 5. 底部状态栏颜色
+    if (m_statusRunningLabel) m_statusRunningLabel->setStyleSheet(QString("color: %1; font-size: 11px;").arg(pal.success));
+    if (m_statusTotalLabel) m_statusTotalLabel->setStyleSheet(QString("color: %1; font-size: 11px;").arg(pal.textSub));
+    if (m_verLabel) m_verLabel->setStyleSheet(QString("color: %1; font-size: 11px;").arg(pal.textSub));
+    if (m_emptyStateLabel) m_emptyStateLabel->setStyleSheet(QString("font-size: 14px; color: %1; padding: 40px;").arg(pal.textSub));
+
+    // 6. 广播到所有已生成的卡片
+    for (auto it = m_cardMap.begin(); it != m_cardMap.end(); ++it) {
+        if (it.value()) {
+            it.value()->applyTheme(themeName);
+        }
     }
 }
 
@@ -490,13 +514,7 @@ void AppHubWindow::resizeEvent(QResizeEvent *event) {
 }
 
 void AppHubWindow::closeEvent(QCloseEvent *event) {
-    if (m_trayIcon && m_trayIcon->isVisible()) {
-        m_trayIcon->showMessage(QStringLiteral("SmileCode Studio"),
-            QStringLiteral("程序已最小化到系统托盘，双击托盘图标即可唤出。"),
-            QSystemTrayIcon::Information, 2000);
-        hide();
-        event->ignore();
-    } else {
-        event->accept();
-    }
+    AppManager::instance()->closeAllApps();
+    event->accept();
+    qApp->quit();
 }

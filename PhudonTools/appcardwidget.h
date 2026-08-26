@@ -19,6 +19,7 @@ public:
     QString getAppId() const { return m_info.id; }
     void updateAppInfo(const AppInfo &info);
     void setRunningState(bool isRunning);
+    void applyTheme(const QString &themeId);
 
 signals:
     void launchRequested(const QString &appId);

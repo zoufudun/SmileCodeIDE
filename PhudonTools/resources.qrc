@@ -52,5 +52,6 @@
         <file>Font/iconfontMAX.ttf</file>
         <file>Font/iconfontUltra.ttf</file>
         <file>resources/logo.png</file>
+        <file>icons/xptools2.png</file>
     </qresource>
 </RCC>

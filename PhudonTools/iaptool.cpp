@@ -10,6 +10,10 @@
 
 IAPTool::IAPTool(QWidget *parent)
     : QWidget(parent), m_isConnected(false), m_isTransferring(false) {
+  setObjectName("iapToolRoot");
+  setWindowTitle("STM32 IAP 固件升级工具");
+  setWindowIcon(QIcon(":/icons/xptools2.png"));
+
   m_serialPort = new QSerialPort(this);
   m_udpSocket = new QUdpSocket(this);
   m_tcpSocket = new QTcpSocket(this);
@@ -22,6 +26,11 @@ IAPTool::IAPTool(QWidget *parent)
   // Default to Serial
   m_protocolCombo->setCurrentIndex(0);
   onProtocolChanged(0);
+}
+
+void IAPTool::applyTheme(const QString &themeId) {
+  Q_UNUSED(themeId);
+  update();
 }
 
 IAPTool::~IAPTool() {

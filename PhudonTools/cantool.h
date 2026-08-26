@@ -24,6 +24,7 @@ class CANTool : public QDialog {
 public:
   explicit CANTool(QWidget *parent = nullptr);
   ~CANTool() override;
+  void applyTheme(const QString &name);
 
 private slots:
   void onDeviceManage();
@@ -45,7 +46,6 @@ private:
   void setupUi();
   void createToolbar();
   QIcon createToolbarIcon(int type);
-  void applyTheme(const QString &name);
 
   CanInterface *m_can;
   CanOpenMaster *m_co;

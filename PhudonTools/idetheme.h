@@ -736,11 +736,41 @@ inline QString generateStyleSheet(const QString &themeName) {
 
   QString qss = QStringLiteral(R"QSS(
 /* 全局基础设定与高端字体渲染 */
-QMainWindow, QDialog, QWidget#centralWidget, QWidget#canRoot, QWidget#serialRoot, QWidget#serialContainer {
+QMainWindow, QDialog, QWidget#centralWidget, QWidget#canRoot, QWidget#serialRoot, QWidget#serialContainer, QWidget#appHubRoot, QWidget#hubCentral, QWidget#networkToolRoot, QWidget#iapToolRoot, QWidget#oscilloscopeRoot, QWidget#tabCornerWidget {
   background-color: {{WINDOW_BG}};
   color: {{TEXT_MAIN}};
   font-family: 'Segoe UI', 'Microsoft YaHei', 'PingFang SC', sans-serif;
   font-size: 12px;
+}
+
+/* 主工作台 AppHub 现代融合视觉 */
+QWidget#appHubHeader {
+  background: {{HEADER_BG}};
+  border-bottom: 1px solid {{BORDER}};
+}
+QWidget#appHubSidebar {
+  background-color: {{SIDEBAR_BG}};
+  border-right: 1px solid {{BORDER}};
+}
+QScrollArea#appHubScrollArea {
+  background-color: {{WINDOW_BG}};
+  border: none;
+}
+QWidget#appHubFooter {
+  background-color: {{STATUSBAR_BG}};
+  border-top: 1px solid {{BORDER}};
+}
+QLineEdit#appHubSearchEdit {
+  background-color: {{CARD_BG}};
+  color: {{TEXT_MAIN}};
+  border: 1px solid {{BORDER}};
+  border-radius: 17px;
+  padding: 0 16px;
+  font-size: 13px;
+}
+QLineEdit#appHubSearchEdit:focus {
+  border: 1px solid {{ACCENT}};
+  background-color: {{CARD_BG}};
 }
 
 /* 视图头部与标题栏 (CAN/串口/示波器一体化卡片头) */
@@ -879,6 +909,55 @@ QToolButton#btnThemeIcon:hover {
   background: {{ACCENT_GRAD}};
   color: {{ACCENT_TEXT}};
   border: 1px solid {{ACCENT}};
+}
+
+/* 串口控制中心专属高阶样式 */
+QPushButton#btnSerialOpenClose {
+  background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #10B981, stop:1 #059669);
+  color: #FFFFFF;
+  font-size: 13px;
+  font-weight: bold;
+  border: 1px solid #10B981;
+  border-radius: 8px;
+  padding: 6px 16px;
+  min-height: 24px;
+}
+QPushButton#btnSerialOpenClose:hover {
+  background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #34D399, stop:1 #10B981);
+  border-color: #34D399;
+}
+QPushButton#btnSerialOpenClose:checked {
+  background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #EF4444, stop:1 #DC2626);
+  border: 1px solid #EF4444;
+  color: #FFFFFF;
+}
+QPushButton#btnSerialOpenClose:checked:hover {
+  background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #F87171, stop:1 #EF4444);
+  border-color: #F87171;
+}
+QPushButton#btnSerialRefresh {
+  background: {{PANEL_BG_GRAD}};
+  color: {{TEXT_MAIN}};
+  font-size: 12px;
+  font-weight: bold;
+  border: 1px solid {{BORDER}};
+  border-radius: 8px;
+  padding: 6px 12px;
+  min-height: 24px;
+}
+QPushButton#btnSerialRefresh:hover {
+  background: {{ACCENT_GRAD}};
+  color: {{ACCENT_TEXT}};
+  border-color: {{ACCENT}};
+}
+QLabel#lblSerialStatusBadge {
+  background-color: {{CARD_BG}};
+  color: {{TEXT_SUB}};
+  border: 1px solid {{BORDER}};
+  border-radius: 14px;
+  padding: 4px 14px;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 /* 分割器 Splitter (消除所有白块与死角) */
@@ -1153,6 +1232,21 @@ QLabel#cardTitle {
   font-size: 13px;
   color: {{ACCENT}};
   padding-bottom: 4px;
+}
+
+/* 进度条 ProgressBar */
+QProgressBar {
+  background-color: {{CARD_BG}};
+  color: {{TEXT_MAIN}};
+  border: 1px solid {{BORDER}};
+  border-radius: 6px;
+  text-align: center;
+  font-weight: bold;
+  font-size: 11px;
+}
+QProgressBar::chunk {
+  background: {{ACCENT_GRAD}};
+  border-radius: 5px;
 }
 
 /* 标签 Label */

@@ -60,6 +60,7 @@ public:
   ~MainWindow();
   // void newFile();
   bool isCurrentFileModified() const;
+  void applyTheme(const QString &themeName);
 
 private slots:
   void openProject();
@@ -111,7 +112,6 @@ private slots:
   void setSolarizedLightTheme();
   void setMaterialLightTheme();
 
-  void applyTheme(const QString &themeName);
   void openFile(const QModelIndex &index);
   void saveCurrentFile();   // 添加保存当前文件的方法声明
   void saveFileAs();        // 添加另存为方法声明

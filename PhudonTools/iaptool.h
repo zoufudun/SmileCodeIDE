@@ -24,6 +24,7 @@ class IAPTool : public QWidget {
 public:
   explicit IAPTool(QWidget *parent = nullptr);
   ~IAPTool();
+  void applyTheme(const QString &themeId);
 
 private slots:
   void onProtocolChanged(int index);

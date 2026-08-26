@@ -1,4 +1,6 @@
 #include "appcardwidget.h"
+#include "idetheme.h"
+#include "TOOLS/CIconFont.h"
 #include <QGraphicsDropShadowEffect>
 #include <QMouseEvent>
 #include <QPainter>
@@ -168,13 +170,59 @@ void AppCardWidget::updateAppInfo(const AppInfo &info) {
           : "QToolButton { border: none; background: transparent; font-size: "
             "16px; color: #7f8c8d; } QToolButton:hover { color: #f1c40f; }");
 
-  // 加载图标
-  QPixmap pix;
-  if (!m_info.iconPath.isEmpty() && pix.load(m_info.iconPath)) {
-    m_iconLabel->setPixmap(
-        pix.scaled(36, 36, Qt::KeepAspectRatio, Qt::SmoothTransformation));
-  } else {
-    // 如果没有图片图标，生成科技感首字母图标
+  // 加载图标：优先使用与 SmileCodeIDE 工具栏完全一致的矢量图标 (iconUnicode)
+  bool iconRendered = false;
+  if (!m_info.iconUnicode.isEmpty()) {
+    bool ok = false;
+    ushort code = 0;
+    if (m_info.iconUnicode.startsWith("0x", Qt::CaseInsensitive)) {
+      code = m_info.iconUnicode.mid(2).toUShort(&ok, 16);
+    } else {
+      code = m_info.iconUnicode.toUShort(&ok, 16);
+    }
+
+    if (ok && code > 0) {
+      QPixmap iconPix(48, 48);
+      iconPix.fill(Qt::transparent);
+      QPainter painter(&iconPix);
+      painter.setRenderHint(QPainter::Antialiasing);
+      painter.setRenderHint(QPainter::TextAntialiasing);
+
+      QColor color(m_info.colorHex.isEmpty() ? "#6c5ce7" : m_info.colorHex);
+
+      // 绘制半透明圆角背景与高光微边框
+      QColor bgColor = color;
+      bgColor.setAlpha(35);
+      painter.setBrush(bgColor);
+      QColor borderColor = color;
+      borderColor.setAlpha(120);
+      painter.setPen(QPen(borderColor, 1.2));
+      painter.drawRoundedRect(QRectF(1, 1, 46, 46), 10, 10);
+
+      // 绘制工具栏同款矢量字体图标
+      try {
+        QFont font = CIconFont::instance()->getIconFont(28);
+        font.setPixelSize(28);
+        painter.setFont(font);
+      } catch (...) {}
+      painter.setPen(color);
+      painter.drawText(QRect(0, 0, 48, 48), Qt::AlignCenter, QString(QChar(code)));
+      m_iconLabel->setPixmap(iconPix);
+      iconRendered = true;
+    }
+  }
+
+  if (!iconRendered && !m_info.iconPath.isEmpty()) {
+    QPixmap pix;
+    if (pix.load(m_info.iconPath)) {
+      m_iconLabel->setPixmap(
+          pix.scaled(36, 36, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+      iconRendered = true;
+    }
+  }
+
+  if (!iconRendered) {
+    // 降级兜底：生成首字母图标
     QPixmap defaultIcon(48, 48);
     defaultIcon.fill(Qt::transparent);
     QPainter painter(&defaultIcon);
@@ -217,36 +265,50 @@ void AppCardWidget::setRunningState(bool isRunning) {
   updateStyles();
 }
 
+void AppCardWidget::applyTheme(const QString &themeId) {
+  Q_UNUSED(themeId);
+  updateStyles();
+}
+
 void AppCardWidget::updateStyles() {
   QString accentColor = m_info.colorHex.isEmpty() ? "#3498db" : m_info.colorHex;
+  const IdeTheme::ThemePalette pal = IdeTheme::paletteFor(AppManager::instance()->getCurrentTheme());
+
+  m_titleLabel->setStyleSheet(QString("font-size: 15px; font-weight: bold; color: %1;").arg(pal.textMain));
+  m_versionLabel->setStyleSheet(QString("font-size: 11px; color: %1; background: %2; padding: 2px 6px; border-radius: 4px; border: 1px solid %3;")
+                                .arg(pal.textSub, pal.panelBg, pal.border));
+  m_subtitleLabel->setStyleSheet(QString("font-size: 12px; font-weight: 600; color: %1;").arg(pal.textSub));
+  m_descLabel->setStyleSheet(QString("font-size: 11px; color: %1; line-height: 1.4;").arg(pal.textSub));
+  m_tagsContainer->setStyleSheet(QString("font-size: 10px; color: %1;").arg(pal.textDisabled.isEmpty() ? pal.textSub : pal.textDisabled));
 
   if (m_isHovered) {
     setStyleSheet(QString("#AppCardWidget { "
-                          "  background-color: rgba(45, 52, 54, 0.95); "
-                          "  border: 1px solid %1; "
+                          "  background-color: %1; "
+                          "  border: 1px solid %2; "
                           "  border-radius: 12px; "
                           "}")
-                      .arg(accentColor));
+                      .arg(pal.panelBg, accentColor));
   } else {
-    setStyleSheet("#AppCardWidget { "
-                  "  background-color: rgba(36, 41, 46, 0.75); "
-                  "  border: 1px solid rgba(255, 255, 255, 0.08); "
-                  "  border-radius: 12px; "
-                  "}");
+    setStyleSheet(QString("#AppCardWidget { "
+                          "  background-color: %1; "
+                          "  border: 1px solid %2; "
+                          "  border-radius: 12px; "
+                          "}")
+                      .arg(pal.cardBg, pal.border));
   }
 
   if (m_isRunning) {
     m_launchBtn->setStyleSheet(
         QString("QPushButton { "
-                "  background-color: #27ae60; "
+                "  background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #10B981, stop:1 #059669); "
                 "  color: white; "
-                "  border: none; "
+                "  border: 1px solid #10B981; "
                 "  border-radius: 6px; "
                 "  font-weight: bold; "
                 "  font-size: 12px; "
                 "  padding: 4px 12px; "
                 "} "
-                "QPushButton:hover { background-color: #2ecc71; }"));
+                "QPushButton:hover { background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #34D399, stop:1 #10B981); }"));
   } else {
     m_launchBtn->setStyleSheet(QString("QPushButton { "
                                        "  background-color: %1; "

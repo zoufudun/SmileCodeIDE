@@ -102,6 +102,7 @@ public:
 
     // 关闭应用
     void closeApp(const QString &appId);
+    void closeAllApps();
 
     // 检查应用是否正在运行
     bool isAppRunning(const QString &appId) const;
@@ -115,6 +116,11 @@ public:
     // 获取插件安装目录
     QString getPluginsDirectory() const;
 
+    // 全局主题管理与同步
+    QString getCurrentTheme() const;
+    void setCurrentTheme(const QString &themeId);
+    void applyThemeToWidget(QWidget *widget);
+
     // 保存和载入配置
     void saveSettings();
     void loadSettings();
@@ -125,6 +131,7 @@ signals:
     void appStatusChanged(const QString &appId, bool isRunning);
     void pluginListChanged();
     void appFavoriteChanged(const QString &appId, bool isFavorite);
+    void globalThemeChanged(const QString &themeId);
 
 private:
     explicit AppManager(QObject *parent = nullptr);
@@ -134,6 +141,7 @@ private:
     QMap<QString, AppInfo> m_apps;
     QMap<QString, WidgetFactory> m_factories;
     QMap<QString, QPointer<QWidget>> m_runningWidgets;
+    QString m_currentTheme = "dark";
 
     void loadExternalPluginsFromDir();
 };

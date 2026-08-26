@@ -57,7 +57,7 @@ MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), m_isDebugging(false), m_serialPlot(nullptr),
       m_iapTool(nullptr) {
 
-  // setupEditor();
+  setWindowIcon(QIcon(":/icons/xptools2.png"));
 
   setupUi();
   setupThemeMenu(); // 移到createMenus()之前
@@ -2217,7 +2217,7 @@ void MainWindow::changeTheme(int themeIndex) {
 void MainWindow::showAboutDialog() {
   QMessageBox msgBox(this);
   msgBox.setWindowTitle("关于 PhudonTools");
-  msgBox.setIconPixmap(QPixmap(":/resources/logo.png").scaled(128, 128, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+  msgBox.setIconPixmap(QPixmap(":/icons/xptools2.png").scaled(128, 128, Qt::KeepAspectRatio, Qt::SmoothTransformation));
   msgBox.setText("<h2 style='color:#1565C0;'>PhudonTools</h2>"
                  "<p><b>版本:</b> 1.0</p>"
                  "<p><b>作者:</b> PhodonZou</p>"

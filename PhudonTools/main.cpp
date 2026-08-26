@@ -23,7 +23,7 @@ static void registerCoreApps() {
     ideInfo.category = AppCategory::EmbeddedDev;
     ideInfo.version = "v2.1.0";
     ideInfo.author = "SmileCode Team";
-    ideInfo.iconPath = ":/icons/file_code_icon.png";
+    ideInfo.iconUnicode = "0xe64a";
     ideInfo.colorHex = "#6c5ce7";
     ideInfo.description = QStringLiteral("基于 QScintilla 的全功能嵌入式 C/C++ IDE，支持 GCC/Make 一键编译构建、GDB 图形化断点调试与多主题语法高亮。");
     ideInfo.tags = QStringList() << "C/C++" << "GCC/Make" << "GDB 调试" << "STM32";
@@ -39,8 +39,8 @@ static void registerCoreApps() {
     scopeInfo.category = AppCategory::Measurement;
     scopeInfo.version = "v2.0.0";
     scopeInfo.author = "SmileCode Team";
-    scopeInfo.iconPath = ":/icons/CLOCK.png";
-    scopeInfo.colorHex = "#00cec9";
+    scopeInfo.iconUnicode = "0xe86e";
+    scopeInfo.colorHex = "#0EA5E9";
     scopeInfo.description = QStringLiteral("支持串口、TCP/UDP、WebSocket 与 CAN 多通道数据流高速采集，提供实时波形绘制、FFT 频谱分析与测量光标。");
     scopeInfo.tags = QStringList() << "多通道波形" << "FFT 频谱" << "TCP/UDP" << "测量标尺";
     mgr->registerBuiltInApp(scopeInfo, [](QWidget *parent) -> QWidget* {
@@ -56,8 +56,8 @@ static void registerCoreApps() {
     serialInfo.category = AppCategory::BusProtocol;
     serialInfo.version = "v3.0.0";
     serialInfo.author = "SmileCode Team";
-    serialInfo.iconPath = ":/icons/serialport.png";
-    serialInfo.colorHex = "#e17055";
+    serialInfo.iconUnicode = "0xe661";
+    serialInfo.colorHex = "#8B5CF6";
     serialInfo.description = QStringLiteral("支持多标签页独立会话、水平/垂直多窗口分屏、HEX/ASCII 高速收发、实时曲线绘制、Modbus 解析与自定义协议设计。");
     serialInfo.tags = QStringList() << "多标签页" << "分屏监视" << "曲线绘制" << "Modbus";
     mgr->registerBuiltInApp(serialInfo, [](QWidget *parent) -> QWidget* {
@@ -76,8 +76,8 @@ static void registerCoreApps() {
     canInfo.category = AppCategory::BusProtocol;
     canInfo.version = "v2.2.0";
     canInfo.author = "SmileCode Team";
-    canInfo.iconPath = ":/icons/CAN.png";
-    canInfo.colorHex = "#d63031";
+    canInfo.iconUnicode = "0xe8a2";
+    canInfo.colorHex = "#FF6D00";
     canInfo.description = QStringLiteral("支持周立功 USBCANFD、创芯 ControlCAN 硬件接口，集成 CANopen Master 主站管理、总线负载率统计与多包周期发送。");
     canInfo.tags = QStringList() << "USBCANFD" << "CXCAN" << "CANopen" << "负载率统计";
     mgr->registerBuiltInApp(canInfo, [](QWidget *parent) -> QWidget* {
@@ -93,8 +93,8 @@ static void registerCoreApps() {
     netInfo.category = AppCategory::BusProtocol;
     netInfo.version = "v2.0.0";
     netInfo.author = "SmileCode Team";
-    netInfo.iconPath = ":/icons/network_tool.png";
-    netInfo.colorHex = "#0984e3";
+    netInfo.iconUnicode = "0xe7d2";
+    netInfo.colorHex = "#3B82F6";
     netInfo.description = QStringLiteral("支持 TCP 客户端自动重连、TCP 服务端多客户端在线列表管理与广播/单发、UDP 广播调试，支持定时循环发送与日志导出。");
     netInfo.tags = QStringList() << "TCP 客户端" << "TCP 服务端" << "UDP 通信" << "HEX 收发";
     mgr->registerBuiltInApp(netInfo, [](QWidget *parent) -> QWidget* {
@@ -110,8 +110,8 @@ static void registerCoreApps() {
     iapInfo.category = AppCategory::Flashing;
     iapInfo.version = "v1.8.0";
     iapInfo.author = "SmileCode Team";
-    iapInfo.iconPath = ":/icons/IAP.png";
-    iapInfo.colorHex = "#00b894";
+    iapInfo.iconUnicode = "0xe8bf";
+    iapInfo.colorHex = "#10B981";
     iapInfo.description = QStringLiteral("专为 STM32 系列微控制器设计的 Bootloader 升级工具，支持串口 Ymodem/自定义协议及网络 TCP 双通道固件下载与校验。");
     iapInfo.tags = QStringList() << "STM32" << "Bootloader" << "固件烧录" << "TCP 升级";
     mgr->registerBuiltInApp(iapInfo, [](QWidget *parent) -> QWidget* {
@@ -130,7 +130,7 @@ int main(int argc, char *argv[]) {
     QApplication app(argc, argv);
 
     // 设置应用全局图标
-    app.setWindowIcon(QIcon(":/resources/logo.png"));
+    app.setWindowIcon(QIcon(":/icons/xptools2.png"));
 
     // ----------------------------
     // 载入全局深色样式表
@@ -156,6 +156,9 @@ int main(int argc, char *argv[]) {
 
     // 注册所有内置核心应用与插件系统
     registerCoreApps();
+
+    // 应用用户上次保存的全局主题
+    AppManager::instance()->setCurrentTheme(AppManager::instance()->getCurrentTheme());
 
     // 启动展现 APP 市场工作台主界面
     AppHubWindow hubWindow;

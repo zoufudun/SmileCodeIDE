@@ -27,6 +27,7 @@ public:
 
     explicit NetworkTool(QWidget *parent = nullptr);
     ~NetworkTool() override;
+    void applyTheme(const QString &themeId);
 
 private slots:
     void onProtocolChanged(int index);

@@ -1,4 +1,12 @@
 #include "appmanager.h"
+#include "mainwindow.h"
+#include "serialportplot.h"
+#include "cantool.h"
+#include "networktool.h"
+#include "iaptool.h"
+#include "oscilloscopewindow.h"
+#include "idetheme.h"
+#include <QApplication>
 #include <QCoreApplication>
 #include <QDir>
 #include <QFile>
@@ -291,6 +299,8 @@ QWidget* AppManager::launchApp(const QString &appId, QWidget *parent) {
     if (m_factories.contains(appId) && m_factories[appId]) {
         QWidget *widget = m_factories[appId](parent);
         if (widget) {
+            // 设置关闭即销毁，确保完全退出后台释放资源
+            widget->setAttribute(Qt::WA_DeleteOnClose, true);
             m_runningWidgets[appId] = widget;
             
             // 监听销毁事件
@@ -299,6 +309,9 @@ QWidget* AppManager::launchApp(const QString &appId, QWidget *parent) {
                 emit appStatusChanged(appId, false);
                 emit appClosed(appId);
             });
+
+            // 保持新打开的 APP 主题与当前主界面完全一致
+            applyThemeToWidget(widget);
 
             widget->show();
             widget->raise();
@@ -319,6 +332,16 @@ void AppManager::closeApp(const QString &appId) {
     if (m_runningWidgets.contains(appId) && !m_runningWidgets[appId].isNull()) {
         m_runningWidgets[appId]->close();
     }
+}
+
+void AppManager::closeAllApps() {
+    auto widgets = m_runningWidgets;
+    for (auto it = widgets.begin(); it != widgets.end(); ++it) {
+        if (!it.value().isNull()) {
+            it.value()->close();
+        }
+    }
+    m_runningWidgets.clear();
 }
 
 bool AppManager::isAppRunning(const QString &appId) const {
@@ -346,6 +369,57 @@ QString AppManager::getPluginsDirectory() const {
     return QCoreApplication::applicationDirPath() + "/plugins";
 }
 
+QString AppManager::getCurrentTheme() const {
+    return m_currentTheme;
+}
+
+void AppManager::setCurrentTheme(const QString &themeId) {
+    if (themeId.isEmpty()) return;
+    m_currentTheme = themeId;
+
+    // 1. 生成并设置全局 QApplication 样式表
+    QString styleQss = IdeTheme::generateStyleSheet(themeId);
+    if (!styleQss.isEmpty()) {
+        qApp->setStyleSheet(styleQss);
+    } else {
+        QString sheetPath = QString(":/resources/styles/%1.qss").arg(themeId);
+        QFile f(sheetPath);
+        if (f.open(QFile::ReadOnly | QFile::Text)) {
+            qApp->setStyleSheet(QString::fromUtf8(f.readAll()));
+        }
+    }
+
+    // 2. 同步广播给所有正在运行的子应用，保持全局一致
+    for (auto it = m_runningWidgets.begin(); it != m_runningWidgets.end(); ++it) {
+        if (!it.value().isNull()) {
+            applyThemeToWidget(it.value().data());
+        }
+    }
+
+    saveSettings();
+    emit globalThemeChanged(themeId);
+}
+
+void AppManager::applyThemeToWidget(QWidget *widget) {
+    if (!widget) return;
+
+    if (MainWindow *mainWin = qobject_cast<MainWindow*>(widget)) {
+        mainWin->applyTheme(m_currentTheme);
+    } else if (SerialPortContainer *serialContainer = qobject_cast<SerialPortContainer*>(widget)) {
+        serialContainer->applyGlobalTheme(m_currentTheme);
+    } else if (SerialPortPlot *serialPlot = qobject_cast<SerialPortPlot*>(widget)) {
+        serialPlot->applyGlobalTheme(m_currentTheme);
+    } else if (CANTool *canTool = qobject_cast<CANTool*>(widget)) {
+        canTool->applyTheme(m_currentTheme);
+    } else if (NetworkTool *netTool = qobject_cast<NetworkTool*>(widget)) {
+        netTool->applyTheme(m_currentTheme);
+    } else if (IAPTool *iapTool = qobject_cast<IAPTool*>(widget)) {
+        iapTool->applyTheme(m_currentTheme);
+    } else if (OscilloscopeWindow *scopeWin = qobject_cast<OscilloscopeWindow*>(widget)) {
+        scopeWin->applyTheme(m_currentTheme);
+    }
+}
+
 void AppManager::loadExternalPluginsFromDir() {
     QString pluginsDir = getPluginsDirectory();
     QDir dir(pluginsDir);
@@ -363,6 +437,7 @@ void AppManager::loadExternalPluginsFromDir() {
 
 void AppManager::saveSettings() {
     QSettings settings("PhudonTools", "AppManager");
+    settings.setValue("CurrentTheme", m_currentTheme);
     settings.beginGroup("Apps");
     for (const auto &info : m_apps) {
         settings.beginGroup(info.id);
@@ -377,6 +452,7 @@ void AppManager::saveSettings() {
 
 void AppManager::loadSettings() {
     QSettings settings("PhudonTools", "AppManager");
+    m_currentTheme = settings.value("CurrentTheme", "dark").toString();
     settings.beginGroup("Apps");
     QStringList childGroups = settings.childGroups();
     for (const QString &id : childGroups) {

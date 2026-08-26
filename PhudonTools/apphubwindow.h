@@ -20,6 +20,7 @@ class AppHubWindow : public QMainWindow {
 public:
     explicit AppHubWindow(QWidget *parent = nullptr);
     ~AppHubWindow() override;
+    void applyTheme(const QString &themeName);
 
 protected:
     void resizeEvent(QResizeEvent *event) override;
@@ -43,20 +44,28 @@ private:
     void setupCentralArea();
     void setupFooter();
     void setupTrayIcon();
-    void applyTheme(const QString &themeName);
 
     // UI Elements
+    QWidget *m_headerWidget;
+    QLabel *m_brandLabel;
+    QLabel *m_sloganLabel;
     QLineEdit *m_searchEdit;
     QComboBox *m_themeCombo;
     QListWidget *m_sidebarList;
     QScrollArea *m_scrollArea;
     QWidget *m_gridContainer;
+    QFrame *m_heroFrame;
+    QLabel *m_heroTitle;
+    QLabel *m_heroSub;
+    QPushButton *m_quickIdeBtn;
     QGridLayout *m_gridLayout;
     QLabel *m_emptyStateLabel;
 
-    // Status Labels
+    // Footer & Status Labels
+    QWidget *m_footerWidget;
     QLabel *m_statusRunningLabel;
     QLabel *m_statusTotalLabel;
+    QLabel *m_verLabel;
 
     // System Tray
     QSystemTrayIcon *m_trayIcon;

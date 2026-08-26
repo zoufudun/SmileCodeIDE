@@ -89,6 +89,7 @@ class OscilloscopeWindow : public QMainWindow {
 public:
   explicit OscilloscopeWindow(QWidget *parent = nullptr);
   ~OscilloscopeWindow() override;
+  void applyTheme(const QString &themeName);
 
   static const int MAX_CHANNELS = 16;
 

@@ -1,4 +1,5 @@
 #include "oscilloscopewindow.h"
+#include "appmanager.h"
 
 #include <QApplication>
 #include <QBoxLayout>
@@ -56,22 +57,11 @@ static quint16 calculateModbusCRC(const QByteArray &data) {
 
 OscilloscopeWindow::OscilloscopeWindow(QWidget *parent)
     : QMainWindow(parent), m_timeTracker() {
+  setObjectName("oscilloscopeRoot");
   setWindowTitle(QStringLiteral("独立多通信接口数字示波器 (Multi-Interface Digital Oscilloscope)"));
   resize(1360, 860);
   setMinimumSize(960, 600);
-
-  // 设置示波器窗口图标 (ICON 图标 0xe86e)
-  QPixmap winPix(32, 32);
-  winPix.fill(Qt::transparent);
-  {
-    QPainter painter(&winPix);
-    painter.setRenderHint(QPainter::Antialiasing);
-    painter.setRenderHint(QPainter::TextAntialiasing);
-    painter.setFont(CIconFont::instance()->getIconFont(26));
-    painter.setPen(QColor("#0ea5e9"));
-    painter.drawText(QRect(0, 0, 32, 32), Qt::AlignCenter, QString(QChar(0xe86e)));
-  }
-  setWindowIcon(QIcon(winPix));
+  setWindowIcon(QIcon(":/icons/xptools2.png"));
 
   // 读取已保存的主题设置
   QSettings settings("PhudonTools", "Oscilloscope");
@@ -1232,7 +1222,43 @@ void OscilloscopeWindow::onFftToggled(bool checked) {
 }
 
 void OscilloscopeWindow::onTriggerSettingsChanged() {}
-void OscilloscopeWindow::onThemeChanged(int themeIndex) { applyScopeTheme(themeIndex); }
+
+void OscilloscopeWindow::onThemeChanged(int themeIndex) {
+  applyScopeTheme(themeIndex);
+  QString mappedId = "dark";
+  switch (themeIndex) {
+  case 0: mappedId = "cyberneon"; break;
+  case 1: mappedId = "dark"; break;
+  case 2: mappedId = "onedarkpro"; break;
+  case 3: mappedId = "nord"; break;
+  case 4: mappedId = "light"; break;
+  case 5: mappedId = "vue"; break;
+  case 6: mappedId = "obsidiangold"; break;
+  default: mappedId = "dark"; break;
+  }
+  AppManager::instance()->setCurrentTheme(mappedId);
+}
+
+void OscilloscopeWindow::applyTheme(const QString &themeName) {
+  QString id = themeName.toLower().trimmed();
+  int scopeIndex = 1;
+  if (id == "cyberneon" || id == "cyberpunk") {
+    scopeIndex = 0;
+  } else if (id == "dark" || id == "titanium") {
+    scopeIndex = 1;
+  } else if (id == "nord" || id == "ocean") {
+    scopeIndex = 3;
+  } else if (id == "light" || id == "solarizedlight" || id == "cleanlight") {
+    scopeIndex = 4;
+  } else if (id == "vue" || id == "crt") {
+    scopeIndex = 5;
+  } else if (id == "obsidiangold" || id == "moltenember") {
+    scopeIndex = 6;
+  } else {
+    scopeIndex = 2;
+  }
+  applyScopeTheme(scopeIndex);
+}
 
 void OscilloscopeWindow::applyScopeTheme(int theme) {
   if (theme < 0 || theme >= ScopeTheme::themeNames().size()) {

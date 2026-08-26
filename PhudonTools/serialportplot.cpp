@@ -1,4 +1,5 @@
 #include "serialportplot.h"
+#include "appmanager.h"
 #include "idetheme.h"
 #include "TOOLS/CIconFont.h"
 #include "curvesettings.h"
@@ -311,59 +312,37 @@ void SerialSession::setupUi() {
   m_comboStopBits->addItem("2", QSerialPort::TwoStop);
   portLayout->addWidget(m_comboStopBits, 4, 1, 1, 2);
 
-  QHBoxLayout *portActionLayout = new QHBoxLayout();
+  // 刷新按钮：大方显眼的独立操作按钮
+  m_btnRefresh = new QPushButton(QStringLiteral("🔄 刷新"), this);
+  m_btnRefresh->setObjectName("btnSerialRefresh");
+  m_btnRefresh->setToolTip("刷新串口设备列表");
+  m_btnRefresh->setFixedHeight(36);
+  m_btnRefresh->setCursor(Qt::PointingHandCursor);
 
-  // 刷新按钮：纯图标样式，无按钮边框
-  m_btnRefresh = new QPushButton(QChar(0xE84D));
-  m_btnRefresh->setFont(CIconFont::instance()->getIconFont(50));
-  m_btnRefresh->setToolTip("刷新端口");
-  m_btnRefresh->setMinimumWidth(52);
-  m_btnRefresh->setMinimumHeight(44);
-  m_btnRefresh->setFlat(true);
-  m_btnRefresh->setStyleSheet(
-      "QPushButton { background: transparent; border: none; border-radius: 8px;"
-      "  color: #1565C0; padding: 4px; }"
-      "QPushButton:hover { background: rgba(21,101,192,40); }"
-      "QPushButton:pressed { background: rgba(21,101,192,80); }");
-
-  // m_btnRefresh->setStyleSheet(
-  //     "QPushButton { color: #555555; background: #E3F2FD; border: 1px solid "
-  //     "#BBDEFB; border-radius: 16px; }"
-  //     "QPushButton:hover { background: #BBDEFB; color: #1976D2; }"
-  //     "QPushButton:checked { background: #C8E6C9; color: #388E3C; "
-  //     "border-color: #A5D6A7; }");
-  portActionLayout->addWidget(m_btnRefresh);
-
-  // 打开串口按钮：带背景的按钮样式
-  m_btnOpenClose = new QPushButton(QChar(0xe84e));
-  m_btnOpenClose->setFont(CIconFont::instance()->getIconFont(50));
+  // 打开串口按钮：高辨识度渐变交互大按钮
+  m_btnOpenClose = new QPushButton(QStringLiteral("⚡ 打开串口"), this);
+  m_btnOpenClose->setObjectName("btnSerialOpenClose");
   m_btnOpenClose->setCheckable(true);
-  m_btnOpenClose->setToolTip("打开串口");
-  m_btnOpenClose->setMinimumWidth(52);
-  m_btnOpenClose->setMinimumHeight(44);
-  m_btnOpenClose->setFlat(true);
-  m_btnOpenClose->setStyleSheet(
-      "QPushButton { background: transparent; border: none; border-radius: 8px;"
-      "  color: #1565C0; padding: 4px; }"
-      "QPushButton:hover { background: rgba(21,101,192,40); }"
-      "QPushButton:pressed { background: rgba(21,101,192,80); }"
-      "QPushButton:checked { color: #C62828; }");
+  m_btnOpenClose->setToolTip("打开并连接当前串口");
+  m_btnOpenClose->setFixedHeight(36);
+  m_btnOpenClose->setCursor(Qt::PointingHandCursor);
 
-  // Status Icon Label
-  m_lblStatusIcon = new QLabel();
-  m_lblStatusIcon->setPixmap(
-      QPixmap(":/icons/ONOFF/OFF5.png")
-          .scaled(100, 60, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+  // Status Badge Label：现代胶囊状态徽标
+  m_lblStatusIcon = new QLabel(this);
+  m_lblStatusIcon->setObjectName("lblSerialStatusBadge");
+  m_lblStatusIcon->setText(QStringLiteral("⚪ 串口未连接"));
   m_lblStatusIcon->setAlignment(Qt::AlignCenter);
+  m_lblStatusIcon->setFixedHeight(28);
 
-  portActionLayout->addStretch();
-  portActionLayout->addWidget(m_lblStatusIcon);
-  portActionLayout->addStretch();
-  portActionLayout->addWidget(m_btnOpenClose);
-  portActionLayout->addStretch();
+  QHBoxLayout *portActionLayout = new QHBoxLayout();
+  portActionLayout->setContentsMargins(0, 4, 0, 4);
+  portActionLayout->setSpacing(8);
+  portActionLayout->addWidget(m_btnRefresh, 1);
+  portActionLayout->addWidget(m_btnOpenClose, 2);
 
-  // Add sub-layout to main grid at row 5, spanning 3 cols
+  // Add action row and status row to grid
   portLayout->addLayout(portActionLayout, 5, 0, 1, 3);
+  portLayout->addWidget(m_lblStatusIcon, 6, 0, 1, 3);
 
   // 将串口设置添加到垂直标签页（第一个标签）
   m_leftTabWidget->addTab(grpPort, "串口设置", QString(QChar(0xe890)));
@@ -2141,11 +2120,10 @@ void SerialSession::openClosePort() {
     m_lblWelcome->setText(m_welcomeText);
     ToastWidget::showToast("串口 " + m_serial->portName() + " 已关闭", false,
                            this);
-    m_btnOpenClose->setText(QChar(0xe84e));
+    m_btnOpenClose->setText(QStringLiteral("⚡ 打开串口"));
+    m_btnOpenClose->setToolTip("打开并连接当前串口");
     m_btnOpenClose->setChecked(false);
-    m_lblStatusIcon->setPixmap(
-        QPixmap(":/icons/ONOFF/OFF5.png")
-            .scaled(100, 60, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    m_lblStatusIcon->setText(QStringLiteral("⚪ 串口未连接"));
 
     // 更新垂直标签页的串口设置图标为关闭状态
     if (m_leftTabWidget) {
@@ -2186,11 +2164,10 @@ void SerialSession::openClosePort() {
       ToastWidget::showToast("串口 " + m_serial->portName() + " 已打开", true,
                              this);
 
-      m_btnOpenClose->setText(QChar(0xe855));
+      m_btnOpenClose->setText(QStringLiteral("🛑 关闭串口"));
+      m_btnOpenClose->setToolTip("断开并关闭当前串口");
       m_btnOpenClose->setChecked(true);
-      m_lblStatusIcon->setPixmap(
-          QPixmap(":/icons/ONOFF/ON2.png")
-              .scaled(100, 60, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+      m_lblStatusIcon->setText(QStringLiteral("🟢 %1 · %2 8-N-1 已连接").arg(m_serial->portName()).arg(m_comboBaud->currentText()));
 
       // 更新垂直标签页的串口设置图标为打开状态
       if (m_leftTabWidget) {
@@ -2212,8 +2189,9 @@ void SerialSession::openClosePort() {
         QMessageBox::critical(this, "错误", "无法打开串口:\n" + errorStr);
       });
       m_btnOpenClose->setChecked(false);
-      m_btnOpenClose->setText(QChar(0xe88f));
+      m_btnOpenClose->setText(QStringLiteral("⚡ 打开串口"));
       m_btnOpenClose->setToolTip("打开串口");
+      m_lblStatusIcon->setText(QStringLiteral("🔴 连接失败"));
     }
   }
 }
@@ -3666,6 +3644,8 @@ void SerialSession::applyTheme(const QString &themeMode) {
 
 SerialPortPlot::SerialPortPlot(QWidget *parent)
     : QWidget(parent), m_sessionCounter(1) {
+  setObjectName("serialRoot");
+  setWindowIcon(QIcon(":/icons/xptools2.png"));
   QVBoxLayout *mainLayout = new QVBoxLayout(this);
   mainLayout->setContentsMargins(0, 0, 0, 0);
 
@@ -3862,6 +3842,7 @@ void SerialPortPlot::onCloseSplit() { emit requestCloseSplit(this); }
 
 SerialPortContainer::SerialPortContainer(QWidget *parent) : QWidget(parent) {
   setObjectName("serialContainer");
+  setWindowIcon(QIcon(":/icons/xptools2.png"));
   QVBoxLayout *layout = new QVBoxLayout(this);
   layout->setContentsMargins(0, 0, 0, 0);
 
@@ -3938,14 +3919,14 @@ SerialPortContainer::SerialPortContainer(QWidget *parent) : QWidget(parent) {
   QMenu *menuColorTheme = menuTheme->addMenu("颜色主题");
   // Flagship Themes
   QMenu *menuFlagship = menuColorTheme->addMenu("🌟 旗舰奢华主题");
-  menuFlagship->addAction("⚡ 极客钛金 (Titanium Dark)", this, [this]() { applyGlobalTheme("dark"); });
-  menuFlagship->addAction("🌌 赛博霓虹 (Cyber Neon)", this, [this]() { applyGlobalTheme("cyberneon"); });
-  menuFlagship->addAction("🌋 熔岩黑金 (Obsidian Gold)", this, [this]() { applyGlobalTheme("obsidiangold"); });
-  menuFlagship->addAction("🔮 星云紫晶 (Nebula Violet)", this, [this]() { applyGlobalTheme("dracula"); });
-  menuFlagship->addAction("🌊 碧海深渊 (Abyssal Ocean)", this, [this]() { applyGlobalTheme("nord"); });
-  menuFlagship->addAction("🌲 极客翡翠 (Emerald Matrix)", this, [this]() { applyGlobalTheme("vue"); });
-  menuFlagship->addAction("☀️ 纯白曜石 (Crystal Light)", this, [this]() { applyGlobalTheme("light"); });
-  menuFlagship->addAction("📜 暖阳羊皮 (Solarized Light)", this, [this]() { applyGlobalTheme("solarizedlight"); });
+  menuFlagship->addAction("⚡ 极客钛金 (Titanium Dark)", this, [this]() { applyGlobalTheme("dark"); AppManager::instance()->setCurrentTheme("dark"); });
+  menuFlagship->addAction("🌌 赛博霓虹 (Cyber Neon)", this, [this]() { applyGlobalTheme("cyberneon"); AppManager::instance()->setCurrentTheme("cyberneon"); });
+  menuFlagship->addAction("🌋 熔岩黑金 (Obsidian Gold)", this, [this]() { applyGlobalTheme("obsidiangold"); AppManager::instance()->setCurrentTheme("obsidiangold"); });
+  menuFlagship->addAction("🔮 星云紫晶 (Nebula Violet)", this, [this]() { applyGlobalTheme("dracula"); AppManager::instance()->setCurrentTheme("dracula"); });
+  menuFlagship->addAction("🌊 碧海深渊 (Abyssal Ocean)", this, [this]() { applyGlobalTheme("nord"); AppManager::instance()->setCurrentTheme("nord"); });
+  menuFlagship->addAction("🌲 极客翡翠 (Emerald Matrix)", this, [this]() { applyGlobalTheme("vue"); AppManager::instance()->setCurrentTheme("vue"); });
+  menuFlagship->addAction("☀️ 纯白曜石 (Crystal Light)", this, [this]() { applyGlobalTheme("light"); AppManager::instance()->setCurrentTheme("light"); });
+  menuFlagship->addAction("📜 暖阳羊皮 (Solarized Light)", this, [this]() { applyGlobalTheme("solarizedlight"); AppManager::instance()->setCurrentTheme("solarizedlight"); });
 
   // Github
   QMenu *menuGithub = menuColorTheme->addMenu("Github");
