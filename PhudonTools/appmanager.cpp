@@ -6,6 +6,7 @@
 #include "iaptool.h"
 #include "oscilloscopewindow.h"
 #include "idetheme.h"
+#include "toastwidget.h"
 #include <QApplication>
 #include <QCoreApplication>
 #include <QDir>
@@ -16,6 +17,7 @@
 #include <QJsonArray>
 #include <QProcess>
 #include <QSettings>
+#include <QLibrary>
 #include <QDebug>
 
 QString AppInfo::categoryToString(AppCategory cat) {
@@ -48,23 +50,77 @@ AppManager* AppManager::instance() {
 }
 
 AppManager::AppManager(QObject *parent) : QObject(parent) {
+    m_scanDebounceTimer = new QTimer(this);
+    m_scanDebounceTimer->setSingleShot(true);
+    m_scanDebounceTimer->setInterval(400);
+    connect(m_scanDebounceTimer, &QTimer::timeout, this, &AppManager::onDebounceScanTriggered);
+
+    m_dirWatcher = new QFileSystemWatcher(this);
+    connect(m_dirWatcher, &QFileSystemWatcher::directoryChanged, this, &AppManager::onPluginDirectoryChanged);
+    connect(m_dirWatcher, &QFileSystemWatcher::fileChanged, this, &AppManager::onPluginFileChanged);
 }
 
 AppManager::~AppManager() {
     saveSettings();
+
+    // 优雅关闭所有插件与释放动态库
+    closeAllApps();
+    for (auto it = m_dynamicPlugins.begin(); it != m_dynamicPlugins.end(); ++it) {
+        if (it->instance) {
+            it->instance->shutdown();
+        }
+        if (it->loader) {
+            it->loader->unload();
+            delete it->loader;
+        }
+    }
+    m_dynamicPlugins.clear();
 }
 
 void AppManager::initialize() {
     loadSettings();
     loadExternalPluginsFromDir();
+    loadDynamicPluginsFromDir();
+    setupDirectoryWatcher();
+}
+
+void AppManager::setupDirectoryWatcher() {
+    QString pluginsDir = getPluginsDirectory();
+    QDir dir(pluginsDir);
+    if (!dir.exists()) {
+        dir.mkpath(".");
+    }
+
+    if (!m_dirWatcher->directories().contains(pluginsDir)) {
+        m_dirWatcher->addPath(pluginsDir);
+    }
+}
+
+void AppManager::onPluginDirectoryChanged(const QString &path) {
+    // 部分系统在目录内容改变后可能会丢失监控，重新加回
+    if (!m_dirWatcher->directories().contains(path) && QDir(path).exists()) {
+        m_dirWatcher->addPath(path);
+    }
+    m_scanDebounceTimer->start();
+}
+
+void AppManager::onPluginFileChanged(const QString &path) {
+    Q_UNUSED(path);
+    m_scanDebounceTimer->start();
+}
+
+void AppManager::onDebounceScanTriggered() {
+    qDebug() << "[AppManager] 插件目录发生变更，正在执行热扫描与自动加载...";
+    rescanPlugins();
 }
 
 void AppManager::registerBuiltInApp(const AppInfo &info, WidgetFactory factory) {
     AppInfo finalInfo = info;
     finalInfo.isBuiltIn = true;
+    finalInfo.pluginType = AppPluginType::BuiltIn;
     finalInfo.categoryName = AppInfo::categoryToString(finalInfo.category);
     
-    // 如果已经有持久化记录，恢复用户自定义状态 (如收藏、启动次数)
+    // 恢复用户自定义状态 (如收藏、启动次数)
     if (m_apps.contains(finalInfo.id)) {
         finalInfo.isFavorite = m_apps[finalInfo.id].isFavorite;
         finalInfo.isEnabled = m_apps[finalInfo.id].isEnabled;
@@ -75,6 +131,205 @@ void AppManager::registerBuiltInApp(const AppInfo &info, WidgetFactory factory) 
     m_apps[finalInfo.id] = finalInfo;
     m_factories[finalInfo.id] = factory;
 }
+
+// =============================================================================
+// Qt 动态库插件系统核心实现 (QPluginLoader + IAppPlugin)
+// =============================================================================
+
+int AppManager::loadDynamicPluginsFromDir(const QString &dirPath) {
+    QString targetDir = dirPath.isEmpty() ? getPluginsDirectory() : dirPath;
+    QDir dir(targetDir);
+    if (!dir.exists()) {
+        dir.mkpath(".");
+        return 0;
+    }
+
+    // 搜索动态链接库
+    QStringList nameFilters;
+#if defined(Q_OS_WIN)
+    nameFilters << "*.dll";
+#elif defined(Q_OS_MAC)
+    nameFilters << "*.dylib" << "*.so";
+#else
+    nameFilters << "*.so";
+#endif
+
+    QFileInfoList fileList = dir.entryInfoList(nameFilters, QDir::Files | QDir::Readable);
+    int loadedCount = 0;
+
+    for (const QFileInfo &fileInfo : fileList) {
+        QString fullPath = fileInfo.absoluteFilePath();
+
+        // 排除非 Qt 插件库 (如 zlgcan.dll, ControlCAN.dll)
+        if (fileInfo.fileName().startsWith("Qt5", Qt::CaseInsensitive) ||
+            fileInfo.fileName().startsWith("zlgcan", Qt::CaseInsensitive) ||
+            fileInfo.fileName().startsWith("ControlCAN", Qt::CaseInsensitive)) {
+            continue;
+        }
+
+        // 检查该路径是否已经成功装载
+        bool alreadyLoaded = false;
+        for (const auto &record : m_dynamicPlugins) {
+            if (record.filePath == fullPath) {
+                alreadyLoaded = true;
+                break;
+            }
+        }
+        if (alreadyLoaded) continue;
+
+        QString errorMsg;
+        if (loadDynamicPlugin(fullPath, &errorMsg)) {
+            loadedCount++;
+        }
+    }
+
+    return loadedCount;
+}
+
+bool AppManager::loadDynamicPlugin(const QString &filePath, QString *errorMsg) {
+    QFileInfo fileInfo(filePath);
+    if (!fileInfo.exists() || !fileInfo.isReadable()) {
+        if (errorMsg) *errorMsg = QStringLiteral("动态库文件不存在或不可读: ") + filePath;
+        return false;
+    }
+
+    // 使用 QPluginLoader 进行安全的插件探查与实例装载
+    QPluginLoader *loader = new QPluginLoader(filePath, this);
+    QObject *instanceObj = loader->instance();
+
+    if (!instanceObj) {
+        QString err = loader->errorString();
+        delete loader;
+        if (errorMsg) *errorMsg = QStringLiteral("动态库未能实例化 (可能非Qt插件或缺少依赖): ") + err;
+        emit pluginLoadError(filePath, err);
+        return false;
+    }
+
+    // 强类型接口转换验证
+    IAppPlugin *plugin = qobject_cast<IAppPlugin*>(instanceObj);
+    if (!plugin) {
+        QString err = QStringLiteral("该动态库未实现 IAppPlugin 接口或接口 IID 不匹配 (%1)").arg(IAppPlugin_IID);
+        loader->unload();
+        delete loader;
+        if (errorMsg) *errorMsg = err;
+        emit pluginLoadError(filePath, err);
+        return false;
+    }
+
+    // 初始化插件 (注入宿主服务上下文 IPluginContext)
+    if (!plugin->initialize(this)) {
+        QString err = QStringLiteral("插件初始化 (initialize) 失败");
+        loader->unload();
+        delete loader;
+        if (errorMsg) *errorMsg = err;
+        emit pluginLoadError(filePath, err);
+        return false;
+    }
+
+    // 提取插件元数据
+    AppInfo info;
+    info.id = plugin->id().trimmed();
+    if (info.id.isEmpty()) {
+        info.id = fileInfo.baseName();
+    }
+    info.name = plugin->name();
+    if (info.name.isEmpty()) info.name = info.id;
+    info.subtitle = plugin->subtitle();
+    info.version = plugin->version().isEmpty() ? "v1.0.0" : plugin->version();
+    info.author = plugin->author().isEmpty() ? QStringLiteral("第三方开发者") : plugin->author();
+    info.category = AppInfo::stringToCategory(plugin->category());
+    info.categoryName = AppInfo::categoryToString(info.category);
+    info.description = plugin->description();
+    info.tags = plugin->tags();
+    if (info.tags.isEmpty()) {
+        info.tags.append(QStringLiteral("Qt 动态插件"));
+    }
+    info.iconUnicode = plugin->iconUnicode();
+    info.iconPath = plugin->iconPath();
+    info.colorHex = plugin->colorHex().isEmpty() ? "#00b894" : plugin->colorHex();
+    info.isBuiltIn = false;
+    info.isEnabled = true;
+    info.pluginType = AppPluginType::QtDynamicPlugin;
+    info.dllPath = fileInfo.absoluteFilePath();
+    info.interfaceIid = IAppPlugin_IID;
+    info.pluginInstance = plugin;
+
+    // 恢复用户配置
+    if (m_apps.contains(info.id)) {
+        info.isFavorite = m_apps[info.id].isFavorite;
+        info.isEnabled = m_apps[info.id].isEnabled;
+        info.launchCount = m_apps[info.id].launchCount;
+        info.lastLaunchTime = m_apps[info.id].lastLaunchTime;
+    }
+
+    // 保存插件记录
+    DynamicPluginRecord record;
+    record.loader = loader;
+    record.instance = plugin;
+    record.filePath = fileInfo.absoluteFilePath();
+    record.info = info;
+
+    m_dynamicPlugins[info.id] = record;
+    m_apps[info.id] = info;
+
+    qDebug() << QString("[AppManager] 成功加载 Qt 动态库插件 -> [%1] %2 (%3)").arg(info.id, info.name, info.version);
+
+    emit pluginDiscovered(info.id, info.name);
+    emit pluginListChanged();
+    return true;
+}
+
+bool AppManager::unloadDynamicPlugin(const QString &appId) {
+    if (!m_dynamicPlugins.contains(appId)) return false;
+
+    // 1. 如果正在运行，先关闭窗口
+    closeApp(appId);
+
+    DynamicPluginRecord record = m_dynamicPlugins.take(appId);
+    m_apps.remove(appId);
+
+    if (record.instance) {
+        record.instance->shutdown();
+    }
+
+    if (record.loader) {
+        record.loader->unload();
+        delete record.loader;
+    }
+
+    saveSettings();
+    emit pluginListChanged();
+    qDebug() << QString("[AppManager] 已成功卸载动态库插件: %1").arg(appId);
+    return true;
+}
+
+int AppManager::rescanPlugins() {
+    // 1. 检查已被删除的 DLL 插件并注销
+    QStringList toRemove;
+    for (auto it = m_dynamicPlugins.begin(); it != m_dynamicPlugins.end(); ++it) {
+        if (!QFile::exists(it->filePath)) {
+            toRemove.append(it.key());
+        }
+    }
+    for (const QString &id : toRemove) {
+        qDebug() << "[AppManager] 检测到插件 DLL 已被移除:" << id;
+        unloadDynamicPlugin(id);
+    }
+
+    // 2. 发现并加载新放入 plugins/ 的 DLL
+    int newCount = loadDynamicPluginsFromDir();
+    // 3. 发现并加载新的 JSON 配置插件
+    loadExternalPluginsFromDir();
+
+    if (newCount > 0 || !toRemove.isEmpty()) {
+        emit pluginListChanged();
+    }
+    return newCount;
+}
+
+// =============================================================================
+// JSON 扩展插件与外部工具支持
+// =============================================================================
 
 bool AppManager::installPluginFromJson(const QString &jsonFilePath, QString *errorMsg) {
     QFile file(jsonFilePath);
@@ -146,7 +401,9 @@ bool AppManager::registerExternalPlugin(const AppInfo &info, QString *errorMsg) 
 
     AppInfo finalInfo = info;
     finalInfo.isBuiltIn = false;
-    finalInfo.category = AppCategory::PluginExtensions;
+    if (finalInfo.category == AppCategory::All) {
+        finalInfo.category = AppCategory::PluginExtensions;
+    }
     finalInfo.categoryName = AppInfo::categoryToString(finalInfo.category);
 
     m_apps[finalInfo.id] = finalInfo;
@@ -158,6 +415,16 @@ bool AppManager::registerExternalPlugin(const AppInfo &info, QString *errorMsg) 
 bool AppManager::uninstallPlugin(const QString &appId) {
     if (!m_apps.contains(appId)) return false;
     if (m_apps[appId].isBuiltIn) return false;
+
+    // 如果是 Qt 动态库插件
+    if (m_apps[appId].pluginType == AppPluginType::QtDynamicPlugin) {
+        QString dllPath = m_apps[appId].dllPath;
+        unloadDynamicPlugin(appId);
+        if (QFile::exists(dllPath)) {
+            QFile::remove(dllPath);
+        }
+        return true;
+    }
 
     // 如果正在运行则关闭
     closeApp(appId);
@@ -275,17 +542,7 @@ QWidget* AppManager::launchApp(const QString &appId, QWidget *parent) {
     info.launchCount++;
     info.lastLaunchTime = QDateTime::currentDateTime();
 
-    // 1. 如果是外部应用/脚本
-    if (!info.isBuiltIn) {
-        if (!info.execPath.isEmpty()) {
-            QProcess::startDetached(info.execPath, info.execArgs);
-            saveSettings();
-            emit appLaunched(appId, nullptr);
-            return nullptr;
-        }
-    }
-
-    // 2. 如果已经有实例在运行，直接置顶并激活
+    // 1. 如果已经有实例在运行，直接置顶并激活
     if (m_runningWidgets.contains(appId) && !m_runningWidgets[appId].isNull()) {
         QWidget *w = m_runningWidgets[appId].data();
         w->show();
@@ -295,22 +552,60 @@ QWidget* AppManager::launchApp(const QString &appId, QWidget *parent) {
         return w;
     }
 
-    // 3. 内置应用通过工厂创建
+    // 2. 如果是 Qt 动态库插件 (Qt Plugin)
+    if (info.pluginType == AppPluginType::QtDynamicPlugin && m_dynamicPlugins.contains(appId)) {
+        IAppPlugin *plugin = m_dynamicPlugins[appId].instance;
+        if (plugin) {
+            QWidget *widget = plugin->createWidget(parent);
+            if (widget) {
+                widget->setAttribute(Qt::WA_DeleteOnClose, true);
+                m_runningWidgets[appId] = widget;
+
+                connect(widget, &QObject::destroyed, this, [this, appId]() {
+                    m_runningWidgets.remove(appId);
+                    emit appStatusChanged(appId, false);
+                    emit appClosed(appId);
+                });
+
+                // 同步应用主题
+                plugin->applyTheme(m_currentTheme);
+                applyThemeToWidget(widget);
+
+                widget->show();
+                widget->raise();
+                widget->activateWindow();
+
+                emit appStatusChanged(appId, true);
+                emit appLaunched(appId, widget);
+                saveSettings();
+                return widget;
+            }
+        }
+    }
+
+    // 3. 如果是外部独立可执行程序/脚本
+    if (info.pluginType == AppPluginType::ExternalExecutable || info.pluginType == AppPluginType::CustomScript) {
+        if (!info.execPath.isEmpty()) {
+            QProcess::startDetached(info.execPath, info.execArgs);
+            saveSettings();
+            emit appLaunched(appId, nullptr);
+            return nullptr;
+        }
+    }
+
+    // 4. 内置应用通过工厂创建
     if (m_factories.contains(appId) && m_factories[appId]) {
         QWidget *widget = m_factories[appId](parent);
         if (widget) {
-            // 设置关闭即销毁，确保完全退出后台释放资源
             widget->setAttribute(Qt::WA_DeleteOnClose, true);
             m_runningWidgets[appId] = widget;
             
-            // 监听销毁事件
             connect(widget, &QObject::destroyed, this, [this, appId]() {
                 m_runningWidgets.remove(appId);
                 emit appStatusChanged(appId, false);
                 emit appClosed(appId);
             });
 
-            // 保持新打开的 APP 主题与当前主界面完全一致
             applyThemeToWidget(widget);
 
             widget->show();
@@ -377,7 +672,7 @@ void AppManager::setCurrentTheme(const QString &themeId) {
     if (themeId.isEmpty()) return;
     m_currentTheme = themeId;
 
-    // 1. 生成并设置全局 QApplication 样式表
+    // 1. 全局样式表
     QString styleQss = IdeTheme::generateStyleSheet(themeId);
     if (!styleQss.isEmpty()) {
         qApp->setStyleSheet(styleQss);
@@ -389,7 +684,14 @@ void AppManager::setCurrentTheme(const QString &themeId) {
         }
     }
 
-    // 2. 同步广播给所有正在运行的子应用，保持全局一致
+    // 2. 广播给所有动态插件实例
+    for (auto it = m_dynamicPlugins.begin(); it != m_dynamicPlugins.end(); ++it) {
+        if (it->instance) {
+            it->instance->applyTheme(themeId);
+        }
+    }
+
+    // 3. 广播给当前所有正在运行的子应用窗口
     for (auto it = m_runningWidgets.begin(); it != m_runningWidgets.end(); ++it) {
         if (!it.value().isNull()) {
             applyThemeToWidget(it.value().data());
@@ -430,6 +732,8 @@ void AppManager::loadExternalPluginsFromDir() {
 
     QStringList jsonFiles = dir.entryList(QStringList() << "*.json", QDir::Files);
     for (const QString &file : jsonFiles) {
+        // 排除插件内部生成的 json
+        if (file.endsWith("plugin.json", Qt::CaseInsensitive)) continue;
         QString fullPath = dir.absoluteFilePath(file);
         installPluginFromJson(fullPath);
     }
@@ -469,4 +773,19 @@ void AppManager::loadSettings() {
         settings.endGroup();
     }
     settings.endGroup();
+}
+
+// =============================================================================
+// IPluginContext 宿主服务实现
+// =============================================================================
+
+void AppManager::showToast(const QString &message, const QString &type, int durationMs) {
+    Q_UNUSED(durationMs);
+    bool isSuccess = (type.compare("error", Qt::CaseInsensitive) != 0 && type.compare("warning", Qt::CaseInsensitive) != 0);
+    QWidget *parent = m_mainWindow.data();
+    ToastWidget::showToast(message, isSuccess, parent);
+}
+
+void AppManager::log(const QString &level, const QString &message) {
+    qDebug() << QString("[PluginLog][%1] %2").arg(level, message);
 }

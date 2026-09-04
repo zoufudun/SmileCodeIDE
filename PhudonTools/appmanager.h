@@ -9,7 +9,12 @@
 #include <QVector>
 #include <QWidget>
 #include <QPointer>
+#include <QPluginLoader>
+#include <QFileSystemWatcher>
+#include <QTimer>
 #include <functional>
+#include "include/iappplugin.h"
+#include "include/iplugincontext.h"
 
 // 应用分类枚举
 enum class AppCategory {
@@ -26,6 +31,7 @@ enum class AppCategory {
 // 插件类型
 enum class AppPluginType {
     BuiltIn = 0,        // 内置 Qt 窗口组件
+    QtDynamicPlugin,    // Qt 原生动态库插件 (.dll / .so)
     ExternalExecutable, // 外部独立可执行文件
     CustomScript        // 外部脚本/命令
 };
@@ -37,7 +43,7 @@ struct AppInfo {
     QString subtitle;           // 副标题 / 核心亮点
     QString version;            // 版本号 (如 "v2.1.0")
     QString author;             // 作者 / 团队
-    AppCategory category;       // 分类
+    AppCategory category = AppCategory::Utility;       // 分类
     QString categoryName;       // 分类显示文本
     QString iconPath;           // 图标路径 (资源或本地文件)
     QString iconUnicode;        // 图标字体编码 (可选，如 "0xe7d2")
@@ -52,14 +58,25 @@ struct AppInfo {
     AppPluginType pluginType = AppPluginType::BuiltIn; // 插件类型
     QString execPath;           // 外部可执行文件路径
     QStringList execArgs;       // 外部可执行文件参数
+    QString dllPath;            // 动态库绝对路径 (针对 QtDynamicPlugin)
+    QString interfaceIid;       // 接口 IID
+    IAppPlugin *pluginInstance = nullptr; // 动态插件接口句柄 (针对 QtDynamicPlugin)
 
     // 辅助转换方法
     static QString categoryToString(AppCategory cat);
     static AppCategory stringToCategory(const QString &str);
 };
 
-// 应用管理器单例
-class AppManager : public QObject {
+// 动态库插件运行时记录
+struct DynamicPluginRecord {
+    QPluginLoader *loader = nullptr;
+    IAppPlugin *instance = nullptr;
+    QString filePath;
+    AppInfo info;
+};
+
+// 应用管理器单例 (同时实现 IPluginContext 宿主服务接口)
+class AppManager : public QObject, public IPluginContext {
     Q_OBJECT
 
 public:
@@ -67,11 +84,34 @@ public:
 
     static AppManager* instance();
 
-    // 初始化管理器并加载持久化配置与外部插件
+    // 初始化管理器并加载持久化配置与动态/外部插件
     void initialize();
 
     // 注册内置应用
     void registerBuiltInApp(const AppInfo &info, WidgetFactory factory);
+
+    // =========================================================================
+    // Qt Dynamic Plugin (动态库插件系统核心 API)
+    // =========================================================================
+
+    // 批量扫描并加载动态库插件目录 (支持 .dll, .so, .dylib)
+    int loadDynamicPluginsFromDir(const QString &dirPath = QString());
+
+    // 加载单个动态库插件文件
+    bool loadDynamicPlugin(const QString &filePath, QString *errorMsg = nullptr);
+
+    // 卸载单个动态库插件
+    bool unloadDynamicPlugin(const QString &appId);
+
+    // 重新扫描所有插件目录 (增量发现新加入的 DLL 并清理已删除的)
+    int rescanPlugins();
+
+    // 获取已加载的所有 Qt 动态插件记录
+    QMap<QString, DynamicPluginRecord> getDynamicPlugins() const { return m_dynamicPlugins; }
+
+    // =========================================================================
+    // 传统配置插件与外部工具 API
+    // =========================================================================
 
     // 注册/安装外部插件 (从 JSON 配置文件)
     bool installPluginFromJson(const QString &jsonFilePath, QString *errorMsg = nullptr);
@@ -121,9 +161,21 @@ public:
     void setCurrentTheme(const QString &themeId);
     void applyThemeToWidget(QWidget *widget);
 
+    // 设置宿主主窗口句柄
+    void setMainWindow(QWidget *window) { m_mainWindow = window; }
+
     // 保存和载入配置
     void saveSettings();
     void loadSettings();
+
+    // =========================================================================
+    // IPluginContext 宿主服务实现
+    // =========================================================================
+    QString currentTheme() const override { return m_currentTheme; }
+    void showToast(const QString &message, const QString &type = "info", int durationMs = 2500) override;
+    void log(const QString &level, const QString &message) override;
+    QString appVersion() const override { return "v2.1.0"; }
+    QWidget* mainWindow() const override { return m_mainWindow.data(); }
 
 signals:
     void appLaunched(const QString &appId, QWidget *widget);
@@ -132,6 +184,13 @@ signals:
     void pluginListChanged();
     void appFavoriteChanged(const QString &appId, bool isFavorite);
     void globalThemeChanged(const QString &themeId);
+    void pluginDiscovered(const QString &appId, const QString &name);
+    void pluginLoadError(const QString &filePath, const QString &error);
+
+private slots:
+    void onPluginDirectoryChanged(const QString &path);
+    void onPluginFileChanged(const QString &path);
+    void onDebounceScanTriggered();
 
 private:
     explicit AppManager(QObject *parent = nullptr);
@@ -141,8 +200,15 @@ private:
     QMap<QString, AppInfo> m_apps;
     QMap<QString, WidgetFactory> m_factories;
     QMap<QString, QPointer<QWidget>> m_runningWidgets;
+    QMap<QString, DynamicPluginRecord> m_dynamicPlugins;
+    QPointer<QWidget> m_mainWindow;
     QString m_currentTheme = "dark";
 
+    // 目录热监听与防抖自动发现
+    QFileSystemWatcher *m_dirWatcher = nullptr;
+    QTimer *m_scanDebounceTimer = nullptr;
+
+    void setupDirectoryWatcher();
     void loadExternalPluginsFromDir();
 };
 

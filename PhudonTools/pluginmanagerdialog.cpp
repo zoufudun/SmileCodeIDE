@@ -10,16 +10,19 @@
 #include <QDialogButtonBox>
 #include <QFormLayout>
 #include <QLineEdit>
+#include <QTextBrowser>
 #include <QComboBox>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QFile>
+#include <QDir>
+#include <QFileInfo>
 
 PluginManagerDialog::PluginManagerDialog(QWidget *parent) : QDialog(parent) {
     setWindowTitle(QStringLiteral("插件与扩展中心 (Plugin & Extension Hub)"));
-    resize(850, 520);
-    setMinimumSize(700, 420);
+    resize(920, 560);
+    setMinimumSize(780, 460);
 
     setupUi();
     refreshPluginList();
@@ -36,33 +39,45 @@ void PluginManagerDialog::setupUi() {
     // 顶部操作工具栏
     // ==========================================
     QHBoxLayout *topLayout = new QHBoxLayout();
-    topLayout->setSpacing(10);
+    topLayout->setSpacing(8);
 
-    m_installJsonBtn = new QPushButton(QStringLiteral("➕ 安装插件 (.json)"), this);
+    m_installDllBtn = new QPushButton(QStringLiteral("⚡ 加载动态插件 (.dll)"), this);
+    m_installDllBtn->setCursor(Qt::PointingHandCursor);
+    m_installDllBtn->setStyleSheet("background-color: #00b894; color: white; font-weight: bold; padding: 6px 14px; border-radius: 6px;");
+    connect(m_installDllBtn, &QPushButton::clicked, this, &PluginManagerDialog::onInstallDllClicked);
+
+    m_installJsonBtn = new QPushButton(QStringLiteral("➕ 配置插件 (.json)"), this);
     m_installJsonBtn->setCursor(Qt::PointingHandCursor);
-    m_installJsonBtn->setStyleSheet("background-color: #6c5ce7; color: white; font-weight: bold; padding: 6px 14px; border-radius: 6px;");
+    m_installJsonBtn->setStyleSheet("background-color: #6c5ce7; color: white; font-weight: bold; padding: 6px 12px; border-radius: 6px;");
     connect(m_installJsonBtn, &QPushButton::clicked, this, &PluginManagerDialog::onInstallJsonClicked);
 
-    m_createToolBtn = new QPushButton(QStringLiteral("🛠 注册外部工具"), this);
+    m_createToolBtn = new QPushButton(QStringLiteral("🛠 外部工具"), this);
     m_createToolBtn->setCursor(Qt::PointingHandCursor);
-    m_createToolBtn->setStyleSheet("background-color: #0984e3; color: white; font-weight: bold; padding: 6px 14px; border-radius: 6px;");
+    m_createToolBtn->setStyleSheet("background-color: #0984e3; color: white; font-weight: bold; padding: 6px 12px; border-radius: 6px;");
     connect(m_createToolBtn, &QPushButton::clicked, this, &PluginManagerDialog::onCreateCustomToolClicked);
 
-    m_openDirBtn = new QPushButton(QStringLiteral("📂 插件目录"), this);
+    m_openDirBtn = new QPushButton(QStringLiteral("📂 打开插件目录"), this);
     m_openDirBtn->setCursor(Qt::PointingHandCursor);
     connect(m_openDirBtn, &QPushButton::clicked, this, &PluginManagerDialog::onOpenPluginsDirClicked);
 
-    m_refreshBtn = new QPushButton(QStringLiteral("🔄 刷新"), this);
+    m_refreshBtn = new QPushButton(QStringLiteral("🔄 重新扫描"), this);
     m_refreshBtn->setCursor(Qt::PointingHandCursor);
-    connect(m_refreshBtn, &QPushButton::clicked, this, &PluginManagerDialog::refreshPluginList);
+    connect(m_refreshBtn, &QPushButton::clicked, this, &PluginManagerDialog::onRescanClicked);
+
+    m_guideBtn = new QPushButton(QStringLiteral("💡 开发指南"), this);
+    m_guideBtn->setCursor(Qt::PointingHandCursor);
+    m_guideBtn->setStyleSheet("color: #fdcb6e; border: 1px solid rgba(253, 203, 110, 0.4); border-radius: 6px; padding: 6px 12px;");
+    connect(m_guideBtn, &QPushButton::clicked, this, &PluginManagerDialog::onDevGuideClicked);
 
     m_countLabel = new QLabel(this);
     m_countLabel->setStyleSheet("color: #95a5a6; font-size: 12px;");
 
+    topLayout->addWidget(m_installDllBtn);
     topLayout->addWidget(m_installJsonBtn);
     topLayout->addWidget(m_createToolBtn);
     topLayout->addWidget(m_openDirBtn);
     topLayout->addWidget(m_refreshBtn);
+    topLayout->addWidget(m_guideBtn);
     topLayout->addStretch();
     topLayout->addWidget(m_countLabel);
 
@@ -74,9 +89,9 @@ void PluginManagerDialog::setupUi() {
     m_tableWidget = new QTableWidget(this);
     m_tableWidget->setColumnCount(7);
     m_tableWidget->setHorizontalHeaderLabels(QStringList()
-        << QStringLiteral("状态")
+        << QStringLiteral("启用")
         << QStringLiteral("应用 / 插件名称")
-        << QStringLiteral("类型")
+        << QStringLiteral("架构类型")
         << QStringLiteral("分类")
         << QStringLiteral("版本")
         << QStringLiteral("作者")
@@ -104,10 +119,12 @@ void PluginManagerDialog::refreshPluginList() {
     QVector<AppInfo> apps = AppManager::instance()->getAllApps();
 
     int row = 0;
-    int pluginCount = 0;
+    int dynamicCount = 0;
+    int externalCount = 0;
 
     for (const AppInfo &app : apps) {
-        if (!app.isBuiltIn) pluginCount++;
+        if (app.pluginType == AppPluginType::QtDynamicPlugin) dynamicCount++;
+        else if (!app.isBuiltIn) externalCount++;
 
         m_tableWidget->insertRow(row);
 
@@ -128,13 +145,15 @@ void PluginManagerDialog::refreshPluginList() {
 
         // 2. 名称与 ID
         QTableWidgetItem *nameItem = new QTableWidgetItem(QString("%1 (%2)").arg(app.name).arg(app.id));
-        nameItem->setToolTip(app.description);
+        nameItem->setToolTip(app.description + (app.dllPath.isEmpty() ? "" : "\n文件: " + app.dllPath));
         m_tableWidget->setItem(row, 1, nameItem);
 
-        // 3. 类型
+        // 3. 架构类型
         QString typeStr;
         if (app.isBuiltIn) {
-            typeStr = QStringLiteral("内置组件");
+            typeStr = QStringLiteral("内置核心");
+        } else if (app.pluginType == AppPluginType::QtDynamicPlugin) {
+            typeStr = QStringLiteral("Qt 动态插件 (.dll)");
         } else if (app.pluginType == AppPluginType::ExternalExecutable) {
             typeStr = QStringLiteral("外部程序");
         } else {
@@ -142,6 +161,9 @@ void PluginManagerDialog::refreshPluginList() {
         }
         QTableWidgetItem *typeItem = new QTableWidgetItem(typeStr);
         typeItem->setTextAlignment(Qt::AlignCenter);
+        if (app.pluginType == AppPluginType::QtDynamicPlugin) {
+            typeItem->setForeground(QColor("#00cec9"));
+        }
         m_tableWidget->setItem(row, 2, typeItem);
 
         // 4. 分类
@@ -159,32 +181,80 @@ void PluginManagerDialog::refreshPluginList() {
         authorItem->setTextAlignment(Qt::AlignCenter);
         m_tableWidget->setItem(row, 5, authorItem);
 
-        // 7. 操作按钮
+        // 7. 操作按钮 (详情 / 卸载)
         QWidget *actionWidget = new QWidget(this);
         QHBoxLayout *actionLayout = new QHBoxLayout(actionWidget);
         actionLayout->setContentsMargins(4, 2, 4, 2);
+        actionLayout->setSpacing(6);
         actionLayout->setAlignment(Qt::AlignCenter);
+
+        QPushButton *detailBtn = new QPushButton(QStringLiteral("详情"), actionWidget);
+        detailBtn->setCursor(Qt::PointingHandCursor);
+        detailBtn->setStyleSheet("color: #74b9ff; background: rgba(116, 185, 255, 0.1); border: 1px solid rgba(116, 185, 255, 0.3); border-radius: 4px; padding: 2px 8px; font-size: 11px;");
+        connect(detailBtn, &QPushButton::clicked, this, [this, appId]() {
+            onPluginDetailsClicked(appId);
+        });
+        actionLayout->addWidget(detailBtn);
 
         if (!app.isBuiltIn) {
             QPushButton *uninstallBtn = new QPushButton(QStringLiteral("卸载"), actionWidget);
             uninstallBtn->setCursor(Qt::PointingHandCursor);
-            uninstallBtn->setStyleSheet("color: #e74c3c; background: rgba(231, 76, 60, 0.1); border: 1px solid rgba(231, 76, 60, 0.3); border-radius: 4px; padding: 2px 8px;");
+            uninstallBtn->setStyleSheet("color: #e74c3c; background: rgba(231, 76, 60, 0.1); border: 1px solid rgba(231, 76, 60, 0.3); border-radius: 4px; padding: 2px 8px; font-size: 11px;");
             connect(uninstallBtn, &QPushButton::clicked, this, [this, appId]() {
                 onUninstallClicked(appId);
             });
             actionLayout->addWidget(uninstallBtn);
-        } else {
-            QLabel *lockedLabel = new QLabel(QStringLiteral("核心系统"), actionWidget);
-            lockedLabel->setStyleSheet("color: #7f8c8d; font-size: 11px;");
-            actionLayout->addWidget(lockedLabel);
         }
 
         m_tableWidget->setCellWidget(row, 6, actionWidget);
         row++;
     }
 
-    m_countLabel->setText(QStringLiteral("已注册应用: %1 个 (内置: %2, 扩展插件: %3)")
-        .arg(apps.size()).arg(apps.size() - pluginCount).arg(pluginCount));
+    m_countLabel->setText(QStringLiteral("已注册应用: %1 个 (内置: %2, Qt动态库: %3, 外部工具: %4)")
+        .arg(apps.size())
+        .arg(apps.size() - dynamicCount - externalCount)
+        .arg(dynamicCount)
+        .arg(externalCount));
+}
+
+void PluginManagerDialog::onInstallDllClicked() {
+    QString filter = QStringLiteral("Qt 动态插件 (*.dll *.so *.dylib);;所有文件 (*.*)");
+    QString filePath = QFileDialog::getOpenFileName(this, QStringLiteral("选择要加载的 Qt 动态库插件"), QString(), filter);
+    if (filePath.isEmpty()) return;
+
+    QString pluginsDir = AppManager::instance()->getPluginsDirectory();
+    QDir().mkpath(pluginsDir);
+
+    QFileInfo fi(filePath);
+    QString targetPath = pluginsDir + "/" + fi.fileName();
+
+    // 如果不在 plugins 目录下，自动复制到 plugins 目录以实现持久化
+    if (fi.absoluteFilePath() != QFileInfo(targetPath).absoluteFilePath()) {
+        if (QFile::exists(targetPath)) {
+            auto ret = QMessageBox::question(this, QStringLiteral("文件已存在"),
+                QStringLiteral("目标插件目录已存在同名文件 [%1]，是否覆盖？").arg(fi.fileName()),
+                QMessageBox::Yes | QMessageBox::No);
+            if (ret == QMessageBox::Yes) {
+                QFile::remove(targetPath);
+                QFile::copy(filePath, targetPath);
+            } else {
+                return;
+            }
+        } else {
+            QFile::copy(filePath, targetPath);
+        }
+        targetPath = QFileInfo(targetPath).absoluteFilePath();
+    } else {
+        targetPath = fi.absoluteFilePath();
+    }
+
+    QString errorMsg;
+    if (AppManager::instance()->loadDynamicPlugin(targetPath, &errorMsg)) {
+        QMessageBox::information(this, QStringLiteral("加载成功"), QStringLiteral("🎉 Qt 动态库插件已成功验证并加载到应用市场！"));
+        refreshPluginList();
+    } else {
+        QMessageBox::critical(this, QStringLiteral("加载失败"), QStringLiteral("无法加载该动态库插件:\n%1").arg(errorMsg));
+    }
 }
 
 void PluginManagerDialog::onInstallJsonClicked() {
@@ -297,12 +367,111 @@ void PluginManagerDialog::onOpenPluginsDirClicked() {
     QDesktopServices::openUrl(QUrl::fromLocalFile(pluginsDir));
 }
 
+void PluginManagerDialog::onRescanClicked() {
+    int count = AppManager::instance()->rescanPlugins();
+    refreshPluginList();
+    AppManager::instance()->showToast(QStringLiteral("扫描完成，发现 %1 个新插件").arg(count), "info");
+}
+
+void PluginManagerDialog::onDevGuideClicked() {
+    QDialog guideDlg(this);
+    guideDlg.setWindowTitle(QStringLiteral("💡 Qt Plugin 动态插件开发极简指引"));
+    guideDlg.resize(680, 500);
+
+    QVBoxLayout *layout = new QVBoxLayout(&guideDlg);
+    QTextBrowser *browser = new QTextBrowser(&guideDlg);
+    browser->setOpenExternalLinks(true);
+
+    QString guideHtml = QStringLiteral(
+        "<h2>🌟 SmileCode Qt Plugin 零修改扩展开发</h2>"
+        "<p>开发者只需编写一个继承 <code>IAppPlugin</code> 的 Qt 动态库工程并编译为 <code>.dll</code>，直接拷贝至 <code>plugins/</code> 目录即可自动上线！</p>"
+        "<h3>1. 引入核心头文件</h3>"
+        "<pre>#include &quot;include/iappplugin.h&quot;</pre>"
+        "<h3>2. 实现 IAppPlugin 接口并声明元数据</h3>"
+        "<pre>"
+        "class MyPlugin : public QObject, public IAppPlugin {\n"
+        "    Q_OBJECT\n"
+        "    Q_PLUGIN_METADATA(IID IAppPlugin_IID FILE &quot;plugin.json&quot;)\n"
+        "    Q_INTERFACES(IAppPlugin)\n"
+        "public:\n"
+        "    QString id() const override { return &quot;my_plugin&quot;; }\n"
+        "    QString name() const override { return &quot;自定义波形分析器&quot;; }\n"
+        "    QString category() const override { return &quot;测量与分析&quot;; }\n"
+        "    bool initialize(IPluginContext *ctx) override { return true; }\n"
+        "    void shutdown() override {}\n"
+        "    QWidget* createWidget(QWidget *parent) override { return new MyWidget(parent); }\n"
+        "};</pre>"
+        "<h3>3. 工程配置 (.pro)</h3>"
+        "<pre>"
+        "TEMPLATE = lib\n"
+        "CONFIG += plugin\n"
+        "QT += core gui widgets\n"
+        "DESTDIR = $$PWD/../../PhudonTools/plugins</pre>"
+    );
+
+    browser->setHtml(guideHtml);
+    layout->addWidget(browser);
+
+    QDialogButtonBox *btnBox = new QDialogButtonBox(QDialogButtonBox::Close, &guideDlg);
+    connect(btnBox, &QDialogButtonBox::rejected, &guideDlg, &QDialog::accept);
+    layout->addWidget(btnBox);
+
+    guideDlg.exec();
+}
+
+void PluginManagerDialog::onPluginDetailsClicked(const QString &appId) {
+    if (!AppManager::instance()->hasApp(appId)) return;
+    AppInfo info = AppManager::instance()->getAppInfo(appId);
+
+    QDialog dlg(this);
+    dlg.setWindowTitle(QStringLiteral("应用 / 插件详情 - %1").arg(info.name));
+    dlg.resize(480, 360);
+
+    QFormLayout *form = new QFormLayout(&dlg);
+    form->setContentsMargins(20, 20, 20, 20);
+    form->setSpacing(12);
+
+    auto addRowText = [&](const QString &label, const QString &text) {
+        QLineEdit *le = new QLineEdit(text, &dlg);
+        le->setReadOnly(true);
+        le->setStyleSheet("background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 4px;");
+        form->addRow(label, le);
+    };
+
+    addRowText(QStringLiteral("应用名称:"), info.name);
+    addRowText(QStringLiteral("唯一标识 (ID):"), info.id);
+    addRowText(QStringLiteral("版本号:"), info.version);
+    addRowText(QStringLiteral("作者/团队:"), info.author);
+    addRowText(QStringLiteral("所属分类:"), info.categoryName);
+    
+    QString typeName = (info.pluginType == AppPluginType::QtDynamicPlugin) ? QStringLiteral("Qt 动态插件 (.dll)") :
+                       (info.isBuiltIn ? QStringLiteral("内置组件") : QStringLiteral("外部工具"));
+    addRowText(QStringLiteral("架构类型:"), typeName);
+
+    if (!info.dllPath.isEmpty()) {
+        addRowText(QStringLiteral("动态库路径:"), info.dllPath);
+        addRowText(QStringLiteral("接口 IID:"), info.interfaceIid.isEmpty() ? IAppPlugin_IID : info.interfaceIid);
+    } else if (!info.execPath.isEmpty()) {
+        addRowText(QStringLiteral("程序路径:"), info.execPath);
+    }
+
+    addRowText(QStringLiteral("功能描述:"), info.description);
+    addRowText(QStringLiteral("启动次数:"), QString::number(info.launchCount));
+
+    QDialogButtonBox *box = new QDialogButtonBox(QDialogButtonBox::Ok, &dlg);
+    connect(box, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
+    form->addRow(box);
+
+    dlg.exec();
+}
+
 void PluginManagerDialog::onUninstallClicked(const QString &appId) {
     auto res = QMessageBox::question(this, QStringLiteral("确认卸载"),
-        QStringLiteral("确定要卸载插件 [%1] 吗？").arg(appId),
+        QStringLiteral("确定要卸载插件 [%1] 吗？\n如果为动态库插件，将一并从磁盘中移除对应库文件。").arg(appId),
         QMessageBox::Yes | QMessageBox::No);
     if (res == QMessageBox::Yes) {
         AppManager::instance()->uninstallPlugin(appId);
+        refreshPluginList();
     }
 }
 

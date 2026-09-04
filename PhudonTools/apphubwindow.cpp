@@ -25,10 +25,16 @@ AppHubWindow::AppHubWindow(QWidget *parent) : QMainWindow(parent) {
     setupUi();
     setupTrayIcon();
 
+    AppManager::instance()->setMainWindow(this);
+
     // 监听全局主题联动与应用状态变更
     connect(AppManager::instance(), &AppManager::globalThemeChanged, this, &AppHubWindow::applyTheme);
     connect(AppManager::instance(), &AppManager::appStatusChanged, this, &AppHubWindow::onAppStatusChanged);
     connect(AppManager::instance(), &AppManager::pluginListChanged, this, &AppHubWindow::refreshAppGrid);
+    connect(AppManager::instance(), &AppManager::pluginDiscovered, this, [this](const QString &id, const QString &name) {
+        Q_UNUSED(id);
+        AppManager::instance()->showToast(QStringLiteral("🎉 自动发现并载入新插件: %1").arg(name), "success");
+    });
     connect(AppManager::instance(), &AppManager::appFavoriteChanged, this, [this](const QString &, bool) {
         if (m_currentCategory == AppCategory::Favorites) {
             refreshAppGrid();

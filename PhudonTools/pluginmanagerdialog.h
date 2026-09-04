@@ -16,20 +16,26 @@ public:
 
 private slots:
     void refreshPluginList();
+    void onInstallDllClicked();
     void onInstallJsonClicked();
     void onCreateCustomToolClicked();
     void onOpenPluginsDirClicked();
+    void onRescanClicked();
+    void onDevGuideClicked();
     void onUninstallClicked(const QString &appId);
     void onEnableToggled(const QString &appId, bool enabled);
+    void onPluginDetailsClicked(const QString &appId);
 
 private:
     void setupUi();
 
     QTableWidget *m_tableWidget;
+    QPushButton *m_installDllBtn;
     QPushButton *m_installJsonBtn;
     QPushButton *m_createToolBtn;
     QPushButton *m_refreshBtn;
     QPushButton *m_openDirBtn;
+    QPushButton *m_guideBtn;
     QLabel *m_countLabel;
 };
 

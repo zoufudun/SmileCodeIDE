@@ -150,6 +150,9 @@ void AppCardWidget::updateAppInfo(const AppInfo &info) {
 
   // 格式化标签
   QString tagsHtml;
+  if (m_info.pluginType == AppPluginType::QtDynamicPlugin) {
+    tagsHtml += QStringLiteral("<span style='background:rgba(0,184,148,0.22);color:#00cec9;border:1px solid rgba(0,184,148,0.45);padding:2px 6px;border-radius:3px;margin-right:4px;font-weight:bold;'>Qt 动态插件 (.dll)</span> ");
+  }
   for (const QString &tag : m_info.tags) {
     tagsHtml +=
         QString(

@@ -9,7 +9,7 @@ LIBS += -L"D:/Soft/Qt/5.15.2/mingw81_64/lib" -lqscintilla2_qt5
 INCLUDEPATH += "D:/Soft/Qt/5.15.2/mingw81_64/include/Qsci"
 
 # ZLG zlgcan SDK & 创芯科技 ControlCAN SDK 头文件
-INCLUDEPATH += $$PWD/USBCANFD $$PWD/CXCAN
+INCLUDEPATH += $$PWD/USBCANFD $$PWD/CXCAN $$PWD/include
 
 # 将 zlgcan.dll, ControlCAN.dll 与 kerneldlls 拷贝到生成目录（与可执行文件同级），便于运行时加载。
 win32 {
@@ -126,7 +126,9 @@ HEADERS += \
     networktool.h \
     appcardwidget.h \
     pluginmanagerdialog.h \
-    apphubwindow.h
+    apphubwindow.h \
+    include/iappplugin.h \
+    include/iplugincontext.h
 
 # 默认规则
 QMAKE_CXXFLAGS += -Wall -Wextra -Wpedantic
