@@ -15,6 +15,7 @@ constexpr int DeviceMonitorPanel::ROOM_GAP_X;
 constexpr int DeviceMonitorPanel::ROOM_GAP_Y;
 
 #include <QAction>
+#include <QCollator>
 #include <QComboBox>
 #include <QDateTime>
 #include <QDialog>
@@ -1857,7 +1858,7 @@ void DeviceMonitorPanel::onRoomResized(const QString &id,
                      newGeom.width() / m_zoomLevel, newGeom.height() / m_zoomLevel);
       r.geom = unzoomed;
       ensureRoomCapacity(r);
-      clampDevicesInsideRoom(r);
+      layoutDevicesInRoom(r.name, r.targetView);
       alignAndResolveRoomSpacing(id);
       break;
     }
@@ -1923,7 +1924,7 @@ void DeviceMonitorPanel::updateZoom() {
     if (m_deviceRoomPos.contains(devId)) {
       QPoint pos = m_deviceRoomPos.value(devId);
       w->setGeometry(pos.x() * m_zoomLevel, pos.y() * m_zoomLevel,
-                     96 * m_zoomLevel, 106 * m_zoomLevel);
+                     CARD_W * m_zoomLevel, CARD_H * m_zoomLevel);
     }
     w->update();
   }
@@ -2514,38 +2515,98 @@ void DeviceMonitorPanel::autoArrangeRoomsAndDevices() {
     return;
   }
 
-  int startX = 50, startY = 50;
-  int curX = startX, curY = startY;
-  int maxRowH = 0;
-  int maxRowWidth = 1400;
+  // 1. 自然字典序智能排序 (Natural Numeric Sort): 确保 1C, 2C1层, 2C2层, 2C3层, 2C4层, 3C1层, 3C2层... 严格依序排列
+  QCollator collator;
+  collator.setNumericMode(true);
+  std::sort(roomIndices.begin(), roomIndices.end(), [&](int a, int b) {
+    return collator.compare(m_rooms[a].name, m_rooms[b].name) < 0;
+  });
 
-  for (int idx = 0; idx < roomIndices.size(); ++idx) {
-    int rIdx = roomIndices[idx];
-    auto &r = m_rooms[rIdx];
-    ensureRoomCapacity(r);
-    int roomW = r.geom.width();
-    int roomH = r.geom.height();
-
-    if (curX + roomW > maxRowWidth && curX > startX) {
-      curX = startX;
-      curY += maxRowH + ROOM_GAP_Y;
-      maxRowH = 0;
-    }
-
-    r.geom.moveTopLeft(QPoint(curX, curY));
-    curX += roomW + ROOM_GAP_X;
-    maxRowH = qMax(maxRowH, roomH);
+  // 2. 确定列数与列宽 (标准2列仪表盘布局，若房间多且视口宽则支持3列)
+  int numCols = 2;
+  int vpW = m_scrollArea ? m_scrollArea->viewport()->width() : 1200;
+  if (roomIndices.size() <= 1) {
+    numCols = 1;
+  } else if (roomIndices.size() >= 6 && vpW >= 1750) {
+    numCols = 3;
+  } else {
+    numCols = 2;
   }
 
-  // 内部设备对齐与房间高度拓展
-  autoArrangeRoomDevices();
+  // 3. 计算所有房间的最佳规整标准列宽 (统一宽度，保证左右外边框在像素级笔直对齐)
+  int maxReqW = 0;
+  for (int rIdx : roomIndices) {
+    auto &r = m_rooms[rIdx];
+    int devCount = 0;
+    QString rName = r.name.trimmed();
+    QString rView = normalizeViewName(r.targetView);
+    for (const auto &item : m_mappings) {
+      if (item.targetRoom.trimmed() == rName && normalizeViewName(item.targetView) == rView) {
+        devCount++;
+      }
+    }
+    QSize stdSize = standardRoomSizeForCount(devCount, r.shape);
+    maxReqW = qMax(maxReqW, stdSize.width());
+  }
+  // 560px 可容纳 4~5 列设备卡片并留出极佳内边距呼吸感
+  int uniformColW = qMax(560, maxReqW);
+
+  // 4. 按行与列进行严格网格对齐 (同列左对齐、同行顶对齐、同行等高底线对齐)
+  const int startX = 40;
+  const int startY = 40;
+  const int gapX = ROOM_GAP_X;
+  const int gapY = ROOM_GAP_Y;
+
+  QVector<int> colX(numCols);
+  for (int c = 0; c < numCols; ++c) {
+    colX[c] = startX + c * (uniformColW + gapX);
+  }
+
+  int totalRooms = roomIndices.size();
+  int numRows = (totalRooms + numCols - 1) / numCols;
+  int curY = startY;
+
+  for (int row = 0; row < numRows; ++row) {
+    int maxRowH = MIN_ROOM_H;
+    // 预先计算当前行的最高高度，使同一行的房间外观高度对齐、底线对齐
+    for (int col = 0; col < numCols; ++col) {
+      int itemIdx = row * numCols + col;
+      if (itemIdx < totalRooms) {
+        int rIdx = roomIndices[itemIdx];
+        auto &r = m_rooms[rIdx];
+        int devCount = 0;
+        QString rName = r.name.trimmed();
+        QString rView = normalizeViewName(r.targetView);
+        for (const auto &item : m_mappings) {
+          if (item.targetRoom.trimmed() == rName && normalizeViewName(item.targetView) == rView) {
+            devCount++;
+          }
+        }
+        QSize stdSize = standardRoomSizeForCount(devCount, r.shape);
+        maxRowH = qMax(maxRowH, stdSize.height());
+      }
+    }
+
+    // 统一定位与尺寸设置，并对内部设备进行居中排布
+    for (int col = 0; col < numCols; ++col) {
+      int itemIdx = row * numCols + col;
+      if (itemIdx < totalRooms) {
+        int rIdx = roomIndices[itemIdx];
+        auto &r = m_rooms[rIdx];
+        r.geom = QRect(colX[col], curY, uniformColW, maxRowH);
+        layoutDevicesInRoom(r.name, r.targetView);
+      }
+    }
+
+    curY += maxRowH + gapY;
+  }
 
   rebuildRoomCanvas();
   updateZoom();
   updateUnplacedDock();
   saveRoomLayout();
   saveConfig();
-  appendLog(QStringLiteral("🧹 已为您一键规整排列当前界面的 %1 个房间及对应设备")
+  appendLog(QStringLiteral("🧹 一键规整完成：已将当前界面的 %1 个房间按标准网格严整排列，设备整齐居中，无任何重叠！")
                 .arg(roomIndices.size()),
             false);
 }
@@ -2875,6 +2936,10 @@ QSize DeviceMonitorPanel::standardRoomSizeForCount(int devCount, int shape) {
     cols = 3;
   } else if (devCount <= 8) {
     cols = 4;
+  } else if (devCount <= 12) {
+    cols = 4;
+  } else if (devCount <= 20) {
+    cols = 5;
   } else {
     cols = qMin(6, qMax(4, static_cast<int>(std::ceil(std::sqrt(devCount)))));
   }
@@ -2909,8 +2974,13 @@ void DeviceMonitorPanel::ensureRoomCapacity(RoomRegion &r) {
     }
   }
 
-  QSize stdSize = standardRoomSizeForCount(devCount, r.shape);
-  r.geom.setSize(stdSize);
+  QSize minReq = standardRoomSizeForCount(devCount, r.shape);
+  // 自动扩容且支持手动自定义尺寸：
+  // 若当前尺寸小于容纳内部设备所需的最小宽高，则自适应扩大；
+  // 但若用户已手动拉大房间，则予以完整保留，绝不强行重置覆盖！
+  int newW = qMax(r.geom.width(), minReq.width());
+  int newH = qMax(r.geom.height(), minReq.height());
+  r.geom.setSize(QSize(newW, newH));
 }
 
 void DeviceMonitorPanel::layoutDevicesInRoom(const QString &roomName, const QString &targetView) {
@@ -2927,10 +2997,7 @@ void DeviceMonitorPanel::layoutDevicesInRoom(const QString &roomName, const QStr
   }
   if (!roomPtr) return;
 
-  // 1. 严格统一房间标准尺寸
-  ensureRoomCapacity(*roomPtr);
-
-  // 2. 提取该房间内所有的设备
+  // 1. 提取该房间内所有的设备
   QList<int> devIds;
   for (const auto &m : m_mappings) {
     if (m.targetRoom.trimmed() == tRoom && normalizeViewName(m.targetView) == tView) {
@@ -2939,39 +3006,68 @@ void DeviceMonitorPanel::layoutDevicesInRoom(const QString &roomName, const QStr
   }
 
   int devCount = devIds.size();
-  if (devCount == 0) return;
+  if (devCount == 0) {
+    ensureRoomCapacity(*roomPtr);
+    return;
+  }
 
-  int cols = 1;
-  if (devCount <= 1) cols = 1;
-  else if (devCount <= 2) cols = 2;
-  else if (devCount <= 4) cols = 2;
-  else if (devCount <= 6) cols = 3;
-  else if (devCount <= 8) cols = 4;
-  else cols = qMin(6, qMax(4, static_cast<int>(std::ceil(std::sqrt(devCount)))));
+  // 2. 根据房间当前可用宽度动态确定列数 (支持用户拉宽房间时自动铺展更多列，变窄时自动折行)
+  int availW = roomPtr->geom.width() - PAD_LEFT - PAD_RIGHT;
+  int maxColsFit = qMax(1, (availW + GAP_X) / (CARD_W + GAP_X));
 
+  int optimalCols = 1;
+  if (devCount <= 1) optimalCols = 1;
+  else if (devCount <= 2) optimalCols = 2;
+  else if (devCount <= 4) optimalCols = (availW >= 4 * CARD_W + 3 * GAP_X) ? 4 : 2;
+  else if (devCount <= 6) optimalCols = 3;
+  else if (devCount <= 8) optimalCols = 4;
+  else if (devCount <= 12) optimalCols = 4;
+  else if (devCount <= 20) optimalCols = 5;
+  else optimalCols = qMin(6, qMax(4, static_cast<int>(std::ceil(std::sqrt(devCount)))));
+
+  int cols = qMax(1, qMin(maxColsFit, optimalCols));
+  cols = qMin(cols, devCount);
   int rows = (devCount + cols - 1) / cols;
 
+  // 3. 计算所需最小尺寸并自动扩容 (高度和宽度保底扩充，防止卡片突出边框)
+  int reqW = PAD_LEFT + PAD_RIGHT + cols * CARD_W + (cols > 1 ? (cols - 1) * GAP_X : 0);
+  int reqH = PAD_TOP + PAD_BOTTOM + rows * CARD_H + (rows > 1 ? (rows - 1) * GAP_Y : 0);
+  reqW = qMax(MIN_ROOM_W, reqW);
+  reqH = qMax(MIN_ROOM_H, reqH);
+
+  if (roomPtr->geom.width() < reqW) {
+    roomPtr->geom.setWidth(reqW);
+  }
+  if (roomPtr->geom.height() < reqH) {
+    roomPtr->geom.setHeight(reqH);
+  }
+
+  // 4. 居中排布内部设备 (整体垂直居中，每行单独水平对称居中，绝不重叠且视觉极佳)
+  availW = roomPtr->geom.width() - PAD_LEFT - PAD_RIGHT;
+  int availH = roomPtr->geom.height() - PAD_TOP - PAD_BOTTOM;
   int gridH = rows * CARD_H + (rows > 1 ? (rows - 1) * GAP_Y : 0);
-  int contentAvailW = roomPtr->geom.width();
-  int contentAvailH = roomPtr->geom.height() - PAD_TOP;
-  int offsetY = PAD_TOP + qMax(PAD_BOTTOM / 2, (contentAvailH - gridH) / 2);
+  int startY = roomPtr->geom.y() + PAD_TOP + qMax(0, (availH - gridH) / 2);
 
   for (int i = 0; i < devCount; ++i) {
     int dId = devIds[i];
     int row = i / cols;
     int col = i % cols;
 
-    // 每行单独水平居中（如 3 个设备第 1 行 2 个水平对称居中，第 2 行 1 个正下方居中，绝不重叠且视觉极佳）
     int itemsInThisRow = (row == rows - 1) ? (devCount - row * cols) : cols;
     int rowGridW = itemsInThisRow * CARD_W + (itemsInThisRow > 1 ? (itemsInThisRow - 1) * GAP_X : 0);
-    int rowOffsetX = qMax(PAD_LEFT, (contentAvailW - rowGridW) / 2);
+    int rowStartX = roomPtr->geom.x() + PAD_LEFT + qMax(0, (availW - rowGridW) / 2);
 
-    int px = roomPtr->geom.x() + rowOffsetX + col * (CARD_W + GAP_X);
-    int py = roomPtr->geom.y() + offsetY + row * (CARD_H + GAP_Y);
+    int px = rowStartX + col * (CARD_W + GAP_X);
+    int py = startY + row * (CARD_H + GAP_Y);
     m_deviceRoomPos[dId] = QPoint(px, py);
   }
 
-  clampDevicesInsideRoom(*roomPtr);
+  // 5. 更新对应的 RoomWidget 最小尺寸限制与统计
+  RoomWidget *rw = m_roomWidgets.value(roomPtr->id, nullptr);
+  if (rw) {
+    rw->setMinimumContentSize(reqW, reqH);
+    rw->setDeviceCount(devCount);
+  }
 }
 
 void DeviceMonitorPanel::clampDevicesInsideRoom(const RoomRegion &r) {
@@ -3272,64 +3368,24 @@ void DeviceMonitorPanel::autoArrangeRoomDevices() {
     }
   }
 
-  // 3. 第一轮：计算每个房间关联设备数量，按网格容量动态调整紧凑宽高 (ensureRoomCapacity)
-  for (auto &r : m_rooms) {
-    ensureRoomCapacity(r);
-  }
-
-  // 4. 第二轮：基于房间绝对几何坐标，精确分配内部设备居中坐标
+  // 3. 对每个可见房间进行优雅排布与自动扩容
   QSet<int> assignedDevices;
   for (auto &r : m_rooms) {
     if (!r.visible) continue;
+    layoutDevicesInRoom(r.name, r.targetView);
+
     QString rName = r.name.trimmed();
     QString rView = normalizeViewName(r.targetView);
-
-    QList<int> roomDeviceIds;
     for (const auto &item : m_mappings) {
       if (item.targetRoom.trimmed() == rName && normalizeViewName(item.targetView) == rView) {
-        roomDeviceIds.append(item.deviceId);
+        if (m_deviceRoomPos.contains(item.deviceId)) {
+          assignedDevices.insert(item.deviceId);
+        }
       }
-    }
-
-    int devCount = roomDeviceIds.size();
-    if (devCount > 0) {
-      int cols = 1;
-      if (devCount <= 1) {
-        cols = 1;
-      } else if (devCount <= 2) {
-        cols = 2;
-      } else if (devCount <= 4) {
-        cols = 2;
-      } else if (devCount <= 6) {
-        cols = 3;
-      } else if (devCount <= 8) {
-        cols = 4;
-      } else {
-        cols = qMin(6, qMax(4, static_cast<int>(std::ceil(std::sqrt(devCount)))));
-      }
-      int rows = (devCount + cols - 1) / cols;
-
-      int gridW = cols * CARD_W + (cols > 1 ? (cols - 1) * GAP_X : 0);
-      int gridH = rows * CARD_H + (rows > 1 ? (rows - 1) * GAP_Y : 0);
-      int contentAvailW = r.geom.width();
-      int contentAvailH = r.geom.height() - PAD_TOP;
-      int offsetX = qMax(PAD_LEFT, (contentAvailW - gridW) / 2);
-      int offsetY = PAD_TOP + qMax(PAD_BOTTOM / 2, (contentAvailH - gridH) / 2);
-
-      for (int idx = 0; idx < devCount; ++idx) {
-        int dId = roomDeviceIds[idx];
-        int rowIdx = idx / cols;
-        int colIdx = idx % cols;
-        int posX = r.geom.x() + offsetX + colIdx * (CARD_W + GAP_X);
-        int posY = r.geom.y() + offsetY + rowIdx * (CARD_H + GAP_Y);
-        m_deviceRoomPos[dId] = QPoint(posX, posY);
-        assignedDevices.insert(dId);
-      }
-      clampDevicesInsideRoom(r);
     }
   }
 
-  // 5. 清理不在任何有效可见房间中的多余坐标，绝不产生野图标
+  // 4. 清理不在任何有效可见房间中的多余坐标，绝不产生野图标
   for (auto it = m_deviceRoomPos.begin(); it != m_deviceRoomPos.end(); ) {
     if (!assignedDevices.contains(it.key())) {
       it = m_deviceRoomPos.erase(it);
@@ -3469,6 +3525,12 @@ void DeviceMonitorPanel::rebuildRoomCanvas() {
         }
         QPoint posA = m_deviceRoomPos[idA];
         QRect rectA(posA, QSize(CARD_W, CARD_H));
+        // 检查是否超出房间边界
+        if (posA.x() < r.geom.x() + PAD_LEFT - 2 || posA.x() + CARD_W > r.geom.right() - PAD_RIGHT + 5 ||
+            posA.y() < r.geom.y() + PAD_TOP - 2 || posA.y() + CARD_H > r.geom.bottom() - PAD_BOTTOM + 5) {
+          needRelayout = true;
+          break;
+        }
         for (int j = i + 1; j < roomDevs.size(); ++j) {
           int idB = roomDevs[j];
           if (!m_deviceRoomPos.contains(idB)) {
@@ -3477,7 +3539,7 @@ void DeviceMonitorPanel::rebuildRoomCanvas() {
           }
           QPoint posB = m_deviceRoomPos[idB];
           QRect rectB(posB, QSize(CARD_W, CARD_H));
-          if (rectA.intersects(rectB.adjusted(12, 12, -12, -12))) {
+          if (rectA.intersects(rectB.adjusted(2, 2, -2, -2))) {
             needRelayout = true;
             break;
           }
@@ -3487,8 +3549,6 @@ void DeviceMonitorPanel::rebuildRoomCanvas() {
 
       if (needRelayout) {
         layoutDevicesInRoom(r.name, activeViewName);
-      } else {
-        clampDevicesInsideRoom(r);
       }
     } else {
       clampDevicesInsideRoom(r);

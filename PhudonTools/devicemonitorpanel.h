@@ -63,13 +63,13 @@ public:
   static constexpr int CARD_H = 106;
   static constexpr int GAP_X = 16;
   static constexpr int GAP_Y = 16;
-  static constexpr int PAD_LEFT = 16;
-  static constexpr int PAD_RIGHT = 16;
-  static constexpr int PAD_TOP = 46;
-  static constexpr int PAD_BOTTOM = 16;
-  static constexpr int MIN_ROOM_W = 160;
-  static constexpr int MIN_ROOM_H = 140;
-  static constexpr int ROOM_GAP_X = 36;
+  static constexpr int PAD_LEFT = 20;
+  static constexpr int PAD_RIGHT = 20;
+  static constexpr int PAD_TOP = 54;
+  static constexpr int PAD_BOTTOM = 20;
+  static constexpr int MIN_ROOM_W = 200;
+  static constexpr int MIN_ROOM_H = 160;
+  static constexpr int ROOM_GAP_X = 40;
   static constexpr int ROOM_GAP_Y = 36;
 
   explicit DeviceMonitorPanel(CanInterface *can, QWidget *parent = nullptr);
