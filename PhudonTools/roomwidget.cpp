@@ -12,19 +12,26 @@ RoomWidget::RoomWidget(const QString &id, const QString &name,
   setGeometry(geom);
   setMouseTracking(true);
 
-  // 标题栏 (留出右侧按钮空间)
+  // 标题栏 (左侧房间名，右侧紧贴设备计数)
   m_titleLabel = new QLabel(name, this);
   m_titleLabel->setStyleSheet(
       "QLabel { color: #00D4FF; font-size: 11px; font-weight: bold; "
       "font-family: 'Microsoft YaHei'; background: rgba(13,17,23,180); "
-      "padding: 3px 8px; border-radius: 4px; }");
-  m_titleLabel->move(8, 6);
-  m_titleLabel->setFixedSize(qMax(50, width() - 80), 22);
+      "padding: 2px 6px; border-radius: 4px; }");
+  m_titleLabel->move(8, 5);
+
+  m_countLabel = new QLabel("0个设备", this);
+  m_countLabel->setStyleSheet(
+      "QLabel { color: #64748B; font-size: 9px; font-weight: bold; "
+      "font-family: 'Consolas'; background: rgba(0,0,0,60); "
+      "padding: 1px 5px; border-radius: 3px; }");
+  m_countLabel->move(60, 6);
+  m_countLabel->setFixedHeight(16);
 
   // 右上角锁定/改名/删除按钮
   m_btnLock = new QPushButton(m_locked ? QStringLiteral("🔒") : QStringLiteral("🔓"), this);
   m_btnLock->setFixedSize(20, 20);
-  m_btnLock->move(width() - 71, 7);
+  m_btnLock->move(width() - 71, 5);
   m_btnLock->setToolTip(m_locked ? QStringLiteral("解锁房间") : QStringLiteral("锁定固定房间"));
   m_btnLock->setStyleSheet(m_locked
     ? "QPushButton{color:#F59E0B;background:#27201A;border:1px solid #F59E0B;border-radius:3px;font-size:10px;}QPushButton:hover{background:#3E2E1E;}"
@@ -37,7 +44,7 @@ RoomWidget::RoomWidget(const QString &id, const QString &name,
 
   m_btnRename = new QPushButton(QStringLiteral("✎"), this);
   m_btnRename->setFixedSize(20, 20);
-  m_btnRename->move(width() - 48, 7);
+  m_btnRename->move(width() - 48, 5);
   m_btnRename->setToolTip(QStringLiteral("重命名房间"));
   m_btnRename->setStyleSheet("QPushButton{color:#00D4FF;background:rgba(13,17,23,180);border:1px solid #1E3A5F;border-radius:3px;font-size:10px;}QPushButton:hover{background:#1E3A5F;}");
   m_btnRename->raise();
@@ -45,44 +52,78 @@ RoomWidget::RoomWidget(const QString &id, const QString &name,
 
   m_btnDelete = new QPushButton(QStringLiteral("✕"), this);
   m_btnDelete->setFixedSize(20, 20);
-  m_btnDelete->move(width() - 25, 7);
+  m_btnDelete->move(width() - 25, 5);
   m_btnDelete->setToolTip(QStringLiteral("删除房间"));
   m_btnDelete->setStyleSheet("QPushButton{color:#F87171;background:rgba(13,17,23,180);border:1px solid #3E1E1E;border-radius:3px;font-size:10px;}QPushButton:hover{background:#3E1E1E;}");
   m_btnDelete->raise();
   connect(m_btnDelete, &QPushButton::clicked, this, [this]() { emit roomDeleteRequested(m_id); });
 
-  m_countLabel = new QLabel("0", this);
-  m_countLabel->setStyleSheet(
-      "QLabel { color: #64748B; font-size: 9px; font-weight: bold; "
-      "font-family: 'Consolas'; background: rgba(0,0,0,60); "
-      "padding: 1px 6px; border-radius: 3px; }");
-  m_countLabel->move(8, 30);
-  m_countLabel->setFixedHeight(16);
-
   show();
+}
+
+void RoomWidget::setRoomName(const QString &name) {
+  if (m_titleLabel) {
+    m_titleLabel->setText(name);
+  }
+  // 重新触发尺寸计算
+  QResizeEvent ev(size(), size());
+  resizeEvent(&ev);
 }
 
 void RoomWidget::resizeEvent(QResizeEvent *e) {
   QWidget::resizeEvent(e);
-  if (m_titleLabel) m_titleLabel->setFixedSize(qMax(50, width() - 80), 22);
-  if (m_btnLock) m_btnLock->move(width() - 71, 7);
-  if (m_btnRename) m_btnRename->move(width() - 48, 7);
-  if (m_btnDelete) m_btnDelete->move(width() - 25, 7);
+  int w = width();
+  int h = height();
+  if (w <= 0 || h <= 0) return;
+
+  int btnAreaW = m_editingEnabled ? 74 : 6;
+  int availW = qMax(30, w - btnAreaW - 16);
+
+  int headerH = qBound(16, qRound(h * 0.12), 22);
+
+  if (m_titleLabel) {
+    m_titleLabel->adjustSize();
+    int maxTW = qMax(20, availW * 3 / 5);
+    int tW = qBound(20, m_titleLabel->width() + 10, maxTW);
+    m_titleLabel->setGeometry(8, 5, tW, headerH);
+  }
+
+  if (m_countLabel) {
+    int startX = m_titleLabel ? (m_titleLabel->geometry().right() + 6) : 8;
+    int maxCW = qMax(10, w - startX - btnAreaW - 4);
+    m_countLabel->adjustSize();
+    int cW = qBound(10, m_countLabel->width() + 6, maxCW);
+    m_countLabel->setGeometry(startX, 6, cW, qMax(14, headerH - 3));
+    m_countLabel->setVisible(w >= 100); // 极小尺寸下隐蔽计数，防止挤压
+  }
+
+  if (m_btnLock) m_btnLock->move(w - 71, 5);
+  if (m_btnRename) m_btnRename->move(w - 48, 5);
+  if (m_btnDelete) m_btnDelete->move(w - 25, 5);
 }
 
 void RoomWidget::setDeviceCount(int n) {
   if (m_locked) {
-    m_countLabel->setText(QStringLiteral("🔒 %1 个设备").arg(n));
+    m_countLabel->setText(QStringLiteral("🔒 %1个设备").arg(n));
     m_countLabel->setStyleSheet(
         "QLabel { color: #F59E0B; font-size: 9px; font-weight: bold; "
         "font-family: 'Consolas'; background: rgba(0,0,0,90); "
-        "padding: 1px 6px; border-radius: 3px; }");
+        "padding: 1px 5px; border-radius: 3px; }");
   } else {
-    m_countLabel->setText(QStringLiteral("%1 个设备").arg(n));
+    m_countLabel->setText(QStringLiteral("%1个设备").arg(n));
     m_countLabel->setStyleSheet(
         "QLabel { color: #64748B; font-size: 9px; font-weight: bold; "
         "font-family: 'Consolas'; background: rgba(0,0,0,60); "
-        "padding: 1px 6px; border-radius: 3px; }");
+        "padding: 1px 5px; border-radius: 3px; }");
+  }
+  if (m_titleLabel && isVisible()) {
+    int btnAreaW = m_editingEnabled ? 74 : 6;
+    int startX = m_titleLabel->geometry().right() + 6;
+    int maxCW = qMax(10, width() - startX - btnAreaW - 4);
+    m_countLabel->adjustSize();
+    int cW = qBound(10, m_countLabel->width() + 6, maxCW);
+    m_countLabel->setGeometry(startX, 6, cW, qMax(14, m_titleLabel->height() - 3));
+    m_countLabel->setVisible(width() >= 100);
   }
 }
 
@@ -99,7 +140,7 @@ void RoomWidget::setLocked(bool locked) {
       ? "QPushButton{color:#F59E0B;background:#27201A;border:1px solid #F59E0B;border-radius:3px;font-size:10px;}QPushButton:hover{background:#3E2E1E;}"
       : "QPushButton{color:#64748B;background:rgba(13,17,23,180);border:1px solid #1E293E;border-radius:3px;font-size:10px;}QPushButton:hover{background:#1E293E;color:#00D4FF;}");
   }
-  int cnt = m_countLabel->text().remove(QStringLiteral("🔒 ")).remove(QStringLiteral(" 个设备")).toInt();
+  int cnt = m_countLabel->text().remove(QStringLiteral("🔒")).remove(QStringLiteral("个设备")).remove(QStringLiteral(" ")).toInt();
   setDeviceCount(cnt);
   setToolTip(m_locked ? QStringLiteral("[%1] 已锁定固定，无法拖拽与重置尺寸").arg(m_titleLabel->text()) : QString());
   update();

@@ -86,7 +86,7 @@ public:
     // loop can interact badly with our custom window lifecycle management.
     setWindowFlags(Qt::Window | Qt::WindowMinMaxButtonsHint | Qt::WindowCloseButtonHint);
     setAttribute(Qt::WA_DeleteOnClose, false); // We manage lifetime via m_subWindows
-    setWindowTitle(QStringLiteral("多屏联动监控 - %1").arg(title));
+    setWindowTitle(QStringLiteral("SmileDisplayerPro 多屏联动 - %1").arg(title));
     setMinimumSize(850, 600);
     setStyleSheet("QWidget { background-color: #0D1117; color: #E2E8F0; }");
 
@@ -103,7 +103,7 @@ public:
     hLayout->setContentsMargins(10, 2, 10, 2);
 
     lblTitle = new QLabel(
-        QStringLiteral("🖥️ 多屏联动拓展窗口  |  区域实际 2D 布局图: %1").arg(title), header);
+        QStringLiteral("🖥️ SmileDisplayerPro 多屏联动拓展窗口  |  区域实际 2D 布局图: %1").arg(title), header);
     lblTitle->setStyleSheet("color: #00D4FF; font-size: 12px; font-weight: "
                             "bold; font-family: 'Microsoft YaHei';");
     hLayout->addWidget(lblTitle);
@@ -130,13 +130,15 @@ public:
   void setViewName(const QString &name) {
     if (viewName != name) {
       viewName = name;
-      setWindowTitle(QStringLiteral("多屏联动监控 - %1").arg(name));
+      setWindowTitle(QStringLiteral("SmileDisplayerPro 多屏联动 - %1").arg(name));
       if (lblTitle) {
         lblTitle->setText(
-            QStringLiteral("🖥️ 多屏联动拓展窗口  |  区域实际 2D 布局图: %1").arg(name));
+            QStringLiteral("🖥️ SmileDisplayerPro 多屏联动拓展窗口  |  区域实际 2D 布局图: %1").arg(name));
       }
     }
   }
+
+  std::function<void()> onCloseCallback;
 
   void rebuildDevicesAndRooms(const QList<DeviceBitMapping> &mappings,
                              const QHash<int, DeviceStatusWidget *> &mainWidgets,
@@ -286,6 +288,9 @@ public:
     // Just hide instead of closing/destroying - lifecycle managed by DeviceMonitorPanel
     event->ignore();
     hide();
+    if (onCloseCallback) {
+      onCloseCallback();
+    }
   }
 
   ~SubMonitorWindow() override {
@@ -317,7 +322,7 @@ public:
     lay->setSpacing(10);
 
     lblTitle = new QLabel(
-        QStringLiteral("CAN2.0B Status Monitor  |  v2.0  |  Phudon"));
+        QStringLiteral("SmileDisplayerPro  |  v2.0  |  Phudon"));
     lblTitle->setStyleSheet("color:#00D4FF;font-size:10px;font-weight:bold;"
                             "font-family:'Consolas';");
     lay->addWidget(lblTitle);
@@ -625,6 +630,10 @@ void DeviceMonitorPanel::setupUi() {
   m_gridLayout->setAlignment(Qt::AlignTop | Qt::AlignHCenter);
 
   m_scrollArea->setWidget(m_gridContainer);
+  m_scrollArea->installEventFilter(this);
+  if (m_scrollArea->viewport()) {
+    m_scrollArea->viewport()->installEventFilter(this);
+  }
   mainLayout->addWidget(m_scrollArea, 1);
 
   // ---- 底部状态栏 ----
@@ -685,11 +694,13 @@ void DeviceMonitorPanel::setupUi() {
   ltLayout->addWidget(m_btnToggleLogSize);
 
   auto *btnCloseLog = new QPushButton(QStringLiteral("✕"));
-  btnCloseLog->setFixedSize(22, 22);
+  btnCloseLog->setFixedSize(24, 24);
+  btnCloseLog->setCursor(Qt::PointingHandCursor);
   btnCloseLog->setToolTip(QStringLiteral("关闭日志框"));
   btnCloseLog->setStyleSheet(
-      "QPushButton{color:#64748B;background:transparent;border:none;font-size:"
-      "11px;}QPushButton:hover{color:#EF4444;}");
+      "QPushButton { color: #94A3B8; background: transparent; border: none; "
+      "font-size: 13px; font-weight: bold; border-radius: 3px; }"
+      "QPushButton:hover { color: #FFFFFF; background: #EF4444; }");
   ltLayout->addWidget(btnCloseLog);
 
   logWLayout->addWidget(m_logTitleBar);
@@ -723,8 +734,12 @@ void DeviceMonitorPanel::setupUi() {
     repositionFloatingWidgets();
   });
   connect(btnCloseLog, &QPushButton::clicked, this, [this]() {
-    if (m_btnInfoLog)
+    if (m_logWrapper) {
+      m_logWrapper->hide();
+    }
+    if (m_btnInfoLog) {
       m_btnInfoLog->setChecked(false);
+    }
   });
   connect(m_btnInfoLog, &QPushButton::toggled, this, [this](bool checked) {
     if (m_logWrapper) {
@@ -735,6 +750,7 @@ void DeviceMonitorPanel::setupUi() {
       }
     }
   });
+  m_logWrapper->hide();
 
   // 系统时钟定时器
   auto *clockTimer = new QTimer(this);
@@ -958,6 +974,20 @@ void DeviceMonitorPanel::resizeEvent(QResizeEvent *event) {
     return;
 
   updateZoom();
+
+  // 随窗口大小自动调整分布与自适应不同分辨率/屏幕大小
+  if (!m_layoutEditingEnabled && isVisible()) {
+    if (!m_windowResizeTimer) {
+      m_windowResizeTimer = new QTimer(this);
+      m_windowResizeTimer->setSingleShot(true);
+      connect(m_windowResizeTimer, &QTimer::timeout, this, [this]() {
+        if (!m_layoutEditingEnabled && isVisible()) {
+          adaptDistributionToWindow(false);
+        }
+      });
+    }
+    m_windowResizeTimer->start(120);
+  }
 }
 
 void DeviceMonitorPanel::sendConfigToClient(QWebSocket *client) {
@@ -1894,11 +1924,11 @@ void DeviceMonitorPanel::onRoomLockToggled(const QString &id, bool locked) {
 // ===== 缩放 =====
 
 void DeviceMonitorPanel::zoomIn() {
-  m_zoomLevel = qMin(2.0, m_zoomLevel + 0.25);
+  m_zoomLevel = qBound(0.25, m_zoomLevel + 0.15, 2.5);
   updateZoom();
 }
 void DeviceMonitorPanel::zoomOut() {
-  m_zoomLevel = qMax(0.25, m_zoomLevel - 0.25);
+  m_zoomLevel = qBound(0.25, m_zoomLevel - 0.15, 2.5);
   updateZoom();
 }
 
@@ -1911,34 +1941,48 @@ void DeviceMonitorPanel::zoomFit() {
 }
 
 void DeviceMonitorPanel::updateZoom() {
+  m_zoomLevel = qBound(0.2, m_zoomLevel, 2.5);
+
   // 画布始终不小于视口，放大时可超出视口（出现滚动条）
-  int vpW = m_scrollArea->viewport()->width();
-  int vpH = m_scrollArea->viewport()->height();
-  int canvasW = qMax(vpW, (int)(m_baseCanvasW * m_zoomLevel));
-  int canvasH = qMax(vpH, (int)(m_baseCanvasH * m_zoomLevel));
+  int vpW = m_scrollArea ? m_scrollArea->viewport()->width() : 1200;
+  int vpH = m_scrollArea ? m_scrollArea->viewport()->height() : 800;
+  int canvasW = qMax(vpW, (int)std::ceil(m_baseCanvasW * m_zoomLevel));
+  int canvasH = qMax(vpH, (int)std::ceil(m_baseCanvasH * m_zoomLevel));
   m_gridContainer->setFixedSize(canvasW, canvasH);
 
-  // 重新缩放所有已摆放的设备和房间
-  for (auto *w : m_deviceWidgets) {
-    int devId = w->deviceId();
-    if (m_deviceRoomPos.contains(devId)) {
-      QPoint pos = m_deviceRoomPos.value(devId);
-      w->setGeometry(pos.x() * m_zoomLevel, pos.y() * m_zoomLevel,
-                     CARD_W * m_zoomLevel, CARD_H * m_zoomLevel);
-    }
-    w->update();
-  }
+  // 1. 重新缩放所有已摆放的房间控件
   for (auto *rw : m_roomWidgets) {
     if (!rw) continue;
     for (const auto &r : m_rooms) {
       if (r.id == rw->roomId()) {
-        rw->setGeometry(
-            r.geom.x() * m_zoomLevel, r.geom.y() * m_zoomLevel,
-            r.geom.width() * m_zoomLevel, r.geom.height() * m_zoomLevel);
+        int rX = qRound(r.geom.x() * m_zoomLevel);
+        int rY = qRound(r.geom.y() * m_zoomLevel);
+        int rW = qMax(40, qRound(r.geom.width() * m_zoomLevel));
+        int rH = qMax(36, qRound(r.geom.height() * m_zoomLevel));
+        rw->setFixedSize(rW, rH);
+        rw->move(rX, rY);
         break;
       }
     }
   }
+
+  // 2. 重新缩放所有已摆放的设备卡片（尺寸与坐标严格等比例缩放，彻底杜绝重叠）
+  int cardW = qMax(16, qRound(CARD_W * m_zoomLevel));
+  int cardH = qMax(18, qRound(CARD_H * m_zoomLevel));
+
+  for (auto *w : m_deviceWidgets) {
+    if (!w) continue;
+    int devId = w->deviceId();
+    if (m_deviceRoomPos.contains(devId)) {
+      QPoint pos = m_deviceRoomPos.value(devId);
+      int devX = qRound(pos.x() * m_zoomLevel);
+      int devY = qRound(pos.y() * m_zoomLevel);
+      w->setFixedSize(cardW, cardH);
+      w->move(devX, devY);
+      w->update();
+    }
+  }
+
   if (m_lblCount)
     m_lblCount->setText(QStringLiteral("缩放: %1% | %2 房间 | %3 设备")
                             .arg((int)(m_zoomLevel * 100))
@@ -1990,6 +2034,19 @@ void DeviceMonitorPanel::wheelEvent(QWheelEvent *e) {
 }
 
 bool DeviceMonitorPanel::eventFilter(QObject *watched, QEvent *event) {
+  if (event->type() == QEvent::Wheel) {
+    if (watched == m_gridContainer || watched == m_scrollArea ||
+        (m_scrollArea && watched == m_scrollArea->viewport())) {
+      auto *we = static_cast<QWheelEvent *>(event);
+      if (we->modifiers() & Qt::ControlModifier) {
+        if (we->angleDelta().y() > 0)
+          zoomIn();
+        else if (we->angleDelta().y() < 0)
+          zoomOut();
+        return true;
+      }
+    }
+  }
   if (event->type() == QEvent::KeyPress) {
     auto *keyEvent = static_cast<QKeyEvent *>(event);
     if (keyEvent->key() == Qt::Key_Escape && m_isFullScreen) {
@@ -2221,12 +2278,16 @@ void DeviceMonitorPanel::showEvent(QShowEvent *event) {
   if (m_layoutEditingEnabled && m_layoutFloatingDialog) {
     showLayoutFloatingBox();
   }
-  // 延迟 50ms 在 Qt 事件循环中触发，等待主窗口视口真实 Geometry 确定后自动自适应对齐
-  QTimer::singleShot(50, this, [this]() {
+  // 延迟 60ms 在 Qt 事件循环中触发，等待主窗口视口真实 Geometry 确定后根据屏幕和窗口自适应对齐
+  QTimer::singleShot(60, this, [this]() {
     repositionFloatingWidgets();
-    rebuildRoomCanvas();
-    zoomFit();
-    updateZoom();
+    if (!m_layoutEditingEnabled) {
+      adaptDistributionToWindow(false);
+    } else {
+      rebuildRoomCanvas();
+      zoomFit();
+      updateZoom();
+    }
     repositionFloatingWidgets();
   });
 }
@@ -2250,6 +2311,11 @@ void DeviceMonitorPanel::changeEvent(QEvent *event) {
         m_layoutFloatingDialog->show();
         m_layoutFloatingDialog->raise();
       }
+    }
+    if (event->type() == QEvent::WindowStateChange && !m_layoutEditingEnabled && isVisible()) {
+      QTimer::singleShot(80, this, [this]() {
+        adaptDistributionToWindow(false);
+      });
     }
   }
 }
@@ -2497,6 +2563,10 @@ void DeviceMonitorPanel::drawTemplateBackground(QPainter &p, const QRect &rect,
 }
 
 void DeviceMonitorPanel::autoArrangeRoomsAndDevices() {
+  adaptDistributionToWindow(true);
+}
+
+void DeviceMonitorPanel::adaptDistributionToWindow(bool verbose) {
   QString activeViewName =
       (m_activeViewIndex >= 0 && m_activeViewIndex < m_viewNames.size())
           ? m_viewNames[m_activeViewIndex]
@@ -2511,29 +2581,38 @@ void DeviceMonitorPanel::autoArrangeRoomsAndDevices() {
   }
 
   if (roomIndices.isEmpty()) {
-    appendLog(QStringLiteral("ℹ️ 当前界面没有可见房间可供规整排列"), false);
+    if (verbose) {
+      appendLog(QStringLiteral("ℹ️ 当前界面没有可见房间可供规整排列"), false);
+    }
     return;
   }
 
-  // 1. 自然字典序智能排序 (Natural Numeric Sort): 确保 1C, 2C1层, 2C2层, 2C3层, 2C4层, 3C1层, 3C2层... 严格依序排列
+  // 1. 自然字典序智能排序 (Natural Numeric Sort): 确保 1C, 2C1层, 2C2层... 严格依序排列
   QCollator collator;
   collator.setNumericMode(true);
   std::sort(roomIndices.begin(), roomIndices.end(), [&](int a, int b) {
     return collator.compare(m_rooms[a].name, m_rooms[b].name) < 0;
   });
 
-  // 2. 确定列数与列宽 (标准2列仪表盘布局，若房间多且视口宽则支持3列)
-  int numCols = 2;
+  int totalRooms = roomIndices.size();
   int vpW = m_scrollArea ? m_scrollArea->viewport()->width() : 1200;
-  if (roomIndices.size() <= 1) {
+  int vpH = m_scrollArea ? m_scrollArea->viewport()->height() : 800;
+
+  // 2. 智能确定列数 (根据当前视口宽度与屏幕分辨率自适应网格)
+  int numCols = 1;
+  if (totalRooms <= 1) {
     numCols = 1;
-  } else if (roomIndices.size() >= 6 && vpW >= 1750) {
-    numCols = 3;
+  } else if (vpW < 800) {
+    numCols = 1;
+  } else if (vpW < 1350) {
+    numCols = qMin(totalRooms, 2);
+  } else if (vpW < 1920) {
+    numCols = qMin(totalRooms, (totalRooms == 4) ? 2 : 3);
   } else {
-    numCols = 2;
+    numCols = qMin(totalRooms, (totalRooms <= 4) ? 2 : (totalRooms <= 6 ? 3 : 4));
   }
 
-  // 3. 计算所有房间的最佳规整标准列宽 (统一宽度，保证左右外边框在像素级笔直对齐)
+  // 3. 计算所有房间的标准宽度
   int maxReqW = 0;
   for (int rIdx : roomIndices) {
     auto &r = m_rooms[rIdx];
@@ -2548,27 +2627,19 @@ void DeviceMonitorPanel::autoArrangeRoomsAndDevices() {
     QSize stdSize = standardRoomSizeForCount(devCount, r.shape);
     maxReqW = qMax(maxReqW, stdSize.width());
   }
-  // 560px 可容纳 4~5 列设备卡片并留出极佳内边距呼吸感
-  int uniformColW = qMax(560, maxReqW);
-
-  // 4. 按行与列进行严格网格对齐 (同列左对齐、同行顶对齐、同行等高底线对齐)
-  const int startX = 40;
-  const int startY = 40;
-  const int gapX = ROOM_GAP_X;
-  const int gapY = ROOM_GAP_Y;
-
-  QVector<int> colX(numCols);
-  for (int c = 0; c < numCols; ++c) {
-    colX[c] = startX + c * (uniformColW + gapX);
+  // 500px 保底统一标准列宽，提供极佳的内边距呼吸感与横向对齐
+  int uniformColW = qMax(500, maxReqW);
+  if (numCols > 0) {
+    int targetColW = (vpW - 60 - (numCols - 1) * ROOM_GAP_X) / numCols;
+    if (targetColW > uniformColW && targetColW <= uniformColW + 100) {
+      uniformColW = targetColW;
+    }
   }
 
-  int totalRooms = roomIndices.size();
+  // 4. 计算每行的最高高度
   int numRows = (totalRooms + numCols - 1) / numCols;
-  int curY = startY;
-
+  QVector<int> rowHeights(numRows, MIN_ROOM_H);
   for (int row = 0; row < numRows; ++row) {
-    int maxRowH = MIN_ROOM_H;
-    // 预先计算当前行的最高高度，使同一行的房间外观高度对齐、底线对齐
     for (int col = 0; col < numCols; ++col) {
       int itemIdx = row * numCols + col;
       if (itemIdx < totalRooms) {
@@ -2583,11 +2654,60 @@ void DeviceMonitorPanel::autoArrangeRoomsAndDevices() {
           }
         }
         QSize stdSize = standardRoomSizeForCount(devCount, r.shape);
-        maxRowH = qMax(maxRowH, stdSize.height());
+        rowHeights[row] = qMax(rowHeights[row], stdSize.height());
       }
     }
+  }
 
-    // 统一定位与尺寸设置，并对内部设备进行居中排布
+  const int gapX = ROOM_GAP_X;
+  const int gapY = ROOM_GAP_Y;
+  int totalGridW = numCols * uniformColW + (numCols - 1) * gapX;
+  int totalGridH = (numRows - 1) * gapY;
+  for (int rh : rowHeights) {
+    totalGridH += rh;
+  }
+
+  // 5. 自动推导最佳适中缩放比例 (无论此前处于何种缩放状态，均适中化自适应)
+  int availVpW = qMax(300, vpW - 48);
+  int availVpH = qMax(300, vpH - 48);
+  qreal fitW = (qreal)availVpW / (qreal)totalGridW;
+  qreal fitH = (qreal)availVpH / (qreal)totalGridH;
+  qreal fitZoom = qMin(fitW, fitH);
+
+  qreal targetZoom = 1.0;
+  if (fitZoom < 0.98) {
+    // 视口较小无法完整容纳 100% 布局时，按最佳视口比例等比收敛（保底 0.40 保证清晰无溢出）
+    targetZoom = qBound(0.40, fitZoom, 1.0);
+  } else if (fitZoom >= 1.25 && vpW >= 1900 && totalRooms <= 4) {
+    // 高分大屏且房间数少时适度饱满显示
+    targetZoom = qBound(1.0, fitZoom * 0.9, 1.35);
+  } else {
+    targetZoom = 1.0;
+  }
+  m_zoomLevel = targetZoom;
+
+  // 6. 视口双向居中起始坐标计算
+  int scaledGridW = (int)std::ceil(totalGridW * m_zoomLevel);
+  int scaledGridH = (int)std::ceil(totalGridH * m_zoomLevel);
+
+  int startX = 32;
+  if (vpW > scaledGridW) {
+    startX = qMax(20, (int)(((vpW - scaledGridW) / 2.0) / m_zoomLevel));
+  }
+  int startY = 28;
+  if (vpH > scaledGridH) {
+    startY = qMax(20, (int)(((vpH - scaledGridH) / 2.0) / m_zoomLevel));
+  }
+
+  QVector<int> colX(numCols);
+  for (int c = 0; c < numCols; ++c) {
+    colX[c] = startX + c * (uniformColW + gapX);
+  }
+
+  // 7. 统一定位与尺寸设置，并对内部设备进行居中对称排布
+  int curY = startY;
+  for (int row = 0; row < numRows; ++row) {
+    int maxRowH = rowHeights[row];
     for (int col = 0; col < numCols; ++col) {
       int itemIdx = row * numCols + col;
       if (itemIdx < totalRooms) {
@@ -2597,18 +2717,35 @@ void DeviceMonitorPanel::autoArrangeRoomsAndDevices() {
         layoutDevicesInRoom(r.name, r.targetView);
       }
     }
-
     curY += maxRowH + gapY;
   }
+
+  // 8. 适配基准画布并重新渲染
+  m_baseCanvasW = qMax(vpW, colX.last() + uniformColW + startX);
+  m_baseCanvasH = qMax(vpH, curY + startY);
 
   rebuildRoomCanvas();
   updateZoom();
   updateUnplacedDock();
+
+  if (verbose && m_scrollArea) {
+    if (m_scrollArea->horizontalScrollBar()) {
+      m_scrollArea->horizontalScrollBar()->setValue(0);
+    }
+    if (m_scrollArea->verticalScrollBar()) {
+      m_scrollArea->verticalScrollBar()->setValue(0);
+    }
+  }
+
   saveRoomLayout();
-  saveConfig();
-  appendLog(QStringLiteral("🧹 一键规整完成：已将当前界面的 %1 个房间按标准网格严整排列，设备整齐居中，无任何重叠！")
-                .arg(roomIndices.size()),
-            false);
+  if (verbose) {
+    saveConfig();
+    appendLog(QStringLiteral("✨ 一键规整完成：已将当前界面的 %1 个房间按 %2 列居中适中布局，视角自动调整至 %3%，无任何重叠！")
+                  .arg(totalRooms)
+                  .arg(numCols)
+                  .arg((int)(m_zoomLevel * 100)),
+              false);
+  }
 }
 
 void DeviceMonitorPanel::applyLayoutTemplate(const QString &tpl) {
@@ -3557,9 +3694,11 @@ void DeviceMonitorPanel::rebuildRoomCanvas() {
     RoomWidget *rw = m_roomWidgets.value(r.id, nullptr);
     if (matchesView) {
       if (!rw) {
+        int rW = qMax(40, qRound(r.geom.width() * m_zoomLevel));
+        int rH = qMax(36, qRound(r.geom.height() * m_zoomLevel));
         rw = new RoomWidget(r.id, r.name,
-                            QRect(r.geom.x() * m_zoomLevel, r.geom.y() * m_zoomLevel,
-                                  r.geom.width() * m_zoomLevel, r.geom.height() * m_zoomLevel),
+                            QRect(qRound(r.geom.x() * m_zoomLevel), qRound(r.geom.y() * m_zoomLevel),
+                                  rW, rH),
                             r.shape, m_gridContainer);
         connect(rw, &RoomWidget::roomDragging, this,
                 &DeviceMonitorPanel::onRoomDragging);
@@ -3641,9 +3780,10 @@ void DeviceMonitorPanel::rebuildRoomCanvas() {
         m_roomWidgets.insert(r.id, rw);
       } else {
         rw->setRoomName(r.name);
-        rw->setGeometry(
-            r.geom.x() * m_zoomLevel, r.geom.y() * m_zoomLevel,
-            r.geom.width() * m_zoomLevel, r.geom.height() * m_zoomLevel);
+        int rW = qMax(40, qRound(r.geom.width() * m_zoomLevel));
+        int rH = qMax(36, qRound(r.geom.height() * m_zoomLevel));
+        rw->setFixedSize(rW, rH);
+        rw->move(qRound(r.geom.x() * m_zoomLevel), qRound(r.geom.y() * m_zoomLevel));
       }
       rw->setRoomColor(r.color);
       rw->setLocked(r.isLocked);
@@ -3704,9 +3844,11 @@ void DeviceMonitorPanel::rebuildRoomCanvas() {
     if (hasValidRoom && m_deviceRoomPos.contains(devId) && !m.targetRoom.trimmed().isEmpty()) {
       w->setParent(m_gridContainer);
       w->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+      int cardW = qMax(16, qRound(CARD_W * m_zoomLevel));
+      int cardH = qMax(18, qRound(CARD_H * m_zoomLevel));
       QPoint pos = m_deviceRoomPos.value(devId);
-      w->setGeometry(pos.x() * m_zoomLevel, pos.y() * m_zoomLevel,
-                     CARD_W * m_zoomLevel, CARD_H * m_zoomLevel);
+      w->setFixedSize(cardW, cardH);
+      w->move(qRound(pos.x() * m_zoomLevel), qRound(pos.y() * m_zoomLevel));
       w->setDraggable(m_layoutEditingEnabled);
       w->setVisible(true);
       w->show();
@@ -4263,8 +4405,7 @@ void DeviceMonitorPanel::onMultiScreenToggled(bool checked) {
   } else {
     appendLog(QStringLiteral("🖥️ 多屏联动模式已关闭"), false);
   }
-  // 根据当前显示模式选择正确的重建函数
-  // rebuildGrid/rebuildRoomCanvas 内部已调用 scheduleSubWindowUpdate()
+  updateSubWindows();
   rebuildRoomCanvas();
 }
 
@@ -4338,6 +4479,18 @@ void DeviceMonitorPanel::updateSubWindows() {
     }
     if (!subWin) {
       subWin = new SubMonitorWindow(targetViewName, nullptr);
+      subWin->onCloseCallback = [this]() {
+        bool anyVisible = false;
+        for (auto sw : m_subWindows) {
+          if (sw && !sw.isNull() && sw->isVisible()) {
+            anyVisible = true;
+            break;
+          }
+        }
+        if (!anyVisible && m_btnMultiScreen && m_btnMultiScreen->isChecked()) {
+          m_btnMultiScreen->setChecked(false);
+        }
+      };
       if (sIdx < m_subWindows.size()) {
         m_subWindows[sIdx] = subWin;
       } else {

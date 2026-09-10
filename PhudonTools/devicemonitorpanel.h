@@ -102,6 +102,7 @@ private slots:
   void onDeleteRoom();
   void onAddRoom();
   void autoArrangeRoomsAndDevices();
+  void adaptDistributionToWindow(bool verbose = false);
   void onManageRoomsRequested();
   void onProtocolConfigClicked();
   void onDeviceDragged(int deviceId, const QPoint &newPos);
@@ -203,6 +204,7 @@ private:
   bool m_isRebuildingCanvas = false;   // 画布重建重入保护守卫
   QList<QPointer<SubMonitorWindow>> m_subWindows;
   QTimer *m_subWinUpdateTimer = nullptr; // Debounce timer - coalesces multiple updateSubWindows requests
+  QTimer *m_windowResizeTimer = nullptr; // Debounce timer for window resizing auto-layout
 
   bool m_logDragging = false;
   QPoint m_logDragStartPos;

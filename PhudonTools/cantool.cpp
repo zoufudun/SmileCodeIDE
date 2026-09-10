@@ -264,7 +264,7 @@ void CANTool::createToolbar() {
   QMenu *menuTools = new QMenu(this);
   menuTools->addAction("DBC 解析器");
   menuTools->addAction("内置计算器");
-  menuTools->addAction("Status Monitor");
+  menuTools->addAction("SmileDisplayerPro");
   connect(menuTools, &QMenu::triggered, this, &CANTool::onToolsTriggered);
   btnTools->setMenu(menuTools);
   layout->addWidget(btnTools);
@@ -558,7 +558,7 @@ void CANTool::onAdvancedFeaturesTriggered(QAction *action) {
 void CANTool::onToolsTriggered(QAction *action) {
   if (action->text().contains("计算器")) {
     QProcess::startDetached("calc.exe", QStringList());
-  } else if (action->text() == "Status Monitor") {
+  } else if (action->text() == "SmileDisplayerPro" || action->text() == "Status Monitor") {
     onStatusMonitorClicked();
   } else {
     QMessageBox::information(

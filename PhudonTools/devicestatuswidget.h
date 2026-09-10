@@ -67,7 +67,7 @@ protected:
   void resizeEvent(QResizeEvent *event) override;
 
   QSize sizeHint() const override { return QSize(96, 106); }
-  QSize minimumSizeHint() const override { return QSize(85, 95); }
+  QSize minimumSizeHint() const override { return QSize(10, 10); }
 
 private:
   void renderCache();

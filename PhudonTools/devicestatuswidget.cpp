@@ -32,10 +32,10 @@ DeviceStatusWidget::DeviceStatusWidget(int deviceId, DeviceKind kind,
       m_deviceId(deviceId), m_kind(kind), m_label(label.left(32)), m_canId(canId),
       m_flashTimer(new QTimer(this))
 {
-  // 紧凑尺寸策略 — 缩小占用面积
-  setMinimumSize(85, 95);
-  setMaximumSize(150, 160);
-  setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+  // 自由缩放策略 — 允许根据画布及视图动态缩放
+  setMinimumSize(0, 0);
+  setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
+  setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
 
   setToolTip(QStringLiteral("[%1]\nID: #%2 | CAN: 0x%3")
                  .arg(m_label)
@@ -212,28 +212,29 @@ void DeviceStatusWidget::renderCache() {
     }
   }
 
-  // ---- LED 指示灯 (红/绿指示) ----
-  const int ledY = iconCY + 30 * s;
+  // ---- LED 指示灯 (红/绿指示，自适应缩放) ----
+  const int ledY = iconCY + qRound(28 * s);
   QColor ledCol = m_status ? TechColors::red : TechColors::green;
   {
     QPointF lc(card.center().x(), ledY);
     QColor og = ledCol; og.setAlpha(50);
     p.setPen(Qt::NoPen); p.setBrush(og);
-    p.drawEllipse(lc, 5 * s, 5 * s);
-    QRadialGradient lg(lc + QPointF(-0.4, -0.4), 2.4 * s);
+    p.drawEllipse(lc, qMax(2.0, 4.5 * s), qMax(2.0, 4.5 * s));
+    QRadialGradient lg(lc + QPointF(-0.4, -0.4), qMax(1.5, 2.2 * s));
     lg.setColorAt(0, ledCol.lighter(200));
     lg.setColorAt(0.4, ledCol);
     lg.setColorAt(1, ledCol.darker(180));
     p.setBrush(lg);
-    p.drawEllipse(lc, 2.4 * s, 2.4 * s);
+    p.drawEllipse(lc, qMax(1.5, 2.2 * s), qMax(1.5, 2.2 * s));
   }
 
-  // ---- 设备名称 (去掉下方报警、开字样文本块) ----
-  const int nameY = ledY + 6 * s;
+  // ---- 设备名称 (随缩放自适应字号与排版) ----
+  const int nameY = ledY + qMax(3, qRound(5 * s));
   p.setPen(TechColors::text);
-  p.setFont(QFont("Microsoft YaHei", qMax(7, qRound(8.0 * s))));
-  p.drawText(QRect(card.left() + 2, nameY, card.width() - 4, qMax(16, card.bottom() - nameY - 2)),
-             Qt::AlignHCenter | Qt::AlignTop | Qt::TextWordWrap, m_label);
+  int fontSize = qBound(6, qRound(8.0 * s), 11);
+  p.setFont(QFont("Microsoft YaHei", fontSize));
+  QRect textRect(card.left() + 2, nameY, card.width() - 4, qMax(10, card.bottom() - nameY - 1));
+  p.drawText(textRect, Qt::AlignHCenter | Qt::AlignTop | Qt::TextWordWrap, m_label);
 
   m_cacheDirty = false;
 }

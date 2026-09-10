@@ -16,7 +16,7 @@ public:
 
   QString roomId() const { return m_id; }
   QString roomName() const { return m_titleLabel->text(); }
-  void setRoomName(const QString &name) { m_titleLabel->setText(name); }
+  void setRoomName(const QString &name);
   QRect roomGeom() const { return geometry(); }
   int roomShape() const { return m_shape; }
 
