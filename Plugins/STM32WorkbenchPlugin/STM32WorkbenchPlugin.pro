@@ -40,6 +40,8 @@ SOURCES += \
     UI/FlashConfigDialog.cpp \
     UI/STM32WorkbenchWidget.cpp
 
+RESOURCES += cubemx_linkers.qrc
+
 DISTFILES += \
     plugin.json \
     README.md

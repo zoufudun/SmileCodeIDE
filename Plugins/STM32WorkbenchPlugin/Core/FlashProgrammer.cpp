@@ -72,32 +72,9 @@ bool FlashProgrammer::flashFirmware(const QString &firmwarePath, const FlashOpti
         return false;
     }
     if (!options.probeInstanceId.isEmpty()) {
-        bool connected = false;
-        ProbeType connectedType = ProbeType::Unknown;
-        QString connectedSerial;
-        for (const ProbeInfo &probe : ProbeDetector::scan()) {
-            if (probe.instanceId.compare(options.probeInstanceId, Qt::CaseInsensitive) == 0) {
-                connected = true;
-                connectedType = probe.type;
-                connectedSerial = probe.serial;
-                break;
-            }
-        }
-        if (!connected) {
-            emit flashOutput(QStringLiteral("错误: 选定的下载器已断开，请刷新烧录设置。\n"), true);
-            return false;
-        }
-        if (options.probeSerial.isEmpty()) {
-            emit flashOutput(QStringLiteral("错误: 无法读取该下载器的序列号，请在烧录设置中手动填写。\n"), true);
-            return false;
-        }
-        if (!connectedSerial.isEmpty() &&
-            connectedSerial.compare(options.probeSerial, Qt::CaseInsensitive) != 0) {
-            emit flashOutput(QStringLiteral("错误: 当前设备序列号与已保存的序列号不一致，请刷新烧录设置。\n"), true);
-            return false;
-        }
-        if (!driverSupportsProbe(options.driver, connectedType)) {
-            emit flashOutput(QStringLiteral("错误: 当前烧录驱动与选定下载器类型不匹配。\n"), true);
+        QString probeError;
+        if (!validateProbeSelection(options, ProbeDetector::scan(), &probeError)) {
+            emit flashOutput(QStringLiteral("错误: ") + probeError + "\n", true);
             return false;
         }
     }
@@ -150,6 +127,77 @@ bool FlashProgrammer::driverSupportsProbe(FlashDriverType driver, ProbeType prob
     default:
         return false;
     }
+}
+
+bool FlashProgrammer::validateProbeSelection(const FlashOptions &options,
+                                              const QList<ProbeInfo> &connectedProbes,
+                                              QString *error)
+{
+    if (options.probeInstanceId.isEmpty()) return true;
+    const ProbeInfo *selected = nullptr;
+    int compatibleCount = 0;
+    for (const ProbeInfo &probe : connectedProbes) {
+        if (driverSupportsProbe(options.driver, probe.type)) ++compatibleCount;
+        if (probe.instanceId.compare(options.probeInstanceId, Qt::CaseInsensitive) == 0)
+            selected = &probe;
+    }
+    if (!selected) {
+        if (error) *error = QStringLiteral("选定的下载器已断开，请刷新烧录设置。");
+        return false;
+    }
+    if (!driverSupportsProbe(options.driver, selected->type)) {
+        if (error) *error = QStringLiteral("当前烧录驱动与选定下载器类型不匹配。");
+        return false;
+    }
+    if (options.probeSerial.isEmpty() && compatibleCount > 1) {
+        if (error) *error = QStringLiteral("检测到多台同类下载器，必须指定序列号才能选择设备。");
+        return false;
+    }
+    if (!selected->serial.isEmpty() && !options.probeSerial.isEmpty() &&
+        selected->serial.compare(options.probeSerial, Qt::CaseInsensitive) != 0) {
+        if (error) *error = QStringLiteral("当前设备序列号与已保存的序列号不一致，请刷新烧录设置。");
+        return false;
+    }
+    return true;
+}
+
+QString FlashProgrammer::resolveOpenOcdScriptsDir(const QString &openocdPath)
+{
+    const QDir binDir = QFileInfo(openocdPath).absoluteDir();
+    const QString standard = QDir::cleanPath(binDir.absoluteFilePath("../share/openocd/scripts"));
+    if (QDir(standard).exists()) return standard;
+    const QString compact = QDir::cleanPath(binDir.absoluteFilePath("../scripts"));
+    if (QDir(compact).exists()) return compact;
+    return standard;
+}
+
+bool FlashProgrammer::validateOpenOcdScripts(const FlashOptions &options,
+                                              const QString &targetCfg,
+                                              const QString &scriptsDir,
+                                              QString *error)
+{
+    const QString interfaceCfg = !options.customOpenocdInterfaceCfg.isEmpty()
+        ? options.customOpenocdInterfaceCfg
+        : options.driver == FlashDriverType::OpenOCD_CMSISDAP ? "interface/cmsis-dap.cfg"
+        : options.driver == FlashDriverType::OpenOCD_JLink ? "interface/jlink.cfg"
+        : "interface/stlink.cfg";
+    if (targetCfg.isEmpty()) {
+        if (error) *error = QStringLiteral("此芯片没有已知的 OpenOCD target 配置，请手动指定受支持的 target 脚本。");
+        return false;
+    }
+    if (!QDir(scriptsDir).exists()) {
+        if (error) *error = QStringLiteral("OpenOCD 脚本目录不存在: ") + scriptsDir;
+        return false;
+    }
+    for (const QString &cfg : {interfaceCfg, targetCfg}) {
+        const QString resolved = QFileInfo(cfg).isAbsolute()
+            ? cfg : QDir(scriptsDir).filePath(cfg);
+        if (!QFileInfo(resolved).isFile()) {
+            if (error) *error = QStringLiteral("OpenOCD 脚本不存在: ") + cfg;
+            return false;
+        }
+    }
+    return true;
 }
 
 QStringList FlashProgrammer::openOcdArguments(const QString &firmwarePath,
@@ -224,9 +272,6 @@ bool FlashProgrammer::flashViaOpenOCD(const QString &firmwarePath, const FlashOp
         return false;
     }
 
-    emit flashStarted(QStringLiteral("OpenOCD"));
-    emit flashOutput(QString("====== 启动 OpenOCD 烧录: %1 ======\n").arg(QFileInfo(firmwarePath).fileName()), false);
-
     QString targetCfg;
     if (!options.customOpenocdTargetCfg.isEmpty()) {
         targetCfg = options.customOpenocdTargetCfg;
@@ -235,11 +280,22 @@ bool FlashProgrammer::flashViaOpenOCD(const QString &firmwarePath, const FlashOp
                     STM32ProfileManager::getOpenocdTarget(m_profile.family) : m_profile.openocdTargetCfg;
     }
 
+    QString scriptsDir = m_paths.openocdScriptsDir;
+    if (scriptsDir.isEmpty()) {
+        scriptsDir = resolveOpenOcdScriptsDir(m_paths.openocdPath);
+    }
+    QString preflightError;
+    if (!validateOpenOcdScripts(options, targetCfg, scriptsDir, &preflightError)) {
+        emit flashOutput(QStringLiteral("错误: ") + preflightError + "\n", true);
+        return false;
+    }
+
+    emit flashStarted(QStringLiteral("OpenOCD"));
+    emit flashOutput(QString("====== 启动 OpenOCD 烧录: %1 ======\n").arg(QFileInfo(firmwarePath).fileName()), false);
+
     // 先指定接口及设备序列号，再加载目标脚本。
     QStringList args;
-    if (!m_paths.openocdScriptsDir.isEmpty() && QDir(m_paths.openocdScriptsDir).exists()) {
-        args << "-s" << m_paths.openocdScriptsDir;
-    }
+    args << "-s" << scriptsDir;
 
     args << openOcdArguments(firmwarePath, options, targetCfg);
 

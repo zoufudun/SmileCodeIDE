@@ -39,3 +39,5 @@ SOURCES += \
     UI/STM32WorkbenchWidget.cpp
 
 win32:LIBS += -lsetupapi -lcfgmgr32
+
+RESOURCES += cubemx_linkers.qrc

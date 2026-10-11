@@ -65,6 +65,12 @@ public:
     static bool driverSupportsProbe(FlashDriverType driver, ProbeType probe);
     static bool validTargetAddress(const QString &address);
     static bool driverSupportsMassErase(FlashDriverType driver);
+    static bool validateOpenOcdScripts(const FlashOptions &options, const QString &targetCfg,
+                                       const QString &scriptsDir, QString *error = nullptr);
+    static QString resolveOpenOcdScriptsDir(const QString &openocdPath);
+    static bool validateProbeSelection(const FlashOptions &options,
+                                       const QList<ProbeInfo> &connectedProbes,
+                                       QString *error = nullptr);
 
     // 终止当前烧录
     void cancelFlash();

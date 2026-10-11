@@ -17,6 +17,9 @@ private slots:
     void rejectsUnsafeFlashAddresses();
     void autoSelectsSingleConnectedProbe();
     void generatesValidJLinkDownloadScript();
+    void validatesOpenOcdProbeScripts();
+    void allowsOnlyOneMatchingSeriallessProbe();
+    void resolvesOpenOcdScriptsFromBothLayouts();
 };
 
 void ProbeDetectorTest::recognizesCommonUsbProbes()
@@ -141,6 +144,69 @@ void ProbeDetectorTest::generatesValidJLinkDownloadScript()
     QVERIFY(!script.contains("firmware.bin\", 0x08000000"));
     QVERIFY(script.contains("r\ng\nq\n"));
     QVERIFY(!script.contains("verifybin")); // loadfile verifies internally
+}
+
+void ProbeDetectorTest::validatesOpenOcdProbeScripts()
+{
+    QTemporaryDir temporary(QDir::current().absoluteFilePath("openocd-preflight-XXXXXX"));
+    QVERIFY(temporary.isValid());
+    QVERIFY(QDir().mkpath(temporary.filePath("interface")));
+    QVERIFY(QDir().mkpath(temporary.filePath("target")));
+    const auto write = [](const QString &path) {
+        QFile file(path);
+        return file.open(QIODevice::WriteOnly) && file.write("# test\n") > 0;
+    };
+    QVERIFY(write(temporary.filePath("interface/stlink.cfg")));
+    QVERIFY(write(temporary.filePath("interface/cmsis-dap.cfg")));
+    QVERIFY(write(temporary.filePath("target/stm32h7x.cfg")));
+    FlashOptions options;
+    QString error;
+    options.driver = FlashDriverType::OpenOCD_STLink;
+    QVERIFY(FlashProgrammer::validateOpenOcdScripts(options, "target/stm32h7x.cfg",
+                                                   temporary.path(), &error));
+    options.driver = FlashDriverType::OpenOCD_CMSISDAP;
+    QVERIFY(FlashProgrammer::validateOpenOcdScripts(options, "target/stm32h7x.cfg",
+                                                   temporary.path(), &error));
+    QVERIFY(!FlashProgrammer::validateOpenOcdScripts(options, "target/stm32u3x.cfg",
+                                                    temporary.path(), &error));
+    QVERIFY(error.contains("stm32u3x.cfg"));
+    QVERIFY(STM32ProfileManager::getOpenocdTarget("STM32X9").isEmpty());
+}
+
+void ProbeDetectorTest::allowsOnlyOneMatchingSeriallessProbe()
+{
+    ProbeInfo first;
+    first.type = ProbeType::STLink;
+    first.instanceId = "USB\\VID_0483&PID_3748\\A";
+    ProbeInfo second = first;
+    second.instanceId = "USB\\VID_0483&PID_3748\\B";
+    FlashOptions options;
+    options.driver = FlashDriverType::OpenOCD_STLink;
+    options.probeInstanceId = first.instanceId;
+    QString error;
+    QVERIFY(FlashProgrammer::validateProbeSelection(options, {first}, &error));
+    QVERIFY(!FlashProgrammer::validateProbeSelection(options, {first, second}, &error));
+    QVERIFY(error.contains(QStringLiteral("序列号")));
+}
+
+void ProbeDetectorTest::resolvesOpenOcdScriptsFromBothLayouts()
+{
+    QTemporaryDir temporary(QDir::current().absoluteFilePath("openocd-layout-test-XXXXXX"));
+    QVERIFY(temporary.isValid());
+    const QString bin = temporary.filePath("bin");
+    QVERIFY(QDir().mkpath(bin));
+    const QString executable = QDir(bin).filePath("openocd.exe");
+    const QString standard = temporary.filePath("share/openocd/scripts");
+    const QString compact = temporary.filePath("scripts");
+    QVERIFY(QDir().mkpath(standard));
+    QCOMPARE(QDir::cleanPath(FlashProgrammer::resolveOpenOcdScriptsDir(executable)),
+             QDir::cleanPath(standard));
+    QVERIFY(QDir().rmdir(standard));
+    QVERIFY(QDir().rmdir(temporary.filePath("share/openocd")));
+    QVERIFY(QDir().rmdir(temporary.filePath("share")));
+    QVERIFY(QDir().mkpath(compact));
+    QCOMPARE(QDir::cleanPath(FlashProgrammer::resolveOpenOcdScriptsDir(executable)),
+             QDir::cleanPath(compact));
 }
 
 QTEST_MAIN(ProbeDetectorTest)

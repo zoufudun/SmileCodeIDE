@@ -135,6 +135,8 @@ void STM32ProfileManager::initDatabase()
         p.openocdTargetCfg = "target/stm32h7x.cfg";
         p.jlinkDeviceName = "STM32H743VI";
         p.defaultLdFile = "STM32H743VITx_FLASH.ld";
+        p.linkerResourcePath = ":/stm32/linker/STM32H743VITX_FLASH.ld";
+        p.linkerSha256 = "a80674f7089fed7e7e0924e9f6742d70915cfb259d908a7b8eaa7f4ef4779bcf";
         m_database["STM32H743VI"] = p;
     }
 
@@ -169,28 +171,30 @@ STM32ChipProfile STM32ProfileManager::getProfile(const QString &chipName) const
         return m_database.value(trimmed);
     }
 
-    // 前缀模糊查找
-    for (auto it = m_database.constBegin(); it != m_database.constEnd(); ++it) {
-        if (it.key().startsWith(trimmed) || trimmed.startsWith(it.key())) {
-            return it.value();
-        }
-    }
-
-    // 默认回退为 STM32F103C8
-    return m_database.value("STM32F103C8");
+    return STM32ChipProfile();
 }
 
 QString STM32ProfileManager::getOpenocdTarget(const QString &familyOrChip)
 {
     QString upper = familyOrChip.toUpper();
-    if (upper.contains("F1")) return "target/stm32f1x.cfg";
-    if (upper.contains("F4")) return "target/stm32f4x.cfg";
-    if (upper.contains("F7")) return "target/stm32f7x.cfg";
-    if (upper.contains("H7")) return "target/stm32h7x.cfg";
-    if (upper.contains("G4")) return "target/stm32g4x.cfg";
-    if (upper.contains("G0")) return "target/stm32g0x.cfg";
-    if (upper.contains("L4")) return "target/stm32l4x.cfg";
-    return "target/stm32f1x.cfg";
+    if (upper.startsWith("STM32C0")) return "target/stm32c0x.cfg";
+    if (upper.startsWith("STM32F0")) return "target/stm32f0x.cfg";
+    if (upper.startsWith("STM32F1")) return "target/stm32f1x.cfg";
+    if (upper.startsWith("STM32F2")) return "target/stm32f2x.cfg";
+    if (upper.startsWith("STM32F3")) return "target/stm32f3x.cfg";
+    if (upper.startsWith("STM32F4")) return "target/stm32f4x.cfg";
+    if (upper.startsWith("STM32F7")) return "target/stm32f7x.cfg";
+    if (upper.startsWith("STM32G0")) return "target/stm32g0x.cfg";
+    if (upper.startsWith("STM32G4")) return "target/stm32g4x.cfg";
+    if (upper.startsWith("STM32H7")) return "target/stm32h7x.cfg";
+    if (upper.startsWith("STM32L0")) return "target/stm32l0.cfg";
+    if (upper.startsWith("STM32L1")) return "target/stm32l1.cfg";
+    if (upper.startsWith("STM32L4")) return "target/stm32l4x.cfg";
+    if (upper.startsWith("STM32L5")) return "target/stm32l5x.cfg";
+    if (upper.startsWith("STM32U5")) return "target/stm32u5x.cfg";
+    if (upper.startsWith("STM32WBA")) return "target/stm32wbax.cfg";
+    if (upper.startsWith("STM32WB")) return "target/stm32wbx.cfg";
+    return QString();
 }
 
 QString STM32ProfileManager::generateLinkerScript(const STM32ChipProfile &profile)

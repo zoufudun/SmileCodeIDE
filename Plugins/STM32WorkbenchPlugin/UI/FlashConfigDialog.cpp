@@ -216,7 +216,7 @@ void FlashConfigDialog::updateProbeInfo()
         m_probeInfoLabel->setText(QString("名称: %1\n厂商: %2  ·  VID/PID: %3:%4\nUSB 序列号: %5\n设备 ID: %6")
             .arg(probe.name, probe.manufacturer.isEmpty() ? QStringLiteral("未知") : probe.manufacturer,
                  probe.vendorId, probe.productId,
-                 probe.serial.isEmpty() ? QStringLiteral("未读取到，请手动填写") : probe.serial,
+                 probe.serial.isEmpty() ? QStringLiteral("未读取到；只有一台同类设备时可留空") : probe.serial,
                  probe.instanceId));
         return;
     }
@@ -259,9 +259,13 @@ void FlashConfigDialog::onSaveClicked()
                              QStringLiteral("下载器序列号只能包含字母、数字、点、下划线、冒号和连字符。"));
         return;
     }
-    if (!m_probeCombo->currentData().toString().isEmpty() && serial.isEmpty()) {
+    int compatibleCount = 0;
+    const auto selectedDriver = static_cast<FlashDriverType>(m_driverCombo->currentData().toInt());
+    for (const ProbeInfo &probe : m_probes)
+        if (FlashProgrammer::driverSupportsProbe(selectedDriver, probe.type)) ++compatibleCount;
+    if (!m_probeCombo->currentData().toString().isEmpty() && serial.isEmpty() && compatibleCount > 1) {
         QMessageBox::warning(this, QStringLiteral("缺少序列号"),
-                             QStringLiteral("选定设备没有可用序列号，请手动填写后保存。"));
+                             QStringLiteral("检测到多台同类下载器，请手动填写序列号后保存。"));
         return;
     }
     const QString selectedId = m_probeCombo->currentData().toString();

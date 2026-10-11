@@ -40,6 +40,8 @@ struct STM32ChipProfile {
     QString openocdTargetCfg; // OpenOCD 脚本 如 "target/stm32f1x.cfg"
     QString jlinkDeviceName;  // J-Link 设备标识 如 "STM32F103C8"
     QString defaultLdFile;    // 默认链接脚本文件名
+    QString linkerResourcePath; // 打包的 CubeMX 原版脚本；空值表示尚无审计过的脚本
+    QString linkerSha256; // 内置脚本原始字节的 SHA-256
 };
 
 /**
@@ -53,7 +55,7 @@ public:
     // 获取所有受支持的芯片列表
     QStringList supportedChips() const;
 
-    // 根据芯片名称查询档案（智能模糊匹配）
+    // 根据芯片名称精确查询档案
     STM32ChipProfile getProfile(const QString &chipName) const;
 
     // 自动为给定芯片生成高标准 GCC 链接脚本 (.ld)
