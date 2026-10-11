@@ -4,7 +4,11 @@
 #include <QWidget>
 #include <QWidget>
 #include <QLabel>
+#include <QScreen>
+#include <QGuiApplication>
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
 #include <QDesktopWidget>
+#endif
 #include <QPropertyAnimation>
 #include <QFile>
 #include <QMenu>

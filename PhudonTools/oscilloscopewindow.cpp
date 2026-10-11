@@ -23,6 +23,7 @@
 #include <QPushButton>
 #include <QRadioButton>
 #include <QRandomGenerator>
+#include <QRegularExpression>
 #include <QScrollBar>
 #include <QSettings>
 #include <QSpinBox>
@@ -1141,7 +1142,7 @@ void OscilloscopeWindow::processRawIncomingBytes(const QByteArray &data) {
 
 void OscilloscopeWindow::parseAsciiTextStream(const QString &text) {
   m_currentSimTime += 0.01;
-  QStringList tokens = text.split(QRegExp("[,;\\s]+"), Qt::SkipEmptyParts);
+  QStringList tokens = text.split(QRegularExpression("[,;\\s]+"), Qt::SkipEmptyParts);
   for (int i = 0; i < tokens.size() && i < MAX_CHANNELS; ++i) {
     bool ok = false;
     double val = tokens[i].toDouble(&ok);

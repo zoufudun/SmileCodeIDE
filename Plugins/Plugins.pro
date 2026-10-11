@@ -2,4 +2,5 @@ TEMPLATE = subdirs
 
 SUBDIRS += \
     SignalGeneratorPlugin \
-    TemplatePlugin
+    TemplatePlugin \
+    STM32WorkbenchPlugin

@@ -38,6 +38,12 @@ private slots:
   void onToolsTriggered(QAction *action);
   void onSettingsHelpTriggered(QAction *action);
 
+  // 新架构四大功能视图快捷入口
+  void openSignalPlotView();
+  void openDiagnosticView();
+  void openFlashView();
+  void openAiAssistantView();
+
   void onCanConnected();
   void onCanDisconnected();
   void onCanError(const QString &message);
@@ -46,6 +52,7 @@ private:
   void setupUi();
   void createToolbar();
   QIcon createToolbarIcon(int type);
+  void balanceSplitterSizes();
 
   CanInterface *m_can;
   CanOpenMaster *m_co;

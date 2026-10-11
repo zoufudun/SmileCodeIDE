@@ -59,9 +59,31 @@ struct CanChannelConfig {
 #define CX_USBCAN_E_U        120 // 创芯 USBCAN-E-U
 #define CX_USBCAN_2E_U       121 // 创芯 USBCAN-2E-U
 
+// 扩展新型适配器设备类型常量 (仿真 / Qt 原生插件 / 同星)
+#define CAN_DEV_SIMULATION       9999
+#define CAN_DEV_QT_PEAKCAN       9101
+#define CAN_DEV_QT_VECTORCAN     9102
+#define CAN_DEV_QT_PASSTHRUCAN   9103
+#define CAN_DEV_QT_VIRTUALCAN    9104
+#define CAN_DEV_QT_SYSTECCAN     9105
+#define CAN_DEV_QT_TINYCAN       9106
+#define CAN_DEV_QT_SOCKETCAN     9107
+#define CAN_DEV_TOSUN_TSMASTER   9201
+
+// 接入设备检测信息结构
+struct CanDetectedDevice {
+  quint32 deviceType = 0;
+  int deviceIndex = 0;
+  QString vendor;
+  QString modelName;
+  QString detail;
+  bool isHardware = false; // 是否为检测到的物理硬件接入
+};
+
 // CAN/CAN FD 多驱动通用收发后端（支持周立功 ZLG 与 创芯科技 USBCAN 系列）。
 class CanInterface : public QObject {
   Q_OBJECT
+
 public:
   explicit CanInterface(QObject *parent = nullptr);
   ~CanInterface() override;
@@ -122,6 +144,18 @@ public:
   // 诊断：获取驱动版本和设备状态（需在 open 前调用）
   bool diagnoseDriver(QString *driverVer, QString *deviceName, bool *online) const;
 
+  // 探测当前系统中已接入/可用的硬件与仿真设备
+  QList<CanDetectedDevice> detectConnectedDevices() const;
+
+
+  // 适配器统一管理
+  void setAdapter(class ICanAdapter *adapter);
+  class ICanAdapter *currentAdapter() const;
+  bool openAdapter(const QString &adapterId, const QString &ifaceName = QString());
+
+  static bool isSimulationDevice(quint32 deviceType) { return deviceType == 9999; }
+  static bool isQtPluginDevice(quint32 deviceType) { return deviceType >= 9100 && deviceType <= 9199; }
+
 signals:
   void connected();
   void disconnected();
@@ -131,6 +165,8 @@ signals:
 
 private slots:
   void pollReceive();
+  void onAdapterFrameReceived(const struct CanRawFrame &frame);
+  void onAdapterFrameSent(const struct CanRawFrame &frame);
 
 private:
   bool loadLibrary();
@@ -140,9 +176,12 @@ private:
   Impl *m_d;       // PIMPL
   QTimer *m_timer; // 接收轮询定时器
 
+  class ICanAdapter *m_adapter = nullptr;
   bool m_open = false; // 用于兼容旧的开启状态
   bool m_fdEnabled = false;
   int m_channel = 0;
+  quint32 m_curDeviceType = 0;
+  int m_curDeviceIndex = 0;
   QString m_libError;
   QString m_lastError;
 };

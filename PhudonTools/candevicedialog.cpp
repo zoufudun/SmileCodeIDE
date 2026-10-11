@@ -1,6 +1,8 @@
 #include "candevicedialog.h"
 
 #include <QCheckBox>
+#include <QApplication>
+#include <QClipboard>
 #include <QComboBox>
 #include <QFormLayout>
 #include <QGridLayout>
@@ -19,12 +21,57 @@
 #include <QVBoxLayout>
 #include <QTableWidget>
 #include <QHeaderView>
-#include <QRegExpValidator>
+#include <QRegularExpressionValidator>
+#include <QRegularExpression>
+#include <QListView>
+#include <QStandardItemModel>
+#include <QStackedWidget>
 
 #include "caninterface.h"
 #include "USBCANFD/zlgcan.h"
 
 namespace {
+
+struct DeviceDefinition {
+  QString name;
+  quint32 type;
+  QString vendor;
+};
+
+const QList<DeviceDefinition> kDeviceDefinitions = {
+  // 软件仿真
+  {"🌟 纯软件仿真 (免硬件全流程测试)", CAN_DEV_SIMULATION, "软件仿真"},
+  {"虚拟 CAN 设备 (VirtualUSBCAN)", ZCAN_VIRTUAL_DEVICE, "软件仿真"},
+
+  // 周立功 ZLG
+  {"USBCANFD-200U", ZCAN_USBCANFD_200U, "周立功 ZLG"},
+  {"USBCANFD-100U", ZCAN_USBCANFD_100U, "周立功 ZLG"},
+  {"USBCANFD-MINI", ZCAN_USBCANFD_MINI, "周立功 ZLG"},
+  {"USBCANFD-800U", ZCAN_USBCANFD_800U, "周立功 ZLG"},
+  {"USBCAN-4E-U", ZCAN_USBCAN_4E_U, "周立功 ZLG"},
+  {"USBCAN-2E-U", ZCAN_USBCAN_2E_U, "周立功 ZLG"},
+  {"USBCAN-2", ZCAN_USBCAN2, "周立功 ZLG"},
+  {"USBCAN-1", ZCAN_USBCAN1, "周立功 ZLG"},
+
+  // 创芯科技
+  {"创芯 USBCAN-2C", CX_USBCAN2, "创芯科技"},
+  {"创芯 USBCAN-1C", CX_USBCAN1, "创芯科技"},
+  {"创芯 USBCAN-2E-U", CX_USBCAN_2E_U, "创芯科技"},
+  {"创芯 USBCAN-E-U", CX_USBCAN_E_U, "创芯科技"},
+
+  // Qt SerialBus
+  {"PEAK PCAN 硬件卡 (Qt peakcan)", CAN_DEV_QT_PEAKCAN, "Qt SerialBus"},
+  {"Vector VN 系列 (Qt vectorcan)", CAN_DEV_QT_VECTORCAN, "Qt SerialBus"},
+  {"SAE J2534 PassThru (Qt passthrucan)", CAN_DEV_QT_PASSTHRUCAN, "Qt SerialBus"},
+  {"Qt 虚拟 CAN (Qt virtualcan)", CAN_DEV_QT_VIRTUALCAN, "Qt SerialBus"},
+  {"SYS TEC USB-CAN (Qt systeccan)", CAN_DEV_QT_SYSTECCAN, "Qt SerialBus"},
+  {"MHS TinyCAN (Qt tinycan)", CAN_DEV_QT_TINYCAN, "Qt SerialBus"},
+  {"Linux SocketCAN (Qt socketcan)", CAN_DEV_QT_SOCKETCAN, "Qt SerialBus"},
+
+  // 同星智能
+  {"同星智能 TOSUN (TSMaster)", CAN_DEV_TOSUN_TSMASTER, "同星智能"}
+};
+
 // 动态绘制红-橙色下箭头图标（代表已展开的设备）
 QPixmap drawRedArrowIcon() {
   QPixmap pix(16, 16);
@@ -97,20 +144,21 @@ public:
 
     ctrlLayout->addWidget(new QLabel("模式:"));
     m_modeCombo = new QComboBox();
+    m_modeCombo->setView(new QListView(m_modeCombo));
     m_modeCombo->addItems({"标准帧明确ID", "扩展帧明确ID", "标准帧段ID", "扩展帧段ID"});
     ctrlLayout->addWidget(m_modeCombo);
 
     ctrlLayout->addWidget(new QLabel("起始ID: 0x"));
     m_startIdEdit = new QLineEdit("0");
     m_startIdEdit->setMaxLength(8);
-    m_startIdEdit->setValidator(new QRegExpValidator(QRegExp("[0-9a-fA-F]{1,8}"), this));
+    m_startIdEdit->setValidator(new QRegularExpressionValidator(QRegularExpression("^[0-9a-fA-F]{1,8}$"), this));
     m_startIdEdit->setFixedWidth(70);
     ctrlLayout->addWidget(m_startIdEdit);
 
     ctrlLayout->addWidget(new QLabel("结束ID: 0x"));
     m_endIdEdit = new QLineEdit("0");
     m_endIdEdit->setMaxLength(8);
-    m_endIdEdit->setValidator(new QRegExpValidator(QRegExp("[0-9a-fA-F]{1,8}"), this));
+    m_endIdEdit->setValidator(new QRegularExpressionValidator(QRegularExpression("^[0-9a-fA-F]{1,8}$"), this));
     m_endIdEdit->setFixedWidth(70);
     m_endIdEdit->setEnabled(false);
     ctrlLayout->addWidget(m_endIdEdit);
@@ -269,12 +317,13 @@ public:
   explicit StartChannelDialog(bool fdCapable, int channel, QWidget *parent = nullptr)
       : QDialog(parent), m_fdCapable(fdCapable), m_channel(channel) {
     setWindowTitle("启动");
-    setMinimumSize(420, 500);
+    setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint | Qt::WindowMinMaxButtonsHint);
+    setMinimumSize(440, 520);
     setStyleSheet("");
 
     QVBoxLayout *mainLayout = new QVBoxLayout(this);
     mainLayout->setContentsMargins(20, 15, 20, 15);
-    mainLayout->setSpacing(10);
+    mainLayout->setSpacing(12);
 
     // 波特率计算器按钮
     QHBoxLayout *topLayout = new QHBoxLayout();
@@ -284,106 +333,172 @@ public:
     topLayout->addWidget(btnCalc);
     mainLayout->addLayout(topLayout);
 
-    // 滚动区域放置配置项
-    QScrollArea *scroll = new QScrollArea();
-    scroll->setWidgetResizable(true);
-    scroll->setStyleSheet("QScrollArea { border: 1px solid palette(mid); background: transparent; }");
-
-    QWidget *scrollWidget = new QWidget();
-    scrollWidget->setStyleSheet("QWidget { background: transparent; }");
-    QFormLayout *form = new QFormLayout(scrollWidget);
-    form->setSpacing(10);
-    form->setContentsMargins(15, 15, 15, 15);
-
-    // 协议选择：非 FD 设备仅可选 CAN
+    // 协议选择
+    QFormLayout *protoForm = new QFormLayout();
+    protoForm->setContentsMargins(10, 0, 10, 0);
     m_protocolCombo = new QComboBox();
+    m_protocolCombo->setView(new QListView(m_protocolCombo));
     if (m_fdCapable) {
       m_protocolCombo->addItems({"CAN FD", "CAN"});
     } else {
       m_protocolCombo->addItem("CAN");
       m_protocolCombo->setEnabled(false);
     }
+    protoForm->addRow("协议", m_protocolCombo);
+    mainLayout->addLayout(protoForm);
 
-    m_standardCombo = new QComboBox();
-    m_standardCombo->addItems({"CAN FD ISO", "CAN FD Non-ISO"});
+    // 滚动区域放置具体配置页
+    QScrollArea *scroll = new QScrollArea();
+    scroll->setWidgetResizable(true);
+    scroll->setFrameShape(QFrame::NoFrame);
+    scroll->setStyleSheet("QScrollArea { border: none; background: transparent; }");
 
-    m_accelCombo = new QComboBox();
-    m_accelCombo->addItems({"是", "否"});
+    m_stackedWidget = new QStackedWidget();
+    m_stackedWidget->setStyleSheet("background: transparent;");
 
-    m_abitBaudCombo = new QComboBox();
-    m_abitBaudCombo->addItem("1Mbps 80%", 1000000);
-    m_abitBaudCombo->addItem("800kbps 80%", 800000);
-    m_abitBaudCombo->addItem("500kbps 80%", 500000);
-    m_abitBaudCombo->addItem("250kbps 80%", 250000);
-    m_abitBaudCombo->addItem("125kbps 80%", 125000);
-    m_abitBaudCombo->addItem("100kbps 80%", 100000);
-    m_abitBaudCombo->addItem("50kbps 80%", 50000);
-    m_abitBaudCombo->setCurrentText("500kbps 80%");
+    // ==========================================
+    // 页面 0: 纯 CAN 参数配置页 (只显示 CAN 的配置)
+    // ==========================================
+    m_canPage = new QWidget();
+    m_canPage->setStyleSheet("background: transparent;");
+    QFormLayout *canForm = new QFormLayout(m_canPage);
+    canForm->setSpacing(10);
+    canForm->setContentsMargins(10, 5, 10, 5);
 
-    m_dbitBaudCombo = new QComboBox();
-    m_dbitBaudCombo->addItem("5Mbps 75%", 5000000);
-    m_dbitBaudCombo->addItem("4Mbps 75%", 4000000);
-    m_dbitBaudCombo->addItem("2Mbps 75%", 2000000);
-    m_dbitBaudCombo->addItem("1Mbps 75%", 1000000);
-    m_dbitBaudCombo->setCurrentText("2Mbps 75%");
+    m_canBaudCombo = new QComboBox();
+    m_canBaudCombo->setView(new QListView(m_canBaudCombo));
+    m_canBaudCombo->addItem("1Mbps 80%", 1000000);
+    m_canBaudCombo->addItem("800kbps 80%", 800000);
+    m_canBaudCombo->addItem("500kbps 80%", 500000);
+    m_canBaudCombo->addItem("250kbps 80%", 250000);
+    m_canBaudCombo->addItem("125kbps 80%", 125000);
+    m_canBaudCombo->addItem("100kbps 80%", 100000);
+    m_canBaudCombo->addItem("50kbps 80%", 50000);
+    m_canBaudCombo->addItem("20kbps 80%", 20000);
+    m_canBaudCombo->addItem("10kbps 80%", 10000);
+    m_canBaudCombo->setCurrentText("500kbps 80%");
 
-    m_customBaudEdit = new QLineEdit();
-    m_customBaudEdit->setPlaceholderText("未配置");
+    m_canCustomBaudEdit = new QLineEdit();
+    m_canCustomBaudEdit->setPlaceholderText("未配置");
 
-    m_workModeCombo = new QComboBox();
-    m_workModeCombo->addItems({"正常模式", "只听模式"});
+    m_canWorkModeCombo = new QComboBox();
+    m_canWorkModeCombo->setView(new QListView(m_canWorkModeCombo));
+    m_canWorkModeCombo->addItems({"正常模式", "只听模式"});
 
-    m_terminalResCombo = new QComboBox();
-    m_terminalResCombo->addItems({"使能", "禁用"});
+    m_canTerminalResCombo = new QComboBox();
+    m_canTerminalResCombo->setView(new QListView(m_canTerminalResCombo));
+    m_canTerminalResCombo->addItems({"使能", "禁用"});
 
-    m_reportBusCombo = new QComboBox();
-    m_reportBusCombo->addItems({"禁用", "使能"});
+    m_canRetryCombo = new QComboBox();
+    m_canRetryCombo->setView(new QListView(m_canRetryCombo));
+    m_canRetryCombo->addItem("发送到总线关闭", 1);
+    m_canRetryCombo->addItem("重试3次", 3);
+    m_canRetryCombo->addItem("不重试", 0);
 
-    m_busPeriodEdit = new QLineEdit("100");
+    m_canReportBusCombo = new QComboBox();
+    m_canReportBusCombo->setView(new QListView(m_canReportBusCombo));
+    m_canReportBusCombo->addItems({"禁用", "使能"});
 
-    m_retryCombo = new QComboBox();
-    m_retryCombo->addItem("发送到总线关闭", 1);
-    m_retryCombo->addItem("重试3次", 3);
-    m_retryCombo->addItem("不重试", 0);
+    m_canBusPeriodEdit = new QLineEdit("100");
 
-    // Form rows setup (will inherit the theme's inputs stylesheet)
-    form->addRow("协议", m_protocolCombo);
-    form->addRow("CANFD标准", m_standardCombo);
-    form->addRow("CANFD加速", m_accelCombo);
-    form->addRow("仲裁域波特率", m_abitBaudCombo);
-    form->addRow("数据域波特率", m_dbitBaudCombo);
-    form->addRow("自定义波特率", m_customBaudEdit);
-    form->addRow("工作模式", m_workModeCombo);
-    form->addRow("终端电阻", m_terminalResCombo);
-    form->addRow("上报总线利用率", m_reportBusCombo);
-    form->addRow("总线利用率周期(ms)", m_busPeriodEdit);
-    form->addRow("发送重试", m_retryCombo);
-
-    // 非 FD 设备：隐藏不支持的配置行
-    if (!m_fdCapable) {
-      hideFormRow(form, m_standardCombo);
-      hideFormRow(form, m_accelCombo);
-      hideFormRow(form, m_dbitBaudCombo);
-      hideFormRow(form, m_terminalResCombo);
-      hideFormRow(form, m_reportBusCombo);
-      hideFormRow(form, m_busPeriodEdit);
-      hideFormRow(form, m_retryCombo);
-    }
-
-    scroll->setWidget(scrollWidget);
-    mainLayout->addWidget(scroll);
-
-    // 协议切换联动显示（仅 FD 设备有意义）
+    canForm->addRow("波特率", m_canBaudCombo);
+    canForm->addRow("自定义波特率", m_canCustomBaudEdit);
+    canForm->addRow("工作模式", m_canWorkModeCombo);
     if (m_fdCapable) {
-      auto onProtocolChanged = [this]() {
-        bool isFD = m_protocolCombo->currentText() == "CAN FD";
-        m_standardCombo->setEnabled(isFD);
-        m_accelCombo->setEnabled(isFD);
-        m_dbitBaudCombo->setEnabled(isFD);
-      };
-      connect(m_protocolCombo, &QComboBox::currentTextChanged, this, onProtocolChanged);
-      onProtocolChanged();
+      canForm->addRow("终端电阻", m_canTerminalResCombo);
+      canForm->addRow("发送重试", m_canRetryCombo);
+      canForm->addRow("上报总线利用率", m_canReportBusCombo);
+      canForm->addRow("总线利用率周期(ms)", m_canBusPeriodEdit);
     }
+    m_stackedWidget->addWidget(m_canPage);
+
+    // ==========================================
+    // 页面 1: CAN FD 参数配置页 (显示所有 CANFD 配置)
+    // ==========================================
+    m_fdPage = new QWidget();
+    m_fdPage->setStyleSheet("background: transparent;");
+    QFormLayout *fdForm = new QFormLayout(m_fdPage);
+    fdForm->setSpacing(10);
+    fdForm->setContentsMargins(10, 5, 10, 5);
+
+    m_fdStandardCombo = new QComboBox();
+    m_fdStandardCombo->setView(new QListView(m_fdStandardCombo));
+    m_fdStandardCombo->addItems({"CAN FD ISO", "CAN FD Non-ISO"});
+
+    m_fdAccelCombo = new QComboBox();
+    m_fdAccelCombo->setView(new QListView(m_fdAccelCombo));
+    m_fdAccelCombo->addItems({"是", "否"});
+
+    m_fdAbitBaudCombo = new QComboBox();
+    m_fdAbitBaudCombo->setView(new QListView(m_fdAbitBaudCombo));
+    m_fdAbitBaudCombo->addItem("1Mbps 80%", 1000000);
+    m_fdAbitBaudCombo->addItem("800kbps 80%", 800000);
+    m_fdAbitBaudCombo->addItem("500kbps 80%", 500000);
+    m_fdAbitBaudCombo->addItem("250kbps 80%", 250000);
+    m_fdAbitBaudCombo->addItem("125kbps 80%", 125000);
+    m_fdAbitBaudCombo->addItem("100kbps 80%", 100000);
+    m_fdAbitBaudCombo->addItem("50kbps 80%", 50000);
+    m_fdAbitBaudCombo->setCurrentText("500kbps 80%");
+
+    m_fdDbitBaudCombo = new QComboBox();
+    m_fdDbitBaudCombo->setView(new QListView(m_fdDbitBaudCombo));
+    m_fdDbitBaudCombo->addItem("5Mbps 75%", 5000000);
+    m_fdDbitBaudCombo->addItem("4Mbps 75%", 4000000);
+    m_fdDbitBaudCombo->addItem("2Mbps 75%", 2000000);
+    m_fdDbitBaudCombo->addItem("1Mbps 75%", 1000000);
+    m_fdDbitBaudCombo->setCurrentText("2Mbps 75%");
+
+    m_fdCustomBaudEdit = new QLineEdit();
+    m_fdCustomBaudEdit->setPlaceholderText("未配置");
+
+    m_fdWorkModeCombo = new QComboBox();
+    m_fdWorkModeCombo->setView(new QListView(m_fdWorkModeCombo));
+    m_fdWorkModeCombo->addItems({"正常模式", "只听模式"});
+
+    m_fdTerminalResCombo = new QComboBox();
+    m_fdTerminalResCombo->setView(new QListView(m_fdTerminalResCombo));
+    m_fdTerminalResCombo->addItems({"使能", "禁用"});
+
+    m_fdRetryCombo = new QComboBox();
+    m_fdRetryCombo->setView(new QListView(m_fdRetryCombo));
+    m_fdRetryCombo->addItem("发送到总线关闭", 1);
+    m_fdRetryCombo->addItem("重试3次", 3);
+    m_fdRetryCombo->addItem("不重试", 0);
+
+    m_fdReportBusCombo = new QComboBox();
+    m_fdReportBusCombo->setView(new QListView(m_fdReportBusCombo));
+    m_fdReportBusCombo->addItems({"禁用", "使能"});
+
+    m_fdBusPeriodEdit = new QLineEdit("100");
+
+    fdForm->addRow("CANFD标准", m_fdStandardCombo);
+    fdForm->addRow("CANFD加速", m_fdAccelCombo);
+    fdForm->addRow("仲裁域波特率", m_fdAbitBaudCombo);
+    fdForm->addRow("数据域波特率", m_fdDbitBaudCombo);
+    fdForm->addRow("自定义波特率", m_fdCustomBaudEdit);
+    fdForm->addRow("工作模式", m_fdWorkModeCombo);
+    fdForm->addRow("终端电阻", m_fdTerminalResCombo);
+    fdForm->addRow("发送重试", m_fdRetryCombo);
+    fdForm->addRow("上报总线利用率", m_fdReportBusCombo);
+    fdForm->addRow("总线利用率周期(ms)", m_fdBusPeriodEdit);
+
+    m_stackedWidget->addWidget(m_fdPage);
+
+    // 协议联动切换
+    auto switchProtocol = [this](const QString &proto) {
+      if (proto == "CAN FD" && m_fdCapable) {
+        m_stackedWidget->setCurrentWidget(m_fdPage);
+      } else {
+        m_stackedWidget->setCurrentWidget(m_canPage);
+      }
+      this->adjustSize();
+    };
+
+    connect(m_protocolCombo, &QComboBox::currentTextChanged, this, switchProtocol);
+    switchProtocol(m_protocolCombo->currentText());
+
+    scroll->setWidget(m_stackedWidget);
+    mainLayout->addWidget(scroll);
 
     // 滤波设置区域
     QHBoxLayout *filterLayout = new QHBoxLayout();
@@ -428,23 +543,43 @@ public:
 
   CanChannelConfig getConfig() const {
     CanChannelConfig cfg;
-    cfg.isFd = m_fdCapable && m_protocolCombo->currentText() == "CAN FD";
-    cfg.isIso = m_standardCombo->currentText() == "CAN FD ISO";
-    cfg.enableBrs = m_accelCombo->currentText() == "是";
+    cfg.isFd = m_fdCapable && (m_protocolCombo->currentText() == "CAN FD");
+    if (cfg.isFd) {
+      cfg.isIso = m_fdStandardCombo->currentText() == "CAN FD ISO";
+      cfg.enableBrs = m_fdAccelCombo->currentText() == "是";
 
-    QString customBaud = m_customBaudEdit->text().trimmed();
-    if (!customBaud.isEmpty()) {
-      cfg.abitBaud = customBaud.toInt();
+      QString customBaud = m_fdCustomBaudEdit->text().trimmed();
+      if (!customBaud.isEmpty()) {
+        cfg.abitBaud = customBaud.toInt();
+      } else {
+        cfg.abitBaud = m_fdAbitBaudCombo->currentData().toInt();
+      }
+
+      cfg.dbitBaud = m_fdDbitBaudCombo->currentData().toInt();
+      cfg.mode = m_fdWorkModeCombo->currentText() == "只听模式" ? CanMode::ListenOnly : CanMode::Normal;
+      cfg.terminalRes = m_fdTerminalResCombo->currentText() == "使能";
+      cfg.reportBusUsage = m_fdReportBusCombo->currentText() == "使能";
+      cfg.busUsagePeriod = m_fdBusPeriodEdit->text().toInt();
+      cfg.retrySend = m_fdRetryCombo->currentData().toInt();
     } else {
-      cfg.abitBaud = m_abitBaudCombo->currentData().toInt();
+      cfg.isIso = false;
+      cfg.enableBrs = false;
+
+      QString customBaud = m_canCustomBaudEdit->text().trimmed();
+      if (!customBaud.isEmpty()) {
+        cfg.abitBaud = customBaud.toInt();
+      } else {
+        cfg.abitBaud = m_canBaudCombo->currentData().toInt();
+      }
+
+      cfg.dbitBaud = 0;
+      cfg.mode = m_canWorkModeCombo->currentText() == "只听模式" ? CanMode::ListenOnly : CanMode::Normal;
+      cfg.terminalRes = m_canTerminalResCombo->currentText() == "使能";
+      cfg.reportBusUsage = m_canReportBusCombo->currentText() == "使能";
+      cfg.busUsagePeriod = m_canBusPeriodEdit->text().toInt();
+      cfg.retrySend = m_canRetryCombo->currentData().toInt();
     }
 
-    cfg.dbitBaud = m_dbitBaudCombo->currentData().toInt();
-    cfg.mode = m_workModeCombo->currentText() == "只听模式" ? CanMode::ListenOnly : CanMode::Normal;
-    cfg.terminalRes = m_terminalResCombo->currentText() == "使能";
-    cfg.reportBusUsage = m_reportBusCombo->currentText() == "使能";
-    cfg.busUsagePeriod = m_busPeriodEdit->text().toInt();
-    cfg.retrySend = m_retryCombo->currentData().toInt();
     cfg.enableFilter = m_filterCheck->isChecked();
     return cfg;
   }
@@ -452,28 +587,35 @@ public:
   QList<CanFilterRule> getFilterRules() const { return m_tempRules; }
 
 private:
-  // 隐藏 QFormLayout 中的一行（label + widget）
-  static void hideFormRow(QFormLayout *form, QWidget *field) {
-    if (QLabel *label = qobject_cast<QLabel *>(form->labelForField(field))) {
-      label->setVisible(false);
-    }
-    field->setVisible(false);
-  }
-
   bool m_fdCapable;
   int m_channel;
   QList<CanFilterRule> m_tempRules;
   QComboBox *m_protocolCombo;
-  QComboBox *m_standardCombo;
-  QComboBox *m_accelCombo;
-  QComboBox *m_abitBaudCombo;
-  QComboBox *m_dbitBaudCombo;
-  QLineEdit *m_customBaudEdit;
-  QComboBox *m_workModeCombo;
-  QComboBox *m_terminalResCombo;
-  QComboBox *m_reportBusCombo;
-  QLineEdit *m_busPeriodEdit;
-  QComboBox *m_retryCombo;
+  QStackedWidget *m_stackedWidget;
+
+  // 纯 CAN 配置组件
+  QWidget *m_canPage;
+  QComboBox *m_canBaudCombo;
+  QLineEdit *m_canCustomBaudEdit;
+  QComboBox *m_canWorkModeCombo;
+  QComboBox *m_canTerminalResCombo;
+  QComboBox *m_canRetryCombo;
+  QComboBox *m_canReportBusCombo;
+  QLineEdit *m_canBusPeriodEdit;
+
+  // CAN FD 配置组件
+  QWidget *m_fdPage;
+  QComboBox *m_fdStandardCombo;
+  QComboBox *m_fdAccelCombo;
+  QComboBox *m_fdAbitBaudCombo;
+  QComboBox *m_fdDbitBaudCombo;
+  QLineEdit *m_fdCustomBaudEdit;
+  QComboBox *m_fdWorkModeCombo;
+  QComboBox *m_fdTerminalResCombo;
+  QComboBox *m_fdRetryCombo;
+  QComboBox *m_fdReportBusCombo;
+  QLineEdit *m_fdBusPeriodEdit;
+
   QCheckBox *m_filterCheck;
   QPushButton *m_filterSetupBtn;
 };
@@ -489,71 +631,247 @@ CanDeviceDialog::CanDeviceDialog(CanInterface *can, QWidget *parent)
 
 void CanDeviceDialog::setupUi() {
   setWindowTitle("设备管理");
-  setMinimumSize(680, 400);
+  setWindowFlags(Qt::Window | Qt::WindowMinMaxButtonsHint | Qt::WindowCloseButtonHint);
+  setMinimumSize(960, 580);
+  resize(1120, 680);
   setStyleSheet("");
 
   QVBoxLayout *mainLayout = new QVBoxLayout(this);
   mainLayout->setContentsMargins(15, 15, 15, 15);
-  mainLayout->setSpacing(15);
+  mainLayout->setSpacing(10);
 
-  // 顶部配置栏 (类型, 索引, 打开设备, 云设备, 关闭窗口)
-  QHBoxLayout *topPanel = new QHBoxLayout();
-  topPanel->setSpacing(10);
+  // 第一行: 设备选择与主连接操作
+  QHBoxLayout *devRow = new QHBoxLayout();
+  devRow->setSpacing(8);
 
-  topPanel->addWidget(new QLabel("类型"));
+  devRow->addWidget(new QLabel("厂商:"));
+  m_vendorFilterCombo = new QComboBox();
+  m_vendorFilterCombo->setView(new QListView(m_vendorFilterCombo));
+  m_vendorFilterCombo->addItems({"全部厂商", "软件仿真", "周立功 ZLG", "创芯科技", "Qt SerialBus", "同星智能"});
+  m_vendorFilterCombo->setMinimumWidth(110);
+  devRow->addWidget(m_vendorFilterCombo);
+
+  devRow->addWidget(new QLabel("搜索:"));
+  m_searchEdit = new QLineEdit();
+  m_searchEdit->setPlaceholderText("型号或接口名称");
+  m_searchEdit->setClearButtonEnabled(true);
+  m_searchEdit->setMinimumWidth(125);
+  m_searchEdit->setMaximumWidth(180);
+  devRow->addWidget(m_searchEdit);
+
+  devRow->addWidget(new QLabel("型号:"));
   m_deviceTypeCombo = new QComboBox();
-  m_deviceTypeCombo->addItem("创芯 USBCAN-2C", CX_USBCAN2);
-  m_deviceTypeCombo->addItem("创芯 USBCAN-1C", CX_USBCAN1);
-  m_deviceTypeCombo->addItem("创芯 USBCAN-2E-U", CX_USBCAN_2E_U);
-  m_deviceTypeCombo->addItem("创芯 USBCAN-E-U", CX_USBCAN_E_U);
-  m_deviceTypeCombo->addItem("USBCANFD-200U", ZCAN_USBCANFD_200U);
-  m_deviceTypeCombo->addItem("USBCANFD-100U", ZCAN_USBCANFD_100U);
-  m_deviceTypeCombo->addItem("USBCANFD-MINI", ZCAN_USBCANFD_MINI);
-  m_deviceTypeCombo->addItem("USBCANFD-800U", ZCAN_USBCANFD_800U);
-  m_deviceTypeCombo->addItem("USBCAN-4E-U", ZCAN_USBCAN_4E_U);
-  m_deviceTypeCombo->addItem("USBCAN-2E-U", ZCAN_USBCAN_2E_U);
-  m_deviceTypeCombo->addItem("USBCAN-2", ZCAN_USBCAN2);
-  m_deviceTypeCombo->addItem("USBCAN-1", ZCAN_USBCAN1);
-  m_deviceTypeCombo->addItem("虚拟 CAN 设备", ZCAN_VIRTUAL_DEVICE);
-  m_deviceTypeCombo->setStyleSheet("QComboBox { min-width: 140px; }");
-  topPanel->addWidget(m_deviceTypeCombo);
+  m_deviceTypeCombo->setView(new QListView(m_deviceTypeCombo));
+  m_deviceTypeCombo->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+  m_deviceTypeCombo->setMinimumWidth(220);
+  devRow->addWidget(m_deviceTypeCombo, 1);
 
-  topPanel->addWidget(new QLabel("索引"));
+  devRow->addWidget(new QLabel("索引:"));
   m_deviceIndexSpin = new QSpinBox();
   m_deviceIndexSpin->setRange(0, 7);
-  m_deviceIndexSpin->setStyleSheet("QSpinBox { min-width: 50px; }");
-  topPanel->addWidget(m_deviceIndexSpin);
-
-  topPanel->addSpacing(10);
+  m_deviceIndexSpin->setFixedWidth(50);
+  devRow->addWidget(m_deviceIndexSpin);
 
   m_openButton = new QPushButton("打开设备");
+  m_openButton->setMinimumWidth(85);
+  devRow->addWidget(m_openButton);
+
+  m_detectButton = new QPushButton("检测接入设备");
+  m_detectButton->setMinimumWidth(105);
+  devRow->addWidget(m_detectButton);
+
+  mainLayout->addLayout(devRow);
+
+  // 第二行: 工具操作栏
+  QHBoxLayout *toolRow = new QHBoxLayout();
+  toolRow->setSpacing(8);
+
+  m_refreshButton = new QPushButton("刷新");
+  m_refreshButton->setMinimumWidth(60);
+  toolRow->addWidget(m_refreshButton);
+
+  m_expandButton = new QPushButton("全部展开");
+  m_expandButton->setMinimumWidth(75);
+  toolRow->addWidget(m_expandButton);
+
+  m_collapseButton = new QPushButton("全部收起");
+  m_collapseButton->setMinimumWidth(75);
+  toolRow->addWidget(m_collapseButton);
+
+  m_copyConfigButton = new QPushButton("复制配置");
+  m_copyConfigButton->setMinimumWidth(75);
+  toolRow->addWidget(m_copyConfigButton);
+
   m_cloudButton = new QPushButton("云设备");
+  m_cloudButton->setMinimumWidth(65);
+  toolRow->addWidget(m_cloudButton);
+
+  toolRow->addStretch();
+
   m_closeButton = new QPushButton("关闭窗口");
+  m_closeButton->setMinimumWidth(75);
+  toolRow->addWidget(m_closeButton);
 
-  topPanel->addWidget(m_openButton);
-  topPanel->addWidget(m_cloudButton);
-  topPanel->addStretch();
-  topPanel->addWidget(m_closeButton);
+  mainLayout->addLayout(toolRow);
 
-  mainLayout->addLayout(topPanel);
+  // 接入设备实时检测提示条
+  m_detectBannerLabel = new QLabel();
+  m_detectBannerLabel->setWordWrap(true);
+  mainLayout->addWidget(m_detectBannerLabel);
+
+  m_summaryLabel = new QLabel();
+  m_summaryLabel->setStyleSheet("color: palette(mid); padding: 2px 4px;");
+  mainLayout->addWidget(m_summaryLabel);
 
   // 中部 QTreeWidget 视图列表
   m_deviceTree = new QTreeWidget();
   m_deviceTree->setColumnCount(2);
-  m_deviceTree->setHeaderHidden(true);
-  m_deviceTree->setColumnWidth(0, 240);
-  m_deviceTree->setColumnWidth(1, 400);
+  m_deviceTree->setHeaderLabels({"设备目录（按厂商分组）", "状态与操作"});
+  m_deviceTree->header()->setSectionResizeMode(0, QHeaderView::Interactive);
+  m_deviceTree->header()->setSectionResizeMode(1, QHeaderView::Stretch);
+  m_deviceTree->setColumnWidth(0, 360);
   m_deviceTree->setIndentation(20);
-  m_deviceTree->setStyleSheet(
-      "QTreeWidget::item { height: 38px; }"
-  );
-  
+  m_deviceTree->setStyleSheet("QTreeWidget::item { height: 36px; }");
   mainLayout->addWidget(m_deviceTree);
+
+  // 按照厂商分类填充型号下拉列表，并自动检测当前接入设备
+  populateDeviceTypeCombo(0);
+  detectAndPromptDevices(true);
 
   // 绑定连接
   connect(m_openButton, &QPushButton::clicked, this, &CanDeviceDialog::onOpenDeviceClicked);
+  connect(m_detectButton, &QPushButton::clicked, this, &CanDeviceDialog::onDetectDevicesClicked);
   connect(m_cloudButton, &QPushButton::clicked, this, &CanDeviceDialog::onCloudDeviceClicked);
+  connect(m_refreshButton, &QPushButton::clicked, this, &CanDeviceDialog::onRefreshClicked);
+  connect(m_expandButton, &QPushButton::clicked, this, &CanDeviceDialog::onExpandAllClicked);
+  connect(m_collapseButton, &QPushButton::clicked, this, &CanDeviceDialog::onCollapseAllClicked);
+  connect(m_copyConfigButton, &QPushButton::clicked, this, &CanDeviceDialog::onCopyConfigClicked);
+  connect(m_deviceTree, &QTreeWidget::itemDoubleClicked, this, &CanDeviceDialog::onTreeDeviceActivated);
+  connect(m_searchEdit, &QLineEdit::textChanged, this, &CanDeviceDialog::onSearchTextChanged);
+  connect(m_vendorFilterCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &CanDeviceDialog::onVendorFilterChanged);
   connect(m_closeButton, &QPushButton::clicked, this, &QWidget::close);
+}
+
+void CanDeviceDialog::populateDeviceTypeCombo(int vendorFilterIdx) {
+  const quint32 previousType = m_deviceTypeCombo->currentData().toUInt();
+  QStandardItemModel *model = new QStandardItemModel(m_deviceTypeCombo);
+
+  QString targetVendor = "全部厂商";
+  if (vendorFilterIdx > 0 && vendorFilterIdx < m_vendorFilterCombo->count()) {
+    targetVendor = m_vendorFilterCombo->itemText(vendorFilterIdx);
+  }
+
+  QStringList vendors;
+  if (targetVendor == "全部厂商") {
+    vendors << "软件仿真" << "周立功 ZLG" << "创芯科技" << "Qt SerialBus" << "同星智能";
+  } else {
+    vendors << targetVendor;
+  }
+
+  QList<CanDetectedDevice> detected = m_can->detectConnectedDevices();
+  QSet<quint32> detectedHwTypes;
+  for (const auto &d : detected) {
+    if (d.isHardware) {
+      detectedHwTypes.insert(d.deviceType);
+    }
+  }
+
+  int selectIndex = -1;
+  int currentItemIndex = 0;
+
+  for (const QString &v : vendors) {
+    // 厂商分类标题项（不可选中、不可高亮，充当分类 Header）
+    QStandardItem *headerItem = new QStandardItem(QString("── %1 ──").arg(v));
+    headerItem->setSelectable(false);
+    headerItem->setEnabled(false);
+    QFont font = headerItem->font();
+    font.setBold(true);
+    headerItem->setFont(font);
+    headerItem->setForeground(QBrush(QColor("#10B981")));
+    model->appendRow(headerItem);
+    ++currentItemIndex;
+
+    for (const auto &dev : kDeviceDefinitions) {
+      if (dev.vendor != v) continue;
+
+      QString displayName = "   " + dev.name;
+      if (detectedHwTypes.contains(dev.type)) {
+        displayName += "  [✔ 已接入]";
+      }
+
+      QStandardItem *item = new QStandardItem(displayName);
+      item->setData(dev.type, Qt::UserRole);
+      if (detectedHwTypes.contains(dev.type)) {
+        item->setForeground(QBrush(QColor("#10B981")));
+        QFont itemFont = item->font();
+        itemFont.setBold(true);
+        item->setFont(itemFont);
+      }
+      model->appendRow(item);
+
+      if (dev.type == previousType) {
+        selectIndex = currentItemIndex;
+      }
+      ++currentItemIndex;
+    }
+  }
+
+  m_deviceTypeCombo->setModel(model);
+  if (selectIndex >= 0) {
+    m_deviceTypeCombo->setCurrentIndex(selectIndex);
+  } else {
+    // 默认选择第一个可选项（跳过分类标题）
+    for (int i = 0; i < model->rowCount(); ++i) {
+      if (!model->item(i)->data(Qt::UserRole).isNull()) {
+        m_deviceTypeCombo->setCurrentIndex(i);
+        break;
+      }
+    }
+  }
+}
+
+void CanDeviceDialog::detectAndPromptDevices(bool autoSelectFirstHardware) {
+  QList<CanDetectedDevice> detected = m_can->detectConnectedDevices();
+
+  CanDetectedDevice firstHw;
+  bool hasHw = false;
+  for (const auto &d : detected) {
+    if (d.isHardware) {
+      firstHw = d;
+      hasHw = true;
+      break;
+    }
+  }
+
+  if (m_can->isDeviceOpen()) {
+    QString hw, fw, dr, lib, serial, typeStr;
+    int canNum = 0;
+    m_can->getDeviceInformation(&hw, &fw, &dr, &lib, &canNum, &serial, &typeStr);
+    if (typeStr.isEmpty()) typeStr = m_deviceTypeCombo->currentText().trimmed();
+    m_detectBannerLabel->setText(QString("🟢 <b>设备已在线连接</b>：【%1 (设备%2)】 硬件: %3 · 固件: %4 · 驱动: %5 · 序列号: %6 · 运行路数: %7 路")
+        .arg(typeStr).arg(m_can->deviceIndex()).arg(hw).arg(fw).arg(dr).arg(serial).arg(canNum));
+    m_detectBannerLabel->setStyleSheet("color: #10B981; font-size: 12px; padding: 6px 10px; border: 1px solid #10B981; border-radius: 4px; background: rgba(16, 185, 129, 0.08);");
+    return;
+  }
+
+  if (hasHw) {
+    m_detectBannerLabel->setText(QString("🟢 <b>已检测到接入的 CAN 硬件卡</b>：【%1】（%2），已为您自动定位选中该型号，点击<b>[打开设备]</b>即可快速连接！")
+        .arg(firstHw.modelName).arg(firstHw.detail));
+    m_detectBannerLabel->setStyleSheet("color: #10B981; font-size: 12px; padding: 6px 10px; border: 1px solid #10B981; border-radius: 4px; background: rgba(16, 185, 129, 0.08);");
+
+    if (autoSelectFirstHardware) {
+      for (int i = 0; i < m_deviceTypeCombo->count(); ++i) {
+        if (m_deviceTypeCombo->itemData(i).toUInt() == firstHw.deviceType) {
+          m_deviceTypeCombo->setCurrentIndex(i);
+          break;
+        }
+      }
+      m_deviceIndexSpin->setValue(firstHw.deviceIndex);
+    }
+  } else {
+    m_detectBannerLabel->setText(QString("💡 <b>未检测到接入的物理 CAN 硬件</b>，已为您就绪【🌟 纯软件仿真模式】，免硬件全流程收发与测试！"));
+    m_detectBannerLabel->setStyleSheet("color: #F59E0B; font-size: 12px; padding: 6px 10px; border: 1px solid #F59E0B; border-radius: 4px; background: rgba(245, 158, 11, 0.08);");
+  }
 }
 
 void CanDeviceDialog::refreshDeviceTree() {
@@ -567,12 +885,56 @@ void CanDeviceDialog::refreshDeviceTree() {
   m_deviceInfoButton = nullptr;
 
   const bool devOpen = m_can->isDeviceOpen();
-  m_openButton->setText(devOpen ? "设备已打开" : "打开设备");
-  m_openButton->setEnabled(!devOpen);
+  m_openButton->setText(devOpen ? "关闭设备" : "打开设备");
+  m_openButton->setEnabled(true);
   m_deviceTypeCombo->setEnabled(!devOpen);
   m_deviceIndexSpin->setEnabled(!devOpen);
 
+  // 获取已检测到的硬件列表
+  QList<CanDetectedDevice> detected = m_can->detectConnectedDevices();
+  QSet<quint32> detectedHwTypes;
+  for (const auto &d : detected) {
+    if (d.isHardware) {
+      detectedHwTypes.insert(d.deviceType);
+    }
+  }
+
+  // 始终显示完整型号目录，设备未连接时也能检索和选择型号。
+  QMap<QString, QTreeWidgetItem *> vendorItems;
+  int visibleDevices = 0;
+  for (const auto &dev : kDeviceDefinitions) {
+    const QString name = dev.name;
+    const quint32 type = dev.type;
+    const QString vendor = dev.vendor;
+    if (!deviceMatchesFilter(vendor, name)) continue;
+    QTreeWidgetItem *vendorItem = vendorItems.value(vendor, nullptr);
+    if (!vendorItem) {
+      vendorItem = new QTreeWidgetItem(m_deviceTree);
+      vendorItem->setText(0, vendor);
+      vendorItem->setText(1, "");
+      vendorItem->setFont(0, QFont("Microsoft YaHei", 10, QFont::Bold));
+      vendorItems.insert(vendor, vendorItem);
+    }
+    QTreeWidgetItem *item = new QTreeWidgetItem(vendorItem);
+    item->setText(0, name);
+    item->setData(0, Qt::UserRole, type);
+
+    if (detectedHwTypes.contains(type)) {
+      item->setText(1, "✔ [已检测到接入]");
+      item->setForeground(1, QBrush(QColor("#10B981")));
+    } else if (type == CAN_DEV_SIMULATION) {
+      item->setText(1, "就绪可用");
+      item->setForeground(1, QBrush(QColor("#00E5FF")));
+    } else {
+      item->setText(1, "未连接");
+      item->setForeground(1, QBrush(QColor("#8a8f98")));
+    }
+    ++visibleDevices;
+  }
+
   if (!devOpen) {
+    updateSummary(kDeviceDefinitions.count(), visibleDevices, 0);
+    m_deviceTree->expandAll();
     return;
   }
 
@@ -581,18 +943,42 @@ void CanDeviceDialog::refreshDeviceTree() {
   int canNum = 0;
   const bool infoOk = m_can->getDeviceInformation(&hw, &fw, &dr, &lib, &canNum, &serial, &typeStr);
   if (canNum <= 0) {
-    // 极端兜底：确保至少显示设备节点
     canNum = 2;
   }
   if (typeStr.isEmpty()) {
-    typeStr = m_deviceTypeCombo->currentText();
+    typeStr = m_deviceTypeCombo->currentText().trimmed();
   }
-  Q_UNUSED(infoOk);  // 返回值仅用于日志/诊断，通道数与名称已保证有效
+  Q_UNUSED(infoOk);
 
-  // 2. 创建设备节点
-  QTreeWidgetItem *devItem = new QTreeWidgetItem(m_deviceTree);
-  devItem->setText(0, QString("%1 设备%2").arg(typeStr).arg(m_deviceIndexSpin->value()));
+  // 2. 将当前连接设备挂入对应厂商分组
+  const quint32 currentType = m_can->deviceType();
+  const QString currentName = m_deviceTypeCombo->currentText().trimmed();
+  const QString currentVendor = vendorForDevice(currentName, currentType);
+  QTreeWidgetItem *vendorItem = vendorItems.value(currentVendor, nullptr);
+  if (!vendorItem) {
+    vendorItem = new QTreeWidgetItem(m_deviceTree);
+    vendorItem->setText(0, currentVendor);
+    vendorItems.insert(currentVendor, vendorItem);
+  }
+  QTreeWidgetItem *devItem = nullptr;
+  for (int i = 0; i < vendorItem->childCount(); ++i) {
+    if (vendorItem->child(i)->data(0, Qt::UserRole).toUInt() == currentType) {
+      devItem = vendorItem->child(i);
+      break;
+    }
+  }
+  if (!devItem) {
+    devItem = new QTreeWidgetItem(vendorItem);
+    devItem->setData(0, Qt::UserRole, currentType);
+  }
+
+  // 【核心修复图1】：清空 column 1 文本，将状态移至 column 0，防止文字从停止按钮底部/间隙穿透！
+  devItem->setText(0, QString("%1  设备%2  [在线 · %3 路通道]").arg(typeStr).arg(m_can->deviceIndex()).arg(canNum));
   devItem->setIcon(0, drawRedArrowIcon());
+  devItem->setText(1, QString()); // 确保 column 1 无文本，完全由 devBtnWidget 承载
+  devItem->setForeground(0, QBrush(QColor("#10B981")));
+  devItem->setToolTip(0, QString("硬件型号: %1\n硬件版本: %2\n固件版本: %3\n驱动版本: %4\n动态库: %5\n序列号: %6\n通道数量: %7 路")
+                             .arg(typeStr).arg(hw).arg(fw).arg(dr).arg(lib).arg(serial).arg(canNum));
 
   // 为设备节点提供：启动、停止、关闭设备、设备信息 按钮
   QWidget *devBtnWidget = new QWidget();
@@ -622,11 +1008,19 @@ void CanDeviceDialog::refreshDeviceTree() {
   connect(m_deviceCloseButton, &QPushButton::clicked, this, &CanDeviceDialog::onCloseDeviceClicked);
   connect(m_deviceInfoButton, &QPushButton::clicked, this, &CanDeviceDialog::onShowDeviceInfoClicked);
 
+  // 展示已读取的设备版本信息子节点
+  QTreeWidgetItem *infoNode = new QTreeWidgetItem(devItem);
+  infoNode->setText(0, QString("📋 详细信息: 固件 %1 · 驱动 %2 · 序列号 %3").arg(fw).arg(dr).arg(serial));
+  infoNode->setText(1, QString("硬件: %1 · 动态库: %2").arg(hw).arg(lib));
+  infoNode->setForeground(0, QBrush(QColor("#38BDF8")));
+  infoNode->setForeground(1, QBrush(QColor("#94A9C9")));
+
   // 3. 创建通道子节点
   for (int i = 0; i < canNum; ++i) {
     QTreeWidgetItem *chanItem = new QTreeWidgetItem(devItem);
     chanItem->setText(0, QString("通道%1").arg(i));
     chanItem->setIcon(0, drawGreyDotIcon());
+    chanItem->setText(1, QString()); // 确保 column 1 无文字
 
     QWidget *chanBtnWidget = new QWidget();
     QHBoxLayout *chanBtnLayout = new QHBoxLayout(chanBtnWidget);
@@ -657,16 +1051,31 @@ void CanDeviceDialog::refreshDeviceTree() {
     connect(btnFilter, &QPushButton::clicked, this, [this, i]() { onFilterSettingsClicked(i); });
   }
 
+  m_deviceTree->expandItem(vendorItem);
   m_deviceTree->expandItem(devItem);
+  int runningChannels = 0;
+  for (int i = 0; i < canNum; ++i) {
+    if (m_can->isChannelRunning(i)) ++runningChannels;
+  }
+  updateSummary(kDeviceDefinitions.count(), visibleDevices, runningChannels);
   updateButtonStates();
 }
 
 void CanDeviceDialog::onOpenDeviceClicked() {
+  if (m_can->isDeviceOpen()) {
+    onCloseDeviceClicked();
+    return;
+  }
   const quint32 type = static_cast<quint32>(m_deviceTypeCombo->currentData().toUInt());
   const int index = m_deviceIndexSpin->value();
 
   if (m_can->openDevice(type, index)) {
+    // 立即读取设备信息并更新提示与树
+    QString hw, fw, dr, lib, serial, typeStr;
+    int canNum = 0;
+    m_can->getDeviceInformation(&hw, &fw, &dr, &lib, &canNum, &serial, &typeStr);
     refreshDeviceTree();
+    detectAndPromptDevices(false);
   } else {
     QString errDetail = m_can->lastError();
     if (errDetail.isEmpty()) {
@@ -679,12 +1088,13 @@ void CanDeviceDialog::onOpenDeviceClicked() {
 void CanDeviceDialog::onCloseDeviceClicked() {
   m_can->closeDevice();
   refreshDeviceTree();
+  detectAndPromptDevices(false);
 }
 
 void CanDeviceDialog::onStartChannelClicked(int channel) {
   const quint32 devType = static_cast<quint32>(m_deviceTypeCombo->currentData().toUInt());
   StartChannelDialog dlg(CanInterface::isDeviceFdCapable(devType), channel, this);
-  QString currentQss = getParentStyleSheet(this);
+  QString currentQss = !m_currentStyle.isEmpty() ? m_currentStyle : getParentStyleSheet(this);
   if (!currentQss.isEmpty()) {
     dlg.setStyleSheet(currentQss);
   }
@@ -708,7 +1118,7 @@ void CanDeviceDialog::onStopChannelClicked(int channel) {
 void CanDeviceDialog::onFilterSettingsClicked(int channel) {
   QList<CanFilterRule> rules = m_can->channelFilters(channel);
   FilterSettingsDialog dlg(&rules, channel, this);
-  QString currentQss = getParentStyleSheet(this);
+  QString currentQss = !m_currentStyle.isEmpty() ? m_currentStyle : getParentStyleSheet(this);
   if (!currentQss.isEmpty()) {
     dlg.setStyleSheet(currentQss);
   }
@@ -723,7 +1133,7 @@ void CanDeviceDialog::onFilterSettingsClicked(int channel) {
 void CanDeviceDialog::onStartAllChannels() {
   const quint32 devType = static_cast<quint32>(m_deviceTypeCombo->currentData().toUInt());
   StartChannelDialog dlg(CanInterface::isDeviceFdCapable(devType), 0, this);
-  QString currentQss = getParentStyleSheet(this);
+  QString currentQss = !m_currentStyle.isEmpty() ? m_currentStyle : getParentStyleSheet(this);
   if (!currentQss.isEmpty()) {
     dlg.setStyleSheet(currentQss);
   }
@@ -773,63 +1183,68 @@ void CanDeviceDialog::onShowDeviceInfoClicked() {
   QString hw, fw, dr, lib, serial, typeStr;
   int canNum = 2;
   if (!m_can->getDeviceInformation(&hw, &fw, &dr, &lib, &canNum, &serial, &typeStr)) {
-    // 硬件查询失败时，使用当前选中的设备类型作为兜底显示
-    typeStr = m_deviceTypeCombo->currentText();
+    typeStr = m_deviceTypeCombo->currentText().trimmed();
     hw = QStringLiteral("—");
     fw = QStringLiteral("—");
     dr = QStringLiteral("—");
     lib = QStringLiteral("—");
     serial = QStringLiteral("—");
-    // canNum 保持默认值，由调用方结合实际设备判断
   }
 
   QDialog infoDlg(this);
   infoDlg.setWindowTitle("设备信息");
-  infoDlg.setFixedSize(360, 260);
-  infoDlg.setStyleSheet("QDialog { background-color: white; }");
+  infoDlg.setMinimumSize(380, 290);
+  if (!m_currentStyle.isEmpty()) {
+    infoDlg.setStyleSheet(m_currentStyle);
+  } else {
+    QString qss = getParentStyleSheet(this);
+    if (!qss.isEmpty()) infoDlg.setStyleSheet(qss);
+  }
 
-  QHBoxLayout *layout = new QHBoxLayout(&infoDlg);
-  layout->setContentsMargins(25, 25, 25, 20);
-  layout->setSpacing(20);
+  QVBoxLayout *mainLayout = new QVBoxLayout(&infoDlg);
+  mainLayout->setContentsMargins(20, 20, 20, 15);
+  mainLayout->setSpacing(12);
 
-  // 信息图标
-  QLabel *iconLabel = new QLabel();
+  QHBoxLayout *topLayout = new QHBoxLayout();
+  topLayout->setSpacing(15);
+
+  QLabel *iconLabel = new QLabel(&infoDlg);
   QIcon infoIcon = infoDlg.style()->standardIcon(QStyle::SP_MessageBoxInformation);
-  iconLabel->setPixmap(infoIcon.pixmap(48, 48));
+  iconLabel->setPixmap(infoIcon.pixmap(42, 42));
   iconLabel->setAlignment(Qt::AlignTop);
-  layout->addWidget(iconLabel);
+  topLayout->addWidget(iconLabel);
 
-  // 文字信息列表
   QVBoxLayout *textLayout = new QVBoxLayout();
-  textLayout->setSpacing(6);
+  textLayout->setSpacing(8);
 
   auto addLine = [&](const QString &label, const QString &val) {
-    QLabel *lbl = new QLabel(QString("<font color='#555555'>%1: </font><b>%2</b>").arg(label).arg(val));
-    lbl->setStyleSheet("font-size: 13px; font-family: Microsoft YaHei;");
+    QLabel *lbl = new QLabel(QString("<span style='color: palette(mid);'>%1: </span><b>%2</b>").arg(label).arg(val), &infoDlg);
+    lbl->setStyleSheet("font-size: 13px;");
     textLayout->addWidget(lbl);
   };
 
+  addLine("硬件型号", typeStr);
   addLine("硬件版本", hw);
   addLine("固件版本", fw);
   addLine("驱动版本", dr);
   addLine("动态库版本", lib);
-  addLine("CAN路数", QString::number(canNum));
-  addLine("序列号", serial);
-  addLine("硬件类型", typeStr);
+  addLine("CAN 通道数", QString("%1 路").arg(canNum));
+  addLine("产品序列号", serial);
 
-  textLayout->addSpacing(15);
+  topLayout->addLayout(textLayout);
+  topLayout->addStretch();
+  mainLayout->addLayout(topLayout);
 
-  QPushButton *btnOk = new QPushButton("确定");
-  btnOk->setStyleSheet("QPushButton { background-color: #D6E8FC; border: 1px solid #ADC3E6; color: #2C3E50; padding: 5px 25px; border-radius: 4px; font-weight: bold; font-size: 12px; }"
-                       "QPushButton:hover { background-color: #C0DEFC; }");
-  connect(btnOk, &QPushButton::clicked, &infoDlg, &QDialog::accept);
+  mainLayout->addSpacing(10);
 
   QHBoxLayout *btnLayout = new QHBoxLayout();
   btnLayout->addStretch();
+  QPushButton *btnOk = new QPushButton("确定", &infoDlg);
+  btnOk->setStyleSheet("QPushButton { padding: 6px 30px; font-weight: bold; font-size: 12px; }");
+  connect(btnOk, &QPushButton::clicked, &infoDlg, &QDialog::accept);
   btnLayout->addWidget(btnOk);
-  textLayout->addLayout(btnLayout);
+  mainLayout->addLayout(btnLayout);
 
-  layout->addLayout(textLayout);
   infoDlg.exec();
 }
 
@@ -837,6 +1252,88 @@ void CanDeviceDialog::onCloudDeviceClicked() {
   QMessageBox::information(this, "云设备", "云设备连接中... (当前云设备服务不可用)");
 }
 
+void CanDeviceDialog::onDetectDevicesClicked() {
+  detectAndPromptDevices(true);
+  populateDeviceTypeCombo(m_vendorFilterCombo->currentIndex());
+  refreshDeviceTree();
+}
+
+QString CanDeviceDialog::vendorForDevice(const QString &deviceName, quint32 deviceType) const {
+  Q_UNUSED(deviceType);
+  if (deviceName.contains("创芯")) return "创芯科技";
+  if (deviceName.contains("USBCAN") || deviceName.contains("PCIE") || deviceName.contains("PCI-")) return "周立功 ZLG";
+  if (deviceName.contains("PEAK") || deviceName.contains("Vector") || deviceName.contains("PassThru") ||
+      deviceName.contains("SerialBus") || deviceName.contains("SYS TEC") || deviceName.contains("TinyCAN") ||
+      deviceName.contains("SocketCAN") || deviceName.contains("Qt ")) return "Qt SerialBus";
+  if (deviceName.contains("同星")) return "同星智能";
+  if (deviceName.contains("仿真") || deviceName.contains("虚拟")) return "软件仿真";
+  return "其他厂商";
+}
+
+bool CanDeviceDialog::deviceMatchesFilter(const QString &vendor, const QString &deviceName) const {
+  const int vendorIndex = m_vendorFilterCombo ? m_vendorFilterCombo->currentIndex() : 0;
+  if (vendorIndex > 0 && vendor != m_vendorFilterCombo->itemText(vendorIndex)) return false;
+  const QString query = m_searchEdit ? m_searchEdit->text().trimmed() : QString();
+  return query.isEmpty() || deviceName.contains(query, Qt::CaseInsensitive) || vendor.contains(query, Qt::CaseInsensitive);
+}
+
+void CanDeviceDialog::updateSummary(int totalDevices, int visibleDevices, int runningChannels) {
+  if (!m_summaryLabel) return;
+  const QString state = m_can->isDeviceOpen() ? "设备在线" : "未连接设备";
+  m_summaryLabel->setText(QString("%1  |  厂商目录 %2 项，当前筛选 %3 项，运行通道 %4").arg(state).arg(totalDevices).arg(visibleDevices).arg(runningChannels));
+}
+
+void CanDeviceDialog::onRefreshClicked() {
+  detectAndPromptDevices(false);
+  populateDeviceTypeCombo(m_vendorFilterCombo->currentIndex());
+  refreshDeviceTree();
+}
+
+void CanDeviceDialog::onExpandAllClicked() {
+  m_deviceTree->expandAll();
+}
+
+void CanDeviceDialog::onCollapseAllClicked() {
+  m_deviceTree->collapseAll();
+}
+
+void CanDeviceDialog::onCopyConfigClicked() {
+  QString config = QString("设备型号: %1\n设备索引: %2\n设备状态: %3\n").arg(m_deviceTypeCombo->currentText()).arg(m_can->deviceIndex()).arg(m_can->isDeviceOpen() ? "在线" : "未连接");
+  if (m_can->isDeviceOpen()) {
+    int channels = 0;
+    QString hw, fw, dr, lib, serial, type;
+    m_can->getDeviceInformation(&hw, &fw, &dr, &lib, &channels, &serial, &type);
+    config += QString("通道数量: %1\n序列号: %2\n硬件类型: %3\n").arg(channels).arg(serial).arg(type);
+  }
+  QApplication::clipboard()->setText(config);
+  m_summaryLabel->setText("设备配置已复制到剪贴板");
+}
+
+void CanDeviceDialog::onTreeDeviceActivated(QTreeWidgetItem *item, int column) {
+  Q_UNUSED(column);
+  if (!item || !item->parent() || item->parent()->parent()) return;
+  const quint32 type = item->data(0, Qt::UserRole).toUInt();
+  for (int i = 0; i < m_deviceTypeCombo->count(); ++i) {
+    if (m_deviceTypeCombo->itemData(i).toUInt() == type) {
+      m_deviceTypeCombo->setCurrentIndex(i);
+      break;
+    }
+  }
+  if (!m_can->isDeviceOpen()) onOpenDeviceClicked();
+}
+
+void CanDeviceDialog::onSearchTextChanged(const QString &text) {
+  Q_UNUSED(text);
+  refreshDeviceTree();
+}
+
+void CanDeviceDialog::onVendorFilterChanged(int index) {
+  populateDeviceTypeCombo(index);
+  refreshDeviceTree();
+}
+
 void CanDeviceDialog::applyThemeStyle(const QString &qss) {
+  m_currentStyle = qss;
   setStyleSheet(qss);
 }
+

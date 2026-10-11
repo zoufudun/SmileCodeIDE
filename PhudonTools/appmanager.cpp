@@ -160,8 +160,10 @@ int AppManager::loadDynamicPluginsFromDir(const QString &dirPath) {
     for (const QFileInfo &fileInfo : fileList) {
         QString fullPath = fileInfo.absoluteFilePath();
 
-        // 排除非 Qt 插件库 (如 zlgcan.dll, ControlCAN.dll)
+        // 排除非 Qt 插件库 (如 Qt5/Qt6 依赖库、QScintilla、zlgcan.dll, ControlCAN.dll)
         if (fileInfo.fileName().startsWith("Qt5", Qt::CaseInsensitive) ||
+            fileInfo.fileName().startsWith("Qt6", Qt::CaseInsensitive) ||
+            fileInfo.fileName().startsWith("qscintilla", Qt::CaseInsensitive) ||
             fileInfo.fileName().startsWith("zlgcan", Qt::CaseInsensitive) ||
             fileInfo.fileName().startsWith("ControlCAN", Qt::CaseInsensitive)) {
             continue;
@@ -661,7 +663,17 @@ int AppManager::getRunningAppCount() const {
 }
 
 QString AppManager::getPluginsDirectory() const {
-    return QCoreApplication::applicationDirPath() + "/plugins";
+    QString appDir = QCoreApplication::applicationDirPath();
+    QString localDir = appDir + "/plugins";
+    if (QDir(localDir).exists()) {
+        return localDir;
+    }
+    // 兼顾在开发构建目录(如 release/ 或 debug/)下直接调试运行的情形
+    QDir parentDir(appDir);
+    if (parentDir.cdUp() && parentDir.exists("plugins")) {
+        return parentDir.filePath("plugins");
+    }
+    return localDir;
 }
 
 QString AppManager::getCurrentTheme() const {

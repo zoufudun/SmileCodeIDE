@@ -93,39 +93,37 @@ QString TerminalWidget::ansiToHtml(const QString &text) {
 
   // ANSI color codes
   // Foreground Colors
-  html.replace(QRegExp("\033\\[30m"), "<span style='color:#000000;'>"); // Black
-  html.replace(QRegExp("\033\\[31m"), "<span style='color:#cd3131;'>"); // Red
-  html.replace(QRegExp("\033\\[32m"), "<span style='color:#0dbc79;'>"); // Green
-  html.replace(QRegExp("\033\\[33m"),
-               "<span style='color:#e5e510;'>"); // Yellow
-  html.replace(QRegExp("\033\\[34m"), "<span style='color:#2472c8;'>"); // Blue
-  html.replace(QRegExp("\033\\[35m"),
-               "<span style='color:#bc3fbc;'>"); // Magenta
-  html.replace(QRegExp("\033\\[36m"), "<span style='color:#11a8cd;'>"); // Cyan
-  html.replace(QRegExp("\033\\[37m"), "<span style='color:#e5e5e5;'>"); // White
+  html.replace("\033[30m", "<span style='color:#000000;'>"); // Black
+  html.replace("\033[31m", "<span style='color:#cd3131;'>"); // Red
+  html.replace("\033[32m", "<span style='color:#0dbc79;'>"); // Green
+  html.replace("\033[33m", "<span style='color:#e5e510;'>"); // Yellow
+  html.replace("\033[34m", "<span style='color:#2472c8;'>"); // Blue
+  html.replace("\033[35m", "<span style='color:#bc3fbc;'>"); // Magenta
+  html.replace("\033[36m", "<span style='color:#11a8cd;'>"); // Cyan
+  html.replace("\033[37m", "<span style='color:#e5e5e5;'>"); // White
 
   // Bright/Bold Foreground
-  html.replace(QRegExp("\033\\[90m"), "<span style='color:#666666;'>");
-  html.replace(QRegExp("\033\\[91m"), "<span style='color:#f14c4c;'>");
-  html.replace(QRegExp("\033\\[92m"), "<span style='color:#23d18b;'>");
-  html.replace(QRegExp("\033\\[93m"), "<span style='color:#f5f543;'>");
-  html.replace(QRegExp("\033\\[94m"), "<span style='color:#3b8eea;'>");
-  html.replace(QRegExp("\033\\[95m"), "<span style='color:#d670d6;'>");
-  html.replace(QRegExp("\033\\[96m"), "<span style='color:#29b8db;'>");
-  html.replace(QRegExp("\033\\[97m"), "<span style='color:#ffffff;'>");
+  html.replace("\033[90m", "<span style='color:#666666;'>");
+  html.replace("\033[91m", "<span style='color:#f14c4c;'>");
+  html.replace("\033[92m", "<span style='color:#23d18b;'>");
+  html.replace("\033[93m", "<span style='color:#f5f543;'>");
+  html.replace("\033[94m", "<span style='color:#3b8eea;'>");
+  html.replace("\033[95m", "<span style='color:#d670d6;'>");
+  html.replace("\033[96m", "<span style='color:#29b8db;'>");
+  html.replace("\033[97m", "<span style='color:#ffffff;'>");
 
   // 0;3x fallback
-  html.replace(QRegExp("\033\\[0;30m"), "<span style='color:#000000;'>");
-  html.replace(QRegExp("\033\\[0;31m"), "<span style='color:#cd3131;'>");
-  html.replace(QRegExp("\033\\[0;32m"), "<span style='color:#0dbc79;'>");
-  html.replace(QRegExp("\033\\[0;33m"), "<span style='color:#e5e510;'>");
-  html.replace(QRegExp("\033\\[0;34m"), "<span style='color:#2472c8;'>");
-  html.replace(QRegExp("\033\\[0;35m"), "<span style='color:#bc3fbc;'>");
-  html.replace(QRegExp("\033\\[0;36m"), "<span style='color:#11a8cd;'>");
-  html.replace(QRegExp("\033\\[0;37m"), "<span style='color:#e5e5e5;'>");
+  html.replace("\033[0;30m", "<span style='color:#000000;'>");
+  html.replace("\033[0;31m", "<span style='color:#cd3131;'>");
+  html.replace("\033[0;32m", "<span style='color:#0dbc79;'>");
+  html.replace("\033[0;33m", "<span style='color:#e5e510;'>");
+  html.replace("\033[0;34m", "<span style='color:#2472c8;'>");
+  html.replace("\033[0;35m", "<span style='color:#bc3fbc;'>");
+  html.replace("\033[0;36m", "<span style='color:#11a8cd;'>");
+  html.replace("\033[0;37m", "<span style='color:#e5e5e5;'>");
 
   // Reset
-  html.replace(QRegExp("\033\\[0m"), "</span>");
+  html.replace("\033[0m", "</span>");
 
   // Replace newlines with <br>
   html.replace("\n", "<br>");

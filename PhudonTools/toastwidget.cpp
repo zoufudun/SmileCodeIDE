@@ -232,7 +232,7 @@ void ToastWidget::paintEvent(QPaintEvent *event) {
   Q_UNUSED(event);
 
   QStyleOption opt;
-  opt.init(this);
+  opt.initFrom(this);
   QPainter p(this);
   p.setRenderHint(QPainter::Antialiasing);
   style()->drawPrimitive(QStyle::PE_Widget, &opt, &p, this);
@@ -293,7 +293,11 @@ void ToastWidget::paintEvent(QPaintEvent *event) {
   p.drawPath(borderPath);
 }
 
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+void ToastWidget::enterEvent(QEnterEvent *) {
+#else
 void ToastWidget::enterEvent(QEvent *) {
+#endif
   // Pause timer on hover?
   m_lifeTimer->stop();
 }

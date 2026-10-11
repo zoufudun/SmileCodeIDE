@@ -30,6 +30,11 @@
 #include <QToolButton>
 #include <QVector>
 #include <QWidget>
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+#include <QtCore5Compat/QTextCodec>
+#else
+#include <QTextCodec>
+#endif
 
 // Charts
 #include "../qcustomplot/qcustomplot.h"

@@ -51,7 +51,11 @@ DeviceStatusWidget::DeviceStatusWidget(int deviceId, DeviceKind kind,
   });
 }
 
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+void DeviceStatusWidget::enterEvent(QEnterEvent *event) {
+#else
 void DeviceStatusWidget::enterEvent(QEvent *event) {
+#endif
   m_hovered = true;
   update();
   QWidget::enterEvent(event);

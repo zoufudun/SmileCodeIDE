@@ -28,7 +28,13 @@
 #include <QPainter>
 #include <QPair>
 #include <QPushButton>
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+#include <QtCore5Compat/QRegExp>
+#include <QtCore5Compat/QTextCodec>
+#else
 #include <QRegExp>
+#include <QTextCodec>
+#endif
 #include <QRegularExpression>
 #include <QScrollBar>
 #include <QSettings>
@@ -36,7 +42,6 @@
 #include <QStack>
 #include <QStyle>
 #include <QStyledItemDelegate>
-#include <QTextCodec>
 #include <QTextStream>
 #include <QTimer>
 #include <QToolBar>
@@ -1547,7 +1552,11 @@ protected:
     QWidget::mousePressEvent(event);
   }
 
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+  void enterEvent(QEnterEvent *event) override {
+#else
   void enterEvent(QEvent *event) override {
+#endif
     m_isHovered = true;
     update();
     QWidget::enterEvent(event);
@@ -7106,7 +7115,9 @@ void CodeEditor::renameSymbolInProject(const QString &symbolName, ScopeKind kind
 
         if (file.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
           QTextStream out(&file);
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
           out.setCodec("UTF-8");
+#endif
           out << fText;
           file.close();
         }

@@ -1,0 +1,14 @@
+********* Start testing of ToolchainDetectorTest *********
+Config: Using QtTest library 6.12.0, Qt 6.12.0 (x86_64-little_endian-llp64 shared (dynamic) release build; by GCC 15.1.0), windows 11
+PASS   : ToolchainDetectorTest::initTestCase()
+PASS   : ToolchainDetectorTest::detectsCompilerAndDebuggerInHintDirectory()
+PASS   : ToolchainDetectorTest::fillsMissingDebuggerWithoutReplacingSavedCompiler()
+PASS   : ToolchainDetectorTest::detectsDebugServersAndMakeFromEnvironment()
+PASS   : ToolchainDetectorTest::quotesToolchainCommandsWithSpaces()
+PASS   : ToolchainDetectorTest::usesKeilProjectSourcesAndGccStartup()
+PASS   : ToolchainDetectorTest::generatesRuleForUppercaseAssembly()
+SKIP   : ToolchainDetectorTest::scansProvidedKeilProject() No external Keil project supplied
+ToolchainDetectorTest.cpp(187) : failure location
+PASS   : ToolchainDetectorTest::cleanupTestCase()
+Totals: 8 passed, 0 failed, 1 skipped, 0 blacklisted, 796ms
+********* Finished testing of ToolchainDetectorTest *********

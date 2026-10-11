@@ -1,18 +1,24 @@
 /****************************************************************************
 ** Meta object code from reading C++ file 'qscilexerasm.h'
 **
-** Created by: The Qt Meta Object Compiler version 68 (Qt 6.4.0)
+** Created by: The Qt Meta Object Compiler version 69 (Qt 6.11.2)
 **
 ** WARNING! All changes made in this file will be lost!
 *****************************************************************************/
 
-#include <memory>
 #include "../Qsci/qscilexerasm.h"
 #include <QtCore/qmetatype.h>
+
+#include <QtCore/qtmochelpers.h>
+
+#include <memory>
+
+
+#include <QtCore/qxptype_traits.h>
 #if !defined(Q_MOC_OUTPUT_REVISION)
 #error "The header file 'qscilexerasm.h' doesn't include <QObject>."
-#elif Q_MOC_OUTPUT_REVISION != 68
-#error "This file was generated using the moc from 6.4.0. It"
+#elif Q_MOC_OUTPUT_REVISION != 69
+#error "This file was generated using the moc from 6.11.2. It"
 #error "cannot be used with the include files from this version of Qt."
 #error "(The moc has changed too much.)"
 #endif
@@ -21,112 +27,72 @@
 #define Q_CONSTINIT
 #endif
 
-QT_BEGIN_MOC_NAMESPACE
 QT_WARNING_PUSH
 QT_WARNING_DISABLE_DEPRECATED
+QT_WARNING_DISABLE_GCC("-Wuseless-cast")
 namespace {
-struct qt_meta_stringdata_QsciLexerAsm_t {
-    uint offsetsAndSizes[18];
-    char stringdata0[13];
-    char stringdata1[16];
-    char stringdata2[1];
-    char stringdata3[5];
-    char stringdata4[15];
-    char stringdata5[20];
-    char stringdata6[10];
-    char stringdata7[19];
-    char stringdata8[13];
-};
-#define QT_MOC_LITERAL(ofs, len) \
-    uint(sizeof(qt_meta_stringdata_QsciLexerAsm_t::offsetsAndSizes) + ofs), len 
-Q_CONSTINIT static const qt_meta_stringdata_QsciLexerAsm_t qt_meta_stringdata_QsciLexerAsm = {
-    {
-        QT_MOC_LITERAL(0, 12),  // "QsciLexerAsm"
-        QT_MOC_LITERAL(13, 15),  // "setFoldComments"
-        QT_MOC_LITERAL(29, 0),  // ""
-        QT_MOC_LITERAL(30, 4),  // "fold"
-        QT_MOC_LITERAL(35, 14),  // "setFoldCompact"
-        QT_MOC_LITERAL(50, 19),  // "setCommentDelimiter"
-        QT_MOC_LITERAL(70, 9),  // "delimeter"
-        QT_MOC_LITERAL(80, 18),  // "setFoldSyntaxBased"
-        QT_MOC_LITERAL(99, 12)   // "syntax_based"
-    },
-    "QsciLexerAsm",
-    "setFoldComments",
-    "",
-    "fold",
-    "setFoldCompact",
-    "setCommentDelimiter",
-    "delimeter",
-    "setFoldSyntaxBased",
-    "syntax_based"
-};
-#undef QT_MOC_LITERAL
+struct qt_meta_tag_ZN12QsciLexerAsmE_t {};
 } // unnamed namespace
 
-Q_CONSTINIT static const uint qt_meta_data_QsciLexerAsm[] = {
+template <> constexpr inline auto QsciLexerAsm::qt_create_metaobjectdata<qt_meta_tag_ZN12QsciLexerAsmE_t>()
+{
+    namespace QMC = QtMocConstants;
+    QtMocHelpers::StringRefStorage qt_stringData {
+        "QsciLexerAsm",
+        "setFoldComments",
+        "",
+        "fold",
+        "setFoldCompact",
+        "setCommentDelimiter",
+        "delimeter",
+        "setFoldSyntaxBased",
+        "syntax_based"
+    };
 
- // content:
-      10,       // revision
-       0,       // classname
-       0,    0, // classinfo
-       4,   14, // methods
-       0,    0, // properties
-       0,    0, // enums/sets
-       0,    0, // constructors
-       0,       // flags
-       0,       // signalCount
-
- // slots: name, argc, parameters, tag, flags, initial metatype offsets
-       1,    1,   38,    2, 0x0a,    1 /* Public */,
-       4,    1,   41,    2, 0x0a,    3 /* Public */,
-       5,    1,   44,    2, 0x0a,    5 /* Public */,
-       7,    1,   47,    2, 0x0a,    7 /* Public */,
-
- // slots: parameters
-    QMetaType::Void, QMetaType::Bool,    3,
-    QMetaType::Void, QMetaType::Bool,    3,
-    QMetaType::Void, QMetaType::QChar,    6,
-    QMetaType::Void, QMetaType::Bool,    8,
-
-       0        // eod
-};
-
+    QtMocHelpers::UintData qt_methods {
+        // Slot 'setFoldComments'
+        QtMocHelpers::SlotData<void(bool)>(1, 2, QMC::AccessPublic, QMetaType::Void, {{
+            { QMetaType::Bool, 3 },
+        }}),
+        // Slot 'setFoldCompact'
+        QtMocHelpers::SlotData<void(bool)>(4, 2, QMC::AccessPublic, QMetaType::Void, {{
+            { QMetaType::Bool, 3 },
+        }}),
+        // Slot 'setCommentDelimiter'
+        QtMocHelpers::SlotData<void(QChar)>(5, 2, QMC::AccessPublic, QMetaType::Void, {{
+            { QMetaType::QChar, 6 },
+        }}),
+        // Slot 'setFoldSyntaxBased'
+        QtMocHelpers::SlotData<void(bool)>(7, 2, QMC::AccessPublic, QMetaType::Void, {{
+            { QMetaType::Bool, 8 },
+        }}),
+    };
+    QtMocHelpers::UintData qt_properties {
+    };
+    QtMocHelpers::UintData qt_enums {
+    };
+    return QtMocHelpers::metaObjectData<QsciLexerAsm, qt_meta_tag_ZN12QsciLexerAsmE_t>(QMC::MetaObjectFlag{}, qt_stringData,
+            qt_methods, qt_properties, qt_enums);
+}
 Q_CONSTINIT const QMetaObject QsciLexerAsm::staticMetaObject = { {
     QMetaObject::SuperData::link<QsciLexer::staticMetaObject>(),
-    qt_meta_stringdata_QsciLexerAsm.offsetsAndSizes,
-    qt_meta_data_QsciLexerAsm,
+    qt_staticMetaObjectStaticContent<qt_meta_tag_ZN12QsciLexerAsmE_t>.stringdata,
+    qt_staticMetaObjectStaticContent<qt_meta_tag_ZN12QsciLexerAsmE_t>.data,
     qt_static_metacall,
     nullptr,
-    qt_incomplete_metaTypeArray<qt_meta_stringdata_QsciLexerAsm_t,
-        // Q_OBJECT / Q_GADGET
-        QtPrivate::TypeAndForceComplete<QsciLexerAsm, std::true_type>,
-        // method 'setFoldComments'
-        QtPrivate::TypeAndForceComplete<void, std::false_type>,
-        QtPrivate::TypeAndForceComplete<bool, std::false_type>,
-        // method 'setFoldCompact'
-        QtPrivate::TypeAndForceComplete<void, std::false_type>,
-        QtPrivate::TypeAndForceComplete<bool, std::false_type>,
-        // method 'setCommentDelimiter'
-        QtPrivate::TypeAndForceComplete<void, std::false_type>,
-        QtPrivate::TypeAndForceComplete<QChar, std::false_type>,
-        // method 'setFoldSyntaxBased'
-        QtPrivate::TypeAndForceComplete<void, std::false_type>,
-        QtPrivate::TypeAndForceComplete<bool, std::false_type>
-    >,
+    qt_staticMetaObjectRelocatingContent<qt_meta_tag_ZN12QsciLexerAsmE_t>.metaTypes,
     nullptr
 } };
 
 void QsciLexerAsm::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, void **_a)
 {
+    auto *_t = static_cast<QsciLexerAsm *>(_o);
     if (_c == QMetaObject::InvokeMetaMethod) {
-        auto *_t = static_cast<QsciLexerAsm *>(_o);
-        (void)_t;
         switch (_id) {
-        case 0: _t->setFoldComments((*reinterpret_cast< std::add_pointer_t<bool>>(_a[1]))); break;
-        case 1: _t->setFoldCompact((*reinterpret_cast< std::add_pointer_t<bool>>(_a[1]))); break;
-        case 2: _t->setCommentDelimiter((*reinterpret_cast< std::add_pointer_t<QChar>>(_a[1]))); break;
-        case 3: _t->setFoldSyntaxBased((*reinterpret_cast< std::add_pointer_t<bool>>(_a[1]))); break;
+        case 0: _t->setFoldComments((*reinterpret_cast<std::add_pointer_t<bool>>(_a[1]))); break;
+        case 1: _t->setFoldCompact((*reinterpret_cast<std::add_pointer_t<bool>>(_a[1]))); break;
+        case 2: _t->setCommentDelimiter((*reinterpret_cast<std::add_pointer_t<QChar>>(_a[1]))); break;
+        case 3: _t->setFoldSyntaxBased((*reinterpret_cast<std::add_pointer_t<bool>>(_a[1]))); break;
         default: ;
         }
     }
@@ -140,7 +106,7 @@ const QMetaObject *QsciLexerAsm::metaObject() const
 void *QsciLexerAsm::qt_metacast(const char *_clname)
 {
     if (!_clname) return nullptr;
-    if (!strcmp(_clname, qt_meta_stringdata_QsciLexerAsm.stringdata0))
+    if (!strcmp(_clname, qt_staticMetaObjectStaticContent<qt_meta_tag_ZN12QsciLexerAsmE_t>.strings))
         return static_cast<void*>(this);
     return QsciLexer::qt_metacast(_clname);
 }
@@ -154,7 +120,8 @@ int QsciLexerAsm::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
         if (_id < 4)
             qt_static_metacall(this, _c, _id, _a);
         _id -= 4;
-    } else if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
+    }
+    if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
         if (_id < 4)
             *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType();
         _id -= 4;
@@ -162,4 +129,3 @@ int QsciLexerAsm::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     return _id;
 }
 QT_WARNING_POP
-QT_END_MOC_NAMESPACE

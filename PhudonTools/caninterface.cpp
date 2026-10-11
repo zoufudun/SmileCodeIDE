@@ -1,4 +1,7 @@
 #include "caninterface.h"
+#include "CAN/Adapter/canadapterfactory.h"
+#include "CAN/Adapter/simulationcanadapter.h"
+#include "CAN/Adapter/qtserialbusadapter.h"
 
 #include <cstring>
 
@@ -219,6 +222,9 @@ CanInterface::CanInterface(QObject *parent)
   m_timer->setInterval(kPollIntervalMs);
   connect(m_timer, &QTimer::timeout, this, &CanInterface::pollReceive);
   loadLibrary();
+
+  // 默认装配纯软件仿真适配器作为缺省后端，确保零硬件环境下所有业务流程开箱即可离线运行
+  setAdapter(new SimulationCanAdapter(this));
 }
 
 CanInterface::~CanInterface() {
@@ -229,11 +235,81 @@ CanInterface::~CanInterface() {
   delete m_d;
 }
 
+void CanInterface::setAdapter(ICanAdapter *adapter) {
+  if (m_adapter && m_adapter != adapter) {
+    disconnect(m_adapter, &ICanAdapter::frameReceived, this, &CanInterface::onAdapterFrameReceived);
+    disconnect(m_adapter, &ICanAdapter::frameSent, this, &CanInterface::onAdapterFrameSent);
+    disconnect(m_adapter, &ICanAdapter::errorOccurred, this, &CanInterface::errorOccurred);
+    if (m_adapter->parent() == this) {
+      delete m_adapter;
+    }
+  }
+
+  m_adapter = adapter;
+  if (m_adapter) {
+    connect(m_adapter, &ICanAdapter::frameReceived, this, &CanInterface::onAdapterFrameReceived);
+    connect(m_adapter, &ICanAdapter::frameSent, this, &CanInterface::onAdapterFrameSent);
+    connect(m_adapter, &ICanAdapter::errorOccurred, this, &CanInterface::errorOccurred);
+  }
+}
+
+ICanAdapter *CanInterface::currentAdapter() const {
+  return m_adapter;
+}
+
+bool CanInterface::openAdapter(const QString &adapterId, const QString &ifaceName) {
+  ICanAdapter *ad = CanAdapterFactory::createAdapter(adapterId, this);
+  if (!ad) return false;
+  setAdapter(ad);
+
+  CanDeviceParams params;
+  params.pluginType = adapterId;
+  params.deviceName = ifaceName;
+  params.deviceType = 0;
+  params.deviceIndex = 0;
+  return m_adapter->openDevice(params);
+}
+
+void CanInterface::onAdapterFrameReceived(const CanRawFrame &rf) {
+  CanFrame cf;
+  cf.id = rf.id;
+  cf.extended = rf.extended;
+  cf.remote = rf.remote;
+  cf.fd = rf.fd;
+  cf.brs = rf.brs;
+  cf.errorFrame = rf.errorFrame;
+  cf.data = rf.data;
+  cf.timestamp = rf.timestamp;
+  cf.channel = rf.channel;
+  cf.transmitType = rf.transmitType;
+
+  if (matchesFilter(cf.channel, cf)) {
+    emit frameReceived(cf);
+  }
+}
+
+void CanInterface::onAdapterFrameSent(const CanRawFrame &rf) {
+  CanFrame cf;
+  cf.id = rf.id;
+  cf.extended = rf.extended;
+  cf.remote = rf.remote;
+  cf.fd = rf.fd;
+  cf.brs = rf.brs;
+  cf.errorFrame = rf.errorFrame;
+  cf.data = rf.data;
+  cf.timestamp = rf.timestamp;
+  cf.channel = rf.channel;
+  cf.transmitType = rf.transmitType;
+
+  emit frameSent(cf);
+}
+
 quint32 CanInterface::defaultDeviceType() { return kUsbCanFd200U; }
 
 bool CanInterface::isDeviceFdCapable(quint32 deviceType) {
-  // USBCANFD 系列 (41+) 及虚拟设备 (99) 支持 CAN FD，
-  // 经典 VCI CAN 设备 (3, 4, 20, 21, 31, 34 等) 仅支持经典 CAN。
+  if (deviceType == CAN_DEV_SIMULATION || (deviceType >= 9100 && deviceType <= 9199)) {
+    return true;
+  }
   if (deviceType == ZCAN_VIRTUAL_DEVICE) {
     return true;
   }
@@ -372,6 +448,56 @@ int CanInterface::deviceIndex() const {
 
 bool CanInterface::openDevice(quint32 deviceType, int deviceIndex) {
   m_lastError.clear();
+  m_curDeviceType = deviceType;
+  m_curDeviceIndex = deviceIndex;
+
+  // 1. 检查是否为纯软件仿真设备
+  if (deviceType == CAN_DEV_SIMULATION) {
+    if (!m_adapter || m_adapter->adapterType() != "simulation") {
+      setAdapter(new SimulationCanAdapter(this));
+    }
+    CanDeviceParams p;
+    p.pluginType = "simulation";
+    p.deviceType = deviceType;
+    p.deviceIndex = deviceIndex;
+    m_d->deviceType = deviceType;
+    m_d->deviceIndex = deviceIndex;
+    return m_adapter->openDevice(p);
+  }
+
+  // 2. 检查是否为 Qt 官方内置插件
+  if (deviceType >= 9100 && deviceType <= 9199) {
+    QString pluginName = "virtualcan";
+    if (deviceType == CAN_DEV_QT_PEAKCAN) pluginName = "peakcan";
+    else if (deviceType == CAN_DEV_QT_VECTORCAN) pluginName = "vectorcan";
+    else if (deviceType == CAN_DEV_QT_PASSTHRUCAN) pluginName = "passthrucan";
+    else if (deviceType == CAN_DEV_QT_VIRTUALCAN) pluginName = "virtualcan";
+    else if (deviceType == CAN_DEV_QT_SYSTECCAN) pluginName = "systeccan";
+    else if (deviceType == CAN_DEV_QT_TINYCAN) pluginName = "tinycan";
+    else if (deviceType == CAN_DEV_QT_SOCKETCAN) pluginName = "socketcan";
+
+    setAdapter(new QtSerialBusAdapter(pluginName, this));
+    CanDeviceParams p;
+    p.pluginType = pluginName;
+    p.deviceType = deviceType;
+    p.deviceIndex = deviceIndex;
+    m_d->deviceType = deviceType;
+    m_d->deviceIndex = deviceIndex;
+    return m_adapter->openDevice(p);
+  }
+
+  // 3. 检查是否为同星智能
+  if (deviceType == CAN_DEV_TOSUN_TSMASTER) {
+    setAdapter(new SimulationCanAdapter(this)); // 模拟后端
+    CanDeviceParams p;
+    p.pluginType = "tosun";
+    p.deviceType = deviceType;
+    p.deviceIndex = deviceIndex;
+    m_d->deviceType = deviceType;
+    m_d->deviceIndex = deviceIndex;
+    return m_adapter->openDevice(p);
+  }
+
   if (isDeviceOpen()) {
     return true;
   }
@@ -462,10 +588,14 @@ bool CanInterface::openDevice(quint32 deviceType, int deviceIndex) {
 }
 
 void CanInterface::closeDevice() {
+  if (m_adapter && m_adapter->isDeviceOpen()) {
+    m_adapter->closeDevice();
+  }
+
   if (!isDeviceOpen()) return;
 
   if (m_d->isControlCan) {
-    QList<int> activeChansList = m_d->activeCxChans.toList();
+    QList<int> activeChansList = m_d->activeCxChans.values();
     for (int channelIdx : activeChansList) {
       stopChannel(channelIdx);
     }
@@ -490,6 +620,9 @@ void CanInterface::closeDevice() {
 }
 
 bool CanInterface::isDeviceOpen() const {
+  if (m_adapter && m_adapter->isDeviceOpen()) {
+    return true;
+  }
   return m_d->isControlCan || (m_d->device != INVALID_DEVICE_HANDLE);
 }
 
@@ -501,6 +634,26 @@ bool CanInterface::startChannel(int channel, const CanChannelConfig &cfg) {
 
   if (isChannelRunning(channel)) {
     stopChannel(channel);
+  }
+
+  if (m_adapter && m_adapter->isDeviceOpen()) {
+    CanChannelParams p;
+    p.channel = channel;
+    p.isFd = cfg.isFd;
+    p.abitBaud = cfg.abitBaud;
+    p.dbitBaud = cfg.dbitBaud;
+    p.mode = (cfg.mode == CanMode::ListenOnly) ? CanWorkMode::ListenOnly : CanWorkMode::Normal;
+    p.terminalRes = cfg.terminalRes;
+    p.retrySend = cfg.retrySend;
+    bool ok = m_adapter->startChannel(channel, p);
+    if (ok) {
+      m_d->chanConfigs[channel] = cfg;
+      m_open = true;
+      m_channel = channel;
+      m_fdEnabled = cfg.isFd;
+      emit connected();
+    }
+    return ok;
   }
 
   if (m_d->isControlCan) {
@@ -608,6 +761,13 @@ bool CanInterface::startChannel(int channel, const CanChannelConfig &cfg) {
 }
 
 bool CanInterface::stopChannel(int channel) {
+  if (m_adapter && m_adapter->isDeviceOpen()) {
+    bool ok = m_adapter->stopChannel(channel);
+    m_d->chanConfigs.remove(channel);
+    m_d->chanFilters.remove(channel);
+    return ok;
+  }
+
   if (m_d->isControlCan) {
     if (!m_d->activeCxChans.contains(channel)) {
       return true;
@@ -645,6 +805,9 @@ bool CanInterface::stopChannel(int channel) {
 }
 
 bool CanInterface::isChannelRunning(int channel) const {
+  if (m_adapter && m_adapter->isDeviceOpen()) {
+    return m_adapter->isChannelRunning(channel);
+  }
   return m_d->activeCxChans.contains(channel) || m_d->activeChans.contains(channel);
 }
 
@@ -713,6 +876,10 @@ bool CanInterface::getDeviceInformation(QString *hwVer, QString *fwVer, QString 
                                          QString *typeStr) const {
   if (!isDeviceOpen()) {
     return false;
+  }
+
+  if (m_adapter && m_adapter->isDeviceOpen()) {
+    return m_adapter->getDeviceInfo(hwVer, fwVer, drVer, libVer, canNum, serial, typeStr);
   }
 
   if (m_d->isControlCan) {
@@ -863,6 +1030,21 @@ bool CanInterface::sendFrame(const CanFrame &frame) {
 }
 
 bool CanInterface::sendFrame(int channel, const CanFrame &frame) {
+  if (m_adapter && m_adapter->isChannelRunning(channel)) {
+    CanRawFrame rf;
+    rf.id = frame.id;
+    rf.extended = frame.extended;
+    rf.remote = frame.remote;
+    rf.fd = frame.fd;
+    rf.brs = frame.brs;
+    rf.errorFrame = frame.errorFrame;
+    rf.data = frame.data;
+    rf.timestamp = frame.timestamp;
+    rf.channel = channel;
+    rf.transmitType = frame.transmitType;
+    return m_adapter->sendFrame(channel, rf);
+  }
+
   if (m_d->isControlCan) {
     if (!m_d->activeCxChans.contains(channel)) {
       emit errorOccurred(QStringLiteral("通道 %1 未启动，无法发送").arg(channel));
@@ -1079,4 +1261,130 @@ bool CanInterface::diagnoseDriver(QString *driverVer, QString *deviceName,
   m_d->closeDevice(dev);
   return result == STATUS_OK;
 }
+
+QList<CanDetectedDevice> CanInterface::detectConnectedDevices() const {
+  QList<CanDetectedDevice> results;
+
+  // 1. 若当前设备已处于打开状态，直接添加当前在线设备
+  if (isDeviceOpen()) {
+    CanDetectedDevice current;
+    current.deviceType = deviceType();
+    current.deviceIndex = deviceIndex();
+    current.modelName = deviceTypeName(deviceType());
+    if (isControlCanDevice(current.deviceType)) {
+      current.vendor = "创芯科技";
+    } else if (isQtPluginDevice(current.deviceType)) {
+      current.vendor = "Qt SerialBus";
+    } else if (isSimulationDevice(current.deviceType)) {
+      current.vendor = "软件仿真";
+    } else {
+      current.vendor = "周立功 ZLG";
+    }
+    current.isHardware = (current.deviceType != CAN_DEV_SIMULATION && current.deviceType != ZCAN_VIRTUAL_DEVICE && current.deviceType != CAN_DEV_QT_VIRTUALCAN);
+    current.detail = QString("当前已在线连接 (索引 %1)").arg(deviceIndex());
+    results.append(current);
+  }
+
+  // 2. 检测 Qt SerialBus 插件硬件适配器
+  struct QtBusProbe {
+    QString plugin;
+    quint32 type;
+    QString vendor;
+    QString model;
+  };
+  const QList<QtBusProbe> qtProbes = {
+    {"peakcan", CAN_DEV_QT_PEAKCAN, "Qt SerialBus", "PEAK PCAN 硬件卡 (Qt peakcan)"},
+    {"vectorcan", CAN_DEV_QT_VECTORCAN, "Qt SerialBus", "Vector VN 系列 (Qt vectorcan)"},
+    {"passthrucan", CAN_DEV_QT_PASSTHRUCAN, "Qt SerialBus", "SAE J2534 PassThru (Qt passthrucan)"},
+    {"systeccan", CAN_DEV_QT_SYSTECCAN, "Qt SerialBus", "SYS TEC USB-CAN (Qt systeccan)"},
+    {"tinycan", CAN_DEV_QT_TINYCAN, "Qt SerialBus", "MHS TinyCAN (Qt tinycan)"},
+    {"socketcan", CAN_DEV_QT_SOCKETCAN, "Qt SerialBus", "Linux SocketCAN (Qt socketcan)"}
+  };
+  for (const auto &p : qtProbes) {
+    QStringList ifaces = QtSerialBusAdapter::availableInterfaces(p.plugin);
+    if (!ifaces.isEmpty()) {
+      CanDetectedDevice d;
+      d.deviceType = p.type;
+      d.deviceIndex = 0;
+      d.vendor = p.vendor;
+      d.modelName = p.model;
+      d.detail = QString("已检测到可用接口: %1").arg(ifaces.join(", "));
+      d.isHardware = true;
+      if (!isDeviceOpen() || deviceType() != p.type) {
+        results.append(d);
+      }
+    }
+  }
+
+  // 3. 创芯科技 ControlCAN USB 硬件探测（仅未打开设备时轻量探测）
+  if (!isDeviceOpen() && m_d->vciResolved()) {
+    quint32 ret = m_d->vciOpenDevice(4, 0, 0); // VCI_USBCAN2
+    if (ret == 1) {
+      m_d->vciCloseDevice(4, 0);
+      CanDetectedDevice d;
+      d.deviceType = CX_USBCAN2;
+      d.deviceIndex = 0;
+      d.vendor = "创芯科技";
+      d.modelName = "创芯 USBCAN-2C";
+      d.detail = "已检测到 USB 硬件在线 (索引 0)";
+      d.isHardware = true;
+      results.append(d);
+    } else {
+      ret = m_d->vciOpenDevice(3, 0, 0); // VCI_USBCAN1
+      if (ret == 1) {
+        m_d->vciCloseDevice(3, 0);
+        CanDetectedDevice d;
+        d.deviceType = CX_USBCAN1;
+        d.deviceIndex = 0;
+        d.vendor = "创芯科技";
+        d.modelName = "创芯 USBCAN-1C";
+        d.detail = "已检测到 USB 硬件在线 (索引 0)";
+        d.isHardware = true;
+        results.append(d);
+      }
+    }
+  }
+
+  // 4. 周立功 ZLG 硬件探测（仅未打开设备时轻量探测）
+  if (!isDeviceOpen() && m_d->resolved()) {
+    DEVICE_HANDLE dev = m_d->openDevice(kUsbCanFd200U, 0, 0);
+    if (dev != INVALID_DEVICE_HANDLE) {
+      m_d->closeDevice(dev);
+      CanDetectedDevice d;
+      d.deviceType = kUsbCanFd200U;
+      d.deviceIndex = 0;
+      d.vendor = "周立功 ZLG";
+      d.modelName = "USBCANFD-200U";
+      d.detail = "已检测到 USB-CANFD 硬件在线 (索引 0)";
+      d.isHardware = true;
+      results.append(d);
+    } else {
+      dev = m_d->openDevice(ZCAN_USBCAN2, 0, 0);
+      if (dev != INVALID_DEVICE_HANDLE) {
+        m_d->closeDevice(dev);
+        CanDetectedDevice d;
+        d.deviceType = ZCAN_USBCAN2;
+        d.deviceIndex = 0;
+        d.vendor = "周立功 ZLG";
+        d.modelName = "USBCAN-2";
+        d.detail = "已检测到 USB-CAN 硬件在线 (索引 0)";
+        d.isHardware = true;
+        results.append(d);
+      }
+    }
+  }
+
+  // 5. 纯软件仿真模式（常驻就绪）
+  CanDetectedDevice sim;
+  sim.deviceType = CAN_DEV_SIMULATION;
+  sim.deviceIndex = 0;
+  sim.vendor = "软件仿真";
+  sim.modelName = "🌟 纯软件仿真 (免硬件全流程测试)";
+  sim.detail = "就绪可用 (支持报文自发自收/收发仿真/协议分析)";
+  sim.isHardware = false;
+  results.append(sim);
+
+  return results;
+}
+
 

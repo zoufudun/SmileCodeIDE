@@ -1,77 +1,74 @@
 /****************************************************************************
 ** Meta object code from reading C++ file 'signalgeneratorwidget.h'
 **
-** Created by: The Qt Meta Object Compiler version 67 (Qt 5.15.2)
+** Created by: The Qt Meta Object Compiler version 69 (Qt 6.11.2)
 **
 ** WARNING! All changes made in this file will be lost!
 *****************************************************************************/
 
-#include <memory>
 #include "../signalgeneratorwidget.h"
-#include <QtCore/qbytearray.h>
+#include <QtGui/qtextcursor.h>
 #include <QtCore/qmetatype.h>
+
+#include <QtCore/qtmochelpers.h>
+
+#include <memory>
+
+
+#include <QtCore/qxptype_traits.h>
 #if !defined(Q_MOC_OUTPUT_REVISION)
 #error "The header file 'signalgeneratorwidget.h' doesn't include <QObject>."
-#elif Q_MOC_OUTPUT_REVISION != 67
-#error "This file was generated using the moc from 5.15.2. It"
+#elif Q_MOC_OUTPUT_REVISION != 69
+#error "This file was generated using the moc from 6.11.2. It"
 #error "cannot be used with the include files from this version of Qt."
 #error "(The moc has changed too much.)"
 #endif
 
-QT_BEGIN_MOC_NAMESPACE
+#ifndef Q_CONSTINIT
+#define Q_CONSTINIT
+#endif
+
 QT_WARNING_PUSH
 QT_WARNING_DISABLE_DEPRECATED
-struct qt_meta_stringdata_WaveformCanvas_t {
-    QByteArrayData data[1];
-    char stringdata0[15];
-};
-#define QT_MOC_LITERAL(idx, ofs, len) \
-    Q_STATIC_BYTE_ARRAY_DATA_HEADER_INITIALIZER_WITH_OFFSET(len, \
-    qptrdiff(offsetof(qt_meta_stringdata_WaveformCanvas_t, stringdata0) + ofs \
-        - idx * sizeof(QByteArrayData)) \
-    )
-static const qt_meta_stringdata_WaveformCanvas_t qt_meta_stringdata_WaveformCanvas = {
-    {
-QT_MOC_LITERAL(0, 0, 14) // "WaveformCanvas"
+QT_WARNING_DISABLE_GCC("-Wuseless-cast")
+namespace {
+struct qt_meta_tag_ZN14WaveformCanvasE_t {};
+} // unnamed namespace
 
-    },
-    "WaveformCanvas"
-};
-#undef QT_MOC_LITERAL
-
-static const uint qt_meta_data_WaveformCanvas[] = {
-
- // content:
-       8,       // revision
-       0,       // classname
-       0,    0, // classinfo
-       0,    0, // methods
-       0,    0, // properties
-       0,    0, // enums/sets
-       0,    0, // constructors
-       0,       // flags
-       0,       // signalCount
-
-       0        // eod
-};
-
-void WaveformCanvas::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, void **_a)
+template <> constexpr inline auto WaveformCanvas::qt_create_metaobjectdata<qt_meta_tag_ZN14WaveformCanvasE_t>()
 {
-    Q_UNUSED(_o);
-    Q_UNUSED(_id);
-    Q_UNUSED(_c);
-    Q_UNUSED(_a);
-}
+    namespace QMC = QtMocConstants;
+    QtMocHelpers::StringRefStorage qt_stringData {
+        "WaveformCanvas"
+    };
 
-QT_INIT_METAOBJECT const QMetaObject WaveformCanvas::staticMetaObject = { {
+    QtMocHelpers::UintData qt_methods {
+    };
+    QtMocHelpers::UintData qt_properties {
+    };
+    QtMocHelpers::UintData qt_enums {
+    };
+    return QtMocHelpers::metaObjectData<WaveformCanvas, qt_meta_tag_ZN14WaveformCanvasE_t>(QMC::MetaObjectFlag{}, qt_stringData,
+            qt_methods, qt_properties, qt_enums);
+}
+Q_CONSTINIT const QMetaObject WaveformCanvas::staticMetaObject = { {
     QMetaObject::SuperData::link<QWidget::staticMetaObject>(),
-    qt_meta_stringdata_WaveformCanvas.data,
-    qt_meta_data_WaveformCanvas,
+    qt_staticMetaObjectStaticContent<qt_meta_tag_ZN14WaveformCanvasE_t>.stringdata,
+    qt_staticMetaObjectStaticContent<qt_meta_tag_ZN14WaveformCanvasE_t>.data,
     qt_static_metacall,
     nullptr,
+    qt_staticMetaObjectRelocatingContent<qt_meta_tag_ZN14WaveformCanvasE_t>.metaTypes,
     nullptr
 } };
 
+void WaveformCanvas::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, void **_a)
+{
+    auto *_t = static_cast<WaveformCanvas *>(_o);
+    (void)_t;
+    (void)_c;
+    (void)_id;
+    (void)_a;
+}
 
 const QMetaObject *WaveformCanvas::metaObject() const
 {
@@ -81,7 +78,7 @@ const QMetaObject *WaveformCanvas::metaObject() const
 void *WaveformCanvas::qt_metacast(const char *_clname)
 {
     if (!_clname) return nullptr;
-    if (!strcmp(_clname, qt_meta_stringdata_WaveformCanvas.stringdata0))
+    if (!strcmp(_clname, qt_staticMetaObjectStaticContent<qt_meta_tag_ZN14WaveformCanvasE_t>.strings))
         return static_cast<void*>(this);
     return QWidget::qt_metacast(_clname);
 }
@@ -91,64 +88,53 @@ int WaveformCanvas::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     _id = QWidget::qt_metacall(_c, _id, _a);
     return _id;
 }
-struct qt_meta_stringdata_SignalGeneratorWidget_t {
-    QByteArrayData data[6];
-    char stringdata0[89];
-};
-#define QT_MOC_LITERAL(idx, ofs, len) \
-    Q_STATIC_BYTE_ARRAY_DATA_HEADER_INITIALIZER_WITH_OFFSET(len, \
-    qptrdiff(offsetof(qt_meta_stringdata_SignalGeneratorWidget_t, stringdata0) + ofs \
-        - idx * sizeof(QByteArrayData)) \
-    )
-static const qt_meta_stringdata_SignalGeneratorWidget_t qt_meta_stringdata_SignalGeneratorWidget = {
-    {
-QT_MOC_LITERAL(0, 0, 21), // "SignalGeneratorWidget"
-QT_MOC_LITERAL(1, 22, 15), // "onParamsChanged"
-QT_MOC_LITERAL(2, 38, 0), // ""
-QT_MOC_LITERAL(3, 39, 18), // "onPlayPauseClicked"
-QT_MOC_LITERAL(4, 58, 14), // "onResetClicked"
-QT_MOC_LITERAL(5, 73, 15) // "onExportClicked"
+namespace {
+struct qt_meta_tag_ZN21SignalGeneratorWidgetE_t {};
+} // unnamed namespace
 
-    },
-    "SignalGeneratorWidget\0onParamsChanged\0"
-    "\0onPlayPauseClicked\0onResetClicked\0"
-    "onExportClicked"
-};
-#undef QT_MOC_LITERAL
+template <> constexpr inline auto SignalGeneratorWidget::qt_create_metaobjectdata<qt_meta_tag_ZN21SignalGeneratorWidgetE_t>()
+{
+    namespace QMC = QtMocConstants;
+    QtMocHelpers::StringRefStorage qt_stringData {
+        "SignalGeneratorWidget",
+        "onParamsChanged",
+        "",
+        "onPlayPauseClicked",
+        "onResetClicked",
+        "onExportClicked"
+    };
 
-static const uint qt_meta_data_SignalGeneratorWidget[] = {
-
- // content:
-       8,       // revision
-       0,       // classname
-       0,    0, // classinfo
-       4,   14, // methods
-       0,    0, // properties
-       0,    0, // enums/sets
-       0,    0, // constructors
-       0,       // flags
-       0,       // signalCount
-
- // slots: name, argc, parameters, tag, flags
-       1,    0,   34,    2, 0x08 /* Private */,
-       3,    0,   35,    2, 0x08 /* Private */,
-       4,    0,   36,    2, 0x08 /* Private */,
-       5,    0,   37,    2, 0x08 /* Private */,
-
- // slots: parameters
-    QMetaType::Void,
-    QMetaType::Void,
-    QMetaType::Void,
-    QMetaType::Void,
-
-       0        // eod
-};
+    QtMocHelpers::UintData qt_methods {
+        // Slot 'onParamsChanged'
+        QtMocHelpers::SlotData<void()>(1, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'onPlayPauseClicked'
+        QtMocHelpers::SlotData<void()>(3, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'onResetClicked'
+        QtMocHelpers::SlotData<void()>(4, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'onExportClicked'
+        QtMocHelpers::SlotData<void()>(5, 2, QMC::AccessPrivate, QMetaType::Void),
+    };
+    QtMocHelpers::UintData qt_properties {
+    };
+    QtMocHelpers::UintData qt_enums {
+    };
+    return QtMocHelpers::metaObjectData<SignalGeneratorWidget, qt_meta_tag_ZN21SignalGeneratorWidgetE_t>(QMC::MetaObjectFlag{}, qt_stringData,
+            qt_methods, qt_properties, qt_enums);
+}
+Q_CONSTINIT const QMetaObject SignalGeneratorWidget::staticMetaObject = { {
+    QMetaObject::SuperData::link<QWidget::staticMetaObject>(),
+    qt_staticMetaObjectStaticContent<qt_meta_tag_ZN21SignalGeneratorWidgetE_t>.stringdata,
+    qt_staticMetaObjectStaticContent<qt_meta_tag_ZN21SignalGeneratorWidgetE_t>.data,
+    qt_static_metacall,
+    nullptr,
+    qt_staticMetaObjectRelocatingContent<qt_meta_tag_ZN21SignalGeneratorWidgetE_t>.metaTypes,
+    nullptr
+} };
 
 void SignalGeneratorWidget::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, void **_a)
 {
+    auto *_t = static_cast<SignalGeneratorWidget *>(_o);
     if (_c == QMetaObject::InvokeMetaMethod) {
-        auto *_t = static_cast<SignalGeneratorWidget *>(_o);
-        Q_UNUSED(_t)
         switch (_id) {
         case 0: _t->onParamsChanged(); break;
         case 1: _t->onPlayPauseClicked(); break;
@@ -157,18 +143,8 @@ void SignalGeneratorWidget::qt_static_metacall(QObject *_o, QMetaObject::Call _c
         default: ;
         }
     }
-    Q_UNUSED(_a);
+    (void)_a;
 }
-
-QT_INIT_METAOBJECT const QMetaObject SignalGeneratorWidget::staticMetaObject = { {
-    QMetaObject::SuperData::link<QWidget::staticMetaObject>(),
-    qt_meta_stringdata_SignalGeneratorWidget.data,
-    qt_meta_data_SignalGeneratorWidget,
-    qt_static_metacall,
-    nullptr,
-    nullptr
-} };
-
 
 const QMetaObject *SignalGeneratorWidget::metaObject() const
 {
@@ -178,7 +154,7 @@ const QMetaObject *SignalGeneratorWidget::metaObject() const
 void *SignalGeneratorWidget::qt_metacast(const char *_clname)
 {
     if (!_clname) return nullptr;
-    if (!strcmp(_clname, qt_meta_stringdata_SignalGeneratorWidget.stringdata0))
+    if (!strcmp(_clname, qt_staticMetaObjectStaticContent<qt_meta_tag_ZN21SignalGeneratorWidgetE_t>.strings))
         return static_cast<void*>(this);
     return QWidget::qt_metacast(_clname);
 }
@@ -192,12 +168,12 @@ int SignalGeneratorWidget::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
         if (_id < 4)
             qt_static_metacall(this, _c, _id, _a);
         _id -= 4;
-    } else if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
+    }
+    if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
         if (_id < 4)
-            *reinterpret_cast<int*>(_a[0]) = -1;
+            *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType();
         _id -= 4;
     }
     return _id;
 }
 QT_WARNING_POP
-QT_END_MOC_NAMESPACE

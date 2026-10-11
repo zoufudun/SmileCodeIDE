@@ -1,18 +1,24 @@
 /****************************************************************************
 ** Meta object code from reading C++ file 'SciClasses.h'
 **
-** Created by: The Qt Meta Object Compiler version 68 (Qt 6.4.0)
+** Created by: The Qt Meta Object Compiler version 69 (Qt 6.11.2)
 **
 ** WARNING! All changes made in this file will be lost!
 *****************************************************************************/
 
-#include <memory>
 #include "../SciClasses.h"
 #include <QtCore/qmetatype.h>
+
+#include <QtCore/qtmochelpers.h>
+
+#include <memory>
+
+
+#include <QtCore/qxptype_traits.h>
 #if !defined(Q_MOC_OUTPUT_REVISION)
 #error "The header file 'SciClasses.h' doesn't include <QObject>."
-#elif Q_MOC_OUTPUT_REVISION != 68
-#error "This file was generated using the moc from 6.4.0. It"
+#elif Q_MOC_OUTPUT_REVISION != 69
+#error "This file was generated using the moc from 6.11.2. It"
 #error "cannot be used with the include files from this version of Qt."
 #error "(The moc has changed too much.)"
 #endif
@@ -21,59 +27,45 @@
 #define Q_CONSTINIT
 #endif
 
-QT_BEGIN_MOC_NAMESPACE
 QT_WARNING_PUSH
 QT_WARNING_DISABLE_DEPRECATED
+QT_WARNING_DISABLE_GCC("-Wuseless-cast")
 namespace {
-struct qt_meta_stringdata_QsciSciCallTip_t {
-    uint offsetsAndSizes[2];
-    char stringdata0[15];
-};
-#define QT_MOC_LITERAL(ofs, len) \
-    uint(sizeof(qt_meta_stringdata_QsciSciCallTip_t::offsetsAndSizes) + ofs), len 
-Q_CONSTINIT static const qt_meta_stringdata_QsciSciCallTip_t qt_meta_stringdata_QsciSciCallTip = {
-    {
-        QT_MOC_LITERAL(0, 14)   // "QsciSciCallTip"
-    },
-    "QsciSciCallTip"
-};
-#undef QT_MOC_LITERAL
+struct qt_meta_tag_ZN14QsciSciCallTipE_t {};
 } // unnamed namespace
 
-Q_CONSTINIT static const uint qt_meta_data_QsciSciCallTip[] = {
+template <> constexpr inline auto QsciSciCallTip::qt_create_metaobjectdata<qt_meta_tag_ZN14QsciSciCallTipE_t>()
+{
+    namespace QMC = QtMocConstants;
+    QtMocHelpers::StringRefStorage qt_stringData {
+        "QsciSciCallTip"
+    };
 
- // content:
-      10,       // revision
-       0,       // classname
-       0,    0, // classinfo
-       0,    0, // methods
-       0,    0, // properties
-       0,    0, // enums/sets
-       0,    0, // constructors
-       0,       // flags
-       0,       // signalCount
-
-       0        // eod
-};
-
+    QtMocHelpers::UintData qt_methods {
+    };
+    QtMocHelpers::UintData qt_properties {
+    };
+    QtMocHelpers::UintData qt_enums {
+    };
+    return QtMocHelpers::metaObjectData<QsciSciCallTip, qt_meta_tag_ZN14QsciSciCallTipE_t>(QMC::MetaObjectFlag{}, qt_stringData,
+            qt_methods, qt_properties, qt_enums);
+}
 Q_CONSTINIT const QMetaObject QsciSciCallTip::staticMetaObject = { {
     QMetaObject::SuperData::link<QWidget::staticMetaObject>(),
-    qt_meta_stringdata_QsciSciCallTip.offsetsAndSizes,
-    qt_meta_data_QsciSciCallTip,
+    qt_staticMetaObjectStaticContent<qt_meta_tag_ZN14QsciSciCallTipE_t>.stringdata,
+    qt_staticMetaObjectStaticContent<qt_meta_tag_ZN14QsciSciCallTipE_t>.data,
     qt_static_metacall,
     nullptr,
-    qt_incomplete_metaTypeArray<qt_meta_stringdata_QsciSciCallTip_t,
-        // Q_OBJECT / Q_GADGET
-        QtPrivate::TypeAndForceComplete<QsciSciCallTip, std::true_type>
-    >,
+    qt_staticMetaObjectRelocatingContent<qt_meta_tag_ZN14QsciSciCallTipE_t>.metaTypes,
     nullptr
 } };
 
 void QsciSciCallTip::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, void **_a)
 {
-    (void)_o;
-    (void)_id;
+    auto *_t = static_cast<QsciSciCallTip *>(_o);
+    (void)_t;
     (void)_c;
+    (void)_id;
     (void)_a;
 }
 
@@ -85,7 +77,7 @@ const QMetaObject *QsciSciCallTip::metaObject() const
 void *QsciSciCallTip::qt_metacast(const char *_clname)
 {
     if (!_clname) return nullptr;
-    if (!strcmp(_clname, qt_meta_stringdata_QsciSciCallTip.stringdata0))
+    if (!strcmp(_clname, qt_staticMetaObjectStaticContent<qt_meta_tag_ZN14QsciSciCallTipE_t>.strings))
         return static_cast<void*>(this);
     return QWidget::qt_metacast(_clname);
 }
@@ -96,75 +88,48 @@ int QsciSciCallTip::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     return _id;
 }
 namespace {
-struct qt_meta_stringdata_QsciSciPopup_t {
-    uint offsetsAndSizes[8];
-    char stringdata0[13];
-    char stringdata1[13];
-    char stringdata2[1];
-    char stringdata3[4];
-};
-#define QT_MOC_LITERAL(ofs, len) \
-    uint(sizeof(qt_meta_stringdata_QsciSciPopup_t::offsetsAndSizes) + ofs), len 
-Q_CONSTINIT static const qt_meta_stringdata_QsciSciPopup_t qt_meta_stringdata_QsciSciPopup = {
-    {
-        QT_MOC_LITERAL(0, 12),  // "QsciSciPopup"
-        QT_MOC_LITERAL(13, 12),  // "on_triggered"
-        QT_MOC_LITERAL(26, 0),  // ""
-        QT_MOC_LITERAL(27, 3)   // "cmd"
-    },
-    "QsciSciPopup",
-    "on_triggered",
-    "",
-    "cmd"
-};
-#undef QT_MOC_LITERAL
+struct qt_meta_tag_ZN12QsciSciPopupE_t {};
 } // unnamed namespace
 
-Q_CONSTINIT static const uint qt_meta_data_QsciSciPopup[] = {
+template <> constexpr inline auto QsciSciPopup::qt_create_metaobjectdata<qt_meta_tag_ZN12QsciSciPopupE_t>()
+{
+    namespace QMC = QtMocConstants;
+    QtMocHelpers::StringRefStorage qt_stringData {
+        "QsciSciPopup",
+        "on_triggered",
+        "",
+        "cmd"
+    };
 
- // content:
-      10,       // revision
-       0,       // classname
-       0,    0, // classinfo
-       1,   14, // methods
-       0,    0, // properties
-       0,    0, // enums/sets
-       0,    0, // constructors
-       0,       // flags
-       0,       // signalCount
-
- // slots: name, argc, parameters, tag, flags, initial metatype offsets
-       1,    1,   20,    2, 0x08,    1 /* Private */,
-
- // slots: parameters
-    QMetaType::Void, QMetaType::Int,    3,
-
-       0        // eod
-};
-
+    QtMocHelpers::UintData qt_methods {
+        // Slot 'on_triggered'
+        QtMocHelpers::SlotData<void(int)>(1, 2, QMC::AccessPrivate, QMetaType::Void, {{
+            { QMetaType::Int, 3 },
+        }}),
+    };
+    QtMocHelpers::UintData qt_properties {
+    };
+    QtMocHelpers::UintData qt_enums {
+    };
+    return QtMocHelpers::metaObjectData<QsciSciPopup, qt_meta_tag_ZN12QsciSciPopupE_t>(QMC::MetaObjectFlag{}, qt_stringData,
+            qt_methods, qt_properties, qt_enums);
+}
 Q_CONSTINIT const QMetaObject QsciSciPopup::staticMetaObject = { {
     QMetaObject::SuperData::link<QMenu::staticMetaObject>(),
-    qt_meta_stringdata_QsciSciPopup.offsetsAndSizes,
-    qt_meta_data_QsciSciPopup,
+    qt_staticMetaObjectStaticContent<qt_meta_tag_ZN12QsciSciPopupE_t>.stringdata,
+    qt_staticMetaObjectStaticContent<qt_meta_tag_ZN12QsciSciPopupE_t>.data,
     qt_static_metacall,
     nullptr,
-    qt_incomplete_metaTypeArray<qt_meta_stringdata_QsciSciPopup_t,
-        // Q_OBJECT / Q_GADGET
-        QtPrivate::TypeAndForceComplete<QsciSciPopup, std::true_type>,
-        // method 'on_triggered'
-        QtPrivate::TypeAndForceComplete<void, std::false_type>,
-        QtPrivate::TypeAndForceComplete<int, std::false_type>
-    >,
+    qt_staticMetaObjectRelocatingContent<qt_meta_tag_ZN12QsciSciPopupE_t>.metaTypes,
     nullptr
 } };
 
 void QsciSciPopup::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, void **_a)
 {
+    auto *_t = static_cast<QsciSciPopup *>(_o);
     if (_c == QMetaObject::InvokeMetaMethod) {
-        auto *_t = static_cast<QsciSciPopup *>(_o);
-        (void)_t;
         switch (_id) {
-        case 0: _t->on_triggered((*reinterpret_cast< std::add_pointer_t<int>>(_a[1]))); break;
+        case 0: _t->on_triggered((*reinterpret_cast<std::add_pointer_t<int>>(_a[1]))); break;
         default: ;
         }
     }
@@ -178,7 +143,7 @@ const QMetaObject *QsciSciPopup::metaObject() const
 void *QsciSciPopup::qt_metacast(const char *_clname)
 {
     if (!_clname) return nullptr;
-    if (!strcmp(_clname, qt_meta_stringdata_QsciSciPopup.stringdata0))
+    if (!strcmp(_clname, qt_staticMetaObjectStaticContent<qt_meta_tag_ZN12QsciSciPopupE_t>.strings))
         return static_cast<void*>(this);
     return QMenu::qt_metacast(_clname);
 }
@@ -192,7 +157,8 @@ int QsciSciPopup::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
         if (_id < 1)
             qt_static_metacall(this, _c, _id, _a);
         _id -= 1;
-    } else if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
+    }
+    if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
         if (_id < 1)
             *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType();
         _id -= 1;
@@ -200,55 +166,41 @@ int QsciSciPopup::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     return _id;
 }
 namespace {
-struct qt_meta_stringdata_QsciSciListBox_t {
-    uint offsetsAndSizes[2];
-    char stringdata0[15];
-};
-#define QT_MOC_LITERAL(ofs, len) \
-    uint(sizeof(qt_meta_stringdata_QsciSciListBox_t::offsetsAndSizes) + ofs), len 
-Q_CONSTINIT static const qt_meta_stringdata_QsciSciListBox_t qt_meta_stringdata_QsciSciListBox = {
-    {
-        QT_MOC_LITERAL(0, 14)   // "QsciSciListBox"
-    },
-    "QsciSciListBox"
-};
-#undef QT_MOC_LITERAL
+struct qt_meta_tag_ZN14QsciSciListBoxE_t {};
 } // unnamed namespace
 
-Q_CONSTINIT static const uint qt_meta_data_QsciSciListBox[] = {
+template <> constexpr inline auto QsciSciListBox::qt_create_metaobjectdata<qt_meta_tag_ZN14QsciSciListBoxE_t>()
+{
+    namespace QMC = QtMocConstants;
+    QtMocHelpers::StringRefStorage qt_stringData {
+        "QsciSciListBox"
+    };
 
- // content:
-      10,       // revision
-       0,       // classname
-       0,    0, // classinfo
-       0,    0, // methods
-       0,    0, // properties
-       0,    0, // enums/sets
-       0,    0, // constructors
-       0,       // flags
-       0,       // signalCount
-
-       0        // eod
-};
-
+    QtMocHelpers::UintData qt_methods {
+    };
+    QtMocHelpers::UintData qt_properties {
+    };
+    QtMocHelpers::UintData qt_enums {
+    };
+    return QtMocHelpers::metaObjectData<QsciSciListBox, qt_meta_tag_ZN14QsciSciListBoxE_t>(QMC::MetaObjectFlag{}, qt_stringData,
+            qt_methods, qt_properties, qt_enums);
+}
 Q_CONSTINIT const QMetaObject QsciSciListBox::staticMetaObject = { {
     QMetaObject::SuperData::link<QListWidget::staticMetaObject>(),
-    qt_meta_stringdata_QsciSciListBox.offsetsAndSizes,
-    qt_meta_data_QsciSciListBox,
+    qt_staticMetaObjectStaticContent<qt_meta_tag_ZN14QsciSciListBoxE_t>.stringdata,
+    qt_staticMetaObjectStaticContent<qt_meta_tag_ZN14QsciSciListBoxE_t>.data,
     qt_static_metacall,
     nullptr,
-    qt_incomplete_metaTypeArray<qt_meta_stringdata_QsciSciListBox_t,
-        // Q_OBJECT / Q_GADGET
-        QtPrivate::TypeAndForceComplete<QsciSciListBox, std::true_type>
-    >,
+    qt_staticMetaObjectRelocatingContent<qt_meta_tag_ZN14QsciSciListBoxE_t>.metaTypes,
     nullptr
 } };
 
 void QsciSciListBox::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, void **_a)
 {
-    (void)_o;
-    (void)_id;
+    auto *_t = static_cast<QsciSciListBox *>(_o);
+    (void)_t;
     (void)_c;
+    (void)_id;
     (void)_a;
 }
 
@@ -260,7 +212,7 @@ const QMetaObject *QsciSciListBox::metaObject() const
 void *QsciSciListBox::qt_metacast(const char *_clname)
 {
     if (!_clname) return nullptr;
-    if (!strcmp(_clname, qt_meta_stringdata_QsciSciListBox.stringdata0))
+    if (!strcmp(_clname, qt_staticMetaObjectStaticContent<qt_meta_tag_ZN14QsciSciListBoxE_t>.strings))
         return static_cast<void*>(this);
     return QListWidget::qt_metacast(_clname);
 }
@@ -271,4 +223,3 @@ int QsciSciListBox::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     return _id;
 }
 QT_WARNING_POP
-QT_END_MOC_NAMESPACE

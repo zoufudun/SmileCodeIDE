@@ -14,7 +14,12 @@
 #include <QPushButton>
 #include <QSpinBox>
 #include <QTableWidget>
+#include <QRegularExpression>
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+#include <QtCore5Compat/QTextCodec>
+#else
 #include <QTextCodec>
+#endif
 #include <QVBoxLayout>
 
 CanProtocolConfigDialog::CanProtocolConfigDialog(QWidget *parent)
@@ -656,7 +661,7 @@ QList<DeviceBitMapping> CanProtocolConfigDialog::parseCsvToMappings(const QByteA
     }
   }
 
-  QStringList lines = text.split(QRegExp("[\r\n]+"), QString::SkipEmptyParts);
+  QStringList lines = text.split(QRegularExpression("[\r\n]+"), Qt::SkipEmptyParts);
   if (lines.isEmpty()) return list;
 
   int startLine = 0;

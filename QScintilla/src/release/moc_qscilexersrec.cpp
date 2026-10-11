@@ -1,18 +1,24 @@
 /****************************************************************************
 ** Meta object code from reading C++ file 'qscilexersrec.h'
 **
-** Created by: The Qt Meta Object Compiler version 68 (Qt 6.4.0)
+** Created by: The Qt Meta Object Compiler version 69 (Qt 6.11.2)
 **
 ** WARNING! All changes made in this file will be lost!
 *****************************************************************************/
 
-#include <memory>
 #include "../Qsci/qscilexersrec.h"
 #include <QtCore/qmetatype.h>
+
+#include <QtCore/qtmochelpers.h>
+
+#include <memory>
+
+
+#include <QtCore/qxptype_traits.h>
 #if !defined(Q_MOC_OUTPUT_REVISION)
 #error "The header file 'qscilexersrec.h' doesn't include <QObject>."
-#elif Q_MOC_OUTPUT_REVISION != 68
-#error "This file was generated using the moc from 6.4.0. It"
+#elif Q_MOC_OUTPUT_REVISION != 69
+#error "This file was generated using the moc from 6.11.2. It"
 #error "cannot be used with the include files from this version of Qt."
 #error "(The moc has changed too much.)"
 #endif
@@ -21,59 +27,45 @@
 #define Q_CONSTINIT
 #endif
 
-QT_BEGIN_MOC_NAMESPACE
 QT_WARNING_PUSH
 QT_WARNING_DISABLE_DEPRECATED
+QT_WARNING_DISABLE_GCC("-Wuseless-cast")
 namespace {
-struct qt_meta_stringdata_QsciLexerSRec_t {
-    uint offsetsAndSizes[2];
-    char stringdata0[14];
-};
-#define QT_MOC_LITERAL(ofs, len) \
-    uint(sizeof(qt_meta_stringdata_QsciLexerSRec_t::offsetsAndSizes) + ofs), len 
-Q_CONSTINIT static const qt_meta_stringdata_QsciLexerSRec_t qt_meta_stringdata_QsciLexerSRec = {
-    {
-        QT_MOC_LITERAL(0, 13)   // "QsciLexerSRec"
-    },
-    "QsciLexerSRec"
-};
-#undef QT_MOC_LITERAL
+struct qt_meta_tag_ZN13QsciLexerSRecE_t {};
 } // unnamed namespace
 
-Q_CONSTINIT static const uint qt_meta_data_QsciLexerSRec[] = {
+template <> constexpr inline auto QsciLexerSRec::qt_create_metaobjectdata<qt_meta_tag_ZN13QsciLexerSRecE_t>()
+{
+    namespace QMC = QtMocConstants;
+    QtMocHelpers::StringRefStorage qt_stringData {
+        "QsciLexerSRec"
+    };
 
- // content:
-      10,       // revision
-       0,       // classname
-       0,    0, // classinfo
-       0,    0, // methods
-       0,    0, // properties
-       0,    0, // enums/sets
-       0,    0, // constructors
-       0,       // flags
-       0,       // signalCount
-
-       0        // eod
-};
-
+    QtMocHelpers::UintData qt_methods {
+    };
+    QtMocHelpers::UintData qt_properties {
+    };
+    QtMocHelpers::UintData qt_enums {
+    };
+    return QtMocHelpers::metaObjectData<QsciLexerSRec, qt_meta_tag_ZN13QsciLexerSRecE_t>(QMC::MetaObjectFlag{}, qt_stringData,
+            qt_methods, qt_properties, qt_enums);
+}
 Q_CONSTINIT const QMetaObject QsciLexerSRec::staticMetaObject = { {
     QMetaObject::SuperData::link<QsciLexerHex::staticMetaObject>(),
-    qt_meta_stringdata_QsciLexerSRec.offsetsAndSizes,
-    qt_meta_data_QsciLexerSRec,
+    qt_staticMetaObjectStaticContent<qt_meta_tag_ZN13QsciLexerSRecE_t>.stringdata,
+    qt_staticMetaObjectStaticContent<qt_meta_tag_ZN13QsciLexerSRecE_t>.data,
     qt_static_metacall,
     nullptr,
-    qt_incomplete_metaTypeArray<qt_meta_stringdata_QsciLexerSRec_t,
-        // Q_OBJECT / Q_GADGET
-        QtPrivate::TypeAndForceComplete<QsciLexerSRec, std::true_type>
-    >,
+    qt_staticMetaObjectRelocatingContent<qt_meta_tag_ZN13QsciLexerSRecE_t>.metaTypes,
     nullptr
 } };
 
 void QsciLexerSRec::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, void **_a)
 {
-    (void)_o;
-    (void)_id;
+    auto *_t = static_cast<QsciLexerSRec *>(_o);
+    (void)_t;
     (void)_c;
+    (void)_id;
     (void)_a;
 }
 
@@ -85,7 +77,7 @@ const QMetaObject *QsciLexerSRec::metaObject() const
 void *QsciLexerSRec::qt_metacast(const char *_clname)
 {
     if (!_clname) return nullptr;
-    if (!strcmp(_clname, qt_meta_stringdata_QsciLexerSRec.stringdata0))
+    if (!strcmp(_clname, qt_staticMetaObjectStaticContent<qt_meta_tag_ZN13QsciLexerSRecE_t>.strings))
         return static_cast<void*>(this);
     return QsciLexerHex::qt_metacast(_clname);
 }
@@ -96,4 +88,3 @@ int QsciLexerSRec::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     return _id;
 }
 QT_WARNING_POP
-QT_END_MOC_NAMESPACE

@@ -1,8 +1,11 @@
 #include "CUIHelper.h"
 #include <QDebug>
 #include <QApplication>
-#include <QDesktopWidget>
 #include <QScreen>
+#include <QGuiApplication>
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+#include <QDesktopWidget>
+#endif
 #include <QSvgRenderer>
 
 void CUIHelper::showUIBorder()
@@ -31,7 +34,13 @@ void CUIHelper::showUIBorder()
 
 void CUIHelper::widgetCenter(QWidget *pWidget, QWidget *parent)
 {
-    QSize parentSize = (nullptr == parent) ? QApplication::desktop()->screenGeometry().size() : parent->size(); //双屏情况下在主屏幕上提示
+    QSize parentSize;
+    if (nullptr == parent) {
+        QScreen *primary = QGuiApplication::primaryScreen();
+        parentSize = primary ? primary->geometry().size() : QSize(1920, 1080);
+    } else {
+        parentSize = parent->size();
+    }
     QSize subSize = parentSize - pWidget->size();
 
     pWidget->move(subSize.width()/2,subSize.height()/2);
@@ -39,9 +48,11 @@ void CUIHelper::widgetCenter(QWidget *pWidget, QWidget *parent)
 
 void CUIHelper::showHintLabel(QWidget *parent, QString strText, QString strFontSize, QString strColor, QString strBgColor, int nShowTime)
 {
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
     if(nullptr == parent){
         parent = QApplication::desktop()->screen();
     }
+#endif
 
     QFrame *pFrmBg = new QFrame(parent); //为了兼容parent为nullptr时的圆角边框  方法是背景透明 上边叠加圆角控件
 
@@ -73,9 +84,11 @@ void CUIHelper::showHintLabel(QWidget *parent, QString strText, QString strFontS
 
 void CUIHelper::showHintInfo(QString strText, QWidget *parent)
 {
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
     if(nullptr == parent){
         parent = QApplication::desktop()->screen();
     }
+#endif
 
     QFrame *pFrmBg = new QFrame(parent); //为了兼容parent为nullptr时的圆角边框  方法是背景透明 上边叠加圆角控件
 

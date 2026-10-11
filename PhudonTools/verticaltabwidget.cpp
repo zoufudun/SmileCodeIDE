@@ -83,7 +83,11 @@ void ChromeTabButton::resizeEvent(QResizeEvent *e) {
   m_btnClose->move(width() - m_btnClose->width() - 4, 4);
 }
 
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+void ChromeTabButton::enterEvent(QEnterEvent *event) {
+#else
 void ChromeTabButton::enterEvent(QEvent *event) {
+#endif
   QPushButton::enterEvent(event);
 
   if (m_hoverAnim) {

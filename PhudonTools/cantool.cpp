@@ -17,6 +17,7 @@
 #include <QProcess>
 #include <QToolButton>
 #include <QVBoxLayout>
+#include <QTimer>
 
 
 #include "TOOLS/CIconFont.h"
@@ -28,6 +29,10 @@
 #include "canviewpanel.h"
 #include "devicemonitordialog.h"
 #include "devicemonitorpanel.h"
+#include "CAN/UI/cansignalplotpanel.h"
+#include "CAN/UI/candiagnosticpanel.h"
+#include "CAN/UI/canflashpanel.h"
+#include "CAN/UI/canaiassistant.h"
 #include <cmath>
 
 
@@ -214,11 +219,42 @@ void CANTool::createToolbar() {
   btnNewView->setIcon(createToolbarIcon(2));
   btnNewView->setIconSize(QSize(28, 28));
   QMenu *menuNewView = new QMenu(this);
-  menuNewView->addAction("新建CAN视图");
+  menuNewView->addAction("新建CAN视图 (报文跟踪)");
   menuNewView->addAction("新建CANopen视图");
+  menuNewView->addAction("新建信号曲线视图 (DBC联动)");
+  menuNewView->addAction("新建UDS诊断台视图");
+  menuNewView->addAction("新建固件刷写台视图");
+  menuNewView->addAction("新建 AI 墩墩总线助手");
   connect(menuNewView, &QMenu::triggered, this, &CANTool::onNewViewTriggered);
   btnNewView->setMenu(menuNewView);
   layout->addWidget(btnNewView);
+
+  layout->addWidget(createToolBarSeparator(m_toolbar));
+
+  // [新架构核心专属快捷入口: 曲线 / 诊断 / 刷写 / AI]
+  CANToolButton *btnSignalPlot = new CANToolButton("信号曲线", 9, false, this);
+  btnSignalPlot->setIcon(createToolbarIcon(9));
+  btnSignalPlot->setIconSize(QSize(28, 28));
+  connect(btnSignalPlot, &QToolButton::clicked, this, &CANTool::openSignalPlotView);
+  layout->addWidget(btnSignalPlot);
+
+  CANToolButton *btnDiag = new CANToolButton("诊断台", 10, false, this);
+  btnDiag->setIcon(createToolbarIcon(10));
+  btnDiag->setIconSize(QSize(28, 28));
+  connect(btnDiag, &QToolButton::clicked, this, &CANTool::openDiagnosticView);
+  layout->addWidget(btnDiag);
+
+  CANToolButton *btnFlash = new CANToolButton("刷写台", 11, false, this);
+  btnFlash->setIcon(createToolbarIcon(11));
+  btnFlash->setIconSize(QSize(28, 28));
+  connect(btnFlash, &QToolButton::clicked, this, &CANTool::openFlashView);
+  layout->addWidget(btnFlash);
+
+  CANToolButton *btnAi = new CANToolButton("AI 墩墩", 12, false, this);
+  btnAi->setIcon(createToolbarIcon(12));
+  btnAi->setIconSize(QSize(28, 28));
+  connect(btnAi, &QToolButton::clicked, this, &CANTool::openAiAssistantView);
+  layout->addWidget(btnAi);
 
   layout->addWidget(createToolBarSeparator(m_toolbar));
 
@@ -434,6 +470,41 @@ QIcon CANTool::createToolbarIcon(int type) {
     painter.drawLine(32, 37, 36, 23);
     painter.drawLine(36, 23, 40, 27);
     painter.drawLine(40, 27, 52, 27);
+  } else if (type == 9) { // 信号曲线 (波形图表)
+    painter.setPen(QPen(white, 2.5, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+    painter.setBrush(Qt::NoBrush);
+    painter.drawLine(10, 52, 54, 52); // X 轴
+    painter.drawLine(10, 12, 10, 52); // Y 轴
+    painter.setPen(QPen(orange, 3, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+    QPainterPath path;
+    path.moveTo(12, 44);
+    path.cubicTo(20, 14, 30, 50, 40, 20);
+    path.lineTo(52, 30);
+    painter.drawPath(path);
+  } else if (type == 10) { // 诊断台 (ECU盒子 + 听诊放大)
+    painter.setPen(QPen(white, 2.5, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+    painter.drawRoundedRect(QRectF(10, 14, 44, 36), 6, 6);
+    painter.setPen(QPen(orange, 2.5, Qt::SolidLine, Qt::RoundCap));
+    painter.drawEllipse(QRectF(22, 24, 18, 18));
+    painter.drawLine(36, 38, 48, 48); // 放大镜把手
+  } else if (type == 11) { // 刷写台 (芯片 + 下载箭头)
+    painter.setPen(QPen(white, 2.5, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+    painter.drawRoundedRect(QRectF(12, 12, 40, 40), 6, 6);
+    painter.setPen(QPen(orange, 3.5, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+    painter.drawLine(32, 20, 32, 42);
+    painter.drawLine(24, 34, 32, 42);
+    painter.drawLine(40, 34, 32, 42);
+  } else if (type == 12) { // AI 墩墩 (智能机器人助手)
+    painter.setPen(QPen(white, 2.5, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+    painter.drawRoundedRect(QRectF(14, 20, 36, 30), 8, 8); // 机器人头部
+    // 天线
+    painter.drawLine(32, 12, 32, 20);
+    painter.setBrush(orange);
+    painter.setPen(Qt::NoPen);
+    painter.drawEllipse(QRectF(29, 8, 6, 6));
+    // 发光眼睛
+    painter.drawEllipse(QRectF(22, 30, 6, 6));
+    painter.drawEllipse(QRectF(36, 30, 6, 6));
   }
 
   painter.end();
@@ -482,7 +553,8 @@ void CANTool::onDeviceManage() {
 
 void CANTool::onNewViewTriggered(QAction *action) {
   static int viewCounter = 1;
-  if (action->text() == "新建CAN视图") {
+  const QString title = action->text();
+  if (title.contains("CAN视图")) {
     CanViewPanel *panel = new CanViewPanel(m_can, viewCounter++, this);
     panel->applyThemeStyle(m_currentStyle);
     m_splitter->addWidget(panel);
@@ -495,7 +567,7 @@ void CANTool::onNewViewTriggered(QAction *action) {
           p->close();
           p->deleteLater();
         });
-  } else if (action->text() == "新建CANopen视图") {
+  } else if (title.contains("CANopen视图")) {
     CanOpenViewPanel *panel =
         new CanOpenViewPanel(m_co, m_can, viewCounter++, this);
     panel->applyThemeStyle(m_currentStyle);
@@ -510,7 +582,119 @@ void CANTool::onNewViewTriggered(QAction *action) {
               p->close();
               p->deleteLater();
             });
+  } else if (title.contains("信号曲线")) {
+    openSignalPlotView();
+  } else if (title.contains("诊断台")) {
+    openDiagnosticView();
+  } else if (title.contains("刷写台")) {
+    openFlashView();
+  } else if (title.contains("AI 墩墩")) {
+    openAiAssistantView();
   }
+}
+
+void CANTool::balanceSplitterSizes() {
+  if (!m_splitter) return;
+  int count = m_splitter->count();
+  if (count <= 1) return;
+
+  int totalWidth = m_splitter->width();
+  if (totalWidth <= 0) {
+    for (int s : m_splitter->sizes()) totalWidth += s;
+  }
+  if (totalWidth <= 0) totalWidth = 1200;
+
+  QList<int> sizes;
+  if (count == 2) {
+    sizes << totalWidth * 6 / 10 << totalWidth * 4 / 10;
+  } else {
+    int subWidth = qMax(320, (totalWidth * 55 / 100) / (count - 1));
+    int mainWidth = totalWidth - subWidth * (count - 1);
+    sizes << mainWidth;
+    for (int i = 1; i < count; ++i) {
+      sizes << subWidth;
+    }
+  }
+  m_splitter->setSizes(sizes);
+}
+
+void CANTool::openSignalPlotView() {
+  CanSignalPlotPanel *panel = m_splitter->findChild<CanSignalPlotPanel *>();
+  if (panel) {
+    panel->show();
+    panel->raise();
+    return;
+  }
+  panel = new CanSignalPlotPanel(m_can, this);
+  panel->applyThemeStyle(m_currentStyle);
+  m_splitter->addWidget(panel);
+  connect(panel, &CanSignalPlotPanel::closeRequested, this, [this](QWidget *p) {
+    p->close();
+    p->deleteLater();
+    QTimer::singleShot(50, this, [this]() { balanceSplitterSizes(); });
+  });
+  balanceSplitterSizes();
+}
+
+void CANTool::openDiagnosticView() {
+  CanDiagnosticPanel *panel = m_splitter->findChild<CanDiagnosticPanel *>();
+  if (panel) {
+    panel->show();
+    panel->raise();
+    return;
+  }
+  panel = new CanDiagnosticPanel(m_can, this);
+  panel->applyThemeStyle(m_currentStyle);
+  connect(panel, &CanDiagnosticPanel::closeRequested, this, [this](QWidget *p) {
+    p->close();
+    p->deleteLater();
+    QTimer::singleShot(50, this, [this]() { balanceSplitterSizes(); });
+  });
+  connect(panel, &CanDiagnosticPanel::requestAiDiagnosticReport, this, [this](const QStringList &dtcs) {
+    openAiAssistantView();
+    CanAiAssistant *ai = m_splitter->findChild<CanAiAssistant*>();
+    if (ai) {
+      ai->analyzeDtcList(dtcs);
+    }
+  });
+  m_splitter->addWidget(panel);
+  balanceSplitterSizes();
+}
+
+void CANTool::openFlashView() {
+  CanFlashPanel *panel = m_splitter->findChild<CanFlashPanel *>();
+  if (panel) {
+    panel->show();
+    panel->raise();
+    return;
+  }
+  panel = new CanFlashPanel(m_can, this);
+  panel->applyThemeStyle(m_currentStyle);
+  connect(panel, &CanFlashPanel::closeRequested, this, [this](QWidget *p) {
+    p->close();
+    p->deleteLater();
+    QTimer::singleShot(50, this, [this]() { balanceSplitterSizes(); });
+  });
+  m_splitter->addWidget(panel);
+  balanceSplitterSizes();
+}
+
+void CANTool::openAiAssistantView() {
+  CanAiAssistant *panel = m_splitter->findChild<CanAiAssistant *>();
+  if (panel) {
+    panel->show();
+    panel->raise();
+    return;
+  }
+  panel = new CanAiAssistant(nullptr, this);
+  panel->applyThemeStyle(m_currentStyle);
+  connect(panel, &CanAiAssistant::closeRequested, this, [this](QWidget *p) {
+    p->close();
+    p->deleteLater();
+    QTimer::singleShot(50, this, [this]() { balanceSplitterSizes(); });
+  });
+  m_splitter->addWidget(panel);
+  balanceSplitterSizes();
 }
 
 void CANTool::onStatusMonitorClicked() {
@@ -556,7 +740,9 @@ void CANTool::onAdvancedFeaturesTriggered(QAction *action) {
 }
 
 void CANTool::onToolsTriggered(QAction *action) {
-  if (action->text().contains("计算器")) {
+  if (action->text().contains("DBC")) {
+    openSignalPlotView();
+  } else if (action->text().contains("计算器")) {
     QProcess::startDetached("calc.exe", QStringList());
   } else if (action->text() == "SmileDisplayerPro" || action->text() == "Status Monitor") {
     onStatusMonitorClicked();

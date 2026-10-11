@@ -5,6 +5,8 @@
 #include <QMap>
 
 class QComboBox;
+class QLineEdit;
+class QLabel;
 class QSpinBox;
 class QPushButton;
 class QTreeWidget;
@@ -28,19 +30,42 @@ private slots:
   void onStopAllChannels();
   void onShowDeviceInfoClicked();
   void onCloudDeviceClicked();
+  void onRefreshClicked();
+  void onExpandAllClicked();
+  void onCollapseAllClicked();
+  void onCopyConfigClicked();
+  void onTreeDeviceActivated(QTreeWidgetItem *item, int column);
+  void onSearchTextChanged(const QString &text);
+  void onVendorFilterChanged(int index);
+  void onDetectDevicesClicked();
 
 private:
   void setupUi();
   void refreshDeviceTree();
   void updateButtonStates();
+  void populateDeviceTypeCombo(int vendorFilterIdx = 0);
+  void detectAndPromptDevices(bool autoSelectFirstHardware = true);
+  QString vendorForDevice(const QString &deviceName, quint32 deviceType) const;
+  bool deviceMatchesFilter(const QString &vendor, const QString &deviceName) const;
+  void updateSummary(int totalDevices, int visibleDevices, int runningChannels);
 
   CanInterface *m_can;
+  QString m_currentStyle;
 
   QComboBox *m_deviceTypeCombo;
+  QComboBox *m_vendorFilterCombo;
+  QLineEdit *m_searchEdit;
+  QLabel *m_summaryLabel;
+  QLabel *m_detectBannerLabel;
   QSpinBox *m_deviceIndexSpin;
   QPushButton *m_openButton;
+  QPushButton *m_detectButton;
   QPushButton *m_cloudButton;
   QPushButton *m_closeButton;
+  QPushButton *m_refreshButton;
+  QPushButton *m_expandButton;
+  QPushButton *m_collapseButton;
+  QPushButton *m_copyConfigButton;
 
   QTreeWidget *m_deviceTree;
 
@@ -55,5 +80,6 @@ private:
   QPushButton *m_deviceCloseButton;
   QPushButton *m_deviceInfoButton;
 };
+
 
 #endif // CANDEVICEDIALOG_H

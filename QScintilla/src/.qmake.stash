@@ -5,3 +5,15 @@ QMAKE_CXX.COMPILER_MACROS = \
     QT_COMPILER_STDCXX \
     QMAKE_MSC_VER \
     QMAKE_MSC_FULL_VER
+QMAKE_CXX.INCDIRS = \
+    D:/Soft/Qt/Tools/mingw1310_64/lib/gcc/x86_64-w64-mingw32/13.1.0/include/c++ \
+    D:/Soft/Qt/Tools/mingw1310_64/lib/gcc/x86_64-w64-mingw32/13.1.0/include/c++/x86_64-w64-mingw32 \
+    D:/Soft/Qt/Tools/mingw1310_64/lib/gcc/x86_64-w64-mingw32/13.1.0/include/c++/backward \
+    D:/Soft/Qt/Tools/mingw1310_64/lib/gcc/x86_64-w64-mingw32/13.1.0/include \
+    D:/Soft/Qt/Tools/mingw1310_64/lib/gcc/x86_64-w64-mingw32/13.1.0/include-fixed \
+    D:/Soft/Qt/Tools/mingw1310_64/x86_64-w64-mingw32/include
+QMAKE_CXX.LIBDIRS = \
+    D:/Soft/Qt/Tools/mingw1310_64/lib/gcc/x86_64-w64-mingw32/13.1.0 \
+    D:/Soft/Qt/Tools/mingw1310_64/lib/gcc \
+    D:/Soft/Qt/Tools/mingw1310_64/x86_64-w64-mingw32/lib \
+    D:/Soft/Qt/Tools/mingw1310_64/lib

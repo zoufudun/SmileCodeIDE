@@ -327,7 +327,11 @@ void AppCardWidget::updateStyles() {
   }
 }
 
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+void AppCardWidget::enterEvent(QEnterEvent *event) {
+#else
 void AppCardWidget::enterEvent(QEvent *event) {
+#endif
   Q_UNUSED(event);
   m_isHovered = true;
   updateStyles();

@@ -28,7 +28,11 @@
 #include <QSignalBlocker>
 #include <QSize>
 #include <QSplitter>
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+#include <QtCore5Compat/QTextCodec>
+#else
 #include <QTextCodec>
+#endif
 #include <QTextStream>
 #include <QToolButton>
 #include <QToolTip>

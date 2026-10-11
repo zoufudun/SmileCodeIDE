@@ -1171,18 +1171,53 @@ QLineEdit:focus, QComboBox:focus, QSpinBox:focus, QDoubleSpinBox:focus {
 }
 QComboBox::drop-down {
   border: none;
-  width: 20px;
+  width: 24px;
 }
-QComboBox QAbstractItemView {
+QComboBox::down-arrow {
+  image: none;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid {{TEXT_SUB}};
+  width: 0px;
+  height: 0px;
+  margin-right: 6px;
+}
+QComboBox::down-arrow:hover {
+  border-top-color: {{ACCENT}};
+}
+QComboBox QAbstractItemView,
+QComboBox QListView {
   background-color: {{CARD_BG}};
   color: {{TEXT_MAIN}};
   border: 1px solid {{BORDER_LIGHT}};
-  selection-background-color: {{ACCENT_GRAD}};
-  selection-color: {{ACCENT_TEXT}};
+  selection-background-color: {{SELECTION_BG}};
+  selection-color: {{SELECTION_TEXT}};
   outline: 0;
   padding: 4px;
+  border-radius: 6px;
+}
+QComboBox QAbstractItemView::item,
+QComboBox QListView::item {
+  color: {{TEXT_MAIN}};
+  background-color: transparent;
+  min-height: 24px;
+  padding: 4px 8px;
   border-radius: 4px;
 }
+QComboBox QAbstractItemView::item:hover,
+QComboBox QAbstractItemView::item:selected,
+QComboBox QListView::item:hover,
+QComboBox QListView::item:selected {
+  background-color: {{SELECTION_BG}};
+  color: {{SELECTION_TEXT}};
+}
+QComboBox QAbstractItemView::item:disabled,
+QComboBox QListView::item:disabled {
+  color: {{TEXT_DISABLED}};
+  background-color: transparent;
+  font-weight: bold;
+}
+
 
 /* 华丽高阶按钮 PushButton */
 QPushButton {

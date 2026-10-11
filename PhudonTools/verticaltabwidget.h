@@ -43,7 +43,11 @@ signals:
 
 protected:
   void resizeEvent(QResizeEvent *e) override;
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+  void enterEvent(QEnterEvent *e) override;
+#else
   void enterEvent(QEvent *e) override;
+#endif
   void leaveEvent(QEvent *e) override;
   void paintEvent(QPaintEvent *) override;
   void mousePressEvent(QMouseEvent *e) override;

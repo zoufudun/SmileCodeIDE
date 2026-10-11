@@ -1,0 +1,18 @@
+********* Start testing of ProbeDetectorTest *********
+Config: Using QtTest library 6.12.0, Qt 6.12.0 (x86_64-little_endian-llp64 shared (dynamic) release build; by GCC 15.1.0), windows 11
+PASS   : ProbeDetectorTest::initTestCase()
+PASS   : ProbeDetectorTest::recognizesCommonUsbProbes()
+PASS   : ProbeDetectorTest::ignoresUnrelatedUsbDevices()
+PASS   : ProbeDetectorTest::parsesCompositeDeviceSerial()
+PASS   : ProbeDetectorTest::selectsProbeInFlashCommands()
+PASS   : ProbeDetectorTest::rejectsIncompatibleDriverSelection()
+QINFO  : ProbeDetectorTest::scansPresentUsbDevicesWithoutDuplicates() J-Link J-Trace PRO 1366:1020 000933000892
+QINFO  : ProbeDetectorTest::scansPresentUsbDevicesWithoutDuplicates() Present probes: 1
+PASS   : ProbeDetectorTest::scansPresentUsbDevicesWithoutDuplicates()
+PASS   : ProbeDetectorTest::restoresSavedProbeSelection()
+PASS   : ProbeDetectorTest::rejectsUnsafeFlashAddresses()
+PASS   : ProbeDetectorTest::autoSelectsSingleConnectedProbe()
+PASS   : ProbeDetectorTest::generatesValidJLinkDownloadScript()
+PASS   : ProbeDetectorTest::cleanupTestCase()
+Totals: 12 passed, 0 failed, 0 skipped, 0 blacklisted, 2204ms
+********* Finished testing of ProbeDetectorTest *********

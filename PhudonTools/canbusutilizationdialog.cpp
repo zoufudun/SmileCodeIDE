@@ -305,7 +305,9 @@ void CanBusUtilizationDialog::onSaveClicked() {
   }
 
   QTextStream out(&file);
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
   out.setCodec("UTF-8");
+#endif
   out << QString::fromUtf8("序号,时间戳,左侧通道ID,左侧利用率(%),右侧通道ID,右侧利用率(%)\n");
 
   QString timeStr = QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss");

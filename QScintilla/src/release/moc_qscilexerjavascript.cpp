@@ -1,18 +1,24 @@
 /****************************************************************************
 ** Meta object code from reading C++ file 'qscilexerjavascript.h'
 **
-** Created by: The Qt Meta Object Compiler version 68 (Qt 6.4.0)
+** Created by: The Qt Meta Object Compiler version 69 (Qt 6.11.2)
 **
 ** WARNING! All changes made in this file will be lost!
 *****************************************************************************/
 
-#include <memory>
 #include "../Qsci/qscilexerjavascript.h"
 #include <QtCore/qmetatype.h>
+
+#include <QtCore/qtmochelpers.h>
+
+#include <memory>
+
+
+#include <QtCore/qxptype_traits.h>
 #if !defined(Q_MOC_OUTPUT_REVISION)
 #error "The header file 'qscilexerjavascript.h' doesn't include <QObject>."
-#elif Q_MOC_OUTPUT_REVISION != 68
-#error "This file was generated using the moc from 6.4.0. It"
+#elif Q_MOC_OUTPUT_REVISION != 69
+#error "This file was generated using the moc from 6.11.2. It"
 #error "cannot be used with the include files from this version of Qt."
 #error "(The moc has changed too much.)"
 #endif
@@ -21,59 +27,45 @@
 #define Q_CONSTINIT
 #endif
 
-QT_BEGIN_MOC_NAMESPACE
 QT_WARNING_PUSH
 QT_WARNING_DISABLE_DEPRECATED
+QT_WARNING_DISABLE_GCC("-Wuseless-cast")
 namespace {
-struct qt_meta_stringdata_QsciLexerJavaScript_t {
-    uint offsetsAndSizes[2];
-    char stringdata0[20];
-};
-#define QT_MOC_LITERAL(ofs, len) \
-    uint(sizeof(qt_meta_stringdata_QsciLexerJavaScript_t::offsetsAndSizes) + ofs), len 
-Q_CONSTINIT static const qt_meta_stringdata_QsciLexerJavaScript_t qt_meta_stringdata_QsciLexerJavaScript = {
-    {
-        QT_MOC_LITERAL(0, 19)   // "QsciLexerJavaScript"
-    },
-    "QsciLexerJavaScript"
-};
-#undef QT_MOC_LITERAL
+struct qt_meta_tag_ZN19QsciLexerJavaScriptE_t {};
 } // unnamed namespace
 
-Q_CONSTINIT static const uint qt_meta_data_QsciLexerJavaScript[] = {
+template <> constexpr inline auto QsciLexerJavaScript::qt_create_metaobjectdata<qt_meta_tag_ZN19QsciLexerJavaScriptE_t>()
+{
+    namespace QMC = QtMocConstants;
+    QtMocHelpers::StringRefStorage qt_stringData {
+        "QsciLexerJavaScript"
+    };
 
- // content:
-      10,       // revision
-       0,       // classname
-       0,    0, // classinfo
-       0,    0, // methods
-       0,    0, // properties
-       0,    0, // enums/sets
-       0,    0, // constructors
-       0,       // flags
-       0,       // signalCount
-
-       0        // eod
-};
-
+    QtMocHelpers::UintData qt_methods {
+    };
+    QtMocHelpers::UintData qt_properties {
+    };
+    QtMocHelpers::UintData qt_enums {
+    };
+    return QtMocHelpers::metaObjectData<QsciLexerJavaScript, qt_meta_tag_ZN19QsciLexerJavaScriptE_t>(QMC::MetaObjectFlag{}, qt_stringData,
+            qt_methods, qt_properties, qt_enums);
+}
 Q_CONSTINIT const QMetaObject QsciLexerJavaScript::staticMetaObject = { {
     QMetaObject::SuperData::link<QsciLexerCPP::staticMetaObject>(),
-    qt_meta_stringdata_QsciLexerJavaScript.offsetsAndSizes,
-    qt_meta_data_QsciLexerJavaScript,
+    qt_staticMetaObjectStaticContent<qt_meta_tag_ZN19QsciLexerJavaScriptE_t>.stringdata,
+    qt_staticMetaObjectStaticContent<qt_meta_tag_ZN19QsciLexerJavaScriptE_t>.data,
     qt_static_metacall,
     nullptr,
-    qt_incomplete_metaTypeArray<qt_meta_stringdata_QsciLexerJavaScript_t,
-        // Q_OBJECT / Q_GADGET
-        QtPrivate::TypeAndForceComplete<QsciLexerJavaScript, std::true_type>
-    >,
+    qt_staticMetaObjectRelocatingContent<qt_meta_tag_ZN19QsciLexerJavaScriptE_t>.metaTypes,
     nullptr
 } };
 
 void QsciLexerJavaScript::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, void **_a)
 {
-    (void)_o;
-    (void)_id;
+    auto *_t = static_cast<QsciLexerJavaScript *>(_o);
+    (void)_t;
     (void)_c;
+    (void)_id;
     (void)_a;
 }
 
@@ -85,7 +77,7 @@ const QMetaObject *QsciLexerJavaScript::metaObject() const
 void *QsciLexerJavaScript::qt_metacast(const char *_clname)
 {
     if (!_clname) return nullptr;
-    if (!strcmp(_clname, qt_meta_stringdata_QsciLexerJavaScript.stringdata0))
+    if (!strcmp(_clname, qt_staticMetaObjectStaticContent<qt_meta_tag_ZN19QsciLexerJavaScriptE_t>.strings))
         return static_cast<void*>(this);
     return QsciLexerCPP::qt_metacast(_clname);
 }
@@ -96,4 +88,3 @@ int QsciLexerJavaScript::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     return _id;
 }
 QT_WARNING_POP
-QT_END_MOC_NAMESPACE

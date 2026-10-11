@@ -1,18 +1,24 @@
 /****************************************************************************
 ** Meta object code from reading C++ file 'qscilexer.h'
 **
-** Created by: The Qt Meta Object Compiler version 68 (Qt 6.4.0)
+** Created by: The Qt Meta Object Compiler version 69 (Qt 6.11.2)
 **
 ** WARNING! All changes made in this file will be lost!
 *****************************************************************************/
 
-#include <memory>
 #include "../Qsci/qscilexer.h"
 #include <QtCore/qmetatype.h>
+
+#include <QtCore/qtmochelpers.h>
+
+#include <memory>
+
+
+#include <QtCore/qxptype_traits.h>
 #if !defined(Q_MOC_OUTPUT_REVISION)
 #error "The header file 'qscilexer.h' doesn't include <QObject>."
-#elif Q_MOC_OUTPUT_REVISION != 68
-#error "This file was generated using the moc from 6.4.0. It"
+#elif Q_MOC_OUTPUT_REVISION != 69
+#error "This file was generated using the moc from 6.11.2. It"
 #error "cannot be used with the include files from this version of Qt."
 #error "(The moc has changed too much.)"
 #endif
@@ -21,260 +27,150 @@
 #define Q_CONSTINIT
 #endif
 
-QT_BEGIN_MOC_NAMESPACE
 QT_WARNING_PUSH
 QT_WARNING_DISABLE_DEPRECATED
+QT_WARNING_DISABLE_GCC("-Wuseless-cast")
 namespace {
-struct qt_meta_stringdata_QsciLexer_t {
-    uint offsetsAndSizes[42];
-    char stringdata0[10];
-    char stringdata1[13];
-    char stringdata2[1];
-    char stringdata3[2];
-    char stringdata4[6];
-    char stringdata5[15];
-    char stringdata6[10];
-    char stringdata7[12];
-    char stringdata8[2];
-    char stringdata9[13];
-    char stringdata10[16];
-    char stringdata11[12];
-    char stringdata12[5];
-    char stringdata13[4];
-    char stringdata14[19];
-    char stringdata15[16];
-    char stringdata16[9];
-    char stringdata17[11];
-    char stringdata18[8];
-    char stringdata19[8];
-    char stringdata20[9];
-};
-#define QT_MOC_LITERAL(ofs, len) \
-    uint(sizeof(qt_meta_stringdata_QsciLexer_t::offsetsAndSizes) + ofs), len 
-Q_CONSTINIT static const qt_meta_stringdata_QsciLexer_t qt_meta_stringdata_QsciLexer = {
-    {
-        QT_MOC_LITERAL(0, 9),  // "QsciLexer"
-        QT_MOC_LITERAL(10, 12),  // "colorChanged"
-        QT_MOC_LITERAL(23, 0),  // ""
-        QT_MOC_LITERAL(24, 1),  // "c"
-        QT_MOC_LITERAL(26, 5),  // "style"
-        QT_MOC_LITERAL(32, 14),  // "eolFillChanged"
-        QT_MOC_LITERAL(47, 9),  // "eolfilled"
-        QT_MOC_LITERAL(57, 11),  // "fontChanged"
-        QT_MOC_LITERAL(69, 1),  // "f"
-        QT_MOC_LITERAL(71, 12),  // "paperChanged"
-        QT_MOC_LITERAL(84, 15),  // "propertyChanged"
-        QT_MOC_LITERAL(100, 11),  // "const char*"
-        QT_MOC_LITERAL(112, 4),  // "prop"
-        QT_MOC_LITERAL(117, 3),  // "val"
-        QT_MOC_LITERAL(121, 18),  // "setAutoIndentStyle"
-        QT_MOC_LITERAL(140, 15),  // "autoindentstyle"
-        QT_MOC_LITERAL(156, 8),  // "setColor"
-        QT_MOC_LITERAL(165, 10),  // "setEolFill"
-        QT_MOC_LITERAL(176, 7),  // "eoffill"
-        QT_MOC_LITERAL(184, 7),  // "setFont"
-        QT_MOC_LITERAL(192, 8)   // "setPaper"
-    },
-    "QsciLexer",
-    "colorChanged",
-    "",
-    "c",
-    "style",
-    "eolFillChanged",
-    "eolfilled",
-    "fontChanged",
-    "f",
-    "paperChanged",
-    "propertyChanged",
-    "const char*",
-    "prop",
-    "val",
-    "setAutoIndentStyle",
-    "autoindentstyle",
-    "setColor",
-    "setEolFill",
-    "eoffill",
-    "setFont",
-    "setPaper"
-};
-#undef QT_MOC_LITERAL
+struct qt_meta_tag_ZN9QsciLexerE_t {};
 } // unnamed namespace
 
-Q_CONSTINIT static const uint qt_meta_data_QsciLexer[] = {
+template <> constexpr inline auto QsciLexer::qt_create_metaobjectdata<qt_meta_tag_ZN9QsciLexerE_t>()
+{
+    namespace QMC = QtMocConstants;
+    QtMocHelpers::StringRefStorage qt_stringData {
+        "QsciLexer",
+        "colorChanged",
+        "",
+        "QColor",
+        "c",
+        "style",
+        "eolFillChanged",
+        "eolfilled",
+        "fontChanged",
+        "QFont",
+        "f",
+        "paperChanged",
+        "propertyChanged",
+        "const char*",
+        "prop",
+        "val",
+        "setAutoIndentStyle",
+        "autoindentstyle",
+        "setColor",
+        "setEolFill",
+        "eoffill",
+        "setFont",
+        "setPaper"
+    };
 
- // content:
-      10,       // revision
-       0,       // classname
-       0,    0, // classinfo
-      14,   14, // methods
-       0,    0, // properties
-       0,    0, // enums/sets
-       0,    0, // constructors
-       0,       // flags
-       5,       // signalCount
-
- // signals: name, argc, parameters, tag, flags, initial metatype offsets
-       1,    2,   98,    2, 0x06,    1 /* Public */,
-       5,    2,  103,    2, 0x06,    4 /* Public */,
-       7,    2,  108,    2, 0x06,    7 /* Public */,
-       9,    2,  113,    2, 0x06,   10 /* Public */,
-      10,    2,  118,    2, 0x06,   13 /* Public */,
-
- // slots: name, argc, parameters, tag, flags, initial metatype offsets
-      14,    1,  123,    2, 0x0a,   16 /* Public */,
-      16,    2,  126,    2, 0x0a,   18 /* Public */,
-      16,    1,  131,    2, 0x2a,   21 /* Public | MethodCloned */,
-      17,    2,  134,    2, 0x0a,   23 /* Public */,
-      17,    1,  139,    2, 0x2a,   26 /* Public | MethodCloned */,
-      19,    2,  142,    2, 0x0a,   28 /* Public */,
-      19,    1,  147,    2, 0x2a,   31 /* Public | MethodCloned */,
-      20,    2,  150,    2, 0x0a,   33 /* Public */,
-      20,    1,  155,    2, 0x2a,   36 /* Public | MethodCloned */,
-
- // signals: parameters
-    QMetaType::Void, QMetaType::QColor, QMetaType::Int,    3,    4,
-    QMetaType::Void, QMetaType::Bool, QMetaType::Int,    6,    4,
-    QMetaType::Void, QMetaType::QFont, QMetaType::Int,    8,    4,
-    QMetaType::Void, QMetaType::QColor, QMetaType::Int,    3,    4,
-    QMetaType::Void, 0x80000000 | 11, 0x80000000 | 11,   12,   13,
-
- // slots: parameters
-    QMetaType::Void, QMetaType::Int,   15,
-    QMetaType::Void, QMetaType::QColor, QMetaType::Int,    3,    4,
-    QMetaType::Void, QMetaType::QColor,    3,
-    QMetaType::Void, QMetaType::Bool, QMetaType::Int,   18,    4,
-    QMetaType::Void, QMetaType::Bool,   18,
-    QMetaType::Void, QMetaType::QFont, QMetaType::Int,    8,    4,
-    QMetaType::Void, QMetaType::QFont,    8,
-    QMetaType::Void, QMetaType::QColor, QMetaType::Int,    3,    4,
-    QMetaType::Void, QMetaType::QColor,    3,
-
-       0        // eod
-};
-
+    QtMocHelpers::UintData qt_methods {
+        // Signal 'colorChanged'
+        QtMocHelpers::SignalData<void(const QColor &, int)>(1, 2, QMC::AccessPublic, QMetaType::Void, {{
+            { 0x80000000 | 3, 4 }, { QMetaType::Int, 5 },
+        }}),
+        // Signal 'eolFillChanged'
+        QtMocHelpers::SignalData<void(bool, int)>(6, 2, QMC::AccessPublic, QMetaType::Void, {{
+            { QMetaType::Bool, 7 }, { QMetaType::Int, 5 },
+        }}),
+        // Signal 'fontChanged'
+        QtMocHelpers::SignalData<void(const QFont &, int)>(8, 2, QMC::AccessPublic, QMetaType::Void, {{
+            { 0x80000000 | 9, 10 }, { QMetaType::Int, 5 },
+        }}),
+        // Signal 'paperChanged'
+        QtMocHelpers::SignalData<void(const QColor &, int)>(11, 2, QMC::AccessPublic, QMetaType::Void, {{
+            { 0x80000000 | 3, 4 }, { QMetaType::Int, 5 },
+        }}),
+        // Signal 'propertyChanged'
+        QtMocHelpers::SignalData<void(const char *, const char *)>(12, 2, QMC::AccessPublic, QMetaType::Void, {{
+            { 0x80000000 | 13, 14 }, { 0x80000000 | 13, 15 },
+        }}),
+        // Slot 'setAutoIndentStyle'
+        QtMocHelpers::SlotData<void(int)>(16, 2, QMC::AccessPublic, QMetaType::Void, {{
+            { QMetaType::Int, 17 },
+        }}),
+        // Slot 'setColor'
+        QtMocHelpers::SlotData<void(const QColor &, int)>(18, 2, QMC::AccessPublic, QMetaType::Void, {{
+            { 0x80000000 | 3, 4 }, { QMetaType::Int, 5 },
+        }}),
+        // Slot 'setColor'
+        QtMocHelpers::SlotData<void(const QColor &)>(18, 2, QMC::AccessPublic | QMC::MethodCloned, QMetaType::Void, {{
+            { 0x80000000 | 3, 4 },
+        }}),
+        // Slot 'setEolFill'
+        QtMocHelpers::SlotData<void(bool, int)>(19, 2, QMC::AccessPublic, QMetaType::Void, {{
+            { QMetaType::Bool, 20 }, { QMetaType::Int, 5 },
+        }}),
+        // Slot 'setEolFill'
+        QtMocHelpers::SlotData<void(bool)>(19, 2, QMC::AccessPublic | QMC::MethodCloned, QMetaType::Void, {{
+            { QMetaType::Bool, 20 },
+        }}),
+        // Slot 'setFont'
+        QtMocHelpers::SlotData<void(const QFont &, int)>(21, 2, QMC::AccessPublic, QMetaType::Void, {{
+            { 0x80000000 | 9, 10 }, { QMetaType::Int, 5 },
+        }}),
+        // Slot 'setFont'
+        QtMocHelpers::SlotData<void(const QFont &)>(21, 2, QMC::AccessPublic | QMC::MethodCloned, QMetaType::Void, {{
+            { 0x80000000 | 9, 10 },
+        }}),
+        // Slot 'setPaper'
+        QtMocHelpers::SlotData<void(const QColor &, int)>(22, 2, QMC::AccessPublic, QMetaType::Void, {{
+            { 0x80000000 | 3, 4 }, { QMetaType::Int, 5 },
+        }}),
+        // Slot 'setPaper'
+        QtMocHelpers::SlotData<void(const QColor &)>(22, 2, QMC::AccessPublic | QMC::MethodCloned, QMetaType::Void, {{
+            { 0x80000000 | 3, 4 },
+        }}),
+    };
+    QtMocHelpers::UintData qt_properties {
+    };
+    QtMocHelpers::UintData qt_enums {
+    };
+    return QtMocHelpers::metaObjectData<QsciLexer, qt_meta_tag_ZN9QsciLexerE_t>(QMC::MetaObjectFlag{}, qt_stringData,
+            qt_methods, qt_properties, qt_enums);
+}
 Q_CONSTINIT const QMetaObject QsciLexer::staticMetaObject = { {
     QMetaObject::SuperData::link<QObject::staticMetaObject>(),
-    qt_meta_stringdata_QsciLexer.offsetsAndSizes,
-    qt_meta_data_QsciLexer,
+    qt_staticMetaObjectStaticContent<qt_meta_tag_ZN9QsciLexerE_t>.stringdata,
+    qt_staticMetaObjectStaticContent<qt_meta_tag_ZN9QsciLexerE_t>.data,
     qt_static_metacall,
     nullptr,
-    qt_incomplete_metaTypeArray<qt_meta_stringdata_QsciLexer_t,
-        // Q_OBJECT / Q_GADGET
-        QtPrivate::TypeAndForceComplete<QsciLexer, std::true_type>,
-        // method 'colorChanged'
-        QtPrivate::TypeAndForceComplete<void, std::false_type>,
-        QtPrivate::TypeAndForceComplete<const QColor &, std::false_type>,
-        QtPrivate::TypeAndForceComplete<int, std::false_type>,
-        // method 'eolFillChanged'
-        QtPrivate::TypeAndForceComplete<void, std::false_type>,
-        QtPrivate::TypeAndForceComplete<bool, std::false_type>,
-        QtPrivate::TypeAndForceComplete<int, std::false_type>,
-        // method 'fontChanged'
-        QtPrivate::TypeAndForceComplete<void, std::false_type>,
-        QtPrivate::TypeAndForceComplete<const QFont &, std::false_type>,
-        QtPrivate::TypeAndForceComplete<int, std::false_type>,
-        // method 'paperChanged'
-        QtPrivate::TypeAndForceComplete<void, std::false_type>,
-        QtPrivate::TypeAndForceComplete<const QColor &, std::false_type>,
-        QtPrivate::TypeAndForceComplete<int, std::false_type>,
-        // method 'propertyChanged'
-        QtPrivate::TypeAndForceComplete<void, std::false_type>,
-        QtPrivate::TypeAndForceComplete<const char *, std::false_type>,
-        QtPrivate::TypeAndForceComplete<const char *, std::false_type>,
-        // method 'setAutoIndentStyle'
-        QtPrivate::TypeAndForceComplete<void, std::false_type>,
-        QtPrivate::TypeAndForceComplete<int, std::false_type>,
-        // method 'setColor'
-        QtPrivate::TypeAndForceComplete<void, std::false_type>,
-        QtPrivate::TypeAndForceComplete<const QColor &, std::false_type>,
-        QtPrivate::TypeAndForceComplete<int, std::false_type>,
-        // method 'setColor'
-        QtPrivate::TypeAndForceComplete<void, std::false_type>,
-        QtPrivate::TypeAndForceComplete<const QColor &, std::false_type>,
-        // method 'setEolFill'
-        QtPrivate::TypeAndForceComplete<void, std::false_type>,
-        QtPrivate::TypeAndForceComplete<bool, std::false_type>,
-        QtPrivate::TypeAndForceComplete<int, std::false_type>,
-        // method 'setEolFill'
-        QtPrivate::TypeAndForceComplete<void, std::false_type>,
-        QtPrivate::TypeAndForceComplete<bool, std::false_type>,
-        // method 'setFont'
-        QtPrivate::TypeAndForceComplete<void, std::false_type>,
-        QtPrivate::TypeAndForceComplete<const QFont &, std::false_type>,
-        QtPrivate::TypeAndForceComplete<int, std::false_type>,
-        // method 'setFont'
-        QtPrivate::TypeAndForceComplete<void, std::false_type>,
-        QtPrivate::TypeAndForceComplete<const QFont &, std::false_type>,
-        // method 'setPaper'
-        QtPrivate::TypeAndForceComplete<void, std::false_type>,
-        QtPrivate::TypeAndForceComplete<const QColor &, std::false_type>,
-        QtPrivate::TypeAndForceComplete<int, std::false_type>,
-        // method 'setPaper'
-        QtPrivate::TypeAndForceComplete<void, std::false_type>,
-        QtPrivate::TypeAndForceComplete<const QColor &, std::false_type>
-    >,
+    qt_staticMetaObjectRelocatingContent<qt_meta_tag_ZN9QsciLexerE_t>.metaTypes,
     nullptr
 } };
 
 void QsciLexer::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, void **_a)
 {
+    auto *_t = static_cast<QsciLexer *>(_o);
     if (_c == QMetaObject::InvokeMetaMethod) {
-        auto *_t = static_cast<QsciLexer *>(_o);
-        (void)_t;
         switch (_id) {
-        case 0: _t->colorChanged((*reinterpret_cast< std::add_pointer_t<QColor>>(_a[1])),(*reinterpret_cast< std::add_pointer_t<int>>(_a[2]))); break;
-        case 1: _t->eolFillChanged((*reinterpret_cast< std::add_pointer_t<bool>>(_a[1])),(*reinterpret_cast< std::add_pointer_t<int>>(_a[2]))); break;
-        case 2: _t->fontChanged((*reinterpret_cast< std::add_pointer_t<QFont>>(_a[1])),(*reinterpret_cast< std::add_pointer_t<int>>(_a[2]))); break;
-        case 3: _t->paperChanged((*reinterpret_cast< std::add_pointer_t<QColor>>(_a[1])),(*reinterpret_cast< std::add_pointer_t<int>>(_a[2]))); break;
-        case 4: _t->propertyChanged((*reinterpret_cast< std::add_pointer_t<const char*>>(_a[1])),(*reinterpret_cast< std::add_pointer_t<const char*>>(_a[2]))); break;
-        case 5: _t->setAutoIndentStyle((*reinterpret_cast< std::add_pointer_t<int>>(_a[1]))); break;
-        case 6: _t->setColor((*reinterpret_cast< std::add_pointer_t<QColor>>(_a[1])),(*reinterpret_cast< std::add_pointer_t<int>>(_a[2]))); break;
-        case 7: _t->setColor((*reinterpret_cast< std::add_pointer_t<QColor>>(_a[1]))); break;
-        case 8: _t->setEolFill((*reinterpret_cast< std::add_pointer_t<bool>>(_a[1])),(*reinterpret_cast< std::add_pointer_t<int>>(_a[2]))); break;
-        case 9: _t->setEolFill((*reinterpret_cast< std::add_pointer_t<bool>>(_a[1]))); break;
-        case 10: _t->setFont((*reinterpret_cast< std::add_pointer_t<QFont>>(_a[1])),(*reinterpret_cast< std::add_pointer_t<int>>(_a[2]))); break;
-        case 11: _t->setFont((*reinterpret_cast< std::add_pointer_t<QFont>>(_a[1]))); break;
-        case 12: _t->setPaper((*reinterpret_cast< std::add_pointer_t<QColor>>(_a[1])),(*reinterpret_cast< std::add_pointer_t<int>>(_a[2]))); break;
-        case 13: _t->setPaper((*reinterpret_cast< std::add_pointer_t<QColor>>(_a[1]))); break;
+        case 0: _t->colorChanged((*reinterpret_cast<std::add_pointer_t<QColor>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<int>>(_a[2]))); break;
+        case 1: _t->eolFillChanged((*reinterpret_cast<std::add_pointer_t<bool>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<int>>(_a[2]))); break;
+        case 2: _t->fontChanged((*reinterpret_cast<std::add_pointer_t<QFont>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<int>>(_a[2]))); break;
+        case 3: _t->paperChanged((*reinterpret_cast<std::add_pointer_t<QColor>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<int>>(_a[2]))); break;
+        case 4: _t->propertyChanged((*reinterpret_cast<std::add_pointer_t<const char*>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<const char*>>(_a[2]))); break;
+        case 5: _t->setAutoIndentStyle((*reinterpret_cast<std::add_pointer_t<int>>(_a[1]))); break;
+        case 6: _t->setColor((*reinterpret_cast<std::add_pointer_t<QColor>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<int>>(_a[2]))); break;
+        case 7: _t->setColor((*reinterpret_cast<std::add_pointer_t<QColor>>(_a[1]))); break;
+        case 8: _t->setEolFill((*reinterpret_cast<std::add_pointer_t<bool>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<int>>(_a[2]))); break;
+        case 9: _t->setEolFill((*reinterpret_cast<std::add_pointer_t<bool>>(_a[1]))); break;
+        case 10: _t->setFont((*reinterpret_cast<std::add_pointer_t<QFont>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<int>>(_a[2]))); break;
+        case 11: _t->setFont((*reinterpret_cast<std::add_pointer_t<QFont>>(_a[1]))); break;
+        case 12: _t->setPaper((*reinterpret_cast<std::add_pointer_t<QColor>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<int>>(_a[2]))); break;
+        case 13: _t->setPaper((*reinterpret_cast<std::add_pointer_t<QColor>>(_a[1]))); break;
         default: ;
         }
-    } else if (_c == QMetaObject::IndexOfMethod) {
-        int *result = reinterpret_cast<int *>(_a[0]);
-        {
-            using _t = void (QsciLexer::*)(const QColor & , int );
-            if (_t _q_method = &QsciLexer::colorChanged; *reinterpret_cast<_t *>(_a[1]) == _q_method) {
-                *result = 0;
-                return;
-            }
-        }
-        {
-            using _t = void (QsciLexer::*)(bool , int );
-            if (_t _q_method = &QsciLexer::eolFillChanged; *reinterpret_cast<_t *>(_a[1]) == _q_method) {
-                *result = 1;
-                return;
-            }
-        }
-        {
-            using _t = void (QsciLexer::*)(const QFont & , int );
-            if (_t _q_method = &QsciLexer::fontChanged; *reinterpret_cast<_t *>(_a[1]) == _q_method) {
-                *result = 2;
-                return;
-            }
-        }
-        {
-            using _t = void (QsciLexer::*)(const QColor & , int );
-            if (_t _q_method = &QsciLexer::paperChanged; *reinterpret_cast<_t *>(_a[1]) == _q_method) {
-                *result = 3;
-                return;
-            }
-        }
-        {
-            using _t = void (QsciLexer::*)(const char * , const char * );
-            if (_t _q_method = &QsciLexer::propertyChanged; *reinterpret_cast<_t *>(_a[1]) == _q_method) {
-                *result = 4;
-                return;
-            }
-        }
+    }
+    if (_c == QMetaObject::IndexOfMethod) {
+        if (QtMocHelpers::indexOfMethod<void (QsciLexer::*)(const QColor & , int )>(_a, &QsciLexer::colorChanged, 0))
+            return;
+        if (QtMocHelpers::indexOfMethod<void (QsciLexer::*)(bool , int )>(_a, &QsciLexer::eolFillChanged, 1))
+            return;
+        if (QtMocHelpers::indexOfMethod<void (QsciLexer::*)(const QFont & , int )>(_a, &QsciLexer::fontChanged, 2))
+            return;
+        if (QtMocHelpers::indexOfMethod<void (QsciLexer::*)(const QColor & , int )>(_a, &QsciLexer::paperChanged, 3))
+            return;
+        if (QtMocHelpers::indexOfMethod<void (QsciLexer::*)(const char * , const char * )>(_a, &QsciLexer::propertyChanged, 4))
+            return;
     }
 }
 
@@ -286,7 +182,7 @@ const QMetaObject *QsciLexer::metaObject() const
 void *QsciLexer::qt_metacast(const char *_clname)
 {
     if (!_clname) return nullptr;
-    if (!strcmp(_clname, qt_meta_stringdata_QsciLexer.stringdata0))
+    if (!strcmp(_clname, qt_staticMetaObjectStaticContent<qt_meta_tag_ZN9QsciLexerE_t>.strings))
         return static_cast<void*>(this);
     return QObject::qt_metacast(_clname);
 }
@@ -300,7 +196,8 @@ int QsciLexer::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
         if (_id < 14)
             qt_static_metacall(this, _c, _id, _a);
         _id -= 14;
-    } else if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
+    }
+    if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
         if (_id < 14)
             *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType();
         _id -= 14;
@@ -311,36 +208,30 @@ int QsciLexer::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
 // SIGNAL 0
 void QsciLexer::colorChanged(const QColor & _t1, int _t2)
 {
-    void *_a[] = { nullptr, const_cast<void*>(reinterpret_cast<const void*>(std::addressof(_t1))), const_cast<void*>(reinterpret_cast<const void*>(std::addressof(_t2))) };
-    QMetaObject::activate(this, &staticMetaObject, 0, _a);
+    QMetaObject::activate<void>(this, &staticMetaObject, 0, nullptr, _t1, _t2);
 }
 
 // SIGNAL 1
 void QsciLexer::eolFillChanged(bool _t1, int _t2)
 {
-    void *_a[] = { nullptr, const_cast<void*>(reinterpret_cast<const void*>(std::addressof(_t1))), const_cast<void*>(reinterpret_cast<const void*>(std::addressof(_t2))) };
-    QMetaObject::activate(this, &staticMetaObject, 1, _a);
+    QMetaObject::activate<void>(this, &staticMetaObject, 1, nullptr, _t1, _t2);
 }
 
 // SIGNAL 2
 void QsciLexer::fontChanged(const QFont & _t1, int _t2)
 {
-    void *_a[] = { nullptr, const_cast<void*>(reinterpret_cast<const void*>(std::addressof(_t1))), const_cast<void*>(reinterpret_cast<const void*>(std::addressof(_t2))) };
-    QMetaObject::activate(this, &staticMetaObject, 2, _a);
+    QMetaObject::activate<void>(this, &staticMetaObject, 2, nullptr, _t1, _t2);
 }
 
 // SIGNAL 3
 void QsciLexer::paperChanged(const QColor & _t1, int _t2)
 {
-    void *_a[] = { nullptr, const_cast<void*>(reinterpret_cast<const void*>(std::addressof(_t1))), const_cast<void*>(reinterpret_cast<const void*>(std::addressof(_t2))) };
-    QMetaObject::activate(this, &staticMetaObject, 3, _a);
+    QMetaObject::activate<void>(this, &staticMetaObject, 3, nullptr, _t1, _t2);
 }
 
 // SIGNAL 4
 void QsciLexer::propertyChanged(const char * _t1, const char * _t2)
 {
-    void *_a[] = { nullptr, const_cast<void*>(reinterpret_cast<const void*>(std::addressof(_t1))), const_cast<void*>(reinterpret_cast<const void*>(std::addressof(_t2))) };
-    QMetaObject::activate(this, &staticMetaObject, 4, _a);
+    QMetaObject::activate<void>(this, &staticMetaObject, 4, nullptr, _t1, _t2);
 }
 QT_WARNING_POP
-QT_END_MOC_NAMESPACE
