@@ -40,6 +40,10 @@ static const int RAINBOW_LEVEL_6 = 26;
 // 符号同名/引用高亮指示器 (独立分配 28)
 static const int OCCURRENCE_INDICATOR = 28;
 
+// 断点与调试执行指针标记 (Markers: 26, 27)
+static const int MARKER_BREAKPOINT = 26;          // 断点标记 (实心红球)
+static const int MARKER_EXECUTION_POINTER = 27;   // 当前调试执行指针 (黄箭头)
+
 class CodeEditor : public QWidget {
   Q_OBJECT
 
@@ -174,9 +178,25 @@ public:
   void renameSymbolAtCursor();
   void renameSymbolInProject(const QString &symbolName, ScopeKind kind, const QString &newName);
 
+  // 断点与调试导航接口
+  void setExecutionLine(const QString &filePath, int line);
+  void clearExecutionLine();
+  QSet<int> getBreakpoints(const QString &filePath) const;
+  QMap<QString, QSet<int>> getAllBreakpoints() const;
+  void setBreakpoints(const QString &filePath, const QSet<int> &lines);
+  void toggleBreakpointAtCursor();
+  void toggleBreakpointAtLine(QsciScintilla *editor, int lineZeroBased);
+  void clearBreakpointsForFile(const QString &filePath);
+  void clearAllBreakpoints();
+  void openFileAndGoTo(const QString &filePath, int line, int column = 0);
+
 signals:
   void fileOpened(const QString &filePath);
   void fileSaved(const QString &filePath);
+
+  // 断点信号
+  void breakpointToggled(const QString &filePath, int line, bool added);
+  void allBreakpointsCleared(const QString &filePath);
 
 public slots:
   // 更新变量列表用于自动补全
@@ -247,6 +267,12 @@ private:
   // 粘性滚动 (Sticky Scroll) / 顶部悬挂函数头控件
   QWidget *m_stickyScrollWidget;
   void updateStickyScroll();
+
+  // 断点与调试状态
+  QMap<QString, QSet<int>> m_breakpoints; // 文件规范化路径 -> 1-based 行号集合
+  QString m_executionFilePath;
+  int m_executionLine = -1; // 1-based 行号
+  void applyBreakpointsToEditor(QsciScintilla *editor, const QString &filePath);
 
   friend class StickyScrollWidget;
 

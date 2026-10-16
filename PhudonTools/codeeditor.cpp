@@ -1730,6 +1730,8 @@ bool CodeEditor::openFile(const QString &filePath) {
     // 在当前编辑器中显示文件内容
     if (m_currentEditor) {
       m_currentEditor->setText(content);
+      // 应用该文件的断点与执行指针标记
+      applyBreakpointsToEditor(m_currentEditor, m_currentFilePath);
       // Trigger highlighting manually after loading file
       updateBracketHighlighting(m_currentEditor);
       highlightFunctionNames(m_currentEditor, 20); // 20 is FUNCTION_INDICATOR
@@ -2628,6 +2630,33 @@ void CodeEditor::setupEditor(QsciScintilla *editor) {
   editor->setMarginWidth(0, "0000");
   editor->setMarginLineNumbers(0, true);
 
+  // 设置断点与调试执行指针边距 (Margin 1)
+  editor->setMarginWidth(1, 16);
+  editor->setMarginType(1, QsciScintilla::SymbolMargin);
+  editor->setMarginSensitivity(1, true);
+
+  // 定义断点标记 (红球) 与当前执行指针 (黄箭头)
+  editor->markerDefine(QsciScintilla::Circle, MARKER_BREAKPOINT);
+  editor->setMarkerBackgroundColor(QColor("#E53935"), MARKER_BREAKPOINT);
+  editor->setMarkerForegroundColor(QColor("#B71C1C"), MARKER_BREAKPOINT);
+
+  editor->markerDefine(QsciScintilla::RightArrow, MARKER_EXECUTION_POINTER);
+  editor->setMarkerBackgroundColor(QColor("#FFD700"), MARKER_EXECUTION_POINTER);
+  editor->setMarkerForegroundColor(QColor("#B8860B"), MARKER_EXECUTION_POINTER);
+
+  // Margin 1 只显示断点与执行指针标记
+  editor->SendScintilla(QsciScintilla::SCI_SETMARGINMASKN, 1,
+                        (1 << MARKER_BREAKPOINT) | (1 << MARKER_EXECUTION_POINTER));
+
+  // 连接边距点击事件处理断点切换
+  connect(editor, &QsciScintilla::marginClicked, this,
+          [this, editor](int margin, int line, Qt::KeyboardModifiers state) {
+            Q_UNUSED(state);
+            if (margin == 1) {
+              toggleBreakpointAtLine(editor, line);
+            }
+          });
+
   // 设置折叠边距
   editor->setMarginWidth(2, 14);
   editor->setMarginType(2, QsciScintilla::SymbolMargin);
@@ -2759,6 +2788,7 @@ void CodeEditor::setupEditor(QsciScintilla *editor) {
   new QShortcut(QKeySequence(Qt::Key_F12), editor, this, &CodeEditor::gotoDefinitionAtCursor);
   new QShortcut(QKeySequence("Shift+F12"), editor, this, &CodeEditor::findReferencesAtCursor);
   new QShortcut(QKeySequence(Qt::Key_F2), editor, this, &CodeEditor::renameSymbolAtCursor);
+  new QShortcut(QKeySequence(Qt::Key_F9), editor, this, &CodeEditor::toggleBreakpointAtCursor);
 
   // Initialize line number highlighting, breadcrumb & sticky scroll
   highlightCurrentLineNumber();
@@ -7188,6 +7218,18 @@ void CodeEditor::onCustomContextMenuRequested(const QPoint &pos) {
 
   menu.addSeparator();
 
+  QAction *bpAct = menu.addAction(QString("🔴 切换断点 (F9)"));
+  connect(bpAct, &QAction::triggered, this, &CodeEditor::toggleBreakpointAtCursor);
+
+  QAction *clearBpAct = menu.addAction(QString("⚪ 清空当前文件断点"));
+  connect(clearBpAct, &QAction::triggered, this, [this]() {
+    if (!m_currentFilePath.isEmpty()) {
+      clearBreakpointsForFile(m_currentFilePath);
+    }
+  });
+
+  menu.addSeparator();
+
   QAction *findAct = menu.addAction(QString("🔎 查找 (Ctrl+F)"));
   connect(findAct, &QAction::triggered, this, [this]() { showFindReplaceBar(false); });
 
@@ -7287,3 +7329,145 @@ void CodeEditor::updateStickyScroll() {
   m_stickyScrollWidget->show();
   m_stickyScrollWidget->raise();
 }
+
+void CodeEditor::setExecutionLine(const QString &filePath, int line) {
+  clearExecutionLine();
+  if (filePath.isEmpty() || line <= 0) return;
+
+  m_executionFilePath = QFileInfo(filePath).canonicalFilePath();
+  if (m_executionFilePath.isEmpty()) {
+    m_executionFilePath = QFileInfo(filePath).absoluteFilePath();
+  }
+  m_executionLine = line;
+
+  if (m_executionFilePath != m_currentFilePath) {
+    openFile(m_executionFilePath);
+  }
+
+  if (m_currentEditor) {
+    int zeroLine = line - 1;
+    m_currentEditor->markerAdd(zeroLine, MARKER_EXECUTION_POINTER);
+    m_currentEditor->setCursorPosition(zeroLine, 0);
+    m_currentEditor->ensureLineVisible(zeroLine);
+    int visibleLines = m_currentEditor->SendScintilla(QsciScintilla::SCI_LINESONSCREEN);
+    int scrollLine = qMax(0, zeroLine - visibleLines / 3);
+    m_currentEditor->SendScintilla(QsciScintilla::SCI_SETFIRSTVISIBLELINE, scrollLine);
+    m_currentEditor->setFocus();
+    updateBreadcrumb(zeroLine);
+  }
+}
+
+void CodeEditor::clearExecutionLine() {
+  m_executionFilePath.clear();
+  m_executionLine = -1;
+  for (QsciScintilla *ed : allEditors()) {
+    if (ed) {
+      ed->markerDeleteAll(MARKER_EXECUTION_POINTER);
+    }
+  }
+}
+
+void CodeEditor::toggleBreakpointAtCursor() {
+  if (!m_currentEditor || m_currentFilePath.isEmpty()) return;
+  int line, col;
+  m_currentEditor->getCursorPosition(&line, &col);
+  toggleBreakpointAtLine(m_currentEditor, line);
+}
+
+void CodeEditor::toggleBreakpointAtLine(QsciScintilla *editor, int lineZeroBased) {
+  if (!editor || m_currentFilePath.isEmpty()) return;
+  int lineOneBased = lineZeroBased + 1;
+  unsigned int markers = editor->markersAtLine(lineZeroBased);
+  bool hasBp = (markers & (1 << MARKER_BREAKPOINT)) != 0;
+
+  if (hasBp) {
+    editor->markerDelete(lineZeroBased, MARKER_BREAKPOINT);
+    m_breakpoints[m_currentFilePath].remove(lineOneBased);
+    emit breakpointToggled(m_currentFilePath, lineOneBased, false);
+  } else {
+    editor->markerAdd(lineZeroBased, MARKER_BREAKPOINT);
+    m_breakpoints[m_currentFilePath].insert(lineOneBased);
+    emit breakpointToggled(m_currentFilePath, lineOneBased, true);
+  }
+}
+
+void CodeEditor::clearBreakpointsForFile(const QString &filePath) {
+  QString canonical = QFileInfo(filePath).canonicalFilePath();
+  if (canonical.isEmpty()) canonical = QFileInfo(filePath).absoluteFilePath();
+  m_breakpoints.remove(canonical);
+
+  if (canonical == m_currentFilePath && m_currentEditor) {
+    m_currentEditor->markerDeleteAll(MARKER_BREAKPOINT);
+  }
+  emit allBreakpointsCleared(canonical);
+}
+
+void CodeEditor::clearAllBreakpoints() {
+  m_breakpoints.clear();
+  for (QsciScintilla *ed : allEditors()) {
+    if (ed) ed->markerDeleteAll(MARKER_BREAKPOINT);
+  }
+}
+
+QSet<int> CodeEditor::getBreakpoints(const QString &filePath) const {
+  QString canonical = QFileInfo(filePath).canonicalFilePath();
+  if (canonical.isEmpty()) canonical = QFileInfo(filePath).absoluteFilePath();
+  return m_breakpoints.value(canonical);
+}
+
+QMap<QString, QSet<int>> CodeEditor::getAllBreakpoints() const {
+  return m_breakpoints;
+}
+
+void CodeEditor::setBreakpoints(const QString &filePath, const QSet<int> &lines) {
+  QString canonical = QFileInfo(filePath).canonicalFilePath();
+  if (canonical.isEmpty()) canonical = QFileInfo(filePath).absoluteFilePath();
+  m_breakpoints[canonical] = lines;
+  if (canonical == m_currentFilePath && m_currentEditor) {
+    m_currentEditor->markerDeleteAll(MARKER_BREAKPOINT);
+    for (int l : lines) {
+      if (l >= 1) {
+        m_currentEditor->markerAdd(l - 1, MARKER_BREAKPOINT);
+      }
+    }
+  }
+}
+
+void CodeEditor::applyBreakpointsToEditor(QsciScintilla *editor, const QString &filePath) {
+  if (!editor || filePath.isEmpty()) return;
+  QString canonical = QFileInfo(filePath).canonicalFilePath();
+  if (canonical.isEmpty()) canonical = QFileInfo(filePath).absoluteFilePath();
+
+  editor->markerDeleteAll(MARKER_BREAKPOINT);
+  QSet<int> bps = m_breakpoints.value(canonical);
+  for (int l : bps) {
+    if (l >= 1) {
+      editor->markerAdd(l - 1, MARKER_BREAKPOINT);
+    }
+  }
+
+  if (!m_executionFilePath.isEmpty() && m_executionFilePath == canonical && m_executionLine >= 1) {
+    editor->markerAdd(m_executionLine - 1, MARKER_EXECUTION_POINTER);
+  }
+}
+
+void CodeEditor::openFileAndGoTo(const QString &filePath, int line, int column) {
+  if (filePath.isEmpty()) return;
+  QString canonical = QFileInfo(filePath).canonicalFilePath();
+  if (canonical.isEmpty()) canonical = QFileInfo(filePath).absoluteFilePath();
+  if (canonical != m_currentFilePath) {
+    openFile(canonical);
+  }
+  if (m_currentEditor) {
+    int zeroBasedLine = qMax(0, line - 1);
+    int zeroBasedCol = qMax(0, column - 1);
+    m_currentEditor->setCursorPosition(zeroBasedLine, zeroBasedCol);
+    m_currentEditor->ensureLineVisible(zeroBasedLine);
+    int visibleLines = m_currentEditor->SendScintilla(QsciScintilla::SCI_LINESONSCREEN);
+    int scrollLine = qMax(0, zeroBasedLine - visibleLines / 3);
+    m_currentEditor->SendScintilla(QsciScintilla::SCI_SETFIRSTVISIBLELINE, scrollLine);
+    m_currentEditor->setFocus();
+    updateBreadcrumb(zeroBasedLine);
+  }
+}
+
