@@ -5,30 +5,11 @@
 #include <QString>
 #include <QProcess>
 #include <QThread>
+#include <QStringDecoder>
 #include "ToolchainDetector.h"
 #include "STM32Profile.h"
 #include "MakefileGenerator.h"
-
-/**
- * @brief 编译诊断信息级别
- */
-enum class DiagnosticSeverity {
-    Info,
-    Warning,
-    Error,
-    Fatal
-};
-
-/**
- * @brief 编译报错/警告定位条目
- */
-struct BuildDiagnostic {
-    QString filePath;
-    int line = 0;
-    int column = 0;
-    DiagnosticSeverity severity = DiagnosticSeverity::Error;
-    QString message;
-};
+#include "BuildLogModel.h"
 
 /**
  * @brief 异步构建调度引擎
@@ -49,6 +30,8 @@ public:
     STM32ChipProfile chipProfile() const { return m_profile; }
 
     bool isBusy() const;
+    const BuildLogModel &logModel() const { return m_log; }
+    QString currentAction() const { return m_currentAction; }
 
     // 一键构建 (自动生成最新 Makefile 并启动多核 make)
     bool startBuild(const QString &projectDir,
@@ -63,6 +46,10 @@ public:
                       BuildConfiguration config = BuildConfiguration::Debug,
                       int parallelJobs = 0);
 
+    bool migrateLegacyLinkerScript(const QString &projectDir,
+                                   QString *outBackupPath = nullptr,
+                                   QString *outError = nullptr);
+
     // 终止当前构建
     void stopBuild();
 
@@ -72,12 +59,15 @@ public:
     QString getHexPath(const QString &projectDir) const;
 
 signals:
+    void buildSessionStarted(const QString &action);
+    void buildLogChanged();
     void buildStarted(const QString &action);
     void buildOutput(const QString &text, bool isError);
     void diagnosticFound(const BuildDiagnostic &diag);
     void memoryUsageUpdated(quint32 flashUsed, quint32 flashTotal,
                             quint32 ramUsed, quint32 ramTotal);
     void buildFinished(bool success, int exitCode, int durationMs);
+    void legacyLinkerMigrationRequired(const QString &linkerPath);
 
 private slots:
     void onProcessReadyReadStd();
@@ -85,7 +75,9 @@ private slots:
     void onProcessFinished(int exitCode, QProcess::ExitStatus exitStatus);
 
 private:
-    void parseOutputLine(const QString &line, bool isError);
+    void beginSession(const QString &projectDir, const QString &action);
+    void finishSession(bool success, int exitCode, int durationMs);
+    void publishDiagnostics(const QVector<BuildDiagnostic> &diagnostics);
     void consumeOutput(const QString &text, bool isError);
     void parseSizeOutput(const QString &line);
 
@@ -97,10 +89,11 @@ private:
     BuildConfiguration m_pendingConfig = BuildConfiguration::Debug;
     int m_pendingJobs = 0;
     qint64 m_startTime = 0;
-    QString m_pendingStdout;
-    QString m_pendingStderr;
-    int m_errorCount = 0;
-    int m_warningCount = 0;
+    BuildLogModel m_log;
+    QString m_currentAction;
+    bool m_cancelled = false;
+    QStringDecoder m_stdoutDecoder{QStringDecoder::System};
+    QStringDecoder m_stderrDecoder{QStringDecoder::System};
 };
 
 #endif // BUILDMANAGER_H

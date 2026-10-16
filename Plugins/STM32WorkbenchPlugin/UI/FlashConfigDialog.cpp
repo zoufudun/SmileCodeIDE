@@ -9,12 +9,19 @@
 #include <QSignalBlocker>
 #include <QFileInfo>
 
-FlashConfigDialog::FlashConfigDialog(QWidget *parent, QSettings *settings)
-    : QDialog(parent), m_settings(settings)
+FlashConfigDialog::FlashConfigDialog(QWidget *parent, QSettings *settings,
+                                     const STM32ChipProfile &profile)
+    : QDialog(parent), m_settings(settings), m_profile(profile)
 {
+    m_addressSettingKey = profile.chipName.isEmpty()
+        ? QStringLiteral("targetAddr")
+        : QStringLiteral("targetAddrByChip/") + profile.chipName +
+              (profile.linkerContext.isEmpty() ? QString() : "@" + profile.linkerContext);
     setWindowTitle(QStringLiteral("固件烧录与下载参数配置 (Flash Settings)"));
     resize(650, 660);
     setupUI();
+    m_targetAddrEdit->setText(profile.flashOrigin.isEmpty()
+                                 ? QStringLiteral("0x08000000") : profile.flashOrigin);
     applyTheme();
     loadFromSettings();
     updateDriverOptions();
@@ -149,7 +156,8 @@ void FlashConfigDialog::loadFromSettings()
     int idx = m_driverCombo->findData(driverVal);
     if (idx >= 0) m_driverCombo->setCurrentIndex(idx);
 
-    m_targetAddrEdit->setText(m_settings->value("targetAddr", "0x08000000").toString());
+    m_targetAddrEdit->setText(m_settings->value(m_addressSettingKey,
+                                               m_targetAddrEdit->text()).toString());
     m_speedSpin->setValue(m_settings->value("speedKhz", 4000).toInt());
     m_verifyCheck->setChecked(m_settings->value("verify", true).toBool());
     m_resetCheck->setChecked(m_settings->value("reset", true).toBool());
@@ -201,8 +209,18 @@ void FlashConfigDialog::scanProbes()
     if (autoSelectSingle) selected = 1;
     m_probeCombo->setCurrentIndex(selected);
     QString selectedSerial = currentSerial;
-    if (selected > 0 && selected <= m_probes.size() && !m_probes[selected - 1].serial.isEmpty())
-        selectedSerial = m_probes[selected - 1].serial;
+    if (selected > 0 && selected <= m_probes.size()) {
+        const ProbeInfo &probe = m_probes[selected - 1];
+        if (!probe.serial.isEmpty()) {
+            selectedSerial = probe.serial;
+        } else if (probe.type == ProbeType::STLink &&
+                   selectedSerial.compare(probe.instanceId.section('\\', -1),
+                                          Qt::CaseInsensitive) == 0) {
+            // Discard an instance suffix previously mistaken for a USB serial,
+            // while preserving a verified serial supplied by the user.
+            selectedSerial.clear();
+        }
+    }
     m_probeSerialEdit->setText(selectedSerial);
     if (autoSelectSingle) onProbeChanged(selected);
     else updateProbeInfo();
@@ -282,7 +300,7 @@ void FlashConfigDialog::onSaveClicked()
     if (m_settings) {
         m_settings->beginGroup("STM32Flash");
         m_settings->setValue("driver", m_driverCombo->currentData().toInt());
-        m_settings->setValue("targetAddr", m_targetAddrEdit->text().trimmed());
+        m_settings->setValue(m_addressSettingKey, m_targetAddrEdit->text().trimmed());
         m_settings->setValue("speedKhz", m_speedSpin->value());
         m_settings->setValue("verify", m_verifyCheck->isChecked());
         m_settings->setValue("reset", m_resetCheck->isChecked());

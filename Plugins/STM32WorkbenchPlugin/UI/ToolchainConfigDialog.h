@@ -34,6 +34,7 @@ private slots:
     void onBrowseJlink();
     void onBrowseStm32Prog();
     void onSaveClicked();
+    void onOpenChipSelectDialog();
 
 private:
     void setupUI();
@@ -52,6 +53,7 @@ private:
     QLineEdit *m_stm32ProgEdit;
 
     QComboBox *m_chipCombo;
+    QPushButton *m_selectChipBtn;
     QTextEdit *m_diagnosticReportEdit;
 
     QPushButton *m_autoDetectBtn;

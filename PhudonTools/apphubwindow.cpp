@@ -15,6 +15,17 @@
 #include <QCloseEvent>
 #include <QDebug>
 
+bool AppHubWindow::openSourceLocation(QString filePath, int line, int column) {
+    QWidget *ide = AppManager::instance()->launchApp("smilecode_ide");
+    if (!ide) {
+        return false;
+    }
+    bool opened = false;
+    return QMetaObject::invokeMethod(ide, "openSourceLocation", Qt::DirectConnection,
+                                     Q_RETURN_ARG(bool, opened), Q_ARG(QString, filePath),
+                                     Q_ARG(int, line), Q_ARG(int, column)) && opened;
+}
+
 AppHubWindow::AppHubWindow(QWidget *parent) : QMainWindow(parent) {
     setObjectName("appHubRoot");
     setWindowTitle(QStringLiteral("SmileCode Studio - 嵌入式开发与调试工具应用工作台"));

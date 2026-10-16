@@ -61,6 +61,7 @@ public:
   // void newFile();
   bool isCurrentFileModified() const;
   void applyTheme(const QString &themeName);
+  Q_INVOKABLE bool openSourceLocation(QString filePath, int line, int column = 0);
 
 private slots:
   void openProject();

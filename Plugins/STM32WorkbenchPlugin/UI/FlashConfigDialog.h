@@ -20,7 +20,8 @@ class FlashConfigDialog : public QDialog
     Q_OBJECT
 
 public:
-    explicit FlashConfigDialog(QWidget *parent = nullptr, QSettings *settings = nullptr);
+    explicit FlashConfigDialog(QWidget *parent = nullptr, QSettings *settings = nullptr,
+                               const STM32ChipProfile &profile = STM32ChipProfile());
     ~FlashConfigDialog() override = default;
 
     FlashOptions getOptions() const;
@@ -38,6 +39,8 @@ private:
     void updateDriverOptions();
 
     QSettings *m_settings;
+    STM32ChipProfile m_profile;
+    QString m_addressSettingKey;
 
     QComboBox *m_driverCombo;
     QComboBox *m_probeCombo;

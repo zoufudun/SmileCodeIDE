@@ -53,6 +53,7 @@ template <> constexpr inline auto STM32WorkbenchWidget::qt_create_metaobjectdata
         "onToggleDebugSession",
         "onOpenToolchainSettings",
         "onOpenFlashSettings",
+        "onOpenChipSelectDialog",
         "onBrowseProjectDir",
         "onChipChanged",
         "chipName",
@@ -97,35 +98,37 @@ template <> constexpr inline auto STM32WorkbenchWidget::qt_create_metaobjectdata
         QtMocHelpers::SlotData<void()>(12, 2, QMC::AccessPublic, QMetaType::Void),
         // Slot 'onOpenFlashSettings'
         QtMocHelpers::SlotData<void()>(13, 2, QMC::AccessPublic, QMetaType::Void),
+        // Slot 'onOpenChipSelectDialog'
+        QtMocHelpers::SlotData<void()>(14, 2, QMC::AccessPublic, QMetaType::Void),
         // Slot 'onBrowseProjectDir'
-        QtMocHelpers::SlotData<void()>(14, 2, QMC::AccessPrivate, QMetaType::Void),
+        QtMocHelpers::SlotData<void()>(15, 2, QMC::AccessPrivate, QMetaType::Void),
         // Slot 'onChipChanged'
-        QtMocHelpers::SlotData<void(const QString &)>(15, 2, QMC::AccessPrivate, QMetaType::Void, {{
-            { QMetaType::QString, 16 },
+        QtMocHelpers::SlotData<void(const QString &)>(16, 2, QMC::AccessPrivate, QMetaType::Void, {{
+            { QMetaType::QString, 17 },
         }}),
         // Slot 'onBuildOutput'
-        QtMocHelpers::SlotData<void(const QString &, bool)>(17, 2, QMC::AccessPrivate, QMetaType::Void, {{
-            { QMetaType::QString, 18 }, { QMetaType::Bool, 19 },
+        QtMocHelpers::SlotData<void(const QString &, bool)>(18, 2, QMC::AccessPrivate, QMetaType::Void, {{
+            { QMetaType::QString, 19 }, { QMetaType::Bool, 20 },
         }}),
         // Slot 'onFlashOutput'
-        QtMocHelpers::SlotData<void(const QString &, bool)>(20, 2, QMC::AccessPrivate, QMetaType::Void, {{
-            { QMetaType::QString, 18 }, { QMetaType::Bool, 19 },
+        QtMocHelpers::SlotData<void(const QString &, bool)>(21, 2, QMC::AccessPrivate, QMetaType::Void, {{
+            { QMetaType::QString, 19 }, { QMetaType::Bool, 20 },
         }}),
         // Slot 'onFlashProgress'
-        QtMocHelpers::SlotData<void(int, const QString &)>(21, 2, QMC::AccessPrivate, QMetaType::Void, {{
-            { QMetaType::Int, 22 }, { QMetaType::QString, 18 },
+        QtMocHelpers::SlotData<void(int, const QString &)>(22, 2, QMC::AccessPrivate, QMetaType::Void, {{
+            { QMetaType::Int, 23 }, { QMetaType::QString, 19 },
         }}),
         // Slot 'onMemoryUsageUpdated'
-        QtMocHelpers::SlotData<void(quint32, quint32, quint32, quint32)>(23, 2, QMC::AccessPrivate, QMetaType::Void, {{
-            { QMetaType::UInt, 24 }, { QMetaType::UInt, 25 }, { QMetaType::UInt, 26 }, { QMetaType::UInt, 27 },
+        QtMocHelpers::SlotData<void(quint32, quint32, quint32, quint32)>(24, 2, QMC::AccessPrivate, QMetaType::Void, {{
+            { QMetaType::UInt, 25 }, { QMetaType::UInt, 26 }, { QMetaType::UInt, 27 }, { QMetaType::UInt, 28 },
         }}),
         // Slot 'onServerReady'
-        QtMocHelpers::SlotData<void(int)>(28, 2, QMC::AccessPrivate, QMetaType::Void, {{
-            { QMetaType::Int, 29 },
+        QtMocHelpers::SlotData<void(int)>(29, 2, QMC::AccessPrivate, QMetaType::Void, {{
+            { QMetaType::Int, 30 },
         }}),
         // Slot 'onGdbStateChanged'
-        QtMocHelpers::SlotData<void(GdbTargetState)>(30, 2, QMC::AccessPrivate, QMetaType::Void, {{
-            { 0x80000000 | 31, 32 },
+        QtMocHelpers::SlotData<void(GdbTargetState)>(31, 2, QMC::AccessPrivate, QMetaType::Void, {{
+            { 0x80000000 | 32, 33 },
         }}),
     };
     QtMocHelpers::UintData qt_properties {
@@ -159,14 +162,15 @@ void STM32WorkbenchWidget::qt_static_metacall(QObject *_o, QMetaObject::Call _c,
         case 6: _t->onToggleDebugSession(); break;
         case 7: _t->onOpenToolchainSettings(); break;
         case 8: _t->onOpenFlashSettings(); break;
-        case 9: _t->onBrowseProjectDir(); break;
-        case 10: _t->onChipChanged((*reinterpret_cast<std::add_pointer_t<QString>>(_a[1]))); break;
-        case 11: _t->onBuildOutput((*reinterpret_cast<std::add_pointer_t<QString>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<bool>>(_a[2]))); break;
-        case 12: _t->onFlashOutput((*reinterpret_cast<std::add_pointer_t<QString>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<bool>>(_a[2]))); break;
-        case 13: _t->onFlashProgress((*reinterpret_cast<std::add_pointer_t<int>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<QString>>(_a[2]))); break;
-        case 14: _t->onMemoryUsageUpdated((*reinterpret_cast<std::add_pointer_t<quint32>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<quint32>>(_a[2])),(*reinterpret_cast<std::add_pointer_t<quint32>>(_a[3])),(*reinterpret_cast<std::add_pointer_t<quint32>>(_a[4]))); break;
-        case 15: _t->onServerReady((*reinterpret_cast<std::add_pointer_t<int>>(_a[1]))); break;
-        case 16: _t->onGdbStateChanged((*reinterpret_cast<std::add_pointer_t<GdbTargetState>>(_a[1]))); break;
+        case 9: _t->onOpenChipSelectDialog(); break;
+        case 10: _t->onBrowseProjectDir(); break;
+        case 11: _t->onChipChanged((*reinterpret_cast<std::add_pointer_t<QString>>(_a[1]))); break;
+        case 12: _t->onBuildOutput((*reinterpret_cast<std::add_pointer_t<QString>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<bool>>(_a[2]))); break;
+        case 13: _t->onFlashOutput((*reinterpret_cast<std::add_pointer_t<QString>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<bool>>(_a[2]))); break;
+        case 14: _t->onFlashProgress((*reinterpret_cast<std::add_pointer_t<int>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<QString>>(_a[2]))); break;
+        case 15: _t->onMemoryUsageUpdated((*reinterpret_cast<std::add_pointer_t<quint32>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<quint32>>(_a[2])),(*reinterpret_cast<std::add_pointer_t<quint32>>(_a[3])),(*reinterpret_cast<std::add_pointer_t<quint32>>(_a[4]))); break;
+        case 16: _t->onServerReady((*reinterpret_cast<std::add_pointer_t<int>>(_a[1]))); break;
+        case 17: _t->onGdbStateChanged((*reinterpret_cast<std::add_pointer_t<GdbTargetState>>(_a[1]))); break;
         default: ;
         }
     }
@@ -197,14 +201,14 @@ int STM32WorkbenchWidget::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 17)
+        if (_id < 18)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 17;
+        _id -= 18;
     }
     if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
-        if (_id < 17)
+        if (_id < 18)
             *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType();
-        _id -= 17;
+        _id -= 18;
     }
     return _id;
 }

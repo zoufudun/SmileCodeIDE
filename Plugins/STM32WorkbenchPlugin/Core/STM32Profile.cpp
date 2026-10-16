@@ -1,5 +1,12 @@
 #include "STM32Profile.h"
 #include <QTextStream>
+#include <QFile>
+#include <QFileInfo>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonArray>
+#include <QCryptographicHash>
+#include <QRegularExpression>
 
 STM32ProfileManager& STM32ProfileManager::instance()
 {
@@ -138,6 +145,19 @@ void STM32ProfileManager::initDatabase()
         p.linkerResourcePath = ":/stm32/linker/STM32H743VITX_FLASH.ld";
         p.linkerSha256 = "a80674f7089fed7e7e0924e9f6742d70915cfb259d908a7b8eaa7f4ef4779bcf";
         m_database["STM32H743VI"] = p;
+
+        // 兼容通用 H7 目标与 FLM 烧录算法标识
+        {
+            STM32ChipProfile p2 = p;
+            p2.chipName = "STM32H7x_2M";
+            m_database["STM32H7X_2M"] = p2;
+        }
+        {
+            STM32ChipProfile p1 = p;
+            p1.chipName = "STM32H7x_1M";
+            p1.flashSizeBytes = 1024 * 1024;
+            m_database["STM32H7X_1M"] = p1;
+        }
     }
 
     // 5. STM32G0 / G4 系列
@@ -156,12 +176,157 @@ void STM32ProfileManager::initDatabase()
         p.jlinkDeviceName = "STM32G474CE";
         p.defaultLdFile = "STM32G474CETx_FLASH.ld";
         m_database["STM32G474CE"] = p;
+        {
+            STM32ChipProfile pg = p;
+            pg.chipName = "STM32G4xx_512";
+            m_database["STM32G4XX_512"] = pg;
+        }
     }
+
+    // 扩展通用系列算法标识
+    if (m_database.contains("STM32F103C8")) {
+        STM32ChipProfile pf1 = m_database["STM32F103C8"];
+        pf1.chipName = "STM32F10x_128";
+        pf1.flashSizeBytes = 128 * 1024;
+        m_database["STM32F10X_128"] = pf1;
+
+        pf1.chipName = "STM32F10x_64";
+        pf1.flashSizeBytes = 64 * 1024;
+        m_database["STM32F10X_64"] = pf1;
+    }
+    if (m_database.contains("STM32F103ZE")) {
+        STM32ChipProfile pf1h = m_database["STM32F103ZE"];
+        pf1h.chipName = "STM32F10x_512";
+        pf1h.flashSizeBytes = 512 * 1024;
+        m_database["STM32F10X_512"] = pf1h;
+    }
+    if (m_database.contains("STM32F407ZG")) {
+        STM32ChipProfile pf4 = m_database["STM32F407ZG"];
+        pf4.chipName = "STM32F4xx_1024";
+        m_database["STM32F4XX_1024"] = pf4;
+    }
+    if (m_database.contains("STM32F401CC")) {
+        STM32ChipProfile pf4s = m_database["STM32F401CC"];
+        pf4s.chipName = "STM32F4xx_512";
+        pf4s.flashSizeBytes = 512 * 1024;
+        pf4s.ramSizeBytes = 96 * 1024;
+        m_database["STM32F4XX_512"] = pf4s;
+    }
+    if (m_database.contains("STM32F767IG")) {
+        STM32ChipProfile pf7 = m_database["STM32F767IG"];
+        pf7.chipName = "STM32F7x_2M";
+        pf7.flashSizeBytes = 2048 * 1024;
+        m_database["STM32F7X_2M"] = pf7;
+
+        pf7.chipName = "STM32F7x_1M";
+        pf7.flashSizeBytes = 1024 * 1024;
+        m_database["STM32F7X_1M"] = pf7;
+    }
+
+    m_supportedChips = m_database.keys();
+    loadBundledCatalog();
 }
 
 QStringList STM32ProfileManager::supportedChips() const
 {
-    return m_database.keys();
+    return m_supportedChips;
+}
+
+void STM32ProfileManager::loadBundledCatalog()
+{
+    QFile manifest(":/stm32/full/manifest.json");
+    if (!manifest.open(QIODevice::ReadOnly)) return;
+    const QJsonDocument document = QJsonDocument::fromJson(manifest.readAll());
+    if (!document.isObject()) return;
+    const QJsonObject targets = document.object().value("targets").toObject();
+    for (auto it = targets.begin(); it != targets.end(); ++it) {
+        const QJsonObject target = it.value().toObject();
+        const QString reference = target.value("referenceName").toString();
+        const QString family = target.value("family").toString();
+        if (reference.isEmpty() || family.isEmpty()) continue;
+        const QJsonArray scripts = target.value("scripts").toArray();
+        QList<QJsonObject> flashScripts;
+        for (const QJsonValue &value : scripts) {
+            const QJsonObject script = value.toObject();
+            if (QFileInfo(script.value("path").toString()).fileName()
+                    .contains("FLASH", Qt::CaseInsensitive))
+                flashScripts << script;
+        }
+        for (const QJsonObject &script : flashScripts) {
+            const QString path = script.value("path").toString();
+            const QString sourcePath = script.value("sourceRelativePath").toString().toUpper();
+            QString context;
+            if (sourcePath.contains("/CM4/") || sourcePath.contains("_CM4_")) context = "CM4";
+            else if (sourcePath.contains("/CM7/") || sourcePath.contains("_CM7_")) context = "CM7";
+            const QString key = flashScripts.size() == 1 ? reference
+                : reference + "@" + (context.isEmpty() ? QFileInfo(path).baseName() : context);
+            STM32ChipProfile profile;
+            profile.chipName = reference;
+            profile.family = family;
+            const QString core = context.isEmpty()
+                ? target.value("core").toString() : "Arm Cortex-M" + context.right(1);
+            if (core.contains("M3")) profile.core = "cortex-m3";
+            else if (core.contains("M4")) profile.core = "cortex-m4";
+            else if (core.contains("M7")) profile.core = "cortex-m7";
+            else continue;
+            profile.flashSizeBytes = target.value("flashKiB").toString().toUInt() * 1024;
+            profile.ramSizeBytes = target.value("ramKiB").toString().toUInt() * 1024;
+            profile.openocdTargetCfg = getOpenocdTarget(family);
+            profile.jlinkDeviceName = reference;
+            profile.linkerContext = context;
+            profile.defaultLdFile = context.isEmpty()
+                ? QFileInfo(path).fileName()
+                : context + "/" + QFileInfo(path).fileName();
+            profile.linkerResourcePath = ":/stm32/full/" + path;
+            profile.linkerSha256 = script.value("sha256").toString();
+            QFile linker(profile.linkerResourcePath);
+            if (!linker.open(QIODevice::ReadOnly)) continue;
+            const QByteArray linkerBytes = linker.readAll();
+            if (QString::fromLatin1(QCryptographicHash::hash(
+                    linkerBytes, QCryptographicHash::Sha256).toHex())
+                    .compare(profile.linkerSha256, Qt::CaseInsensitive) != 0) continue;
+            static const QRegularExpression flashRegion(
+                R"((?m)^\s*FLASH[A-Z0-9_]*\s*\([^\r\n]*\)\s*:\s*ORIGIN\s*=\s*(0x[0-9A-Fa-f]+))",
+                QRegularExpression::CaseInsensitiveOption);
+            const QRegularExpressionMatch originMatch =
+                flashRegion.match(QString::fromLatin1(linkerBytes));
+            if (originMatch.hasMatch()) profile.flashOrigin = originMatch.captured(1);
+            const QString fpu = script.value("fpu").toString();
+            const QString floatAbi = script.value("floatAbi").toString();
+            if (!fpu.isEmpty() && !floatAbi.isEmpty()) {
+                profile.hasFpu = true;
+                profile.fpuFlags = "-mfpu=" + fpu + " -mfloat-abi=" + floatAbi;
+            }
+            for (const QJsonValue &define : script.value("defines").toArray()) {
+                const QString symbol = define.toString();
+                if (symbol.startsWith("STM32") && profile.defaultMacro.isEmpty())
+                    profile.defaultMacro = symbol;
+                else if (!symbol.isEmpty())
+                    profile.extraMacros << symbol;
+            }
+            if (path.isEmpty() || profile.linkerSha256.size() != 64) continue;
+            m_database.insert(key.toUpper(), profile);
+            if (!m_supportedChips.contains(key)) m_supportedChips << key;
+            if (context == "CM7") {
+                m_database.insert(reference.toUpper(), profile);
+                if (!m_supportedChips.contains(reference)) m_supportedChips << reference;
+            }
+            for (const QJsonValue &alias : target.value("cpnAliases").toArray()) {
+                const QString partNumber = alias.toString();
+                if (partNumber.isEmpty()) continue;
+                const QString choice = context.isEmpty() ? partNumber
+                                                        : partNumber + "@" + context;
+                m_database.insert(choice.toUpper(), profile);
+                if (!m_supportedChips.contains(choice)) m_supportedChips << choice;
+                // Dual-core order codes without a suffix select the primary CM7 core.
+                if (context.isEmpty() || context == "CM7") {
+                    m_database.insert(partNumber.toUpper(), profile);
+                    if (!m_supportedChips.contains(partNumber)) m_supportedChips << partNumber;
+                }
+            }
+        }
+    }
+    m_supportedChips.sort(Qt::CaseInsensitive);
 }
 
 STM32ChipProfile STM32ProfileManager::getProfile(const QString &chipName) const

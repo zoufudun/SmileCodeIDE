@@ -6,6 +6,9 @@
 #include <QSet>
 #include <QXmlStreamReader>
 #include <QCryptographicHash>
+#include <QDateTime>
+#include <QSaveFile>
+#include <QRegularExpression>
 
 static bool scanKeilProject(const QString &projectDir, QStringList &cSources,
                             QStringList &cppSources, QStringList &asmSources,
@@ -64,15 +67,170 @@ static bool scanKeilProject(const QString &projectDir, QStringList &cSources,
     return false;
 }
 
+static bool scanCubeIdeProject(const QString &projectDir, const QString &context,
+                               QStringList &cSources, QStringList &cppSources,
+                               QStringList &asmSources, QStringList &includes)
+{
+    const QDir root(projectDir);
+    QDirIterator projectFiles(projectDir, {".project"}, QDir::Files | QDir::Hidden,
+                              QDirIterator::Subdirectories);
+    QString projectFile;
+    while (projectFiles.hasNext()) {
+        const QString candidate = projectFiles.next();
+        const QString folder = QDir::fromNativeSeparators(QFileInfo(candidate).absolutePath());
+        if (!folder.contains("/STM32CubeIDE/", Qt::CaseInsensitive) &&
+            !folder.endsWith("/STM32CubeIDE", Qt::CaseInsensitive)) continue;
+        if (!context.isEmpty() && !folder.endsWith("/" + context, Qt::CaseInsensitive))
+            continue;
+        projectFile = candidate;
+        break;
+    }
+    if (projectFile.isEmpty()) return false;
+    const QDir projectFolder(QFileInfo(projectFile).absolutePath());
+    const auto relativeInsideRoot = [&](const QString &absolute) -> QString {
+        const QString relative = QDir::fromNativeSeparators(root.relativeFilePath(absolute));
+        return relative == ".." || relative.startsWith("../") ? QString() : relative;
+    };
+    const auto addSource = [&](const QString &absolute) {
+        const QFileInfo info(absolute);
+        if (!info.isFile()) return;
+        const QString relative = relativeInsideRoot(info.absoluteFilePath());
+        if (relative.isEmpty()) return;
+        const QString suffix = info.suffix().toLower();
+        if (suffix == "c" && !cSources.contains(relative)) cSources << relative;
+        else if ((suffix == "cpp" || suffix == "cc" || suffix == "cxx") &&
+                 !cppSources.contains(relative)) cppSources << relative;
+        else if ((suffix == "s" || suffix == "asm") && !asmSources.contains(relative))
+            asmSources << relative;
+    };
+    QFile file(projectFile);
+    if (!file.open(QIODevice::ReadOnly)) return false;
+    QXmlStreamReader xml(&file);
+    const QRegularExpression parentUri("^PARENT-(\\d+)-PROJECT_LOC/(.+)$");
+    while (!xml.atEnd()) {
+        xml.readNext();
+        if (!xml.isStartElement() || xml.name() != "locationURI") continue;
+        const QString uri = xml.readElementText();
+        const auto match = parentUri.match(uri);
+        if (!match.hasMatch()) continue;
+        QDir base = projectFolder;
+        const int parents = match.captured(1).toInt();
+        bool valid = true;
+        for (int i = 0; i < parents; ++i) valid = base.cdUp() && valid;
+        if (valid) addSource(base.absoluteFilePath(match.captured(2)));
+    }
+    if (xml.hasError()) return false;
+
+    QDirIterator localSources(projectFolder.absolutePath(),
+                              {"*.c", "*.cpp", "*.cc", "*.cxx", "*.s", "*.S", "*.asm"},
+                              QDir::Files, QDirIterator::Subdirectories);
+    while (localSources.hasNext()) {
+        const QString source = localSources.next();
+        const QString local = QDir::fromNativeSeparators(projectFolder.relativeFilePath(source));
+        if (local.startsWith("Debug/", Qt::CaseInsensitive) ||
+            local.startsWith("Release/", Qt::CaseInsensitive)) continue;
+        addSource(source);
+    }
+    if (cSources.isEmpty() && cppSources.isEmpty() && asmSources.isEmpty()) return false;
+
+    QSet<QString> includeSet = {"."};
+    QFile cproject(projectFolder.filePath(".cproject"));
+    if (cproject.open(QIODevice::ReadOnly)) {
+        QXmlStreamReader settings(&cproject);
+        bool inIncludes = false;
+        while (!settings.atEnd()) {
+            settings.readNext();
+            if (settings.isStartElement() && settings.name() == "option")
+                inIncludes = settings.attributes().value("superClass").toString()
+                    .endsWith(".tool.c.compiler.option.includepaths");
+            else if (settings.isEndElement() && settings.name() == "option")
+                inIncludes = false;
+            else if (inIncludes && settings.isStartElement() &&
+                     settings.name() == "listOptionValue") {
+                const QString value = settings.attributes().value("value").toString();
+                if (value.contains("${")) continue;
+                // CubeIDE stores include paths relative to its Debug build folder.
+                const QString absolute = QDir::cleanPath(
+                    projectFolder.absoluteFilePath("Debug/" + value));
+                const QString relative = relativeInsideRoot(absolute);
+                if (!relative.isEmpty() && QDir(absolute).exists()) includeSet.insert(relative);
+            }
+        }
+    }
+    includes = includeSet.values();
+    includes.sort();
+    return true;
+}
+
 MakefileGenerator::MakefileGenerator()
 {
+}
+
+bool MakefileGenerator::migrateLegacyLinkerScript(const QString &projectDir,
+                                                  const STM32ChipProfile &profile,
+                                                  QString *outBackupPath,
+                                                  QString *outError)
+{
+    if (outBackupPath) outBackupPath->clear();
+    if (profile.defaultLdFile.isEmpty() || profile.linkerResourcePath.isEmpty()) {
+        if (outError) *outError = "此型号没有可用于迁移的 CubeMX 原版链接脚本。";
+        return false;
+    }
+    const QString linkerPath = QDir(projectDir).absoluteFilePath(profile.defaultLdFile);
+    QFile existing(linkerPath);
+    if (!existing.open(QIODevice::ReadOnly)) {
+        if (outError) *outError = "无法读取待迁移的链接脚本: " + linkerPath;
+        return false;
+    }
+    const QByteArray oldBytes = existing.readAll();
+    existing.close();
+    if (!oldBytes.left(512).contains("SmileCodeIDE Auto-Generated Linker Script")) {
+        if (outError) *outError = "目标不是旧版自动生成的链接脚本，已保留原文件: " + linkerPath;
+        return false;
+    }
+
+    QFile resource(profile.linkerResourcePath);
+    if (!resource.open(QIODevice::ReadOnly)) {
+        if (outError) *outError = "无法读取 CubeMX 链接脚本: " + profile.linkerResourcePath;
+        return false;
+    }
+    const QByteArray newBytes = resource.readAll();
+    const QString actualHash = QString::fromLatin1(
+        QCryptographicHash::hash(newBytes, QCryptographicHash::Sha256).toHex());
+    if (profile.linkerSha256.isEmpty() ||
+        actualHash.compare(profile.linkerSha256, Qt::CaseInsensitive) != 0) {
+        if (outError) *outError = "内置 CubeMX 链接脚本 SHA-256 校验失败: " +
+            profile.linkerResourcePath;
+        return false;
+    }
+
+    const QString stamp = QDateTime::currentDateTime().toString("yyyyMMdd-HHmmss");
+    QString backupPath = linkerPath + ".legacy-" + stamp + ".bak";
+    for (int suffix = 1; QFileInfo::exists(backupPath); ++suffix)
+        backupPath = linkerPath + ".legacy-" + stamp + "-" + QString::number(suffix) + ".bak";
+    QSaveFile backup(backupPath);
+    if (!backup.open(QIODevice::WriteOnly) || backup.write(oldBytes) != oldBytes.size() ||
+        !backup.commit()) {
+        if (outError) *outError = "无法创建旧链接脚本备份，原文件未修改: " + backupPath;
+        return false;
+    }
+
+    QSaveFile replacement(linkerPath);
+    if (!replacement.open(QIODevice::WriteOnly) ||
+        replacement.write(newBytes) != newBytes.size() || !replacement.commit()) {
+        if (outError) *outError = "备份已创建，但无法安装 CubeMX 链接脚本: " + linkerPath;
+        return false;
+    }
+    if (outBackupPath) *outBackupPath = backupPath;
+    return true;
 }
 
 void MakefileGenerator::scanProjectSources(const QString &projectDir,
                                           QStringList &outCSources,
                                           QStringList &outCppSources,
                                           QStringList &outAsmSources,
-                                          QStringList &outIncludes)
+                                          QStringList &outIncludes,
+                                          const QString &linkerContext)
 {
     outCSources.clear();
     outCppSources.clear();
@@ -81,6 +239,8 @@ void MakefileGenerator::scanProjectSources(const QString &projectDir,
 
     if (scanKeilProject(projectDir, outCSources, outCppSources, outAsmSources, outIncludes))
         return;
+    if (scanCubeIdeProject(projectDir, linkerContext, outCSources, outCppSources,
+                           outAsmSources, outIncludes)) return;
 
     QDir rootDir(projectDir);
     QSet<QString> includeSet;
@@ -96,7 +256,7 @@ void MakefileGenerator::scanProjectSources(const QString &projectDir,
         QString relPath = rootDir.relativeFilePath(fullPath).replace('\\', '/');
 
         // 忽略 build 输出目录、.git、.vscode、.qtcreator 等隐藏缓存
-        if (relPath.startsWith("build/") || relPath.startsWith(".git/") ||
+        if (relPath.startsWith("build/") || relPath.startsWith(".smilecode/") || relPath.startsWith(".git/") ||
             relPath.startsWith(".vscode/") || relPath.startsWith("release/") ||
             relPath.startsWith("debug/")) {
             continue;
@@ -143,7 +303,60 @@ bool MakefileGenerator::generate(const QString &projectDir,
 
     // 1. 扫描源文件
     QStringList cSources, cppSources, asmSources, includes;
-    scanProjectSources(projectDir, cSources, cppSources, asmSources, includes);
+    scanProjectSources(projectDir, cSources, cppSources, asmSources, includes,
+                       profile.linkerContext);
+    if (!profile.linkerContext.isEmpty()) {
+        const QString otherCore = profile.linkerContext.compare("CM4", Qt::CaseInsensitive) == 0
+                                      ? "CM7" : "CM4";
+        const auto fromOtherCore = [&](const QString &path) {
+            return path.compare(otherCore, Qt::CaseInsensitive) == 0 ||
+                   path.startsWith(otherCore + "/", Qt::CaseInsensitive) ||
+                   path.contains("/" + otherCore + "/", Qt::CaseInsensitive);
+        };
+        cSources.removeIf(fromOtherCore);
+        cppSources.removeIf(fromOtherCore);
+        asmSources.removeIf(fromOtherCore);
+        includes.removeIf(fromOtherCore);
+    }
+
+    // Keil examples may ship only ARMASM/IAR startup code. GCC cannot assemble
+    // it; prefer the project's GCC sibling, then an exact bundled ST variant.
+    for (QString &source : asmSources) {
+        const QString normalized = QDir::fromNativeSeparators(source);
+        if (!QFileInfo(source).fileName().startsWith("startup_", Qt::CaseInsensitive) ||
+            (!normalized.contains("/arm/", Qt::CaseInsensitive) &&
+             !normalized.contains("/iar/", Qt::CaseInsensitive))) continue;
+        QString gccSource = normalized;
+        gccSource.replace("/arm/", "/gcc/", Qt::CaseInsensitive);
+        gccSource.replace("/iar/", "/gcc/", Qt::CaseInsensitive);
+        if (QFileInfo::exists(dir.absoluteFilePath(gccSource))) {
+            source = gccSource;
+            continue;
+        }
+        const QString fileName = QFileInfo(source).fileName();
+        QFile resource(":/stm32/startup/" + fileName);
+        const QString expectedName = "startup_" + profile.defaultMacro.toLower() + ".s";
+        if (fileName.compare(expectedName, Qt::CaseInsensitive) != 0 ||
+            !resource.open(QIODevice::ReadOnly)) {
+            if (outError) *outError = "启动文件为 Keil/IAR 格式，缺少当前芯片对应的 GCC 启动文件: " + source;
+            return false;
+        }
+        const QByteArray contents = resource.readAll();
+        const QString destination = ".smilecode/startup/" + fileName;
+        const QString absolute = dir.absoluteFilePath(destination);
+        QFile existing(absolute);
+        const bool unchanged = existing.open(QIODevice::ReadOnly) && existing.readAll() == contents;
+        existing.close();
+        if (!unchanged) {
+            QSaveFile output(absolute);
+            if (!dir.mkpath(".smilecode/startup") || !output.open(QIODevice::WriteOnly) ||
+                output.write(contents) != contents.size() || !output.commit()) {
+                if (outError) *outError = "无法安装 GCC 启动文件: " + absolute;
+                return false;
+            }
+        }
+        source = destination;
+    }
 
     // 2. 合并额外包含路径和宏
     for (const QString &inc : extraIncludes) {
@@ -182,6 +395,10 @@ bool MakefileGenerator::generate(const QString &projectDir,
                 if (outError) *outError = "此型号尚无打包的 CubeMX 原版链接脚本，请在工程中提供 .ld 文件并明确选择。";
                 return false;
             }
+            if (!QDir().mkpath(QFileInfo(path).absolutePath())) {
+                if (outError) *outError = "无法创建链接脚本目录: " + QFileInfo(path).absolutePath();
+                return false;
+            }
             QFile linker(path);
             if (!linker.open(QIODevice::WriteOnly | QIODevice::Truncate) ||
                 linker.write(contents) != contents.size()) {
@@ -198,6 +415,7 @@ bool MakefileGenerator::generate(const QString &projectDir,
         // 只考虑当前芯片或未标注芯片的候选；多个候选需要用户显式选择。
         QStringList ldFiles;
         for (const QString &candidate : dir.entryList(QStringList() << "*.ld", QDir::Files)) {
+            if (!profile.linkerContext.isEmpty()) continue;
             if (candidate.startsWith("STM32", Qt::CaseInsensitive) &&
                 !candidate.startsWith(profile.chipName, Qt::CaseInsensitive))
                 continue;
@@ -272,9 +490,8 @@ QString MakefileGenerator::generateMakefileContent(const QString &projectDir,
     stream << "################################################################################\n\n";
 
     // 目标与目录定义
-    QString targetName = profile.chipName.toLower();
-    stream << "TARGET = " << targetName << "\n";
-    stream << "BUILD_DIR = build\n\n";
+    stream << "TARGET = " << profile.artifactBaseName() << "\n";
+    stream << "BUILD_DIR = " << profile.buildDirectory() << "\n\n";
 
     // 工具链前缀配置
     stream << "# Toolchain Paths\n";
@@ -381,22 +598,12 @@ QString MakefileGenerator::generateMakefileContent(const QString &projectDir,
     }
     stream << "\n\n";
 
-    // 对象列表与 vpath 路径推导
+    // Keep each object tied to the scanned source. MinGW vpath lookup can fail
+    // for deep Windows paths, or silently pick a different file with the same name.
     stream << "# Object File Mapping\n";
     stream << "OBJECTS = $(addprefix $(BUILD_DIR)/,$(notdir $(C_SOURCES:.c=.o)))\n";
     stream << "OBJECTS += $(addprefix $(BUILD_DIR)/,$(addsuffix .o,$(basename $(notdir $(CXX_SOURCES)))))\n";
     stream << "OBJECTS += $(addprefix $(BUILD_DIR)/,$(addsuffix .o,$(basename $(notdir $(ASM_SOURCES)))))\n\n";
-
-    stream << "vpath %.c $(sort $(dir $(C_SOURCES)))\n";
-    if (!cppSources.isEmpty()) {
-        stream << "vpath %.cpp $(sort $(dir $(CXX_SOURCES)))\n";
-    }
-    if (!asmSources.isEmpty()) {
-        stream << "vpath %.s $(sort $(dir $(ASM_SOURCES)))\n";
-        stream << "vpath %.S $(sort $(dir $(ASM_SOURCES)))\n";
-        stream << "vpath %.asm $(sort $(dir $(ASM_SOURCES)))\n";
-    }
-    stream << "\n";
 
     // 构建规则
     stream << "# Build Targets\n";
@@ -405,35 +612,30 @@ QString MakefileGenerator::generateMakefileContent(const QString &projectDir,
     stream << "$(BUILD_DIR):\n";
     stream << "\t$(MKDIR)\n\n";
 
-    stream << "$(BUILD_DIR)/%.o: %.c | $(BUILD_DIR)\n";
-    stream << "\t$(CC) -c $(CFLAGS) $< -o $@\n\n";
-
-    stream << "$(BUILD_DIR)/%.o: %.cpp | $(BUILD_DIR)\n";
-    stream << "\t$(CXX) -c $(CXXFLAGS) $< -o $@\n\n";
-
-    stream << "$(BUILD_DIR)/%.o: %.cc | $(BUILD_DIR)\n";
-    stream << "\t$(CXX) -c $(CXXFLAGS) $< -o $@\n\n";
-
-    stream << "$(BUILD_DIR)/%.o: %.cxx | $(BUILD_DIR)\n";
-    stream << "\t$(CXX) -c $(CXXFLAGS) $< -o $@\n\n";
-
-    stream << "$(BUILD_DIR)/%.o: %.s | $(BUILD_DIR)\n";
-    stream << "\t$(AS) -c $(ASFLAGS) $< -o $@\n\n";
-
-    stream << "$(BUILD_DIR)/%.o: %.S | $(BUILD_DIR)\n";
-    stream << "\t$(AS) -c $(ASFLAGS) $< -o $@\n\n";
-
-    stream << "$(BUILD_DIR)/%.o: %.asm | $(BUILD_DIR)\n";
-    stream << "\t$(AS) -c $(ASFLAGS) $< -o $@\n\n";
+    const auto writeSourceRules = [&](const QStringList &sources, const QString &compiler,
+                                      const QString &flags) {
+        for (const QString &source : sources) {
+            stream << "$(BUILD_DIR)/" << QFileInfo(source).completeBaseName()
+                   << ".o: " << source << " | $(BUILD_DIR)\n";
+            stream << "\t@echo [BUILD:" << compiler << "] \"$<\"\n";
+            stream << "\t$(" << compiler << ") -c $(" << flags << ") \"$<\" -o \"$@\"\n\n";
+        }
+    };
+    writeSourceRules(cSources, "CC", "CFLAGS");
+    writeSourceRules(cppSources, "CXX", "CXXFLAGS");
+    writeSourceRules(asmSources, "AS", "ASFLAGS");
 
     stream << "$(BUILD_DIR)/$(TARGET).elf: $(OBJECTS)\n";
+    stream << "\t@echo [BUILD:LD] \"$@\"\n";
     stream << "\t$(CC) $(OBJECTS) $(LDFLAGS) -o $@\n";
     stream << "\t$(SZ) $@\n\n";
 
     stream << "$(BUILD_DIR)/%.hex: $(BUILD_DIR)/%.elf | $(BUILD_DIR)\n";
+    stream << "\t@echo [BUILD:HEX] \"$@\"\n";
     stream << "\t$(HEX) $< $@\n\n";
 
     stream << "$(BUILD_DIR)/%.bin: $(BUILD_DIR)/%.elf | $(BUILD_DIR)\n";
+    stream << "\t@echo [BUILD:BIN] \"$@\"\n";
     stream << "\t$(BIN) $< $@\n\n";
 
     stream << "clean:\n";

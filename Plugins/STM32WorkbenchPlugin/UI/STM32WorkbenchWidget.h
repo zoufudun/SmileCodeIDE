@@ -10,6 +10,11 @@
 #include <QLabel>
 #include <QSplitter>
 #include <QSettings>
+#include <QCheckBox>
+#include <QElapsedTimer>
+#include <QPointer>
+#include <QTabWidget>
+#include <QTreeWidget>
 
 #include "../Core/ToolchainDetector.h"
 #include "../Core/STM32Profile.h"
@@ -38,6 +43,7 @@ public:
     BuildManager* buildManager() const { return m_buildManager; }
     FlashProgrammer* flashProgrammer() const { return m_flashProgrammer; }
     GdbMiEngine* gdbEngine() const { return m_gdbEngine; }
+    void setSourceNavigationHost(QWidget *host) { m_sourceNavigationHost = host; }
 
     // 断点快速操作（供外部代码编辑器调用联动）
     void toggleBreakpoint(const QString &file, int line);
@@ -54,6 +60,7 @@ public slots:
     void onToggleDebugSession();
     void onOpenToolchainSettings();
     void onOpenFlashSettings();
+    void onOpenChipSelectDialog();
 
 private slots:
     void onBrowseProjectDir();
@@ -73,6 +80,16 @@ private:
     void appendLogText(const QString &text, bool isError);
     void appendLogLine(const QString &line, bool isError);
     void flushLogText();
+    void beginFlashLog(const QString &firmwarePath, const FlashOptions &options);
+    void finishFlashLog(bool success, const QString &message);
+    void renderFlashLog();
+    void leaveFlashLog();
+    void beginBuildLog(const QString &action);
+    void renderBuildLog(bool reset = false);
+    void refreshBuildProblems();
+    void navigateBuildProblem(int direction);
+    void activateBuildProblem(QTreeWidgetItem *item);
+    void navigateToSource(const QString &file, int line, int column = 0);
 
     QSettings *m_settings;
     QString m_projectPath;
@@ -90,6 +107,7 @@ private:
     QLineEdit *m_projectPathEdit;
     QPushButton *m_browseProjectBtn;
     QComboBox *m_chipCombo;
+    QPushButton *m_selectChipBtn;
     QComboBox *m_configCombo;
 
     QPushButton *m_buildBtn;
@@ -102,6 +120,25 @@ private:
 
     // 终端与监控窗格
     QTextBrowser *m_buildTerminal;
+    QTabWidget *m_outputTabs;
+    QTreeWidget *m_buildProblems;
+    QComboBox *m_problemFilter;
+    QLabel *m_problemCounts;
+    QPushButton *m_previousProblem;
+    QPushButton *m_nextProblem;
+    QPointer<QWidget> m_sourceNavigationHost;
+    bool m_usingBuildLogModel = false;
+    bool m_buildViewActive = false;
+    qsizetype m_renderedBuildEntries = 0;
+    QString m_buildLogHeading;
+    bool m_buildHasSize = false;
+    QCheckBox *m_flashDetailedLog;
+    FlashLogModel m_flashLog;
+    QVector<FlashLogEntry> m_flashLogHeader;
+    QElapsedTimer m_flashTimer;
+    FlashOptions m_flashOptions;
+    bool m_showingFlashLog = false;
+    bool m_flashActive = false;
     QString m_pendingLogOut;
     QString m_pendingLogErr;
     QProgressBar *m_flashMemBar;
@@ -110,6 +147,7 @@ private:
     QLabel *m_ramMemLabel;
     QProgressBar *m_taskProgressBar;
     QLabel *m_taskStatusLabel;
+    bool m_retryRebuildAfterMigration = false;
 
     // GDB 调试面板
     GdbDebugPanel *m_debugPanel;

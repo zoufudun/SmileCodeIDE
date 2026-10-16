@@ -1277,6 +1277,65 @@ void MainWindow::setupStatusBar() {
 //     }
 // }
 
+bool MainWindow::openSourceLocation(QString filePath, int line, int column) {
+  auto showError = [this](const QString &message) {
+    auto *error = new QMessageBox(QMessageBox::Warning, tr("无法打开源文件"),
+                                 message, QMessageBox::Close, this);
+    error->setAttribute(Qt::WA_DeleteOnClose);
+    error->setWindowModality(Qt::NonModal);
+    error->show();
+  };
+  const QFileInfo target(filePath);
+  if (!target.isFile() || !target.isReadable() || !m_codeEditor ||
+      !m_codeEditor->currentEditor()) {
+    showError(tr("无法读取源文件: %1").arg(filePath));
+    return false;
+  }
+  const QString canonicalPath = target.canonicalFilePath();
+  auto *editor = m_codeEditor->currentEditor();
+  if (QFileInfo(m_currentFilePath).canonicalFilePath() != canonicalPath) {
+    if (editor->isModified()) {
+      const auto answer = QMessageBox::warning(
+          this, tr("未保存的更改"), tr("当前文件有未保存的更改。是否保存后打开源文件？"),
+          QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel,
+          QMessageBox::Cancel);
+      if (answer != QMessageBox::Save && answer != QMessageBox::Discard) {
+        return false;
+      }
+      if (answer == QMessageBox::Save) {
+        QString savePath = m_currentFilePath;
+        if (savePath.isEmpty()) {
+          savePath = QFileDialog::getSaveFileName(this, tr("保存文件"), m_projectPath);
+        }
+        if (savePath.isEmpty()) {
+          return false;
+        }
+        if (!m_codeEditor->saveFile(savePath)) {
+          showError(tr("无法保存文件: %1").arg(savePath));
+          return false;
+        }
+        m_currentFilePath = savePath;
+        editor->setModified(false);
+      }
+    }
+    if (!m_codeEditor->openFile(canonicalPath)) {
+      showError(tr("无法读取源文件: %1").arg(filePath));
+      return false;
+    }
+    editor->setModified(false);
+  }
+  const int row = qBound(0, line - 1, qMax(0, editor->lines() - 1));
+  const int lineLength = int(editor->text(row).remove('\r').remove('\n').size());
+  const int col = qBound(0, column - 1, lineLength);
+  editor->setCursorPosition(row, col);
+  editor->ensureLineVisible(row);
+  editor->setFocus();
+  show();
+  raise();
+  activateWindow();
+  return true;
+}
+
 void MainWindow::openFile(const QModelIndex &index) {
   // 获取文件路径
   QString filePath = m_fileSystemModel->filePath(index);

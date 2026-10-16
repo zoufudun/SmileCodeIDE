@@ -1,3 +1,6 @@
 /build-implementation-plugin/
 /build-implementation-tests/
 /cubemx-probe/
+/data/cubemx-6.18.0-f1f4f7h7-work/
+/tests/tmp*/
+__pycache__/

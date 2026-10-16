@@ -1,0 +1,94 @@
+log4j user configuration file not found: C:\Users\SMILE/.stm32cubemx/log4j2.xml
+Configure log4j with default settings from jar:file:/D:/Soft/STM32CubeMX/STM32CubeMX.exe!/log4j/log4j2.stm32cubemx.xml
+2026-10-12 18:46:12,052 main ERROR FileManager (C:\Users\SMILE/.stm32cubemx/STM32CubeMX.log) java.io.FileNotFoundException: C:\Users\SMILE\.stm32cubemx\STM32CubeMX.log (拒绝访问。) java.io.FileNotFoundException: C:\Users\SMILE\.stm32cubemx\STM32CubeMX.log (拒绝访问。)
+	at java.base/java.io.FileOutputStream.open0(Native Method)
+	at java.base/java.io.FileOutputStream.open(FileOutputStream.java:289)
+	at java.base/java.io.FileOutputStream.<init>(FileOutputStream.java:230)
+	at org.apache.logging.log4j.core.appender.FileManager$FileManagerFactory.createManager(FileManager.java:438)
+	at org.apache.logging.log4j.core.appender.FileManager$FileManagerFactory.createManager(FileManager.java:422)
+	at org.apache.logging.log4j.core.appender.AbstractManager.getManager(AbstractManager.java:144)
+	at org.apache.logging.log4j.core.appender.OutputStreamManager.getManager(OutputStreamManager.java:100)
+	at org.apache.logging.log4j.core.appender.FileManager.getFileManager(FileManager.java:182)
+	at org.apache.logging.log4j.core.appender.FileAppender$Builder.build(FileAppender.java:96)
+	at org.apache.logging.log4j.core.appender.FileAppender$Builder.build(FileAppender.java:52)
+	at org.apache.logging.log4j.core.config.plugins.util.PluginBuilder.build(PluginBuilder.java:124)
+	at org.apache.logging.log4j.core.config.AbstractConfiguration.createPluginObject(AbstractConfiguration.java:1122)
+	at org.apache.logging.log4j.core.config.AbstractConfiguration.createConfiguration(AbstractConfiguration.java:1047)
+	at org.apache.logging.log4j.core.config.AbstractConfiguration.createConfiguration(AbstractConfiguration.java:1039)
+	at org.apache.logging.log4j.core.config.AbstractConfiguration.doConfigure(AbstractConfiguration.java:651)
+	at org.apache.logging.log4j.core.config.AbstractConfiguration.initialize(AbstractConfiguration.java:249)
+	at org.apache.logging.log4j.core.config.AbstractConfiguration.start(AbstractConfiguration.java:295)
+	at org.apache.logging.log4j.core.LoggerContext.setConfiguration(LoggerContext.java:621)
+	at org.apache.logging.log4j.core.LoggerContext.reconfigure(LoggerContext.java:694)
+	at org.apache.logging.log4j.core.LoggerContext.setConfigLocation(LoggerContext.java:679)
+	at com.st.microxplorer.maingui.MicroXplorer.setup_log4j(MicroXplorer.java:350)
+	at com.st.microxplorer.maingui.MicroXplorer.main(MicroXplorer.java:96)
+	at com.st.microxplorer.maingui.STM32CubeMX.main(STM32CubeMX.java:59)
+
+2026-10-12 18:46:12,056 main ERROR Could not create plugin of type class org.apache.logging.log4j.core.appender.FileAppender for element File: java.lang.IllegalStateException: ManagerFactory [org.apache.logging.log4j.core.appender.FileManager$FileManagerFactory@363a52f] unable to create manager for [C:\Users\SMILE/.stm32cubemx/STM32CubeMX.log] with data [org.apache.logging.log4j.core.appender.FileManager$FactoryData@60856961] java.lang.IllegalStateException: ManagerFactory [org.apache.logging.log4j.core.appender.FileManager$FileManagerFactory@363a52f] unable to create manager for [C:\Users\SMILE/.stm32cubemx/STM32CubeMX.log] with data [org.apache.logging.log4j.core.appender.FileManager$FactoryData@60856961]
+	at org.apache.logging.log4j.core.appender.AbstractManager.getManager(AbstractManager.java:146)
+	at org.apache.logging.log4j.core.appender.OutputStreamManager.getManager(OutputStreamManager.java:100)
+	at org.apache.logging.log4j.core.appender.FileManager.getFileManager(FileManager.java:182)
+	at org.apache.logging.log4j.core.appender.FileAppender$Builder.build(FileAppender.java:96)
+	at org.apache.logging.log4j.core.appender.FileAppender$Builder.build(FileAppender.java:52)
+	at org.apache.logging.log4j.core.config.plugins.util.PluginBuilder.build(PluginBuilder.java:124)
+	at org.apache.logging.log4j.core.config.AbstractConfiguration.createPluginObject(AbstractConfiguration.java:1122)
+	at org.apache.logging.log4j.core.config.AbstractConfiguration.createConfiguration(AbstractConfiguration.java:1047)
+	at org.apache.logging.log4j.core.config.AbstractConfiguration.createConfiguration(AbstractConfiguration.java:1039)
+	at org.apache.logging.log4j.core.config.AbstractConfiguration.doConfigure(AbstractConfiguration.java:651)
+	at org.apache.logging.log4j.core.config.AbstractConfiguration.initialize(AbstractConfiguration.java:249)
+	at org.apache.logging.log4j.core.config.AbstractConfiguration.start(AbstractConfiguration.java:295)
+	at org.apache.logging.log4j.core.LoggerContext.setConfiguration(LoggerContext.java:621)
+	at org.apache.logging.log4j.core.LoggerContext.reconfigure(LoggerContext.java:694)
+	at org.apache.logging.log4j.core.LoggerContext.setConfigLocation(LoggerContext.java:679)
+	at com.st.microxplorer.maingui.MicroXplorer.setup_log4j(MicroXplorer.java:350)
+	at com.st.microxplorer.maingui.MicroXplorer.main(MicroXplorer.java:96)
+	at com.st.microxplorer.maingui.STM32CubeMX.main(STM32CubeMX.java:59)
+
+2026-10-12 18:46:12,057 main ERROR Unable to invoke factory method in class org.apache.logging.log4j.core.appender.FileAppender for element File: java.lang.IllegalStateException: No factory method found for class org.apache.logging.log4j.core.appender.FileAppender java.lang.IllegalStateException: No factory method found for class org.apache.logging.log4j.core.appender.FileAppender
+	at org.apache.logging.log4j.core.config.plugins.util.PluginBuilder.findFactoryMethod(PluginBuilder.java:238)
+	at org.apache.logging.log4j.core.config.plugins.util.PluginBuilder.build(PluginBuilder.java:136)
+	at org.apache.logging.log4j.core.config.AbstractConfiguration.createPluginObject(AbstractConfiguration.java:1122)
+	at org.apache.logging.log4j.core.config.AbstractConfiguration.createConfiguration(AbstractConfiguration.java:1047)
+	at org.apache.logging.log4j.core.config.AbstractConfiguration.createConfiguration(AbstractConfiguration.java:1039)
+	at org.apache.logging.log4j.core.config.AbstractConfiguration.doConfigure(AbstractConfiguration.java:651)
+	at org.apache.logging.log4j.core.config.AbstractConfiguration.initialize(AbstractConfiguration.java:249)
+	at org.apache.logging.log4j.core.config.AbstractConfiguration.start(AbstractConfiguration.java:295)
+	at org.apache.logging.log4j.core.LoggerContext.setConfiguration(LoggerContext.java:621)
+	at org.apache.logging.log4j.core.LoggerContext.reconfigure(LoggerContext.java:694)
+	at org.apache.logging.log4j.core.LoggerContext.setConfigLocation(LoggerContext.java:679)
+	at com.st.microxplorer.maingui.MicroXplorer.setup_log4j(MicroXplorer.java:350)
+	at com.st.microxplorer.maingui.MicroXplorer.main(MicroXplorer.java:96)
+	at com.st.microxplorer.maingui.STM32CubeMX.main(STM32CubeMX.java:59)
+
+2026-10-12 18:46:12,059 main ERROR Null object returned for File in Appenders.
+2026-10-12 18:46:12,067 main ERROR Unable to locate appender "MX_LOG_FILE" for logger config "root"
+2026-10-12 18:46:12,075 [INFO] MicroXplorer:98 - [MX] MX Start == 3677259395700
+2026-10-12 18:46:12,077 [INFO] MicroXplorer:653 - Detected Java Version = 21.0.10
+2026-10-12 18:46:12,078 [INFO] ApplicationProperties:184 - Using Application install path: D:\Soft\STM32CubeMX
+2026-10-12 18:46:12,090 [INFO] DbMcusXml:78 - Set database path to: D:\Soft\STM32CubeMX\\db\/mcu/
+2026-10-12 18:46:12,090 [INFO] ApiDb:274 - Set plugin database path to: D:\Soft\STM32CubeMX\\db\/plugins/boardmanager/
+2026-10-12 18:46:12,091 [WARN] ApiDb:259 - Overriding images path with different value:  => D:\Soft\STM32CubeMX\\db\/plugins/mcufinder/images/
+2026-10-12 18:46:12,095 [INFO] McuFinderGlobals:63 - Set McuFinder mode to 1 (CubeMX integrated)
+2026-10-12 18:46:12,109 [ERROR] ApiFinderProperties:223 - Failed to copy file D:\Soft\STM32CubeMX\db\plugins\mcufinder\mcu\api_config_new.json to C:\Users\SMILE\.stmcufinder\plugins\mcufinder\mcu\api_config_new.json (C:\Users\SMILE\.stmcufinder\plugins\mcufinder\mcu\api_config_new.json (鎷掔粷璁块棶銆�))
+2026-10-12 18:46:12,112 [ERROR] ApiFinderProperties:223 - Failed to copy file D:\Soft\STM32CubeMX\db\plugins\mcufinder\mcu\cube-finder-db.zip to C:\Users\SMILE\.stmcufinder\plugins\mcufinder\mcu\cube-finder-db.zip (C:\Users\SMILE\.stmcufinder\plugins\mcufinder\mcu\cube-finder-db.zip (鎷掔粷璁块棶銆�))
+2026-10-12 18:46:12,116 [ERROR] ApiFinderProperties:223 - Failed to copy file D:\Soft\STM32CubeMX\db\plugins\mcufinder\mcu\cs\crdb.zip to C:\Users\SMILE\.stmcufinder\plugins\mcufinder\mcu\cs\crdb.zip (C:\Users\SMILE\.stmcufinder\plugins\mcufinder\mcu\cs\crdb.zip (鎷掔粷璁块棶銆�))
+2026-10-12 18:46:12,116 [INFO] ApiDb:250 - Set database path to: C:\Users\SMILE\.stmcufinder\plugins\mcufinder//mcu/
+2026-10-12 18:46:12,117 [INFO] DbMcusAds:125 - Set database path to: C:\Users\SMILE\.stmcufinder\plugins\mcufinder//mcu/
+2026-10-12 18:46:12,120 [INFO] CrossReferenceDbSqlite:203 - Set database path to: C:\Users\SMILE\.stmcufinder\plugins\mcufinder//mcu/cs/
+2026-10-12 18:46:12,194 [INFO] RulesReader:64 - Compatibility file has been processed (337 Rules)
+2026-10-12 18:46:12,222 [INFO] STM32CubeMX:60 - Starting STM32CubeMX
+
+Oct 12, 2026 6:46:13 PM java.util.prefs.WindowsPreferences <init>
+WARNING: Could not open/create prefs root node Software\JavaSoft\Prefs at root 0xffffffff80000001. Windows RegCreateKeyEx(...) returned error code 5.
+Oct 12, 2026 6:46:13 PM java.util.prefs.WindowsPreferences openKey
+WARNING: Could not open windows registry node Software\JavaSoft\Prefs at root 0xffffffff80000001. Windows RegOpenKey(...) returned error code 5.
+Exception in thread "main" java.lang.SecurityException: Could not open windows registry node Software\JavaSoft\Prefs at root 0xffffffff80000001: Access denied
+	at java.prefs/java.util.prefs.WindowsPreferences.openKey(WindowsPreferences.java:558)
+	at java.prefs/java.util.prefs.WindowsPreferences.openKey(WindowsPreferences.java:520)
+	at java.prefs/java.util.prefs.WindowsPreferences.<init>(WindowsPreferences.java:429)
+	at java.prefs/java.util.prefs.WindowsPreferences.childSpi(WindowsPreferences.java:888)
+	at java.prefs/java.util.prefs.AbstractPreferences.node(AbstractPreferences.java:871)
+	at java.prefs/java.util.prefs.AbstractPreferences.node(AbstractPreferences.java:851)
+	at com.st.components.swing.ToolPreferences.setEntryKey(ToolPreferences.java:27)
+	at com.st.microxplorer.maingui.STM32CubeMX.main(STM32CubeMX.java:63)

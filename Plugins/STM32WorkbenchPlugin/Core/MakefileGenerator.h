@@ -29,7 +29,8 @@ public:
                                   QStringList &outCSources,
                                   QStringList &outCppSources,
                                   QStringList &outAsmSources,
-                                  QStringList &outIncludes);
+                                  QStringList &outIncludes,
+                                  const QString &linkerContext = QString());
 
     // 为指定 STM32 工程生成生产级 Makefile
     static bool generate(const QString &projectDir,
@@ -40,6 +41,12 @@ public:
                          const QStringList &extraDefines = QStringList(),
                          const QStringList &extraIncludes = QStringList(),
                          QString *outError = nullptr);
+
+    // Explicitly back up and replace a recognized legacy generated linker script.
+    static bool migrateLegacyLinkerScript(const QString &projectDir,
+                                          const STM32ChipProfile &profile,
+                                          QString *outBackupPath = nullptr,
+                                          QString *outError = nullptr);
 
     // 格式化输出 Makefile 文本内容
     static QString generateMakefileContent(const QString &projectDir,

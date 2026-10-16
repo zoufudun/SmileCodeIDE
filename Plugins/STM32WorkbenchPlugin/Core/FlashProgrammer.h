@@ -8,6 +8,7 @@
 #include "ToolchainDetector.h"
 #include "STM32Profile.h"
 #include "ProbeDetector.h"
+#include "FlashLogModel.h"
 
 /**
  * @brief 烧录器驱动类型
@@ -76,6 +77,7 @@ public:
     void cancelFlash();
 
 signals:
+    void flashSessionStarted(const QString &firmwarePath, const FlashOptions &options);
     void flashStarted(const QString &driverName);
     void flashOutput(const QString &text, bool isError);
     void flashProgress(int percentage, const QString &statusText);
@@ -87,6 +89,8 @@ private slots:
     void onProcessFinished(int exitCode, QProcess::ExitStatus exitStatus);
 
 private:
+    void consumeProcessOutput(const QString &text, bool fromStderr);
+    void publishProcessLines(qsizetype firstLine, const QVector<FlashLogEntry> &stages);
     bool flashViaOpenOCD(const QString &firmwarePath, const FlashOptions &options);
     bool flashViaJLink(const QString &firmwarePath, const FlashOptions &options);
     bool flashViaSTM32Cube(const QString &firmwarePath, const FlashOptions &options);
@@ -98,6 +102,8 @@ private:
     QString m_tempScriptPath;
     QString m_tempFirmwarePath;
     qint64 m_startTime = 0;
+    FlashLogModel m_processLog;
+    bool m_cancelled = false;
 };
 
 #endif // FLASHPROGRAMMER_H

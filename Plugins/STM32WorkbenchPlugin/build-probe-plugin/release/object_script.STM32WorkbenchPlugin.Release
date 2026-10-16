@@ -10,7 +10,10 @@ release/GdbMiEngine.o
 release/GdbDebugPanel.o
 release/ToolchainConfigDialog.o
 release/FlashConfigDialog.o
+release/TargetChipDialog.o
 release/STM32WorkbenchWidget.o
+release/qrc_cubemx_linkers.o
+release/qrc_cubemx_f1f4f7h7.o
 release/moc_stm32workbenchplugin.o
 release/moc_ToolchainDetector.o
 release/moc_BuildManager.o
@@ -20,4 +23,5 @@ release/moc_GdbMiEngine.o
 release/moc_GdbDebugPanel.o
 release/moc_ToolchainConfigDialog.o
 release/moc_FlashConfigDialog.o
+release/moc_TargetChipDialog.o
 release/moc_STM32WorkbenchWidget.o

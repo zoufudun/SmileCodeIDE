@@ -21,6 +21,7 @@ public:
     explicit AppHubWindow(QWidget *parent = nullptr);
     ~AppHubWindow() override;
     void applyTheme(const QString &themeName);
+    Q_INVOKABLE bool openSourceLocation(QString filePath, int line, int column = 0);
 
 protected:
     void resizeEvent(QResizeEvent *event) override;

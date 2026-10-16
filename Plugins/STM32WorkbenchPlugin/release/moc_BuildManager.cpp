@@ -57,6 +57,8 @@ template <> constexpr inline auto BuildManager::qt_create_metaobjectdata<qt_meta
         "success",
         "exitCode",
         "durationMs",
+        "legacyLinkerMigrationRequired",
+        "linkerPath",
         "onProcessReadyReadStd",
         "onProcessReadyReadErr",
         "onProcessFinished",
@@ -85,13 +87,17 @@ template <> constexpr inline auto BuildManager::qt_create_metaobjectdata<qt_meta
         QtMocHelpers::SignalData<void(bool, int, int)>(15, 2, QMC::AccessPublic, QMetaType::Void, {{
             { QMetaType::Bool, 16 }, { QMetaType::Int, 17 }, { QMetaType::Int, 18 },
         }}),
+        // Signal 'legacyLinkerMigrationRequired'
+        QtMocHelpers::SignalData<void(const QString &)>(19, 2, QMC::AccessPublic, QMetaType::Void, {{
+            { QMetaType::QString, 20 },
+        }}),
         // Slot 'onProcessReadyReadStd'
-        QtMocHelpers::SlotData<void()>(19, 2, QMC::AccessPrivate, QMetaType::Void),
+        QtMocHelpers::SlotData<void()>(21, 2, QMC::AccessPrivate, QMetaType::Void),
         // Slot 'onProcessReadyReadErr'
-        QtMocHelpers::SlotData<void()>(20, 2, QMC::AccessPrivate, QMetaType::Void),
+        QtMocHelpers::SlotData<void()>(22, 2, QMC::AccessPrivate, QMetaType::Void),
         // Slot 'onProcessFinished'
-        QtMocHelpers::SlotData<void(int, QProcess::ExitStatus)>(21, 2, QMC::AccessPrivate, QMetaType::Void, {{
-            { QMetaType::Int, 17 }, { 0x80000000 | 22, 23 },
+        QtMocHelpers::SlotData<void(int, QProcess::ExitStatus)>(23, 2, QMC::AccessPrivate, QMetaType::Void, {{
+            { QMetaType::Int, 17 }, { 0x80000000 | 24, 25 },
         }}),
     };
     QtMocHelpers::UintData qt_properties {
@@ -121,9 +127,10 @@ void BuildManager::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id
         case 2: _t->diagnosticFound((*reinterpret_cast<std::add_pointer_t<BuildDiagnostic>>(_a[1]))); break;
         case 3: _t->memoryUsageUpdated((*reinterpret_cast<std::add_pointer_t<quint32>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<quint32>>(_a[2])),(*reinterpret_cast<std::add_pointer_t<quint32>>(_a[3])),(*reinterpret_cast<std::add_pointer_t<quint32>>(_a[4]))); break;
         case 4: _t->buildFinished((*reinterpret_cast<std::add_pointer_t<bool>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<int>>(_a[2])),(*reinterpret_cast<std::add_pointer_t<int>>(_a[3]))); break;
-        case 5: _t->onProcessReadyReadStd(); break;
-        case 6: _t->onProcessReadyReadErr(); break;
-        case 7: _t->onProcessFinished((*reinterpret_cast<std::add_pointer_t<int>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<QProcess::ExitStatus>>(_a[2]))); break;
+        case 5: _t->legacyLinkerMigrationRequired((*reinterpret_cast<std::add_pointer_t<QString>>(_a[1]))); break;
+        case 6: _t->onProcessReadyReadStd(); break;
+        case 7: _t->onProcessReadyReadErr(); break;
+        case 8: _t->onProcessFinished((*reinterpret_cast<std::add_pointer_t<int>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<QProcess::ExitStatus>>(_a[2]))); break;
         default: ;
         }
     }
@@ -137,6 +144,8 @@ void BuildManager::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id
         if (QtMocHelpers::indexOfMethod<void (BuildManager::*)(quint32 , quint32 , quint32 , quint32 )>(_a, &BuildManager::memoryUsageUpdated, 3))
             return;
         if (QtMocHelpers::indexOfMethod<void (BuildManager::*)(bool , int , int )>(_a, &BuildManager::buildFinished, 4))
+            return;
+        if (QtMocHelpers::indexOfMethod<void (BuildManager::*)(const QString & )>(_a, &BuildManager::legacyLinkerMigrationRequired, 5))
             return;
     }
 }
@@ -160,14 +169,14 @@ int BuildManager::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 8)
+        if (_id < 9)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 8;
+        _id -= 9;
     }
     if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
-        if (_id < 8)
+        if (_id < 9)
             *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType();
-        _id -= 8;
+        _id -= 9;
     }
     return _id;
 }
@@ -200,5 +209,11 @@ void BuildManager::memoryUsageUpdated(quint32 _t1, quint32 _t2, quint32 _t3, qui
 void BuildManager::buildFinished(bool _t1, int _t2, int _t3)
 {
     QMetaObject::activate<void>(this, &staticMetaObject, 4, nullptr, _t1, _t2, _t3);
+}
+
+// SIGNAL 5
+void BuildManager::legacyLinkerMigrationRequired(const QString & _t1)
+{
+    QMetaObject::activate<void>(this, &staticMetaObject, 5, nullptr, _t1);
 }
 QT_WARNING_POP

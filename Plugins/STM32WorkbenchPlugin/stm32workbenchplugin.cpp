@@ -26,6 +26,7 @@ QWidget* STM32WorkbenchPlugin::createWidget(QWidget *parent)
 {
     static QSettings s_settings("SmileCode", "STM32Workbench");
     m_currentWidget = new STM32WorkbenchWidget(parent, &s_settings);
+    if (m_context) m_currentWidget->setSourceNavigationHost(m_context->mainWindow());
 
     if (m_context) {
         m_context->showToast(QStringLiteral("STM32 工作台已启动"), "success", 2000);

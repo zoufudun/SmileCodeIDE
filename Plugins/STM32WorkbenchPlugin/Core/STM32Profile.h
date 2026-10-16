@@ -42,6 +42,16 @@ struct STM32ChipProfile {
     QString defaultLdFile;    // 默认链接脚本文件名
     QString linkerResourcePath; // 打包的 CubeMX 原版脚本；空值表示尚无审计过的脚本
     QString linkerSha256; // 内置脚本原始字节的 SHA-256
+    QString linkerContext; // 双核目标的 CM4/CM7 构建上下文
+
+    QString artifactBaseName() const {
+        const QString name = chipName.isEmpty() ? QStringLiteral("firmware") : chipName.toLower();
+        return linkerContext.isEmpty() ? name : name + QLatin1Char('_') + linkerContext.toLower();
+    }
+    QString buildDirectory() const {
+        return linkerContext.isEmpty() ? QStringLiteral("build")
+                                       : QStringLiteral("build/") + linkerContext.toLower();
+    }
 };
 
 /**
@@ -67,8 +77,10 @@ public:
 private:
     STM32ProfileManager();
     void initDatabase();
+    void loadBundledCatalog();
 
     QMap<QString, STM32ChipProfile> m_database;
+    QStringList m_supportedChips;
 };
 
 #endif // STM32PROFILE_H

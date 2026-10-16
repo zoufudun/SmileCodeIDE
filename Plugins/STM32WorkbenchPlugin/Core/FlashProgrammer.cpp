@@ -29,11 +29,12 @@ bool FlashProgrammer::isBusy() const
 void FlashProgrammer::cancelFlash()
 {
     if (m_process && m_process->state() != QProcess::NotRunning) {
+        m_cancelled = true;
+        emit flashOutput(QStringLiteral("[已手动中止固件烧录]\n"), true);
         m_process->terminate();
         if (!m_process->waitForFinished(1500)) {
             m_process->kill();
         }
-        emit flashOutput(QStringLiteral("\n[已手动中止固件烧录]\n"), true);
     }
 
     if (!m_tempScriptPath.isEmpty() && QFile::exists(m_tempScriptPath)) {
@@ -50,6 +51,13 @@ bool FlashProgrammer::flashFirmware(const QString &firmwarePath, const FlashOpti
 {
     if (isBusy()) {
         emit flashOutput(QStringLiteral("错误: 已有烧录任务正在进行中!\n"), true);
+        return false;
+    }
+    m_processLog.reset(options.verify, options.resetAndRun);
+    m_cancelled = false;
+    emit flashSessionStarted(firmwarePath, options);
+    if (m_profile.chipName.isEmpty()) {
+        emit flashOutput(QStringLiteral("错误: 请先选择有效目标芯片。\n"), true);
         return false;
     }
 
@@ -211,10 +219,18 @@ QStringList FlashProgrammer::openOcdArguments(const QString &firmwarePath,
         "interface/stlink.cfg";
     QStringList args = {"-f", interfaceCfg};
     if (!options.probeSerial.isEmpty()) args << "-c" << ("adapter serial " + options.probeSerial);
-    args << "-c" << ("adapter speed " + QString::number(options.swdSpeedKhz));
     args << "-f" << targetCfg;
+    // Target scripts may set their own default speed; apply the selected speed
+    // afterwards so it controls the initial connection.
+    args << "-c" << ("adapter speed " + QString::number(options.swdSpeedKhz));
     QString path = firmwarePath;
     path.replace('\\', '/');
+    // OpenOCD evaluates -c as Tcl: double quotes still allow [] and $ substitution.
+    // Escape Tcl metacharacters after normalizing Windows path separators.
+    path.replace('"', "\\\"");
+    path.replace('$', "\\$");
+    path.replace('[', "\\[");
+    path.replace(']', "\\]");
     QString command = QString("program \"%1\" %2").arg(path, options.targetAddress);
     if (options.verify) command += " verify";
     if (options.resetAndRun) command += " reset";
@@ -303,7 +319,9 @@ bool FlashProgrammer::flashViaOpenOCD(const QString &firmwarePath, const FlashOp
     emit flashOutput(QString("执行: %1 %2\n\n").arg(m_paths.openocdPath, args.join(" ")), false);
     m_process->start(m_paths.openocdPath, args);
 
-    return m_process->waitForStarted(3000);
+    if (m_process->waitForStarted(3000)) return true;
+    emit flashOutput(QStringLiteral("错误: 无法启动 OpenOCD: %1\n").arg(m_process->errorString()), true);
+    return false;
 }
 
 bool FlashProgrammer::flashViaJLink(const QString &firmwarePath, const FlashOptions &options)
@@ -380,11 +398,14 @@ bool FlashProgrammer::flashViaSTM32Cube(const QString &firmwarePath, const Flash
     const QStringList args = cubeProgrammerArguments(firmwarePath, options);
 
     m_process->start(m_paths.stm32ProgPath, args);
-    return m_process->waitForStarted(3000);
+    if (m_process->waitForStarted(3000)) return true;
+    emit flashOutput(QStringLiteral("错误: 无法启动 STM32CubeProgrammer: %1\n").arg(m_process->errorString()), true);
+    return false;
 }
 
 bool FlashProgrammer::flashViaStFlash(const QString &firmwarePath, const FlashOptions &options)
 {
+    emit flashStarted(QStringLiteral("st-flash"));
     QString stflash = "st-flash";
     QStringList args;
     if (!options.probeSerial.isEmpty()) args << "--serial" << options.probeSerial;
@@ -395,40 +416,63 @@ bool FlashProgrammer::flashViaStFlash(const QString &firmwarePath, const FlashOp
     args << "write" << firmwarePath << options.targetAddress;
 
     m_process->start(stflash, args);
-    return m_process->waitForStarted(3000);
+    if (m_process->waitForStarted(3000)) return true;
+    emit flashOutput(QStringLiteral("错误: 无法启动 st-flash: %1\n").arg(m_process->errorString()), true);
+    return false;
 }
 
 void FlashProgrammer::onProcessReadyReadStd()
 {
-    QByteArray bytes = m_process->readAllStandardOutput();
-    QString text = QString::fromLocal8Bit(bytes);
-    emit flashOutput(text, false);
-
-    // 进度启发式匹配
-    if (text.contains("Programming Finished", Qt::CaseInsensitive) || text.contains("** Verified OK **")) {
-        emit flashProgress(100, QStringLiteral("烧录校验完成"));
-    } else if (text.contains("Writing build/", Qt::CaseInsensitive) || text.contains("Downloading file")) {
-        emit flashProgress(60, QStringLiteral("正在下载固件..."));
-    } else if (text.contains("Erasing", Qt::CaseInsensitive)) {
-        emit flashProgress(20, QStringLiteral("正在擦除 Flash 扇区..."));
-    }
+    consumeProcessOutput(QString::fromLocal8Bit(m_process->readAllStandardOutput()), false);
 }
 
 void FlashProgrammer::onProcessReadyReadErr()
 {
-    QByteArray bytes = m_process->readAllStandardError();
-    QString text = QString::fromLocal8Bit(bytes);
-    emit flashOutput(text, true);
+    consumeProcessOutput(QString::fromLocal8Bit(m_process->readAllStandardError()), true);
+}
 
-    if (text.contains("** Verified OK **")) {
-        emit flashProgress(100, QStringLiteral("烧录校验完成"));
+void FlashProgrammer::consumeProcessOutput(const QString &text, bool fromStderr)
+{
+    const qsizetype firstLine = m_processLog.detailedEntries().size();
+    const auto stages = m_processLog.append(text, fromStderr);
+    publishProcessLines(firstLine, stages);
+}
+
+void FlashProgrammer::publishProcessLines(qsizetype firstLine, const QVector<FlashLogEntry> &stages)
+{
+    const auto &lines = m_processLog.detailedEntries();
+    for (qsizetype i = firstLine; i < lines.size(); ++i) {
+        const auto &entry = lines.at(i);
+        emit flashOutput(entry.text + '\n', entry.severity == FlashLogSeverity::Error);
+    }
+    for (const auto &stage : stages) {
+        if (stage.text == QStringLiteral("连接成功"))
+            emit flashProgress(20, stage.text);
+        else if (stage.text == QStringLiteral("开始下载…"))
+            emit flashProgress(35, QStringLiteral("正在下载…"));
+        else if (stage.text == QStringLiteral("编程完成"))
+            emit flashProgress(75, stage.text);
+        else if (stage.text == QStringLiteral("校验通过"))
+            emit flashProgress(90, stage.text);
+        else if (stage.text == QStringLiteral("正在复位…"))
+            emit flashProgress(95, stage.text);
     }
 }
 
 void FlashProgrammer::onProcessFinished(int exitCode, QProcess::ExitStatus exitStatus)
 {
-    int duration = static_cast<int>(QDateTime::currentMSecsSinceEpoch() - m_startTime);
-    bool success = (exitCode == 0 && exitStatus == QProcess::NormalExit);
+    onProcessReadyReadStd();
+    onProcessReadyReadErr();
+    const qsizetype firstLine = m_processLog.detailedEntries().size();
+    const auto stages = m_processLog.flush();
+    publishProcessLines(firstLine, stages);
+    const qint64 duration = QDateTime::currentMSecsSinceEpoch() - m_startTime;
+    bool success = !m_cancelled && exitCode == 0 && exitStatus == QProcess::NormalExit;
+    QString message = success ? QStringLiteral("下载完成，耗时: %1 秒").arg(duration / 1000.0, 0, 'f', 2)
+        : QStringLiteral("下载失败，退出代码: %1，耗时: %2 秒").arg(exitCode).arg(duration / 1000.0, 0, 'f', 2);
+    const FlashLogEntry summary = m_processLog.finish(success, message);
+    success = summary.severity == FlashLogSeverity::Success;
+    message = summary.text;
 
     // 清理临时脚本
     if (!m_tempScriptPath.isEmpty() && QFile::exists(m_tempScriptPath)) {
@@ -442,10 +486,8 @@ void FlashProgrammer::onProcessFinished(int exitCode, QProcess::ExitStatus exitS
 
     if (success) {
         emit flashProgress(100, QStringLiteral("烧录成功"));
-        emit flashOutput(QString("\n🎉 固件下载与烧录成功! 耗时: %1 秒\n\n").arg(duration / 1000.0, 0, 'f', 2), false);
-        emit flashFinished(true, QStringLiteral("烧录成功完成"));
     } else {
-        emit flashOutput(QString("\n❌ 固件烧录失败! 退出码: %1, 耗时: %2 秒\n\n").arg(exitCode).arg(duration / 1000.0, 0, 'f', 2), true);
-        emit flashFinished(false, QString("烧录失败，退出代码: %1").arg(exitCode));
+        emit flashProgress(0, QStringLiteral("下载失败"));
     }
+    emit flashFinished(success, message);
 }

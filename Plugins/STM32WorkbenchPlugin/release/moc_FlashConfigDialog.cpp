@@ -41,12 +41,21 @@ template <> constexpr inline auto FlashConfigDialog::qt_create_metaobjectdata<qt
     QtMocHelpers::StringRefStorage qt_stringData {
         "FlashConfigDialog",
         "onSaveClicked",
-        ""
+        "",
+        "scanProbes",
+        "onProbeChanged",
+        "index"
     };
 
     QtMocHelpers::UintData qt_methods {
         // Slot 'onSaveClicked'
         QtMocHelpers::SlotData<void()>(1, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'scanProbes'
+        QtMocHelpers::SlotData<void()>(3, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'onProbeChanged'
+        QtMocHelpers::SlotData<void(int)>(4, 2, QMC::AccessPrivate, QMetaType::Void, {{
+            { QMetaType::Int, 5 },
+        }}),
     };
     QtMocHelpers::UintData qt_properties {
     };
@@ -71,10 +80,11 @@ void FlashConfigDialog::qt_static_metacall(QObject *_o, QMetaObject::Call _c, in
     if (_c == QMetaObject::InvokeMetaMethod) {
         switch (_id) {
         case 0: _t->onSaveClicked(); break;
+        case 1: _t->scanProbes(); break;
+        case 2: _t->onProbeChanged((*reinterpret_cast<std::add_pointer_t<int>>(_a[1]))); break;
         default: ;
         }
     }
-    (void)_a;
 }
 
 const QMetaObject *FlashConfigDialog::metaObject() const
@@ -96,14 +106,14 @@ int FlashConfigDialog::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 1)
+        if (_id < 3)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 1;
+        _id -= 3;
     }
     if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
-        if (_id < 1)
+        if (_id < 3)
             *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType();
-        _id -= 1;
+        _id -= 3;
     }
     return _id;
 }

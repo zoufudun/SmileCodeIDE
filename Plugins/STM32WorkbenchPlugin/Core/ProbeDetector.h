@@ -3,6 +3,7 @@
 
 #include <QList>
 #include <QString>
+#include <QByteArray>
 
 enum class ProbeType { Unknown, STLink, CmsisDap, JLink };
 
@@ -22,6 +23,7 @@ public:
     static QList<ProbeInfo> scan();
     static ProbeType classify(const QString &hardwareId, const QString &name);
     static QString serialFromInstanceId(const QString &instanceId);
+    static QString stLinkSerialFromUsbDescriptor(const QByteArray &descriptor);
     static QString typeName(ProbeType type);
 };
 

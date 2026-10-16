@@ -6,6 +6,8 @@
 #include <QLabel>
 #include <QFileDialog>
 #include <QMessageBox>
+#include <QCompleter>
+#include "TargetChipDialog.h"
 
 ToolchainConfigDialog::ToolchainConfigDialog(QWidget *parent, QSettings *settings)
     : QDialog(parent), m_settings(settings), m_detector(new ToolchainDetector(this))
@@ -24,6 +26,8 @@ ToolchainConfigDialog::ToolchainConfigDialog(QWidget *parent, QSettings *setting
         QString savedChip = m_settings->value("selectedChip", "STM32F103C8").toString();
         int idx = m_chipCombo->findText(savedChip);
         if (idx >= 0) m_chipCombo->setCurrentIndex(idx);
+        else if (!STM32ProfileManager::instance().getProfile(savedChip).chipName.isEmpty())
+            m_chipCombo->setCurrentText(savedChip);
         m_settings->endGroup();
     }
 }
@@ -39,8 +43,16 @@ void ToolchainConfigDialog::setupUI()
     QLabel *chipLabel = new QLabel(QStringLiteral("默认芯片:"), chipGroup);
     m_chipCombo = new QComboBox(chipGroup);
     m_chipCombo->addItems(STM32ProfileManager::instance().supportedChips());
+    m_chipCombo->setEditable(true);
+    m_chipCombo->setInsertPolicy(QComboBox::NoInsert);
+    m_chipCombo->completer()->setCaseSensitivity(Qt::CaseInsensitive);
+    m_chipCombo->completer()->setFilterMode(Qt::MatchContains);
     chipLayout->addWidget(chipLabel);
     chipLayout->addWidget(m_chipCombo, 1);
+    m_selectChipBtn = new QPushButton(QStringLiteral("芯片选择..."), chipGroup);
+    m_selectChipBtn->setToolTip(QStringLiteral("打开目标芯片分类级联选择对话框 (厂商/系列/器件)"));
+    connect(m_selectChipBtn, &QPushButton::clicked, this, &ToolchainConfigDialog::onOpenChipSelectDialog);
+    chipLayout->addWidget(m_selectChipBtn);
     mainLayout->addWidget(chipGroup);
 
     // 2. 交叉编译与构建工具链
@@ -294,4 +306,21 @@ void ToolchainConfigDialog::onSaveClicked()
     }
 
     accept();
+}
+
+void ToolchainConfigDialog::onOpenChipSelectDialog()
+{
+    TargetChipDialog dlg(this, m_settings, m_chipCombo->currentText());
+    if (dlg.exec() == QDialog::Accepted) {
+        QString chip = dlg.getSelectedChip();
+        if (!chip.isEmpty()) {
+            int idx = m_chipCombo->findText(chip);
+            if (idx >= 0) {
+                m_chipCombo->setCurrentIndex(idx);
+            } else {
+                m_chipCombo->addItem(chip);
+                m_chipCombo->setCurrentText(chip);
+            }
+        }
+    }
 }
