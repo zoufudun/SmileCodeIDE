@@ -422,6 +422,7 @@ void STM32DebugController::executeGdbCommand(const QString &cmd)
 void STM32DebugController::setAllBreakpoints(const QMap<QString, QSet<int>> &breakpoints)
 {
     m_breakpoints = breakpoints;
+    emit breakpointsChanged(m_breakpoints);
 }
 
 void STM32DebugController::toggleBreakpoint(const QString &file, int line, bool added)
@@ -436,10 +437,14 @@ void STM32DebugController::toggleBreakpoint(const QString &file, int line, bool 
         }
     } else {
         m_breakpoints[canonical].remove(line);
+        if (m_breakpoints[canonical].isEmpty()) {
+            m_breakpoints.remove(canonical);
+        }
         if (m_gdbEngine->isConnected()) {
             m_gdbEngine->toggleBreakpoint(canonical, line);
         }
     }
+    emit breakpointsChanged(m_breakpoints);
 }
 
 void STM32DebugController::requestLocals()

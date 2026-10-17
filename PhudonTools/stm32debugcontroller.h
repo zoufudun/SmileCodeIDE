@@ -64,6 +64,20 @@ public:
     void setCustomGccPath(const QString &path);
     void setCustomOpenocdPath(const QString &path);
 
+    void setProjectPath(const QString &path) { openProject(path); }
+    void setProbeType(ProbeType type) {
+        setProbeName(type == ProbeType::JLink ? "J-Link" : "ST-Link");
+    }
+    void setToolchainPaths(const ToolchainPaths &paths) {
+        m_toolchainPaths = paths;
+        setCustomGccPath(paths.gccPath);
+        setCustomOpenocdPath(paths.openocdPath);
+    }
+    const QMap<QString, QSet<int>>& allBreakpoints() const { return m_breakpoints; }
+    const QMap<QString, QSet<int>>& breakpoints() const { return m_breakpoints; }
+    void addBreakpoint(const QString &file, int line) { toggleBreakpoint(file, line, true); }
+    void removeBreakpoint(const QString &file, int line) { toggleBreakpoint(file, line, false); }
+
     // 构建与烧录
     bool buildProject();
     bool cleanProject();
@@ -101,6 +115,7 @@ signals:
     void stateChanged(STM32SessionState state);
     void chipChanged(const QString &chipName);
     void probeChanged(const QString &probeName);
+    void breakpointsChanged(const QMap<QString, QSet<int>> &breakpoints);
 
     // 构建信号
     void buildStarted(const QString &action);

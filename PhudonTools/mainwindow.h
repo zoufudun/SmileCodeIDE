@@ -46,6 +46,10 @@
 #include "buildsystem.h"
 #include "cantool.h"
 #include "terminalwidget.h"
+#include "stm32debugcontroller.h"
+#include "stm32debugdocks.h"
+#include "STM32Profile.h"
+#include <QTableWidget>
 
 class SerialPortPlot;
 class SerialPortContainer;
@@ -124,6 +128,10 @@ private slots:
 
   void appendBuildOutput(const QString &output);
   void onBuildFinished(bool success);
+  void updateProblemsTable(const QList<BuildDiagnostic> &diagnostics);
+  void addProblemDiagnostic(const BuildDiagnostic &diag);
+  void clearProblemsTable();
+  void syncBreakpointsToEditor();
 
   // 关闭当前工程
   void closeProject();
@@ -219,6 +227,7 @@ private:
   void setupStyle();
   void setupStatusBar();
   void setupDockWidgets();
+  void updateDebugUiState(bool isDebugging, bool isRunning);
   void setupThemeMenu();
   void loadStyleSheet(const QString &sheetName);
 
@@ -277,8 +286,14 @@ private:
   QAction *m_verticalSplitAction;
   QAction *m_closeSplitAction;
 
-  // 构建系统
+  // 构建系统与STM32调试总控中心
   BuildSystem *m_buildSystem;
+  STM32DebugController *m_debugController = nullptr;
+  CallStackDock *m_callStackDock = nullptr;
+  VariablesDock *m_variablesDock = nullptr;
+  RegistersDock *m_registersDock = nullptr;
+  BreakpointsDock *m_breakpointsDock = nullptr;
+  QTableWidget *m_problemsTable = nullptr;
 
   // 输出窗口
   QTextEdit *m_outputWindow;

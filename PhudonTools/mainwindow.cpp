@@ -68,25 +68,147 @@ MainWindow::MainWindow(QWidget *parent)
   connect(m_codeEditor, &CodeEditor::newFileRequested, this,
           &MainWindow::newFile);
 
-  // 创建构建系统
-  m_buildSystem = new BuildSystem(this);
+  // 初始化STM32调试与构建总控中心
+  m_debugController = STM32DebugController::instance();
 
-  // 统一输出窗口至中央界面的 m_outputConsole (m_tabWidget)，取消多余的底栏 QDockWidget
+  // 统一输出窗口至中央界面的 m_outputConsole (m_tabWidget)
   m_outputWindow = m_outputConsole;
 
-  // 连接构建系统信号
-  connect(m_buildSystem, &BuildSystem::buildOutput, this,
-          &MainWindow::appendBuildOutput);
-  connect(m_buildSystem, &BuildSystem::buildFinished, this,
-          &MainWindow::onBuildFinished);
-  connect(m_buildSystem, &BuildSystem::projectClosed, this,
-          &MainWindow::onProjectClosed);
+  // 连接STM32DebugController构建与调试核心信号
+  connect(m_debugController, &STM32DebugController::buildStarted, this, [this](const QString &action) {
+    Q_UNUSED(action);
+    clearProblemsTable();
+    if (m_outputConsole) m_outputConsole->clear();
+    m_tabWidget->setCurrentWidget(m_outputConsole);
+  });
+  connect(m_debugController, &STM32DebugController::buildOutput, this, [this](const QString &text, bool isError) {
+    Q_UNUSED(isError);
+    if (m_outputConsole) m_outputConsole->append(text);
+  });
+  connect(m_debugController, &STM32DebugController::buildFinished, this, [this](bool success, int exitCode, int durationMs) {
+    Q_UNUSED(exitCode);
+    Q_UNUSED(durationMs);
+    onBuildFinished(success);
+  });
+  connect(m_debugController, &STM32DebugController::diagnosticFound, this, &MainWindow::addProblemDiagnostic);
+
+  connect(m_debugController, &STM32DebugController::flashStarted, this, [this]() {
+    if (m_outputConsole) m_outputConsole->append(">>> 开始固件烧录...");
+    m_tabWidget->setCurrentWidget(m_outputConsole);
+  });
+  connect(m_debugController, &STM32DebugController::flashOutput, this, [this](const QString &text, bool isError) {
+    Q_UNUSED(isError);
+    if (m_outputConsole) m_outputConsole->append(text);
+  });
+  connect(m_debugController, &STM32DebugController::flashFinished, this, [this](bool success, const QString &message) {
+    if (m_outputConsole) m_outputConsole->append(message);
+    statusBar()->showMessage(success ? "烧录成功完成" : QString("烧录失败: %1").arg(message), 3000);
+  });
+
+  connect(m_debugController, &STM32DebugController::stateChanged, this, [this](STM32SessionState state) {
+    bool isDebugging = (state == STM32SessionState::StartingDebug ||
+                        state == STM32SessionState::Stopped ||
+                        state == STM32SessionState::Running);
+    bool isRunning = (state == STM32SessionState::Running);
+    updateDebugUiState(isDebugging, isRunning);
+
+    if (state == STM32SessionState::StartingDebug) {
+      m_tabWidget->setCurrentWidget(m_debugConsole);
+      if (m_variablesDock) m_variablesDock->show();
+      if (m_callStackDock) m_callStackDock->show();
+      statusBar()->showMessage("GDB调试会话启动中...", 3000);
+    }
+  });
+
+  connect(m_debugController, &STM32DebugController::debugSessionEnded, this, [this]() {
+    m_isDebugging = false;
+    updateDebugUiState(false, false);
+    if (m_codeEditor) m_codeEditor->clearExecutionLine();
+    if (m_callStackDock) m_callStackDock->clear();
+    if (m_variablesDock) m_variablesDock->clear();
+    if (m_registersDock) m_registersDock->clear();
+    statusBar()->showMessage("调试会话已退出", 3000);
+  });
+
+  connect(m_debugController, &STM32DebugController::targetRunning, this, [this]() {
+    updateDebugUiState(true, true);
+    if (m_codeEditor) m_codeEditor->clearExecutionLine();
+    statusBar()->showMessage("目标CPU正在全速运行...", 2000);
+  });
+
+  connect(m_debugController, &STM32DebugController::targetStopped, this, [this](const QString &file, int line, const QString &func, const QString &reason) {
+    Q_UNUSED(reason);
+    updateDebugUiState(true, false);
+    if (m_codeEditor && !file.isEmpty() && line > 0) {
+      m_codeEditor->openFileAndGoTo(file, line);
+      m_codeEditor->setExecutionLine(file, line);
+    }
+    QString funcName = func.isEmpty() ? "Unknown" : func;
+    statusBar()->showMessage(QString("调试停机: %1 (%2:%3)")
+                                 .arg(funcName)
+                                 .arg(file)
+                                 .arg(line), 5000);
+  });
+
+  connect(m_debugController, &STM32DebugController::stackTraceReceived, this, [this](const QVector<GdbStackFrame> &frames) {
+    if (m_callStackDock) m_callStackDock->setFrames(frames);
+  });
+  connect(m_debugController, &STM32DebugController::localsReceived, this, [this](const QVector<GdbVariable> &vars) {
+    if (m_variablesDock) m_variablesDock->setLocals(vars);
+  });
+  connect(m_debugController, &STM32DebugController::registersReceived, this, [this](const QVector<GdbRegister> &regs) {
+    if (m_registersDock) m_registersDock->setRegisters(regs);
+  });
+  connect(m_debugController, &STM32DebugController::expressionEvaluated, this, [this](const QString &expr, const QString &result) {
+    if (m_variablesDock) m_variablesDock->updateWatchResult(expr, result);
+    if (m_debugConsole) m_debugConsole->append(QString("%1 = %2").arg(expr, result));
+  });
+  connect(m_debugController, &STM32DebugController::gdbConsoleOutput, this, [this](const QString &text) {
+    if (m_debugConsole) m_debugConsole->append(text);
+  });
+  connect(m_debugController, &STM32DebugController::breakpointsChanged, this, [this](const QMap<QString, QSet<int>> &breakpoints) {
+    if (m_breakpointsDock) m_breakpointsDock->updateBreakpoints(breakpoints);
+    syncBreakpointsToEditor();
+  });
+
+  connect(m_debugController, &STM32DebugController::chipChanged, this, [this](const QString &chipName) {
+    if (!chipName.isEmpty() && m_targetComboBox) {
+      int idx = m_targetComboBox->findText(chipName);
+      if (idx >= 0) {
+        m_targetComboBox->setCurrentIndex(idx);
+      } else {
+        m_targetComboBox->addItem(chipName);
+        m_targetComboBox->setCurrentText(chipName);
+      }
+    }
+  });
+
+  connect(m_debugController, &STM32DebugController::probeChanged, this, [this](const QString &probeName) {
+    if (m_downloaderComboBox) {
+      int idx = m_downloaderComboBox->findText(probeName.contains("JLINK", Qt::CaseInsensitive) ? "Jlink" : "STLINK");
+      if (idx >= 0) {
+        m_downloaderComboBox->setCurrentIndex(idx);
+      }
+    }
+  });
+
+  // 创建保留旧构建系统指针（防止空引用）
+  m_buildSystem = new BuildSystem(this);
 
   // 连接编辑器信号
   connect(m_codeEditor, &CodeEditor::buildRequested, this,
           &MainWindow::buildProject);
   connect(m_codeEditor, &CodeEditor::cleanRequested, this,
           &MainWindow::cleanProject);
+  connect(m_codeEditor, &CodeEditor::breakpointToggled, this, [this](const QString &file, int line, bool added) {
+    if (m_debugController) {
+      if (added) {
+        m_debugController->addBreakpoint(file, line);
+      } else {
+        m_debugController->removeBreakpoint(file, line);
+      }
+    }
+  });
 
   m_process = new QProcess(this);
   connect(m_process, &QProcess::readyReadStandardOutput, this,
@@ -224,26 +346,26 @@ void MainWindow::createToolbars() {
   mainToolbar->setIconSize(unifiedIconSize);
 
   // Add file actions
-  mainToolbar->addAction(findChild<QAction *>("新建项目"));
-  mainToolbar->addAction(findChild<QAction *>("打开项目"));
-  mainToolbar->addAction(findChild<QAction *>("保存项目"));
-  mainToolbar->addAction(findChild<QAction *>("关闭项目"));
-  mainToolbar->addAction(findChild<QAction *>("保存文件"));
+  mainToolbar->addAction(m_newProjectAction);
+  mainToolbar->addAction(m_openProjectAction);
+  mainToolbar->addAction(m_saveProjectAction);
+  mainToolbar->addAction(m_closeProjectAction);
+  mainToolbar->addAction(m_saveFileAction);
   mainToolbar->addSeparator();
 
   // Add build actions
-  mainToolbar->addAction(findChild<QAction *>("编译"));
-  mainToolbar->addAction(findChild<QAction *>("清理"));
-  mainToolbar->addAction(findChild<QAction *>("烧录"));
+  mainToolbar->addAction(m_buildAction);
+  mainToolbar->addAction(m_cleanAction);
+  mainToolbar->addAction(m_flashAction);
   mainToolbar->addSeparator();
 
   // Add debug actions
-  mainToolbar->addAction(findChild<QAction *>("开始调试"));
-  mainToolbar->addAction(findChild<QAction *>("停止调试"));
-  mainToolbar->addAction(findChild<QAction *>("继续"));
-  mainToolbar->addAction(findChild<QAction *>("单步跳过"));
-  mainToolbar->addAction(findChild<QAction *>("单步进入"));
-  mainToolbar->addAction(findChild<QAction *>("单步跳出"));
+  mainToolbar->addAction(m_debugAction);
+  mainToolbar->addAction(m_stopDebugAction);
+  mainToolbar->addAction(m_continueAction);
+  mainToolbar->addAction(m_stepOverAction);
+  mainToolbar->addAction(m_stepIntoAction);
+  mainToolbar->addAction(m_stepOutAction);
   mainToolbar->addSeparator();
 
   // 2. 调试工具栏
@@ -583,8 +705,16 @@ void MainWindow::setupUi() {
   QHBoxLayout *targetLayout = new QHBoxLayout();
   targetLayout->addWidget(new QLabel("目标芯片:"));
   m_targetComboBox = new QComboBox();
-  m_targetComboBox->addItems(
-      {"STM32F103C8", "STM32F407VG", "STM32F429ZI", "STM32L476RG"});
+  QStringList supportedChips = STM32ProfileManager::instance().supportedChips();
+  if (supportedChips.isEmpty()) {
+    supportedChips << "STM32F103C8" << "STM32F407VG" << "STM32F429ZI" << "STM32L476RG";
+  }
+  m_targetComboBox->addItems(supportedChips);
+  connect(m_targetComboBox, &QComboBox::currentTextChanged, this, [this](const QString &chip) {
+    if (m_debugController && !chip.isEmpty()) {
+      m_debugController->setTargetChip(chip);
+    }
+  });
   targetLayout->addWidget(m_targetComboBox);
   targetLayout->addStretch();
 
@@ -626,7 +756,7 @@ void MainWindow::setupUi() {
 
   rightLayout->addLayout(toolLayout);
 
-  // 输出和调试选项卡
+  // 输出、调试与问题诊断选项卡
   m_tabWidget = new QTabWidget();
   m_outputConsole = new QTextEdit();
   m_outputConsole->setReadOnly(true);
@@ -635,9 +765,37 @@ void MainWindow::setupUi() {
   m_debugConsole->setReadOnly(true);
   m_debugConsole->setFont(QFont("Consolas", 10));
 
+  // 创建问题诊断诊断表格部件
+  m_problemsTable = new QTableWidget();
+  m_problemsTable->setColumnCount(4);
+  m_problemsTable->setHorizontalHeaderLabels({"类型", "说明", "文件", "行号"});
+  m_problemsTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
+  m_problemsTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
+  m_problemsTable->horizontalHeader()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
+  m_problemsTable->horizontalHeader()->setSectionResizeMode(3, QHeaderView::ResizeToContents);
+  m_problemsTable->setSelectionBehavior(QAbstractItemView::SelectRows);
+  m_problemsTable->setSelectionMode(QAbstractItemView::SingleSelection);
+  m_problemsTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+  m_problemsTable->setAlternatingRowColors(true);
+
   m_tabWidget->addTab(m_outputConsole, "编译输出");
   m_tabWidget->addTab(m_debugConsole, "调试输出");
+  m_tabWidget->addTab(m_problemsTable, "问题诊断");
   editorOutputSplitter->addWidget(m_tabWidget);
+
+  // 连接双击问题跳转到源代码所在行
+  connect(m_problemsTable, &QTableWidget::cellDoubleClicked, this, [this](int row, int col) {
+    Q_UNUSED(col);
+    QTableWidgetItem *fileItem = m_problemsTable->item(row, 2);
+    QTableWidgetItem *lineItem = m_problemsTable->item(row, 3);
+    if (fileItem && lineItem) {
+      QString filePath = fileItem->text();
+      int line = lineItem->text().toInt();
+      if (m_codeEditor) {
+        m_codeEditor->openFileAndGoTo(filePath, line);
+      }
+    }
+  });
 
   // 设置分割器比例
   editorOutputSplitter->setStretchFactor(0, 2);
@@ -648,6 +806,8 @@ void MainWindow::setupUi() {
   commandLayout->addWidget(new QLabel("GDB命令:"));
   m_commandLine = new QLineEdit();
   m_commandLine->setEnabled(false);
+  m_commandLine->setPlaceholderText("输入原生GDB指令，按Enter执行...");
+  connect(m_commandLine, &QLineEdit::returnPressed, this, &MainWindow::executeGdbCommand);
   commandLayout->addWidget(m_commandLine);
   rightLayout->addLayout(commandLayout);
 
@@ -681,6 +841,9 @@ void MainWindow::setupUi() {
 
   // 初始化状态栏
   setupStatusBar();
+
+  // 创建并停靠调试控制面板
+  setupDockWidgets();
 }
 // void MainWindow::setupAutoCompletion()
 // {
@@ -1203,6 +1366,135 @@ void MainWindow::setupStatusBar() {
   updateStatusInfo();
 }
 
+void MainWindow::setupDockWidgets() {
+  m_variablesDock = new VariablesDock(this);
+  m_registersDock = new RegistersDock(this);
+  m_callStackDock = new CallStackDock(this);
+  m_breakpointsDock = new BreakpointsDock(this);
+
+  addDockWidget(Qt::RightDockWidgetArea, m_variablesDock);
+  addDockWidget(Qt::RightDockWidgetArea, m_registersDock);
+  tabifyDockWidget(m_variablesDock, m_registersDock);
+
+  addDockWidget(Qt::RightDockWidgetArea, m_callStackDock);
+  addDockWidget(Qt::RightDockWidgetArea, m_breakpointsDock);
+  tabifyDockWidget(m_callStackDock, m_breakpointsDock);
+
+  m_variablesDock->raise();
+  m_callStackDock->raise();
+
+  connect(m_breakpointsDock, &BreakpointsDock::breakpointJumpRequested, this, [this](const QString &file, int line) {
+    if (m_codeEditor) {
+      m_codeEditor->openFileAndGoTo(file, line);
+    }
+  });
+  connect(m_breakpointsDock, &BreakpointsDock::clearAllBreakpointsRequested, this, [this]() {
+    if (m_debugController) {
+      m_debugController->setAllBreakpoints(QMap<QString, QSet<int>>());
+    }
+    if (m_codeEditor) {
+      m_codeEditor->clearAllBreakpoints();
+    }
+  });
+  connect(m_callStackDock, &CallStackDock::frameSelected, this, [this](int level, const QString &file, int line) {
+    Q_UNUSED(level);
+    if (m_codeEditor && !file.isEmpty() && line > 0) {
+      m_codeEditor->openFileAndGoTo(file, line);
+      m_codeEditor->setExecutionLine(file, line);
+    }
+  });
+  connect(m_variablesDock, &VariablesDock::watchRequested, this, [this](const QString &expr) {
+    if (m_debugController) {
+      m_debugController->evaluateWatchExpression(expr);
+    }
+  });
+}
+
+void MainWindow::clearProblemsTable() {
+  if (!m_problemsTable) return;
+  m_problemsTable->setRowCount(0);
+  int tabIdx = m_tabWidget->indexOf(m_problemsTable);
+  if (tabIdx >= 0) {
+    m_tabWidget->setTabText(tabIdx, "问题诊断");
+  }
+}
+
+void MainWindow::addProblemDiagnostic(const BuildDiagnostic &diag) {
+  if (!m_problemsTable) return;
+  int row = m_problemsTable->rowCount();
+  m_problemsTable->insertRow(row);
+
+  QString typeStr = (diag.severity == DiagnosticSeverity::Error || diag.severity == DiagnosticSeverity::Fatal) ? "错误" :
+                    (diag.severity == DiagnosticSeverity::Warning) ? "警告" : "信息";
+  QColor typeColor = (diag.severity == DiagnosticSeverity::Error || diag.severity == DiagnosticSeverity::Fatal) ? QColor("#EF4444") :
+                     (diag.severity == DiagnosticSeverity::Warning) ? QColor("#F59E0B") : QColor("#3B82F6");
+
+  QTableWidgetItem *itemType = new QTableWidgetItem(typeStr);
+  itemType->setForeground(typeColor);
+  itemType->setTextAlignment(Qt::AlignCenter);
+
+  QTableWidgetItem *itemMsg = new QTableWidgetItem(diag.message);
+  QTableWidgetItem *itemFile = new QTableWidgetItem(diag.filePath);
+  QTableWidgetItem *itemLine = new QTableWidgetItem(QString::number(diag.line));
+  itemLine->setTextAlignment(Qt::AlignCenter);
+
+  m_problemsTable->setItem(row, 0, itemType);
+  m_problemsTable->setItem(row, 1, itemMsg);
+  m_problemsTable->setItem(row, 2, itemFile);
+  m_problemsTable->setItem(row, 3, itemLine);
+
+  int tabIdx = m_tabWidget->indexOf(m_problemsTable);
+  if (tabIdx >= 0) {
+    m_tabWidget->setTabText(tabIdx, QString("问题诊断 (%1)").arg(m_problemsTable->rowCount()));
+  }
+}
+
+void MainWindow::updateProblemsTable(const QList<BuildDiagnostic> &diagnostics) {
+  clearProblemsTable();
+  for (const auto &diag : diagnostics) {
+    addProblemDiagnostic(diag);
+  }
+}
+
+void MainWindow::updateDebugUiState(bool isDebugging, bool isRunning) {
+  m_isDebugging = isDebugging;
+
+  if (m_buildAction) m_buildAction->setEnabled(!isDebugging);
+  if (m_cleanAction) m_cleanAction->setEnabled(!isDebugging);
+  if (m_flashAction) m_flashAction->setEnabled(!isDebugging);
+  if (m_debugAction) m_debugAction->setEnabled(!isDebugging);
+
+  if (m_stopDebugAction) m_stopDebugAction->setEnabled(isDebugging);
+  if (m_continueAction) m_continueAction->setEnabled(isDebugging && !isRunning);
+  if (m_stepOverAction) m_stepOverAction->setEnabled(isDebugging && !isRunning);
+  if (m_stepIntoAction) m_stepIntoAction->setEnabled(isDebugging && !isRunning);
+  if (m_stepOutAction) m_stepOutAction->setEnabled(isDebugging && !isRunning);
+
+  if (m_buildButton) m_buildButton->setEnabled(!isDebugging);
+  if (m_cleanButton) m_cleanButton->setEnabled(!isDebugging);
+  if (m_flashButton) m_flashButton->setEnabled(!isDebugging);
+  if (m_debugButton) m_debugButton->setEnabled(!isDebugging);
+
+  if (m_stopButton) m_stopButton->setEnabled(isDebugging);
+  if (m_continueButton) m_continueButton->setEnabled(isDebugging && !isRunning);
+  if (m_stepOverButton) m_stepOverButton->setEnabled(isDebugging && !isRunning);
+  if (m_stepIntoButton) m_stepIntoButton->setEnabled(isDebugging && !isRunning);
+  if (m_stepOutButton) m_stepOutButton->setEnabled(isDebugging && !isRunning);
+
+  if (m_commandLine) m_commandLine->setEnabled(isDebugging);
+}
+
+void MainWindow::syncBreakpointsToEditor() {
+  if (!m_codeEditor || !m_debugController) return;
+  const auto allBps = m_debugController->allBreakpoints();
+  if (m_breakpointsDock) {
+    m_breakpointsDock->updateBreakpoints(allBps);
+  }
+  for (auto it = allBps.begin(); it != allBps.end(); ++it) {
+    m_codeEditor->setBreakpoints(it.key(), it.value());
+  }
+}
+
 // // 添加打开文件的方法
 // void MainWindow::openFile(const QModelIndex &index)
 // {
@@ -1647,7 +1939,11 @@ void MainWindow::openProject() {
     if (m_codeEditor) {
       m_codeEditor->setProjectRootPath(dir);
     }
-    statusBar()->showMessage("已打开项目: " + dir);
+    if (m_debugController) {
+      m_debugController->setProjectPath(dir);
+    }
+    updateStatusInfo();
+    statusBar()->showMessage("已打开项目: " + dir, 3000);
   }
 }
 
@@ -1740,11 +2036,12 @@ void MainWindow::newProject() {
 
   // 设置项目路径
   m_projectPath = projectDir;
-  m_buildSystem->setProjectPath(projectDir);
-  m_buildSystem->setOutputPath(projectDir + "/build");
-
-  // 创建标准STM32工程目录结构
-  m_buildSystem->generateMakefile();
+  if (m_debugController) {
+    m_debugController->setProjectPath(projectDir);
+  }
+  if (m_codeEditor) {
+    m_codeEditor->setProjectRootPath(projectDir);
+  }
 
   // 更新项目树
   updateProjectTree(projectDir);
@@ -1755,7 +2052,7 @@ void MainWindow::newProject() {
   // 保存项目设置
   m_settings->setValue("project/path", projectDir);
 
-  statusBar()->showMessage("已创建新STM32项目: " + projectDir, 3000);
+  statusBar()->showMessage("已选择STM32项目: " + projectDir, 3000);
 }
 
 void MainWindow::saveProject() {
@@ -1791,351 +2088,169 @@ void MainWindow::saveProject() {
 
 // 实现构建相关的槽函数
 void MainWindow::buildProject() {
-  m_outputWindow->clear();
-  m_outputWindow->append("开始构建项目...");
+  saveAllFiles();
+  m_outputConsole->clear();
+  m_tabWidget->setCurrentWidget(m_outputConsole);
 
   QString projectPath = m_projectPath;
   if (projectPath.isEmpty() && !m_currentFilePath.isEmpty()) {
     projectPath = QFileInfo(m_currentFilePath).absolutePath();
+    m_projectPath = projectPath;
   }
 
   if (projectPath.isEmpty()) {
-    m_outputWindow->append("错误: 请先打开或创建项目");
+    m_outputConsole->append("错误: 请先打开或创建项目");
     return;
   }
 
-  m_buildSystem->setProjectPath(projectPath);
-  m_buildSystem->setOutputPath(projectPath + "/build");
-  m_buildSystem->setToolchainPath(m_gccPath);
-  m_buildSystem->setTargetChip(m_targetComboBox->currentText());
+  m_debugController->setProjectPath(projectPath);
+  m_debugController->setTargetChip(m_targetComboBox->currentText());
+  m_debugController->setProbeType(m_downloaderComboBox->currentText() == "Jlink" ? ProbeType::JLink : ProbeType::STLink);
 
-  if (!m_buildSystem->buildProject()) {
-    m_outputWindow->append("错误: " + m_buildSystem->lastError());
+  if (!m_debugController->buildProject()) {
+    m_outputConsole->append("错误: 无法启动构建进程");
   }
 }
 
-// void MainWindow::cleanProject()
-// {
-//     if (m_projectPath.isEmpty()) {
-//         QMessageBox::warning(this, "错误", "没有打开的项目!");
-//         return;
-//     }
-
-//     m_outputConsole->clear();
-//     m_outputConsole->append("清理项目...\n");
-
-//     // 设置工作目录
-//     m_process->setWorkingDirectory(m_projectPath);
-
-//     // 执行make clean命令
-//     QStringList arguments;
-//     arguments << "clean";
-//     executeCommand("make", arguments);
-
-//     statusBar()->showMessage("正在清理...");
-// }
-
 void MainWindow::cleanProject() {
-  m_outputWindow->clear();
-  m_outputWindow->append("清理项目...");
+  m_outputConsole->clear();
+  m_tabWidget->setCurrentWidget(m_outputConsole);
 
-  // 设置输出路径
-  QString projectPath = QFileInfo(m_currentFilePath).absolutePath();
-  QString outputPath = projectPath + "/build";
-  m_buildSystem->setOutputPath(outputPath);
-
-  // 清理项目
-  if (m_buildSystem->cleanProject()) {
-    m_outputWindow->append("项目清理完成");
-  } else {
-    m_outputWindow->append("错误: " + m_buildSystem->lastError());
+  QString projectPath = m_projectPath;
+  if (projectPath.isEmpty() && !m_currentFilePath.isEmpty()) {
+    projectPath = QFileInfo(m_currentFilePath).absolutePath();
+    m_projectPath = projectPath;
   }
+
+  if (projectPath.isEmpty()) {
+    m_outputConsole->append("错误: 请先打开或创建项目");
+    return;
+  }
+
+  m_debugController->setProjectPath(projectPath);
+  m_debugController->cleanProject();
 }
 
 void MainWindow::appendBuildOutput(const QString &output) {
-  m_outputWindow->append(output);
+  if (m_outputConsole) {
+    m_outputConsole->append(output);
+  }
 }
 
 void MainWindow::onBuildFinished(bool success) {
-  if (success) {
-    m_outputWindow->append("构建成功");
-  } else {
-    m_outputWindow->append("构建失败: " + m_buildSystem->lastError());
+  if (m_outputConsole) {
+    m_outputConsole->append(success ? "\n>>> 构建成功完成 <<<" : "\n>>> 构建失败 <<<");
   }
+  statusBar()->showMessage(success ? "构建成功" : "构建失败", 3000);
 }
 
-// void MainWindow::flashProject()
-// {
-//     if (m_projectPath.isEmpty()) {
-//         QMessageBox::warning(this, "错误", "请先打开或创建项目!");
-//         return;
-//     }
-
-//     if (m_openocdPath.isEmpty()) {
-//         QMessageBox::warning(this, "错误", "请先配置OpenOCD路径!");
-//         return;
-//     }
-
-//     m_outputConsole->append("开始烧录...");
-//     m_tabWidget->setCurrentIndex(0); // 切换到输出选项卡
-
-//     QString target = m_targetComboBox->currentText();
-//     QString binFile = m_projectPath + "/build/" +
-//     QFileInfo(m_projectPath).fileName() + ".bin";
-
-//     QStringList arguments;
-
-//     // 根据选择的下载工具构建不同的烧录命令
-//     if (m_currentDownloader == "STLINK") {
-//         // 使用STLINK烧录
-//         arguments << "-f" << "board/stm32f4discovery.cfg"
-//                  << "-c" << "program " + binFile + " verify reset exit";
-
-//         m_outputConsole->append("使用STLINK烧录固件...");
-//         executeCommand(m_openocdPath, arguments);
-//     } else if (m_currentDownloader == "Jlink") {
-//         // 使用Jlink烧录
-//         // 创建JLink命令脚本
-//         QString scriptPath = m_projectPath + "/jlink_flash.script";
-//         QFile scriptFile(scriptPath);
-//         if (scriptFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
-//             QTextStream out(&scriptFile);
-//             out << "loadbin " << binFile << " 0x08000000\n";
-//             out << "verifybin " << binFile << " 0x08000000\n";
-//             out << "r\n";
-//             out << "g\n";
-//             out << "exit\n";
-//             scriptFile.close();
-
-//             // 构建JLink命令行参数
-//             QString jlinkPath = m_settings->value("jlinkPath",
-//             "JLink.exe").toString(); QStringList jlinkArgs;
-
-//             // 根据目标芯片选择正确的设备名称
-//             QString deviceName;
-//             if (target.startsWith("STM32F103")) {
-//                 deviceName = "STM32F103C8";
-//             } else if (target.startsWith("STM32F407")) {
-//                 deviceName = "STM32F407VG";
-//             } else if (target.startsWith("STM32F429")) {
-//                 deviceName = "STM32F429ZI";
-//             } else if (target.startsWith("STM32L476")) {
-//                 deviceName = "STM32L476RG";
-//             } else {
-//                 deviceName = "STM32F103C8"; // 默认设备
-//             }
-
-//             jlinkArgs << "-device" << deviceName
-//                      << "-if" << "SWD"
-//                      << "-speed" << "4000"
-//                      << "-CommanderScript" << scriptPath;
-
-//             m_outputConsole->append("使用Jlink烧录固件...");
-//             executeCommand(jlinkPath, jlinkArgs);
-//         } else {
-//             QMessageBox::warning(this, "错误", "无法创建JLink命令脚本!");
-//         }
-//     }
-// }
-
-// 实现flashProject方法
 void MainWindow::flashProject() {
-  // 确保项目已经构建
-  QFile file(m_projectPath + "/build/firmware.bin");
-  if (!file.exists()) {
-    QMessageBox::warning(this, "烧录失败", "请先构建项目");
+  saveAllFiles();
+  m_outputConsole->clear();
+  m_tabWidget->setCurrentWidget(m_outputConsole);
+
+  QString projectPath = m_projectPath;
+  if (projectPath.isEmpty() && !m_currentFilePath.isEmpty()) {
+    projectPath = QFileInfo(m_currentFilePath).absolutePath();
+    m_projectPath = projectPath;
+  }
+
+  if (projectPath.isEmpty()) {
+    QMessageBox::warning(this, "烧录失败", "请先打开或创建项目!");
     return;
   }
 
-  m_outputWindow->clear();
-  m_outputWindow->append("开始烧录...");
+  m_debugController->setProjectPath(projectPath);
+  m_debugController->setTargetChip(m_targetComboBox->currentText());
+  m_debugController->setProbeType(m_downloaderComboBox->currentText() == "Jlink" ? ProbeType::JLink : ProbeType::STLink);
 
-  // 根据选择的下载工具执行不同的命令
-  QString program;
-  QStringList arguments;
-
-  if (m_currentDownloader == "STLINK") {
-    program = m_openocdPath + "/bin/openocd.exe";
-    arguments << "-f" << m_openocdConfig << "-c"
-              << "program build/firmware.bin 0x8000000 verify reset exit";
-  } else if (m_currentDownloader == "Jlink") {
-    program = "JLinkExe";
-    arguments << "-device" << m_targetComboBox->currentText() << "-if"
-              << "SWD"
-              << "-speed"
-              << "4000"
-              << "-autoconnect"
-              << "1"
-              << "-CommanderScript"
-              << "flash.jlink";
-
-    // 创建J-Link命令脚本
-    QFile jlinkScript(m_projectPath + "/flash.jlink");
-    if (jlinkScript.open(QIODevice::WriteOnly | QIODevice::Text)) {
-      QTextStream out(&jlinkScript);
-      out << "loadbin build/firmware.bin, 0x8000000\n";
-      out << "verifybin build/firmware.bin, 0x8000000\n";
-      out << "r\n";
-      out << "q\n";
-      jlinkScript.close();
-    }
-  } else {
-    QMessageBox::warning(this, "烧录失败",
-                         "不支持的下载工具: " + m_currentDownloader);
-    return;
-  }
-
-  // 设置工作目录
-  m_process->setWorkingDirectory(m_projectPath);
-
-  // 启动烧录进程
-  m_process->start(program, arguments);
-
-  if (!m_process->waitForStarted()) {
-    m_outputWindow->append("错误: 无法启动烧录进程");
-  } else {
-    m_outputWindow->append("烧录进程已启动，请等待完成...");
+  if (!m_debugController->flashProject()) {
+    QMessageBox::warning(this, "烧录失败", "无法启动烧录进程，请检查固件是否已编译生成。");
   }
 }
 
 void MainWindow::startDebug() {
-  if (m_projectPath.isEmpty()) {
+  if (m_isDebugging) {
+    continueDebug();
+    return;
+  }
+
+  QString projectPath = m_projectPath;
+  if (projectPath.isEmpty() && !m_currentFilePath.isEmpty()) {
+    projectPath = QFileInfo(m_currentFilePath).absolutePath();
+    m_projectPath = projectPath;
+  }
+
+  if (projectPath.isEmpty()) {
     QMessageBox::warning(this, "错误", "没有打开的项目!");
     return;
   }
 
   m_debugConsole->clear();
-  m_debugConsole->append("启动调试会话...\n");
-  m_tabWidget->setCurrentIndex(1); // 切换到调试选项卡
+  m_tabWidget->setCurrentWidget(m_debugConsole);
 
-  // 启用调试相关按钮
-  m_stopButton->setEnabled(true);
-  m_continueButton->setEnabled(true);
-  m_stepOverButton->setEnabled(true);
-  m_stepIntoButton->setEnabled(true);
-  m_stepOutButton->setEnabled(true);
-  m_commandLine->setEnabled(true);
+  m_debugController->setProjectPath(projectPath);
+  m_debugController->setTargetChip(m_targetComboBox->currentText());
+  m_debugController->setProbeType(m_downloaderComboBox->currentText() == "Jlink" ? ProbeType::JLink : ProbeType::STLink);
 
-  // 禁用其他按钮
-  m_buildButton->setEnabled(false);
-  m_cleanButton->setEnabled(false);
-  m_flashButton->setEnabled(false);
-  m_debugButton->setEnabled(false);
-
-  m_isDebugging = true;
-
-  // 启动OpenOCD
-  QProcess *openocdProcess = new QProcess(this);
-  openocdProcess->setProcessChannelMode(QProcess::MergedChannels);
-
-  QString openocdCmd = m_openocdPath.isEmpty() ? "openocd" : m_openocdPath;
-  QStringList openocdArgs;
-  openocdArgs << "-f"
-              << (m_openocdConfig.isEmpty() ? "board/stm32f103c8_blue_pill.cfg"
-                                            : m_openocdConfig);
-
-  m_debugConsole->append("启动OpenOCD: " + openocdCmd + " " +
-                         openocdArgs.join(" ") + "\n");
-  openocdProcess->start(openocdCmd, openocdArgs);
-
-  // 等待OpenOCD启动
-  QThread::sleep(2);
-
-  // 启动GDB
-  QString gdbCmd = m_gccPath.isEmpty() ? "arm-none-eabi-gdb"
-                                       : m_gccPath + "/bin/arm-none-eabi-gdb";
-  QStringList gdbArgs;
-  gdbArgs << m_projectPath + "/" + QFileInfo(m_projectPath).fileName() + ".elf";
-
-  m_debugConsole->append("启动GDB: " + gdbCmd + " " + gdbArgs.join(" ") + "\n");
-
-  m_process->start(gdbCmd, gdbArgs);
-
-  // 连接到OpenOCD
-  QByteArray command = "target remote localhost:3333\n";
-  m_process->write(command);
-
-  statusBar()->showMessage("调试会话已启动");
+  if (!m_debugController->startDebug()) {
+    QMessageBox::warning(this, "调试失败", "无法启动调试，请确保工程已成功构建生成ELF文件，并且探针与GDB工具链配置正确。");
+  }
 }
 
 void MainWindow::stopDebug() {
-  if (!m_isDebugging) {
-    return;
+  if (m_debugController) {
+    m_debugController->stopDebug();
   }
-
-  // 发送退出命令
-  m_process->write("quit\ny\n");
-
-  // 禁用调试相关按钮
-  m_stopButton->setEnabled(false);
-  m_continueButton->setEnabled(false);
-  m_stepOverButton->setEnabled(false);
-  m_stepIntoButton->setEnabled(false);
-  m_stepOutButton->setEnabled(false);
-  m_commandLine->setEnabled(false);
-
-  // 启用其他按钮
-  m_buildButton->setEnabled(true);
-  m_cleanButton->setEnabled(true);
-  m_flashButton->setEnabled(true);
-  m_debugButton->setEnabled(true);
-
-  m_isDebugging = false;
-
-  statusBar()->showMessage("调试会话已结束");
 }
 
 void MainWindow::continueDebug() {
-  if (!m_isDebugging) {
-    return;
+  if (m_debugController) {
+    m_debugController->continueDebug();
   }
-
-  m_process->write("continue\n");
 }
 
 void MainWindow::stepOver() {
-  if (!m_isDebugging) {
-    return;
+  if (m_debugController) {
+    m_debugController->stepOver();
   }
-
-  m_process->write("next\n");
 }
 
 void MainWindow::stepInto() {
-  if (!m_isDebugging) {
-    return;
+  if (m_debugController) {
+    m_debugController->stepInto();
   }
-
-  m_process->write("step\n");
 }
 
 void MainWindow::stepOut() {
-  if (!m_isDebugging) {
-    return;
+  if (m_debugController) {
+    m_debugController->stepOut();
   }
-
-  m_process->write("finish\n");
 }
 
 void MainWindow::setBreakpoint() {
-  // 实现设置断点功能
+  if (m_codeEditor) {
+    m_codeEditor->toggleBreakpointAtCursor();
+  }
 }
 
 void MainWindow::configureToolchain() {
-  // 创建工具链配置对话框
   ToolchainDialog dialog(this, m_settings);
 
-  // 如果用户点击了确定按钮
   if (dialog.exec() == QDialog::Accepted) {
-    // 更新主窗口中的工具链路径
     m_gccPath = dialog.getGccPath();
     m_openocdPath = dialog.getOpenocdPath();
     m_openocdConfig = dialog.getOpenocdConfig();
 
-    // 更新状态栏信息
+    if (m_debugController) {
+      ToolchainPaths paths = m_debugController->toolchainPaths();
+      if (!m_gccPath.isEmpty()) paths.gccPath = m_gccPath;
+      if (!m_openocdPath.isEmpty()) paths.openocdPath = m_openocdPath;
+      m_debugController->setToolchainPaths(paths);
+    }
+
     statusBar()->showMessage("工具链配置已更新", 2000);
 
-    // 输出日志
     m_outputConsole->append("工具链配置已更新:");
     m_outputConsole->append("GCC 路径: " + m_gccPath);
     m_outputConsole->append("OpenOCD 路径: " + m_openocdPath);
@@ -2347,6 +2462,10 @@ void MainWindow::setMaterialLightTheme() { applyTheme("materiallight"); }
 void MainWindow::downloaderChanged(int index) {
   // 根据索引更新当前下载工具
   m_currentDownloader = m_downloaderComboBox->itemText(index);
+
+  if (m_debugController) {
+    m_debugController->setProbeType(m_currentDownloader == "Jlink" ? ProbeType::JLink : ProbeType::STLink);
+  }
 
   // 更新状态栏信息
   updateStatusInfo();
@@ -2656,13 +2775,29 @@ void MainWindow::setupThemeMenu() {
 // }
 
 void MainWindow::createActions() {
+  auto createToolActionIcon = [](ushort unicodeChar, const QColor &color) -> QIcon {
+    QPixmap pix(24, 24);
+    pix.fill(Qt::transparent);
+    QPainter painter(&pix);
+    painter.setRenderHint(QPainter::Antialiasing);
+    painter.setRenderHint(QPainter::TextAntialiasing);
+    try {
+      QFont font = CIconFont::instance()->getIconFont(20);
+      font.setPixelSize(20);
+      painter.setFont(font);
+    } catch (...) {}
+    painter.setPen(color);
+    painter.drawText(QRect(0, 0, 24, 24), Qt::AlignCenter, QString(QChar(unicodeChar)));
+    return QIcon(pix);
+  };
+
   // File menu actions
   m_openProjectAction = new QAction("打开项目", this);
   m_openProjectAction->setObjectName("打开项目");
   m_openProjectAction->setIcon(
-      QIcon(":/icons/folder-open-outline.png")); // 需要添加相应图标
-  m_openProjectAction->setStatusTip("打开项目");
-  m_openProjectAction->setToolTip("打开项目");
+      QIcon(":/icons/folder-open-outline.png"));
+  m_openProjectAction->setStatusTip("打开STM32项目工程");
+  m_openProjectAction->setToolTip("打开项目 (Ctrl+O)");
   m_openProjectAction->setShortcut(QKeySequence::Open);
   connect(m_openProjectAction, &QAction::triggered, this,
           &MainWindow::openProject);
@@ -2670,9 +2805,9 @@ void MainWindow::createActions() {
   m_newProjectAction = new QAction("新建项目", this);
   m_newProjectAction->setObjectName("新建项目");
   m_newProjectAction->setIcon(
-      QIcon(":/icons/folder-plus.png")); // 需要添加相应图标
-  m_newProjectAction->setStatusTip("新建项目");
-  m_newProjectAction->setToolTip("新建项目");
+      QIcon(":/icons/folder-plus.png"));
+  m_newProjectAction->setStatusTip("新建STM32项目工程");
+  m_newProjectAction->setToolTip("新建项目 (Ctrl+N)");
   m_newProjectAction->setShortcut(QKeySequence::New);
   connect(m_newProjectAction, &QAction::triggered, this,
           &MainWindow::newProject);
@@ -2680,9 +2815,9 @@ void MainWindow::createActions() {
   m_saveProjectAction = new QAction("保存项目", this);
   m_saveProjectAction->setObjectName("保存项目");
   m_saveProjectAction->setIcon(
-      QIcon(":/icons/content-save-check.png")); // 需要添加相应图标
-  m_saveProjectAction->setStatusTip("保存项目");
-  m_saveProjectAction->setToolTip("保存项目");
+      QIcon(":/icons/content-save-check.png"));
+  m_saveProjectAction->setStatusTip("保存当前项目配置");
+  m_saveProjectAction->setToolTip("保存项目 (Ctrl+S)");
   m_saveProjectAction->setShortcut(QKeySequence::Save);
   connect(m_saveProjectAction, &QAction::triggered, this,
           &MainWindow::saveProject);
@@ -2690,9 +2825,9 @@ void MainWindow::createActions() {
   m_closeProjectAction = new QAction("关闭项目", this);
   m_closeProjectAction->setObjectName("关闭项目");
   m_closeProjectAction->setIcon(
-      QIcon(":/icons/close-box.png")); // 需要添加相应图标
-  m_closeProjectAction->setStatusTip("关闭项目");
-  m_closeProjectAction->setToolTip("关闭项目");
+      QIcon(":/icons/close-box.png"));
+  m_closeProjectAction->setStatusTip("关闭当前打开的项目");
+  m_closeProjectAction->setToolTip("关闭项目 (Ctrl+W)");
   m_closeProjectAction->setShortcut(QKeySequence("Ctrl+W"));
   connect(m_closeProjectAction, &QAction::triggered, this,
           &MainWindow::closeProject);
@@ -2718,63 +2853,88 @@ void MainWindow::createActions() {
 
   // Build menu actions
   m_buildAction = new QAction("编译", this);
+  m_buildAction->setObjectName("编译");
+  m_buildAction->setIcon(createToolActionIcon(0xe6f4, QColor("#10B981")));
+  m_buildAction->setStatusTip("编译当前工程 (F7)");
+  m_buildAction->setToolTip("编译构建 (F7)");
   m_buildAction->setShortcut(QKeySequence("F7"));
   connect(m_buildAction, &QAction::triggered, this, &MainWindow::buildProject);
 
   m_cleanAction = new QAction("清理", this);
+  m_cleanAction->setObjectName("清理");
+  m_cleanAction->setIcon(createToolActionIcon(0xe6b4, QColor("#94A3B8")));
+  m_cleanAction->setStatusTip("清理构建生成文件");
+  m_cleanAction->setToolTip("清理构建产物");
   connect(m_cleanAction, &QAction::triggered, this, &MainWindow::cleanProject);
 
   m_flashAction = new QAction("烧录", this);
+  m_flashAction->setObjectName("烧录");
+  m_flashAction->setIcon(createToolActionIcon(0xe6cf, QColor("#F59E0B")));
+  m_flashAction->setStatusTip("烧录固件到STM32芯片 (F8)");
+  m_flashAction->setToolTip("烧录固件 (F8)");
   m_flashAction->setShortcut(QKeySequence("F8"));
   connect(m_flashAction, &QAction::triggered, this, &MainWindow::flashProject);
 
   // Debug menu actions
   m_debugAction = new QAction("开始调试", this);
+  m_debugAction->setObjectName("开始调试");
+  m_debugAction->setIcon(createToolActionIcon(0xe66e, QColor("#3B82F6")));
+  m_debugAction->setStatusTip("启动STM32 GDB异步调试 (F5)");
+  m_debugAction->setToolTip("开始调试 (F5)");
   m_debugAction->setShortcut(QKeySequence("F5"));
   connect(m_debugAction, &QAction::triggered, this, &MainWindow::startDebug);
 
   m_stopDebugAction = new QAction("停止调试", this);
+  m_stopDebugAction->setObjectName("停止调试");
+  m_stopDebugAction->setIcon(createToolActionIcon(0xe62e, QColor("#EF4444")));
+  m_stopDebugAction->setStatusTip("终止当前GDB调试会话 (Shift+F5)");
+  m_stopDebugAction->setToolTip("停止调试 (Shift+F5)");
   m_stopDebugAction->setShortcut(QKeySequence("Shift+F5"));
   connect(m_stopDebugAction, &QAction::triggered, this, &MainWindow::stopDebug);
 
   m_continueAction = new QAction("继续", this);
+  m_continueAction->setObjectName("继续");
+  m_continueAction->setIcon(createToolActionIcon(0xe66e, QColor("#10B981")));
+  m_continueAction->setStatusTip("全速继续运行目标CPU (F5)");
+  m_continueAction->setToolTip("继续运行 (F5)");
   m_continueAction->setShortcut(QKeySequence("F5"));
   connect(m_continueAction, &QAction::triggered, this,
           &MainWindow::continueDebug);
 
   m_stepOverAction = new QAction("单步跳过", this);
+  m_stepOverAction->setObjectName("单步跳过");
+  m_stepOverAction->setIcon(createToolActionIcon(0xe743, QColor("#6366F1")));
+  m_stepOverAction->setStatusTip("单步步过函数 (F10)");
+  m_stepOverAction->setToolTip("单步跳过 (F10)");
   m_stepOverAction->setShortcut(QKeySequence("F10"));
   connect(m_stepOverAction, &QAction::triggered, this, &MainWindow::stepOver);
 
   m_stepIntoAction = new QAction("单步进入", this);
+  m_stepIntoAction->setObjectName("单步进入");
+  m_stepIntoAction->setIcon(createToolActionIcon(0xe744, QColor("#8B5CF6")));
+  m_stepIntoAction->setStatusTip("单步步入函数内部 (F11)");
+  m_stepIntoAction->setToolTip("单步进入 (F11)");
   m_stepIntoAction->setShortcut(QKeySequence("F11"));
   connect(m_stepIntoAction, &QAction::triggered, this, &MainWindow::stepInto);
 
   m_stepOutAction = new QAction("单步跳出", this);
+  m_stepOutAction->setObjectName("单步跳出");
+  m_stepOutAction->setIcon(createToolActionIcon(0xe745, QColor("#EC4899")));
+  m_stepOutAction->setStatusTip("单步跳出当前函数 (Shift+F11)");
+  m_stepOutAction->setToolTip("单步跳出 (Shift+F11)");
   m_stepOutAction->setShortcut(QKeySequence("Shift+F11"));
   connect(m_stepOutAction, &QAction::triggered, this, &MainWindow::stepOut);
 
   m_breakpointAction = new QAction("设置断点", this);
+  m_breakpointAction->setObjectName("设置断点");
+  m_breakpointAction->setIcon(createToolActionIcon(0xe64d, QColor("#EF4444")));
+  m_breakpointAction->setStatusTip("在当前行切换断点 (F9)");
+  m_breakpointAction->setToolTip("切换断点 (F9)");
   m_breakpointAction->setShortcut(QKeySequence("F9"));
   connect(m_breakpointAction, &QAction::triggered, this,
           &MainWindow::setBreakpoint);
 
   // Tools menu actions
-  auto createToolActionIcon = [](ushort unicodeChar, const QColor &color) -> QIcon {
-    QPixmap pix(24, 24);
-    pix.fill(Qt::transparent);
-    QPainter painter(&pix);
-    painter.setRenderHint(QPainter::Antialiasing);
-    painter.setRenderHint(QPainter::TextAntialiasing);
-    try {
-      QFont font = CIconFont::instance()->getIconFont(20);
-      font.setPixelSize(20);
-      painter.setFont(font);
-    } catch (...) {}
-    painter.setPen(color);
-    painter.drawText(QRect(0, 0, 24, 24), Qt::AlignCenter, QString(QChar(unicodeChar)));
-    return QIcon(pix);
-  };
 
   m_configureToolchainAction = new QAction("配置工具链", this);
   m_configureToolchainAction->setIcon(QIcon(":/icons/ToosSetting.png"));
@@ -2948,6 +3108,14 @@ void MainWindow::createMenus() {
   splitMenu->addAction(m_horizontalSplitAction);
   splitMenu->addAction(m_verticalSplitAction);
   splitMenu->addAction(m_closeSplitAction);
+
+  // 调试停靠窗口子菜单
+  QMenu *debugPanelsMenu = viewMenu->addMenu("调试面板");
+  if (m_variablesDock) debugPanelsMenu->addAction(m_variablesDock->toggleViewAction());
+  if (m_registersDock) debugPanelsMenu->addAction(m_registersDock->toggleViewAction());
+  if (m_callStackDock) debugPanelsMenu->addAction(m_callStackDock->toggleViewAction());
+  if (m_breakpointsDock) debugPanelsMenu->addAction(m_breakpointsDock->toggleViewAction());
+
   // 主题子菜单
   QMenu *themeMenu = viewMenu->addMenu("主题");
 
@@ -3048,7 +3216,20 @@ void MainWindow::loadSettings() {
   // If we have a saved project path, update the project tree
   if (!m_projectPath.isEmpty()) {
     updateProjectTree(m_projectPath);
-    statusBar()->showMessage("已加载项目: " + m_projectPath);
+    if (m_codeEditor) {
+      m_codeEditor->setProjectRootPath(m_projectPath);
+    }
+    if (m_debugController) {
+      m_debugController->setProjectPath(m_projectPath);
+    }
+    statusBar()->showMessage("已加载项目: " + m_projectPath, 3000);
+  }
+
+  if (m_debugController) {
+    ToolchainPaths paths = m_debugController->toolchainPaths();
+    if (!m_gccPath.isEmpty()) paths.gccPath = m_gccPath;
+    if (!m_openocdPath.isEmpty()) paths.openocdPath = m_openocdPath;
+    m_debugController->setToolchainPaths(paths);
   }
 
   // Update the downloader combobox to match the saved setting
@@ -3580,14 +3761,14 @@ void MainWindow::saveFileAs() {
 
 // 添加执行GDB命令的方法
 void MainWindow::executeGdbCommand() {
-  if (!m_isDebugging || !m_process) {
+  if (!m_isDebugging || !m_debugController) {
     return;
   }
 
-  QString command = m_commandLine->text();
+  QString command = m_commandLine->text().trimmed();
   if (!command.isEmpty()) {
-    m_debugConsole->append("> " + command);
-    m_process->write((command + "\n").toUtf8());
+    m_debugConsole->append("(gdb) " + command);
+    m_debugController->executeGdbCommand(command);
     m_commandLine->clear();
   }
 }
@@ -3767,40 +3948,45 @@ void MainWindow::closeProject() {
   //     }
   // }
   try {
-    // 关闭所有打开的编辑器标签页，但不关闭主编辑器
+    if (m_debugController) {
+      m_debugController->stopDebug();
+    }
+
+    // 清除额外动态选项卡（如终端），保留核心控制台与诊断
     if (m_tabWidget) {
-      m_tabWidget->blockSignals(true);
-      while (m_tabWidget->count() > 0) {
-        m_tabWidget->removeTab(0);
+      while (m_tabWidget->count() > 3) {
+        QWidget *w = m_tabWidget->widget(3);
+        m_tabWidget->removeTab(3);
+        if (w) w->deleteLater();
       }
-      m_tabWidget->blockSignals(false);
     }
 
     // 清空项目路径
     m_projectPath.clear();
     m_currentFilePath.clear();
 
+    if (m_codeEditor) {
+      m_codeEditor->clearExecutionLine();
+    }
+
     // 更新UI状态
-    // updateWindowTitle();
     updateStatusInfo();
     updateWindowTitle();
 
     // 清空项目树
     clearProjectTree();
-    // 禁用工程相关的菜单项和工具栏按钮
-    // updateMenuState();
-    //  清空输出控制台
-    if (m_outputConsole) {
-      m_outputConsole->blockSignals(true);
-      m_outputConsole->clear();
-      m_outputConsole->blockSignals(false);
-    }
 
-    // 清空调试控制台
+    // 清空输出控制台与问题列表
+    if (m_outputConsole) {
+      m_outputConsole->clear();
+    }
     if (m_debugConsole) {
-      m_debugConsole->blockSignals(true);
       m_debugConsole->clear();
-      m_debugConsole->blockSignals(false);
+    }
+    if (m_problemsTable) {
+      m_problemsTable->setRowCount(0);
+      int tabIdx = m_tabWidget->indexOf(m_problemsTable);
+      if (tabIdx >= 0) m_tabWidget->setTabText(tabIdx, "问题诊断");
     }
 
     statusBar()->showMessage("工程已关闭", 3000);

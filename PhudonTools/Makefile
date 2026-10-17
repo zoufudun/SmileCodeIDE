@@ -452,7 +452,8 @@ Makefile: PhudonTools.pro D:/Soft/Qt/6.11.2/mingw_64/mkspecs/win32-g++/qmake.con
 		D:/Soft/Qt/6.11.2/mingw_64/lib/Qt6EntryPoint.prl \
 		D:/Soft/Qt/6.11.2/mingw_64/mkspecs/features/build_pass.prf \
 		resources.qrc \
-		../dark/darkstyle.qrc
+		../dark/darkstyle.qrc \
+		../Plugins/STM32WorkbenchPlugin/cubemx_linkers.qrc
 	$(QMAKE) -o Makefile PhudonTools.pro
 D:/Soft/Qt/6.11.2/mingw_64/mkspecs/features/spec_pre.prf:
 D:/Soft/Qt/6.11.2/mingw_64/mkspecs/features/device_config.prf:
@@ -837,6 +838,7 @@ D:/Soft/Qt/6.11.2/mingw_64/lib/Qt6EntryPoint.prl:
 D:/Soft/Qt/6.11.2/mingw_64/mkspecs/features/build_pass.prf:
 resources.qrc:
 ../dark/darkstyle.qrc:
+../Plugins/STM32WorkbenchPlugin/cubemx_linkers.qrc:
 qmake: FORCE
 	@$(QMAKE) -o Makefile PhudonTools.pro
 
