@@ -31,8 +31,8 @@ CONFIG(debug, debug|release) {
     LIBS += -L$$PWD/../QScintilla/src/release -l$$QSCINTILLA_LIB
 }
 
-# ZLG zlgcan SDK & 创芯科技 ControlCAN SDK 头文件
-INCLUDEPATH += $$PWD/USBCANFD $$PWD/CXCAN $$PWD/include $$PWD/CAN
+# ZLG zlgcan SDK & 创芯科技 ControlCAN SDK 头文件 & STM32 核心引擎
+INCLUDEPATH += $$PWD/USBCANFD $$PWD/CXCAN $$PWD/include $$PWD/CAN $$PWD/../Plugins/STM32WorkbenchPlugin/Core
 
 # 将 zlgcan.dll, ControlCAN.dll, kerneldlls, qscintilla dll 以及 plugins 拷贝到生成目录（与可执行文件同级）
 win32 {
@@ -126,7 +126,19 @@ SOURCES += \
     CAN/UI/cansignalplotpanel.cpp \
     CAN/UI/candiagnosticpanel.cpp \
     CAN/UI/canflashpanel.cpp \
-    CAN/UI/canaiassistant.cpp
+    CAN/UI/canaiassistant.cpp \
+    ../Plugins/STM32WorkbenchPlugin/Core/ToolchainDetector.cpp \
+    ../Plugins/STM32WorkbenchPlugin/Core/STM32Profile.cpp \
+    ../Plugins/STM32WorkbenchPlugin/Core/MakefileGenerator.cpp \
+    ../Plugins/STM32WorkbenchPlugin/Core/BuildManager.cpp \
+    ../Plugins/STM32WorkbenchPlugin/Core/BuildLogModel.cpp \
+    ../Plugins/STM32WorkbenchPlugin/Core/FlashProgrammer.cpp \
+    ../Plugins/STM32WorkbenchPlugin/Core/FlashLogModel.cpp \
+    ../Plugins/STM32WorkbenchPlugin/Core/ProbeDetector.cpp \
+    ../Plugins/STM32WorkbenchPlugin/Core/GdbServerManager.cpp \
+    ../Plugins/STM32WorkbenchPlugin/Core/GdbMiEngine.cpp \
+    stm32debugcontroller.cpp \
+    stm32debugdocks.cpp
 
 # 头文件
 HEADERS += \
@@ -190,7 +202,20 @@ HEADERS += \
     CAN/UI/cansignalplotpanel.h \
     CAN/UI/candiagnosticpanel.h \
     CAN/UI/canflashpanel.h \
-    CAN/UI/canaiassistant.h
+    CAN/UI/canaiassistant.h \
+    ../Plugins/STM32WorkbenchPlugin/Core/ToolchainDetector.h \
+    ../Plugins/STM32WorkbenchPlugin/Core/STM32Profile.h \
+    ../Plugins/STM32WorkbenchPlugin/Core/MakefileGenerator.h \
+    ../Plugins/STM32WorkbenchPlugin/Core/BuildManager.h \
+    ../Plugins/STM32WorkbenchPlugin/Core/BuildDiagnostic.h \
+    ../Plugins/STM32WorkbenchPlugin/Core/BuildLogModel.h \
+    ../Plugins/STM32WorkbenchPlugin/Core/FlashProgrammer.h \
+    ../Plugins/STM32WorkbenchPlugin/Core/FlashLogModel.h \
+    ../Plugins/STM32WorkbenchPlugin/Core/ProbeDetector.h \
+    ../Plugins/STM32WorkbenchPlugin/Core/GdbServerManager.h \
+    ../Plugins/STM32WorkbenchPlugin/Core/GdbMiEngine.h \
+    stm32debugcontroller.h \
+    stm32debugdocks.h
 
 # 默认规则
 QMAKE_CXXFLAGS += -Wall -Wextra -Wpedantic
@@ -216,4 +241,5 @@ unix {
 # 资源文件
 # 添加资源文件
 RESOURCES += resources.qrc \
-    ../dark/darkstyle.qrc
+    ../dark/darkstyle.qrc \
+    $$PWD/../Plugins/STM32WorkbenchPlugin/cubemx_linkers.qrc
