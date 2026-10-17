@@ -31,6 +31,8 @@ CONFIG(debug, debug|release) {
     LIBS += -L$$PWD/../QScintilla/src/release -l$$QSCINTILLA_LIB
 }
 
+win32: LIBS += -lsetupapi -lcfgmgr32
+
 # ZLG zlgcan SDK & 创芯科技 ControlCAN SDK 头文件 & STM32 核心引擎
 INCLUDEPATH += $$PWD/USBCANFD $$PWD/CXCAN $$PWD/include $$PWD/CAN $$PWD/../Plugins/STM32WorkbenchPlugin/Core
 

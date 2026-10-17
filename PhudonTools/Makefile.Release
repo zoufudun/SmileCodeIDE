@@ -19,7 +19,7 @@ CXXFLAGS      = -fno-keep-inline-dllexport -Wall -Wextra -Wpedantic -Wa,-mbig-ob
 INCPATH       = -I. -I../QScintilla/src -I../QScintilla/src/Qsci -IUSBCANFD -ICXCAN -Iinclude -ICAN -I../Plugins/STM32WorkbenchPlugin/Core -ID:/Soft/Qt/6.11.2/mingw_64/include -ID:/Soft/Qt/6.11.2/mingw_64/include/QtPrintSupport -ID:/Soft/Qt/6.11.2/mingw_64/include/QtWidgets -ID:/Soft/Qt/6.11.2/mingw_64/include/QtGui -ID:/Soft/Qt/6.11.2/mingw_64/include/QtSerialBus -ID:/Soft/Qt/6.11.2/mingw_64/include/QtSerialPort -ID:/Soft/Qt/6.11.2/mingw_64/include/QtWebSockets -ID:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork -ID:/Soft/Qt/6.11.2/mingw_64/include/QtCore5Compat -ID:/Soft/Qt/6.11.2/mingw_64/include/QtCore -Irelease -I/include -ID:/Soft/Qt/6.11.2/mingw_64/mkspecs/win32-g++ 
 LINKER      =        g++
 LFLAGS        =        -Wl,-s -Wl,-subsystem,windows -mthreads
-LIBS        =        -LK:\TOPFIRE\SmileCodeIDEUpdate\QScintilla\src\release -lqscintilla2_qt6 D:\Soft\Qt\6.11.2\mingw_64\lib\libQt6PrintSupport.a D:\Soft\Qt\6.11.2\mingw_64\lib\libQt6Widgets.a D:\Soft\Qt\6.11.2\mingw_64\lib\libQt6Gui.a D:\Soft\Qt\6.11.2\mingw_64\lib\libQt6SerialBus.a D:\Soft\Qt\6.11.2\mingw_64\lib\libQt6SerialPort.a D:\Soft\Qt\6.11.2\mingw_64\lib\libQt6WebSockets.a D:\Soft\Qt\6.11.2\mingw_64\lib\libQt6Network.a D:\Soft\Qt\6.11.2\mingw_64\lib\libQt6Core5Compat.a D:\Soft\Qt\6.11.2\mingw_64\lib\libQt6Core.a release\PhudonTools_resource_res.o -lmingw32 D:\Soft\Qt\6.11.2\mingw_64\lib\libQt6EntryPoint.a -lshell32  
+LIBS        =        -LK:\TOPFIRE\SmileCodeIDEUpdate\QScintilla\src\release -lqscintilla2_qt6 -lsetupapi -lcfgmgr32 D:\Soft\Qt\6.11.2\mingw_64\lib\libQt6PrintSupport.a D:\Soft\Qt\6.11.2\mingw_64\lib\libQt6Widgets.a D:\Soft\Qt\6.11.2\mingw_64\lib\libQt6Gui.a D:\Soft\Qt\6.11.2\mingw_64\lib\libQt6SerialBus.a D:\Soft\Qt\6.11.2\mingw_64\lib\libQt6SerialPort.a D:\Soft\Qt\6.11.2\mingw_64\lib\libQt6WebSockets.a D:\Soft\Qt\6.11.2\mingw_64\lib\libQt6Network.a D:\Soft\Qt\6.11.2\mingw_64\lib\libQt6Core5Compat.a D:\Soft\Qt\6.11.2\mingw_64\lib\libQt6Core.a release\PhudonTools_resource_res.o -lmingw32 D:\Soft\Qt\6.11.2\mingw_64\lib\libQt6EntryPoint.a -lshell32  
 QMAKE         = D:\Soft\Qt\6.11.2\mingw_64\bin\qmake.exe
 DEL_FILE      = del
 CHK_DIR_EXISTS= if not exist
@@ -2300,6 +2300,43 @@ release/moc_mainwindow.cpp: mainwindow.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/QtGlobal \
 		canopenmaster.h \
 		terminalwidget.h \
+		stm32debugcontroller.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/QTcpSocket \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/qtcpsocket.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/qtnetworkglobal.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/qtnetwork-config.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/qtnetworkexports.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/qabstractsocket.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/qhostaddress.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/QJsonObject \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qjsonobject.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qjsonvalue.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qcborvalue.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qcborcommon.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/quuid.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qjsondocument.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qjsonparseerror.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/QJsonDocument \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/QJsonArray \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qjsonarray.h \
+		../Plugins/STM32WorkbenchPlugin/Core/ToolchainDetector.h \
+		../Plugins/STM32WorkbenchPlugin/Core/STM32Profile.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/QVector \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qvector.h \
+		../Plugins/STM32WorkbenchPlugin/Core/BuildManager.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/QThread \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/QStringDecoder \
+		../Plugins/STM32WorkbenchPlugin/Core/MakefileGenerator.h \
+		../Plugins/STM32WorkbenchPlugin/Core/BuildLogModel.h \
+		../Plugins/STM32WorkbenchPlugin/Core/BuildDiagnostic.h \
+		../Plugins/STM32WorkbenchPlugin/Core/FlashProgrammer.h \
+		../Plugins/STM32WorkbenchPlugin/Core/ProbeDetector.h \
+		../Plugins/STM32WorkbenchPlugin/Core/FlashLogModel.h \
+		../Plugins/STM32WorkbenchPlugin/Core/GdbServerManager.h \
+		../Plugins/STM32WorkbenchPlugin/Core/GdbMiEngine.h \
+		stm32debugdocks.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtWidgets/QHeaderView \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtWidgets/qheaderview.h \
 		release/moc_predefs.h \
 		D:/Soft/Qt/6.11.2/mingw_64/bin/moc.exe
 	D:\Soft\Qt\6.11.2\mingw_64\bin\moc.exe $(DEFINES) --include K:/TOPFIRE/SmileCodeIDEUpdate/PhudonTools/release/moc_predefs.h -ID:/Soft/Qt/6.11.2/mingw_64/mkspecs/win32-g++ -IK:/TOPFIRE/SmileCodeIDEUpdate/PhudonTools -IK:/TOPFIRE/SmileCodeIDEUpdate/QScintilla/src -IK:/TOPFIRE/SmileCodeIDEUpdate/QScintilla/src/Qsci -IK:/TOPFIRE/SmileCodeIDEUpdate/PhudonTools/USBCANFD -IK:/TOPFIRE/SmileCodeIDEUpdate/PhudonTools/CXCAN -IK:/TOPFIRE/SmileCodeIDEUpdate/PhudonTools/include -IK:/TOPFIRE/SmileCodeIDEUpdate/PhudonTools/CAN -IK:/TOPFIRE/SmileCodeIDEUpdate/Plugins/STM32WorkbenchPlugin/Core -ID:/Soft/Qt/6.11.2/mingw_64/include -ID:/Soft/Qt/6.11.2/mingw_64/include/QtPrintSupport -ID:/Soft/Qt/6.11.2/mingw_64/include/QtWidgets -ID:/Soft/Qt/6.11.2/mingw_64/include/QtGui -ID:/Soft/Qt/6.11.2/mingw_64/include/QtSerialBus -ID:/Soft/Qt/6.11.2/mingw_64/include/QtSerialPort -ID:/Soft/Qt/6.11.2/mingw_64/include/QtWebSockets -ID:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork -ID:/Soft/Qt/6.11.2/mingw_64/include/QtCore5Compat -ID:/Soft/Qt/6.11.2/mingw_64/include/QtCore -IE:/Toolchains/mingw/mingw641310/lib/gcc/x86_64-w64-mingw32/13.1.0/include/c++ -IE:/Toolchains/mingw/mingw641310/lib/gcc/x86_64-w64-mingw32/13.1.0/include/c++/x86_64-w64-mingw32 -IE:/Toolchains/mingw/mingw641310/lib/gcc/x86_64-w64-mingw32/13.1.0/include/c++/backward -IE:/Toolchains/mingw/mingw641310/lib/gcc/x86_64-w64-mingw32/13.1.0/include -IE:/Toolchains/mingw/mingw641310/lib/gcc/x86_64-w64-mingw32/13.1.0/include-fixed -IE:/Toolchains/mingw/mingw641310/x86_64-w64-mingw32/include mainwindow.h -o release\moc_mainwindow.cpp
@@ -17357,9 +17394,44 @@ release/main.o: main.cpp TOOLS/CIconFont.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/QtGlobal \
 		canopenmaster.h \
 		terminalwidget.h \
-		oscilloscopewindow.h \
+		stm32debugcontroller.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/QTcpSocket \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/qtcpsocket.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/qtnetworkglobal.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/qtnetwork-config.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/qtnetworkexports.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/qabstractsocket.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/qhostaddress.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/QJsonObject \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qjsonobject.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qjsonvalue.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qcborvalue.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qcborcommon.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/quuid.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qjsondocument.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qjsonparseerror.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/QJsonDocument \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/QJsonArray \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qjsonarray.h \
+		../Plugins/STM32WorkbenchPlugin/Core/ToolchainDetector.h \
+		../Plugins/STM32WorkbenchPlugin/Core/STM32Profile.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/QVector \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qvector.h \
+		../Plugins/STM32WorkbenchPlugin/Core/BuildManager.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/QThread \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/QStringDecoder \
+		../Plugins/STM32WorkbenchPlugin/Core/MakefileGenerator.h \
+		../Plugins/STM32WorkbenchPlugin/Core/BuildLogModel.h \
+		../Plugins/STM32WorkbenchPlugin/Core/BuildDiagnostic.h \
+		../Plugins/STM32WorkbenchPlugin/Core/FlashProgrammer.h \
+		../Plugins/STM32WorkbenchPlugin/Core/ProbeDetector.h \
+		../Plugins/STM32WorkbenchPlugin/Core/FlashLogModel.h \
+		../Plugins/STM32WorkbenchPlugin/Core/GdbServerManager.h \
+		../Plugins/STM32WorkbenchPlugin/Core/GdbMiEngine.h \
+		stm32debugdocks.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtWidgets/QHeaderView \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtWidgets/qheaderview.h \
+		oscilloscopewindow.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/QTime \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/QElapsedTimer \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qelapsedtimer.h \
@@ -17371,13 +17443,6 @@ release/main.o: main.cpp TOOLS/CIconFont.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtSerialPort/qtserialportexports.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtSerialPort/QSerialPortInfo \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtSerialPort/qserialportinfo.h \
-		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/QTcpSocket \
-		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/qtcpsocket.h \
-		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/qtnetworkglobal.h \
-		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/qtnetwork-config.h \
-		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/qtnetworkexports.h \
-		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/qabstractsocket.h \
-		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/qhostaddress.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/QTcpServer \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/qtcpserver.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/QUdpSocket \
@@ -17437,9 +17502,6 @@ release/main.o: main.cpp TOOLS/CIconFont.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qbuffer.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qbytearraymatcher.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qcborarray.h \
-		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qcborvalue.h \
-		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qcborcommon.h \
-		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/quuid.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qcbormap.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qcborstream.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qcborstreamreader.h \
@@ -17458,11 +17520,6 @@ release/main.o: main.cpp TOOLS/CIconFont.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qfuturesynchronizer.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qfuturewatcher.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qidentityproxymodel.h \
-		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qjsonarray.h \
-		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qjsonvalue.h \
-		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qjsondocument.h \
-		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qjsonparseerror.h \
-		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qjsonobject.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qlatin1stringmatcher.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qlibrary.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qlibraryinfo.h \
@@ -17645,7 +17702,6 @@ release/main.o: main.cpp TOOLS/CIconFont.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtWidgets/qgraphicsview.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtWidgets/qscrollarea.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtWidgets/qgroupbox.h \
-		D:/Soft/Qt/6.11.2/mingw_64/include/QtWidgets/qheaderview.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtWidgets/qinputdialog.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtWidgets/qitemdelegate.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtWidgets/qitemeditorfactory.h \
@@ -18066,6 +18122,43 @@ release/mainwindow.o: mainwindow.cpp mainwindow.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/QtGlobal \
 		canopenmaster.h \
 		terminalwidget.h \
+		stm32debugcontroller.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/QTcpSocket \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/qtcpsocket.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/qtnetworkglobal.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/qtnetwork-config.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/qtnetworkexports.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/qabstractsocket.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/qhostaddress.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/QJsonObject \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qjsonobject.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qjsonvalue.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qcborvalue.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qcborcommon.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/quuid.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qjsondocument.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qjsonparseerror.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/QJsonDocument \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/QJsonArray \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qjsonarray.h \
+		../Plugins/STM32WorkbenchPlugin/Core/ToolchainDetector.h \
+		../Plugins/STM32WorkbenchPlugin/Core/STM32Profile.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/QVector \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qvector.h \
+		../Plugins/STM32WorkbenchPlugin/Core/BuildManager.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/QThread \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/QStringDecoder \
+		../Plugins/STM32WorkbenchPlugin/Core/MakefileGenerator.h \
+		../Plugins/STM32WorkbenchPlugin/Core/BuildLogModel.h \
+		../Plugins/STM32WorkbenchPlugin/Core/BuildDiagnostic.h \
+		../Plugins/STM32WorkbenchPlugin/Core/FlashProgrammer.h \
+		../Plugins/STM32WorkbenchPlugin/Core/ProbeDetector.h \
+		../Plugins/STM32WorkbenchPlugin/Core/FlashLogModel.h \
+		../Plugins/STM32WorkbenchPlugin/Core/GdbServerManager.h \
+		../Plugins/STM32WorkbenchPlugin/Core/GdbMiEngine.h \
+		stm32debugdocks.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtWidgets/QHeaderView \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtWidgets/qheaderview.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtWidgets/QApplication \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtWidgets/qapplication.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/QFile \
@@ -18083,7 +18176,6 @@ release/mainwindow.o: mainwindow.cpp mainwindow.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtWidgets/QStatusBar \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtWidgets/qstatusbar.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/QTextStream \
-		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/QThread \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtGui/QStandardItemModel \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtGui/qstandarditemmodel.h \
 		serialportplot.h \
@@ -18100,8 +18192,6 @@ release/mainwindow.o: mainwindow.cpp mainwindow.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtSerialPort/qtserialportexports.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtSerialPort/QSerialPortInfo \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtSerialPort/qserialportinfo.h \
-		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/QVector \
-		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qvector.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore5Compat/QTextCodec \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore5Compat/qtextcodec.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore5Compat/qcore5global.h \
@@ -18161,9 +18251,6 @@ release/mainwindow.o: mainwindow.cpp mainwindow.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qbuffer.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qbytearraymatcher.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qcborarray.h \
-		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qcborvalue.h \
-		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qcborcommon.h \
-		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/quuid.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qcbormap.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qcborstream.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qcborstreamreader.h \
@@ -18183,11 +18270,6 @@ release/mainwindow.o: mainwindow.cpp mainwindow.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qfuturesynchronizer.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qfuturewatcher.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qidentityproxymodel.h \
-		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qjsonarray.h \
-		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qjsonvalue.h \
-		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qjsondocument.h \
-		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qjsonparseerror.h \
-		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qjsonobject.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qlatin1stringmatcher.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qlibrary.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qlibraryinfo.h \
@@ -18365,7 +18447,6 @@ release/mainwindow.o: mainwindow.cpp mainwindow.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtGui/QMatrix4x4 \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtWidgets/qgraphicsview.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtWidgets/qscrollarea.h \
-		D:/Soft/Qt/6.11.2/mingw_64/include/QtWidgets/qheaderview.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtWidgets/qitemdelegate.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtWidgets/qitemeditorfactory.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtWidgets/qkeysequenceedit.h \
@@ -18423,13 +18504,6 @@ release/mainwindow.o: mainwindow.cpp mainwindow.h \
 		ringbuffer.h \
 		oscilloscopewindow.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/QTime \
-		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/QTcpSocket \
-		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/qtcpsocket.h \
-		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/qtnetworkglobal.h \
-		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/qtnetwork-config.h \
-		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/qtnetworkexports.h \
-		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/qabstractsocket.h \
-		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/qhostaddress.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/QTcpServer \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/qtcpserver.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/QUdpSocket \
@@ -19137,6 +19211,32 @@ release/serialportplot.o: serialportplot.cpp serialportplot.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/QtGlobal \
 		canopenmaster.h \
 		terminalwidget.h \
+		stm32debugcontroller.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/QTcpSocket \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/qtcpsocket.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/qtnetworkglobal.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/qtnetwork-config.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/qtnetworkexports.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/qabstractsocket.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/qhostaddress.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/QJsonObject \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/QJsonDocument \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/QJsonArray \
+		../Plugins/STM32WorkbenchPlugin/Core/ToolchainDetector.h \
+		../Plugins/STM32WorkbenchPlugin/Core/STM32Profile.h \
+		../Plugins/STM32WorkbenchPlugin/Core/BuildManager.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/QThread \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/QStringDecoder \
+		../Plugins/STM32WorkbenchPlugin/Core/MakefileGenerator.h \
+		../Plugins/STM32WorkbenchPlugin/Core/BuildLogModel.h \
+		../Plugins/STM32WorkbenchPlugin/Core/BuildDiagnostic.h \
+		../Plugins/STM32WorkbenchPlugin/Core/FlashProgrammer.h \
+		../Plugins/STM32WorkbenchPlugin/Core/ProbeDetector.h \
+		../Plugins/STM32WorkbenchPlugin/Core/FlashLogModel.h \
+		../Plugins/STM32WorkbenchPlugin/Core/GdbServerManager.h \
+		../Plugins/STM32WorkbenchPlugin/Core/GdbMiEngine.h \
+		stm32debugdocks.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtWidgets/QHeaderView \
 		toastwidget.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtGui/QGuiApplication \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/QPropertyAnimation \
@@ -19147,7 +19247,6 @@ release/serialportplot.o: serialportplot.cpp serialportplot.h \
 		widgetdesigner.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtWidgets/QApplication \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtGui/QClipboard \
-		D:/Soft/Qt/6.11.2/mingw_64/include/QtWidgets/QHeaderView \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtWidgets/QMessageBox \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtWidgets/QPlainTextEdit \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/QRegularExpression \
@@ -28620,6 +28719,34 @@ release/appmanager.o: appmanager.cpp appmanager.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/QtGlobal \
 		canopenmaster.h \
 		terminalwidget.h \
+		stm32debugcontroller.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/QTcpSocket \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/qtcpsocket.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/qtnetworkglobal.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/qtnetwork-config.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/qtnetworkexports.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/qabstractsocket.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/qhostaddress.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/QJsonObject \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/QJsonDocument \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/QJsonArray \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qjsonarray.h \
+		../Plugins/STM32WorkbenchPlugin/Core/ToolchainDetector.h \
+		../Plugins/STM32WorkbenchPlugin/Core/STM32Profile.h \
+		../Plugins/STM32WorkbenchPlugin/Core/BuildManager.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/QThread \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/QStringDecoder \
+		../Plugins/STM32WorkbenchPlugin/Core/MakefileGenerator.h \
+		../Plugins/STM32WorkbenchPlugin/Core/BuildLogModel.h \
+		../Plugins/STM32WorkbenchPlugin/Core/BuildDiagnostic.h \
+		../Plugins/STM32WorkbenchPlugin/Core/FlashProgrammer.h \
+		../Plugins/STM32WorkbenchPlugin/Core/ProbeDetector.h \
+		../Plugins/STM32WorkbenchPlugin/Core/FlashLogModel.h \
+		../Plugins/STM32WorkbenchPlugin/Core/GdbServerManager.h \
+		../Plugins/STM32WorkbenchPlugin/Core/GdbMiEngine.h \
+		stm32debugdocks.h \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtWidgets/QHeaderView \
+		D:/Soft/Qt/6.11.2/mingw_64/include/QtWidgets/qheaderview.h \
 		serialportplot.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtGui/QAction \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtWidgets/QBoxLayout \
@@ -28714,7 +28841,6 @@ release/appmanager.o: appmanager.cpp appmanager.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qfuturesynchronizer.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qfuturewatcher.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qidentityproxymodel.h \
-		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qjsonarray.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qlatin1stringmatcher.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qlibraryinfo.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/qversionnumber.h \
@@ -28890,7 +29016,6 @@ release/appmanager.o: appmanager.cpp appmanager.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtGui/QMatrix4x4 \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtWidgets/qgraphicsview.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtWidgets/qscrollarea.h \
-		D:/Soft/Qt/6.11.2/mingw_64/include/QtWidgets/qheaderview.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtWidgets/qinputdialog.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtWidgets/qitemdelegate.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtWidgets/qitemeditorfactory.h \
@@ -28951,13 +29076,6 @@ release/appmanager.o: appmanager.cpp appmanager.h \
 		scrollinglabel.h \
 		ringbuffer.h \
 		networktool.h \
-		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/QTcpSocket \
-		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/qtcpsocket.h \
-		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/qtnetworkglobal.h \
-		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/qtnetwork-config.h \
-		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/qtnetworkexports.h \
-		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/qabstractsocket.h \
-		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/qhostaddress.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/QTcpServer \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/qtcpserver.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtNetwork/QUdpSocket \
@@ -28980,9 +29098,6 @@ release/appmanager.o: appmanager.cpp appmanager.h \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtGui/QScreen \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtWidgets/QApplication \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/QCoreApplication \
-		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/QJsonDocument \
-		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/QJsonObject \
-		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/QJsonArray \
 		D:/Soft/Qt/6.11.2/mingw_64/include/QtCore/QLibrary
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o release\appmanager.o appmanager.cpp
 
