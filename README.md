@@ -10,6 +10,8 @@
 [![Toolchain](https://img.shields.io/badge/Compiler-GCC%20%7C%20Clang%20%7C%20Arm--none--eabi-red.svg)](https://developer.arm.com/)
 [![Theme](https://img.shields.io/badge/Theme-Dark%20%26%20Light%20Adaptive-purple.svg)](https://github.com/)
 
+**SmileCodeIDE 当前版本：v2.2.0（2026-10-28）** · [更新日志](CHANGELOG.zh.md) · [本次工作总结](docs/WORK_SUMMARY_2026-10-28.md)
+
 [**功能特性**](#-核心功能亮点) • [**架构模块**](#-功能模块详解) • [**快速上手**](#-快速上手与构建) • [**设计美学**](#-设计美学与交互) • [**更新日志**](#-最新更新) 
 
 ---
@@ -89,6 +91,8 @@
 
 ### 4. 🚀 自动化交叉编译构建与 MCU 固件 IAP 烧录 (Build & IAP)
 连接代码与硬件的闭环工具链：
+- **IDE 原生编译、调试、烧写工作流（v2.2.0）**：统一工具栏、菜单与按钮图标；构建、烧写与调试互斥，操作失败后恢复空闲状态；支持 ST-Link、J-Link、CMSIS-DAP，保存并恢复工程目标与探针配置。
+- **快捷键**：`F7` 编译、`Ctrl+F7` 清理后重建、`F8` 烧写、`F5` 开始/继续调试、`F6` 暂停、`Shift+F5` 停止调试、`Ctrl+Shift+F5` 取消当前任务、`F9` 切换断点、`F10/F11/Shift+F11` 单步跳过/进入/跳出。
 - **⚙️ GNU Arm 交叉编译系统**：
   - 深度集成 `arm-none-eabi-gcc`、`make`、`ninja`、`OpenOCD`；
   - 支持一键编译、增量构建与清理，构建日志实时流式输出并智能高亮编译报错；
@@ -136,6 +140,10 @@ qmake PhudonTools.pro
 mingw32-make -j8   # Windows (MinGW)
 # 或者 make -j8    # Linux / macOS
 ```
+
+Windows 下请将 Qt 配套的 MinGW `bin` 放在 PATH 首位，避免不同 MinGW 运行库混用。本次验证使用 Qt 6.11.2 与配套 MinGW 13.1.0。
+
+无硬件回归测试：在独立构建目录运行 `qmake <仓库>/PhudonTools/tests/STM32DebugControllerTest.pro` 后执行 `mingw32-make release` 和生成的测试程序。主窗口与图标测试在 `PhudonTools` 目录运行 `qmake -o Makefile.WorkflowTests WorkflowTests.pro`、`mingw32-make -f Makefile.WorkflowTests release`，再执行 `tests-bin/MainWindowWorkflowTest.exe`；无桌面环境可设置 `QT_QPA_PLATFORM=offscreen`。
 
 ---
 
