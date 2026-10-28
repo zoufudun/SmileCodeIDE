@@ -39,6 +39,17 @@ STM32DebugController::STM32DebugController(QObject *parent)
     connect(m_buildManager, &BuildManager::memoryUsageUpdated, this, &STM32DebugController::memoryUsageUpdated);
     connect(m_buildManager, &BuildManager::buildFinished, this, &STM32DebugController::onBuildFinished);
 
+    // Connect before preflight checks and only once per controller lifetime.
+    connect(m_flashProgrammer, &FlashProgrammer::flashOutput,
+            this, &STM32DebugController::flashOutput);
+    connect(m_flashProgrammer, &FlashProgrammer::flashFinished, this,
+            [this](bool success, const QString &message) {
+        if (m_state == STM32SessionState::Flashing) {
+            setState(STM32SessionState::Idle);
+        }
+        emit flashFinished(success, message);
+    });
+
     // GDB Server 信号
     connect(m_gdbServerManager, &GdbServerManager::serverOutput, this, [this](const QString &text, bool isError) {
         Q_UNUSED(isError);
@@ -64,7 +75,12 @@ STM32DebugController::STM32DebugController(QObject *parent)
 
 STM32DebugController::~STM32DebugController()
 {
-    stopDebug();
+    closeProject();
+    // Child engine destructors emit completion signals during QObject teardown.
+    disconnect(m_gdbEngine, nullptr, this, nullptr);
+    disconnect(m_gdbServerManager, nullptr, this, nullptr);
+    disconnect(m_buildManager, nullptr, this, nullptr);
+    disconnect(m_flashProgrammer, nullptr, this, nullptr);
     if (s_instance == this) {
         s_instance = nullptr;
     }
@@ -92,6 +108,7 @@ void STM32DebugController::applyToolchainAndChip()
 
 void STM32DebugController::setTargetChip(const QString &chipName)
 {
+    if (m_state != STM32SessionState::Idle) return;
     if (chipName.isEmpty() || chipName == m_currentProfile.chipName) return;
     STM32ChipProfile profile = STM32ProfileManager::instance().getProfile(chipName);
     if (!profile.chipName.isEmpty()) {
@@ -104,6 +121,7 @@ void STM32DebugController::setTargetChip(const QString &chipName)
 
 void STM32DebugController::setProbeName(const QString &probeName)
 {
+    if (m_state != STM32SessionState::Idle) return;
     if (m_probeName != probeName) {
         m_probeName = probeName;
         saveProjectConfig();
@@ -128,10 +146,11 @@ void STM32DebugController::setCustomOpenocdPath(const QString &path)
 void STM32DebugController::openProject(const QString &projectDir)
 {
     if (projectDir.isEmpty()) return;
-    m_projectDir = QFileInfo(projectDir).canonicalFilePath();
-    if (m_projectDir.isEmpty()) {
-        m_projectDir = QFileInfo(projectDir).absoluteFilePath();
-    }
+    QString resolved = QFileInfo(projectDir).canonicalFilePath();
+    if (resolved.isEmpty()) resolved = QFileInfo(projectDir).absoluteFilePath();
+    if (!QFileInfo(resolved).isDir() || resolved == m_projectDir) return;
+    closeProject();
+    m_projectDir = resolved;
 
     if (!loadProjectConfig(m_projectDir)) {
         QString detectedChip = autoDetectChipFromProject(m_projectDir);
@@ -142,15 +161,17 @@ void STM32DebugController::openProject(const QString &projectDir)
     }
 
     setState(STM32SessionState::Idle);
+    emit chipChanged(m_currentProfile.chipName);
+    emit probeChanged(m_probeName);
 }
 
 void STM32DebugController::closeProject()
 {
-    if (m_state != STM32SessionState::Idle) {
-        stopDebug();
-        m_buildManager->stopBuild();
-    }
+    cancelCurrentTask();
+    if (hasProject()) saveProjectConfig();
     m_projectDir.clear();
+    m_breakpoints.clear();
+    emit breakpointsChanged(m_breakpoints);
     setState(STM32SessionState::Idle);
 }
 
@@ -160,13 +181,18 @@ bool STM32DebugController::buildProject()
         return false;
     }
     setState(STM32SessionState::Building);
-    return m_buildManager->startBuild(m_projectDir, BuildConfiguration::Debug, 4);
+    const bool started = m_buildManager->startBuild(m_projectDir, BuildConfiguration::Debug, 4);
+    if (!started) setState(STM32SessionState::Idle);
+    return started;
 }
 
 bool STM32DebugController::cleanProject()
 {
-    if (m_projectDir.isEmpty()) return false;
-    return m_buildManager->startClean(m_projectDir);
+    if (m_projectDir.isEmpty() || m_state != STM32SessionState::Idle) return false;
+    setState(STM32SessionState::Building);
+    const bool started = m_buildManager->startClean(m_projectDir);
+    if (!started) setState(STM32SessionState::Idle);
+    return started;
 }
 
 bool STM32DebugController::rebuildProject()
@@ -175,13 +201,28 @@ bool STM32DebugController::rebuildProject()
         return false;
     }
     setState(STM32SessionState::Building);
-    return m_buildManager->startRebuild(m_projectDir, BuildConfiguration::Debug, 4);
+    const bool started = m_buildManager->startRebuild(m_projectDir, BuildConfiguration::Debug, 4);
+    if (!started) setState(STM32SessionState::Idle);
+    return started;
 }
 
 void STM32DebugController::stopBuild()
 {
     if (m_state == STM32SessionState::Building) {
         m_buildManager->stopBuild();
+        if (!m_buildManager->isBusy()) setState(STM32SessionState::Idle);
+    }
+}
+
+void STM32DebugController::cancelCurrentTask()
+{
+    if (m_state == STM32SessionState::Building) {
+        stopBuild();
+    } else if (m_state == STM32SessionState::Flashing) {
+        m_flashProgrammer->cancelFlash();
+        if (!m_flashProgrammer->isBusy()) setState(STM32SessionState::Idle);
+    } else {
+        stopDebug();
     }
 }
 
@@ -196,14 +237,16 @@ void STM32DebugController::onBuildFinished(bool success, int exitCode, int durat
 FlashOptions STM32DebugController::resolveFlashOptions() const
 {
     FlashOptions opt;
-    if (m_probeName.contains("JLINK", Qt::CaseInsensitive)) {
+    QString probe = m_probeName.toUpper();
+    probe.remove('-').remove(' ');
+    if (probe.contains("JLINK")) {
         opt.driver = FlashDriverType::JLink_Native;
     } else if (m_probeName.contains("DAP", Qt::CaseInsensitive)) {
         opt.driver = FlashDriverType::OpenOCD_CMSISDAP;
     } else {
         opt.driver = FlashDriverType::OpenOCD_STLink;
     }
-    opt.targetAddress = "0x08000000";
+    opt.targetAddress = m_currentProfile.flashOrigin;
     opt.verify = true;
     opt.resetAndRun = true;
     opt.eraseAll = false;
@@ -237,18 +280,6 @@ bool STM32DebugController::flashProject()
         return false;
     }
 
-    // FlashProgrammer 异步执行，完成时复位状态
-    connect(m_flashProgrammer, &FlashProgrammer::flashFinished, this, [this](bool success, const QString &msg) {
-        if (m_state == STM32SessionState::Flashing) {
-            setState(STM32SessionState::Idle);
-        }
-        emit flashFinished(success, msg);
-    }, Qt::UniqueConnection);
-
-    connect(m_flashProgrammer, &FlashProgrammer::flashOutput, this, [this](const QString &text, bool isErr) {
-        emit flashOutput(text, isErr);
-    }, Qt::UniqueConnection);
-
     return true;
 }
 
@@ -256,13 +287,6 @@ QString STM32DebugController::resolveElfPath() const
 {
     QString elf = m_buildManager->getElfPath(m_projectDir);
     if (QFile::exists(elf)) return elf;
-
-    // 备用：搜索 build 目录下的任意 .elf
-    QDir buildDir(m_projectDir + "/build");
-    QStringList elfs = buildDir.entryList(QStringList() << "*.elf", QDir::Files);
-    if (!elfs.isEmpty()) {
-        return buildDir.filePath(elfs.first());
-    }
     return QString();
 }
 
@@ -284,13 +308,17 @@ bool STM32DebugController::startDebug()
     setState(STM32SessionState::StartingDebug);
     emit gdbConsoleOutput(tr(">>> 启动硬件在线调试会话..."));
 
-    GdbServerType srvType = m_probeName.contains("JLINK", Qt::CaseInsensitive)
+    const FlashOptions flashOptions = resolveFlashOptions();
+    GdbServerType srvType = flashOptions.driver == FlashDriverType::JLink_Native
                                 ? GdbServerType::JLinkGdbServer
                                 : GdbServerType::OpenOCD;
     m_targetGdbPort = (srvType == GdbServerType::JLinkGdbServer) ? 2331 : 3333;
 
     // 启动 GDB Server
-    bool ok = m_gdbServerManager->startServer(srvType, QString(),
+    m_startingGdbClient = false;
+    const QString interfaceCfg = flashOptions.driver == FlashDriverType::OpenOCD_CMSISDAP
+        ? QStringLiteral("interface/cmsis-dap.cfg") : QStringLiteral("interface/stlink.cfg");
+    bool ok = m_gdbServerManager->startServer(srvType, interfaceCfg,
                                               m_currentProfile.openocdTargetCfg, m_targetGdbPort);
     if (!ok) {
         setState(STM32SessionState::Idle);
@@ -299,13 +327,19 @@ bool STM32DebugController::startDebug()
     }
 
     // 启动非阻塞探活定时器
-    m_probeAttempts = 0;
-    m_probeTimer->start();
+    if (m_state == STM32SessionState::StartingDebug && !m_startingGdbClient) {
+        m_probeAttempts = 0;
+        m_probeTimer->start();
+    }
     return true;
 }
 
 void STM32DebugController::onProbePollTimeout()
 {
+    if (m_state != STM32SessionState::StartingDebug || m_startingGdbClient) {
+        m_probeTimer->stop();
+        return;
+    }
     m_probeAttempts++;
     if (GdbServerManager::isPortInUse(m_targetGdbPort, 80)) {
         m_probeTimer->stop();
@@ -316,8 +350,7 @@ void STM32DebugController::onProbePollTimeout()
 
     if (m_probeAttempts >= 50) { // 5秒超时
         m_probeTimer->stop();
-        m_gdbServerManager->stopServer();
-        setState(STM32SessionState::Idle);
+        stopDebug();
         emit gdbConsoleOutput(tr("错误: GDB Server 启动超时（5000ms 未监听端口），调试中止！"));
     }
 }
@@ -332,6 +365,8 @@ void STM32DebugController::onServerReady(int port)
 
 void STM32DebugController::startGdbClient(int port)
 {
+    if (m_state != STM32SessionState::StartingDebug || m_startingGdbClient) return;
+    m_startingGdbClient = true;
     QString gdbPath = m_toolchainPaths.gdbPath;
     if (gdbPath.isEmpty()) gdbPath = "arm-none-eabi-gdb";
 
@@ -357,17 +392,25 @@ void STM32DebugController::startGdbClient(int port)
     }
 
     // 在 main 设置临时断点并运行
-    m_gdbEngine->insertBreakpoint("main", 0);
+    m_gdbEngine->sendRawCommand("-break-insert -t main");
     m_gdbEngine->continueExec();
 }
 
 void STM32DebugController::stopDebug()
 {
+    if (m_stoppingDebug) return;
+    const bool active = m_state == STM32SessionState::StartingDebug ||
+                        m_state == STM32SessionState::Stopped ||
+                        m_state == STM32SessionState::Running;
+    if (!active) return;
+    m_stoppingDebug = true;
     m_probeTimer->stop();
     m_gdbEngine->stopSession();
     m_gdbServerManager->stopServer();
+    m_startingGdbClient = false;
     setState(STM32SessionState::Idle);
     emit debugSessionEnded();
+    m_stoppingDebug = false;
 }
 
 void STM32DebugController::continueDebug()
@@ -538,7 +581,11 @@ bool STM32DebugController::loadProjectConfig(const QString &projectDir)
     QJsonObject obj = doc.object();
     QString chip = obj.value("targetChip").toString();
     if (!chip.isEmpty()) {
-        setTargetChip(chip);
+        const STM32ChipProfile profile = STM32ProfileManager::instance().getProfile(chip);
+        if (!profile.chipName.isEmpty()) {
+            m_currentProfile = profile;
+            applyToolchainAndChip();
+        }
     }
     QString probe = obj.value("probe").toString();
     if (!probe.isEmpty()) {

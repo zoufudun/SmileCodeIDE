@@ -3,8 +3,8 @@
 IDI_ICON1	ICON	"K:\\TOPFIRE\\SmileCodeIDEUpdate\\PhudonTools\\resources\\app.ico"
 
 VS_VERSION_INFO VERSIONINFO
-	FILEVERSION 0,0,0,0
-	PRODUCTVERSION 0,0,0,0
+	FILEVERSION 2,2,0,0
+	PRODUCTVERSION 2,2,0,0
 	FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
 	FILEFLAGS VS_FF_DEBUG
@@ -20,12 +20,12 @@ VS_VERSION_INFO VERSIONINFO
 			BLOCK "040904b0"
 			BEGIN
 				VALUE "CompanyName", "\0"
-				VALUE "FileDescription", "\0"
-				VALUE "FileVersion", "0.0.0.0\0"
+				VALUE "FileDescription", "SmileCodeIDE Embedded Development Studio\0"
+				VALUE "FileVersion", "2.2.0.0\0"
 				VALUE "LegalCopyright", "\0"
 				VALUE "OriginalFilename", "PhudonTools.exe\0"
-				VALUE "ProductName", "PhudonTools\0"
-				VALUE "ProductVersion", "0.0.0.0\0"
+				VALUE "ProductName", "SmileCodeIDE\0"
+				VALUE "ProductVersion", "2.2.0.0\0"
 				VALUE "InternalName", "\0"
 				VALUE "Comments", "\0"
 				VALUE "LegalTrademarks", "\0"

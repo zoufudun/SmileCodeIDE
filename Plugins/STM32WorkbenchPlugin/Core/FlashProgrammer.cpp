@@ -34,6 +34,7 @@ void FlashProgrammer::cancelFlash()
         m_process->terminate();
         if (!m_process->waitForFinished(1500)) {
             m_process->kill();
+            m_process->waitForFinished(3000);
         }
     }
 

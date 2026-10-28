@@ -4,6 +4,12 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 greaterThan(QT_MAJOR_VERSION, 5): QT += core5compat
 
 CONFIG += c++17
+# The bundled QScintilla target is a shared library; import its signal methods.
+DEFINES += QSCINTILLA_DLL
+VERSION = 2.2.0
+DEFINES += SMILECODE_VERSION=\\\"$${VERSION}\\\"
+QMAKE_TARGET_PRODUCT = SmileCodeIDE
+QMAKE_TARGET_DESCRIPTION = SmileCodeIDE Embedded Development Studio
 
 # QScintilla 头文件与库文件配置（同时支持 Qt5 与 Qt6，自适应工程内置源码构建产物）
 INCLUDEPATH += $$PWD/../QScintilla/src $$PWD/../QScintilla/src/Qsci
@@ -144,6 +150,7 @@ SOURCES += \
 
 # 头文件
 HEADERS += \
+    ideworkflowicons.h \
     ../qcustomplot/qcustomplot.h \
     TOOLS/CConversion.h \
     TOOLS/CIconFont.h \

@@ -21,11 +21,11 @@ static void registerCoreApps() {
     ideInfo.name = QStringLiteral("SmileCode IDE");
     ideInfo.subtitle = QStringLiteral("嵌入式 C/C++ 代码编辑器与 GDB 调试器");
     ideInfo.category = AppCategory::EmbeddedDev;
-    ideInfo.version = "v2.1.0";
+    ideInfo.version = "v" + QCoreApplication::applicationVersion();
     ideInfo.author = "SmileCode Team";
     ideInfo.iconUnicode = "0xe64a";
     ideInfo.colorHex = "#6c5ce7";
-    ideInfo.description = QStringLiteral("基于 QScintilla 的全功能嵌入式 C/C++ IDE，支持 GCC/Make 一键编译构建、GDB 图形化断点调试与多主题语法高亮。");
+    ideInfo.description = QStringLiteral("基于 QScintilla 的嵌入式 C/C++ IDE，集成 GCC/Make 编译重建、GDB 断点与单步调试、ST-Link / J-Link / CMSIS-DAP 固件烧写及任务取消。");
     ideInfo.tags = QStringList() << "C/C++" << "GCC/Make" << "GDB 调试" << "STM32";
     mgr->registerBuiltInApp(ideInfo, [](QWidget *parent) -> QWidget* {
         return new MainWindow(parent);
@@ -149,6 +149,7 @@ int main(int argc, char *argv[]) {
 
     // 设置应用程序信息
     app.setApplicationName("SmileCodeStudio");
+    app.setApplicationVersion(QStringLiteral(SMILECODE_VERSION));
     app.setOrganizationName("SmileCode");
 
     // 初始化全局图标字体

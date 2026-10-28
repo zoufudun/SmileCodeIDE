@@ -66,7 +66,8 @@ public:
 
     void setProjectPath(const QString &path) { openProject(path); }
     void setProbeType(ProbeType type) {
-        setProbeName(type == ProbeType::JLink ? "J-Link" : "ST-Link");
+        setProbeName(type == ProbeType::JLink ? "J-Link" :
+                     type == ProbeType::CmsisDap ? "CMSIS-DAP" : "ST-Link");
     }
     void setToolchainPaths(const ToolchainPaths &paths) {
         m_toolchainPaths = paths;
@@ -84,6 +85,7 @@ public:
     bool rebuildProject();
     bool flashProject();
     void stopBuild();
+    void cancelCurrentTask();
 
     // 硬件 GDB 调试控制
     bool startDebug();
@@ -177,6 +179,8 @@ private:
     QTimer *m_probeTimer = nullptr;
     int m_targetGdbPort = 3333;
     int m_probeAttempts = 0;
+    bool m_stoppingDebug = false;
+    bool m_startingGdbClient = false;
 
     // 断点记录 (规范化绝对路径 -> 1-based 行号集合)
     QMap<QString, QSet<int>> m_breakpoints;

@@ -72,6 +72,9 @@ private slots:
   void newProject();
   void saveProject();
   void buildProject();
+  void rebuildProject();
+  void cancelCurrentTask();
+  void pauseDebug();
   void cleanProject();
   void flashProject();
   void startDebug();
@@ -177,6 +180,9 @@ private:
   QAction *m_closeProjectAction;
 
   QAction *m_buildAction;
+  QAction *m_rebuildAction = nullptr;
+  QAction *m_cancelTaskAction = nullptr;
+  QAction *m_pauseDebugAction = nullptr;
   QAction *m_cleanAction;
   QAction *m_flashAction;
 
@@ -204,6 +210,8 @@ private:
   QTextEdit *m_debugConsole;
   QLineEdit *m_commandLine;
   QPushButton *m_buildButton;
+  QPushButton *m_rebuildButton = nullptr;
+  QPushButton *m_pauseButton = nullptr;
   QPushButton *m_cleanButton;
   QPushButton *m_flashButton;
   QPushButton *m_debugButton;
