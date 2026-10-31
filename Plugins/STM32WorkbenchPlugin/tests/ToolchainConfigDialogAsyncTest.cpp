@@ -95,6 +95,70 @@ private slots:
         QVERIFY(!report->toPlainText().contains(slow.gccPath));
     }
 
+    void compilerOptimizationSettingsRoundtripAndDynamicDescription() {
+        QTemporaryDir temporary;
+        QSettings settings(temporary.filePath("tools.ini"), QSettings::IniFormat);
+        ToolchainConfigDialog dialog(nullptr, &settings);
+
+        auto optGroup = dialog.findChild<QGroupBox *>("toolchainOptGroup");
+        QVERIFY(optGroup != nullptr);
+
+        auto optCombo = dialog.findChild<QComboBox *>("optLevelCombo");
+        auto descLabel = dialog.findChild<QLabel *>("toolchainOptDescription");
+        auto debugCombo = dialog.findChild<QComboBox *>("debugLevelCombo");
+        auto tolCheck = dialog.findChild<QCheckBox *>("tolerantFlagsCheck");
+        auto customEdit = dialog.findChild<QLineEdit *>("customFlagsEdit");
+
+        QVERIFY(optCombo != nullptr);
+        QVERIFY(descLabel != nullptr);
+        QVERIFY(debugCombo != nullptr);
+        QVERIFY(tolCheck != nullptr);
+        QVERIFY(customEdit != nullptr);
+
+        // 默认应当为 -O1
+        QCOMPARE(dialog.getBuildOptions().optLevel, QString("-O1"));
+        QVERIFY(descLabel->text().contains(QStringLiteral("默认推荐")));
+
+        // 切换为 -O0
+        int idxO0 = optCombo->findData("-O0");
+        QVERIFY(idxO0 >= 0);
+        optCombo->setCurrentIndex(idxO0);
+        QCOMPARE(dialog.getBuildOptions().optLevel, QString("-O0"));
+        QVERIFY(descLabel->text().contains(QStringLiteral("无优化警告")));
+
+        // 切换为 -O2
+        int idxO2 = optCombo->findData("-O2");
+        QVERIFY(idxO2 >= 0);
+        optCombo->setCurrentIndex(idxO2);
+        QCOMPARE(dialog.getBuildOptions().optLevel, QString("-O2"));
+        QVERIFY(descLabel->text().contains(QStringLiteral("性能优先")));
+
+        // 调试信息切换为 -g0
+        int idxG0 = debugCombo->findData("-g0");
+        QVERIFY(idxG0 >= 0);
+        debugCombo->setCurrentIndex(idxG0);
+
+        tolCheck->setChecked(true);
+        customEdit->setText("-fstack-usage");
+
+        // 保存
+        auto save = dialog.findChild<QPushButton *>("toolchainSave");
+        QTRY_VERIFY_WITH_TIMEOUT(save->isEnabled(), 2000);
+        QVERIFY(QMetaObject::invokeMethod(&dialog, "onSaveClicked"));
+
+        // 检查 settings 中的持久化数据
+        QCOMPARE(settings.value("STM32Toolchain/optLevel").toString(), QString("-O2"));
+        QCOMPARE(settings.value("STM32Toolchain/debugLevel").toString(), QString("-g0"));
+        QCOMPARE(settings.value("STM32Toolchain/enableToleranceFlags").toBool(), true);
+        QCOMPARE(settings.value("STM32Toolchain/customCFlags").toString(), QString("-fstack-usage"));
+
+        // 验证持久化后再恢复
+        ToolchainConfigDialog dialog2(nullptr, &settings);
+        QCOMPARE(dialog2.getBuildOptions().optLevel, QString("-O2"));
+        QCOMPARE(dialog2.getBuildOptions().debugLevel, QString("-g0"));
+        QCOMPARE(dialog2.getBuildOptions().customCFlags, QString("-fstack-usage"));
+    }
+
     void scanReturnsImmediatelyAndPreservesUnavailableManualTools() {
         ToolchainConfigDialog dialog;
         ToolchainPaths manual;

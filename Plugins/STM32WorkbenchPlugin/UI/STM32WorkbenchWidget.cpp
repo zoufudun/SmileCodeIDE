@@ -158,11 +158,12 @@ void STM32WorkbenchWidget::setupUI()
     m_selectChipBtn->setObjectName("btnSelectChip");
     connect(m_selectChipBtn, &QPushButton::clicked, this, &STM32WorkbenchWidget::onOpenChipSelectDialog);
 
-    QLabel *cfgLabel = new QLabel(QStringLiteral("⚙ 构建模式:"), toolBar);
+    QLabel *cfgLabel = new QLabel(QStringLiteral("⚙ 构建与优化:"), toolBar);
     m_configCombo = new QComboBox(toolBar);
-    m_configCombo->addItem(QStringLiteral("Debug (带调试符号 -g3 -O0)"), static_cast<int>(BuildConfiguration::Debug));
-    m_configCombo->addItem(QStringLiteral("Release (高性能优化 -O2)"), static_cast<int>(BuildConfiguration::Release));
-    m_configCombo->addItem(QStringLiteral("SizeOpt (极限代码体积 -Os)"), static_cast<int>(BuildConfiguration::SizeOpt));
+    m_configCombo->setObjectName("configCombo");
+    m_configCombo->addItem(QStringLiteral("Debug (-O1 推荐/软延时准确/对齐Keil)"), static_cast<int>(BuildConfiguration::Debug));
+    m_configCombo->addItem(QStringLiteral("Release (-O2 性能优先)"), static_cast<int>(BuildConfiguration::Release));
+    m_configCombo->addItem(QStringLiteral("SizeOpt (-Os 体积最小化)"), static_cast<int>(BuildConfiguration::SizeOpt));
 
     row1->addWidget(projLabel);
     row1->addWidget(m_projectPathEdit, 2);
@@ -517,7 +518,22 @@ void STM32WorkbenchWidget::onBuildClicked()
     m_taskStatusLabel->setText(QStringLiteral("正在构建..."));
     m_taskProgressBar->setValue(30);
 
-    m_buildManager->startBuild(m_projectPath, cfg);
+    CompilerBuildOptions opts;
+    if (m_settings) {
+        m_settings->beginGroup("STM32Toolchain");
+        opts.optLevel = m_settings->value("optLevel", "-O1").toString();
+        opts.debugLevel = m_settings->value("debugLevel", "-g3 -gdwarf-2").toString();
+        opts.enableToleranceFlags = m_settings->value("enableToleranceFlags", true).toBool();
+        opts.customCFlags = m_settings->value("customCFlags", "").toString();
+        m_settings->endGroup();
+    }
+    if (cfg == BuildConfiguration::Release && opts.optLevel != "-O2" && opts.optLevel != "-O3") {
+        opts.optLevel = "-O2";
+    } else if (cfg == BuildConfiguration::SizeOpt && opts.optLevel != "-Os") {
+        opts.optLevel = "-Os";
+    }
+
+    m_buildManager->startBuild(m_projectPath, cfg, 0, opts);
 }
 
 void STM32WorkbenchWidget::onCleanClicked()
@@ -542,7 +558,23 @@ void STM32WorkbenchWidget::onRebuildClicked()
     m_pendingLogOut.clear();
     m_pendingLogErr.clear();
     BuildConfiguration cfg = static_cast<BuildConfiguration>(m_configCombo->currentData().toInt());
-    m_buildManager->startRebuild(m_projectPath, cfg);
+
+    CompilerBuildOptions opts;
+    if (m_settings) {
+        m_settings->beginGroup("STM32Toolchain");
+        opts.optLevel = m_settings->value("optLevel", "-O1").toString();
+        opts.debugLevel = m_settings->value("debugLevel", "-g3 -gdwarf-2").toString();
+        opts.enableToleranceFlags = m_settings->value("enableToleranceFlags", true).toBool();
+        opts.customCFlags = m_settings->value("customCFlags", "").toString();
+        m_settings->endGroup();
+    }
+    if (cfg == BuildConfiguration::Release && opts.optLevel != "-O2" && opts.optLevel != "-O3") {
+        opts.optLevel = "-O2";
+    } else if (cfg == BuildConfiguration::SizeOpt && opts.optLevel != "-Os") {
+        opts.optLevel = "-Os";
+    }
+
+    m_buildManager->startRebuild(m_projectPath, cfg, 0, opts);
 }
 
 void STM32WorkbenchWidget::onFlashClicked()
@@ -960,17 +992,42 @@ void STM32WorkbenchWidget::onOpenToolchainSettings()
 {
     ToolchainConfigDialog dlg(this, m_settings, m_currentTheme);
     dlg.applyTheme(m_currentTheme);
+    dlg.setPaths(m_paths);
+    dlg.setChipSelectionVisible(false);
+
+    if (m_settings) {
+        m_settings->beginGroup("STM32Toolchain");
+        CompilerBuildOptions opts;
+        opts.optLevel = m_settings->value("optLevel", "-O1").toString();
+        opts.debugLevel = m_settings->value("debugLevel", "-g3 -gdwarf-2").toString();
+        opts.enableToleranceFlags = m_settings->value("enableToleranceFlags", true).toBool();
+        opts.customCFlags = m_settings->value("customCFlags", "").toString();
+        dlg.setBuildOptions(opts);
+        m_settings->endGroup();
+    }
+
     if (dlg.exec() == QDialog::Accepted) {
         m_paths = dlg.getPaths();
         m_buildManager->setToolchainPaths(m_paths);
         m_flashProgrammer->setToolchainPaths(m_paths);
         m_serverManager->setToolchainPaths(m_paths);
 
+        CompilerBuildOptions newOpts = dlg.getBuildOptions();
+        m_buildManager->setBuildOptions(newOpts);
+
+        if (newOpts.optLevel == "-O1") {
+            m_configCombo->setCurrentIndex(0);
+        } else if (newOpts.optLevel == "-O2") {
+            m_configCombo->setCurrentIndex(1);
+        } else if (newOpts.optLevel == "-Os") {
+            m_configCombo->setCurrentIndex(2);
+        }
+
         QString chip = dlg.getSelectedChip();
         int idx = m_chipCombo->findText(chip);
         if (idx >= 0) m_chipCombo->setCurrentIndex(idx);
 
-        m_buildTerminal->append(QStringLiteral("✅ 工具链与硬件配置已成功更新\n"));
+        m_buildTerminal->append(QStringLiteral("✅ 工具链与编译器优化配置已成功更新\n"));
     }
 }
 

@@ -59,7 +59,7 @@ ToolchainConfigDialog::ToolchainConfigDialog(QWidget *parent, QSettings *setting
     : QDialog(parent), m_settings(settings), m_detector(new ToolchainDetector(this))
 {
     setWindowTitle(QStringLiteral("嵌入式工具链与硬件调试器配置 (Toolchain Settings)"));
-    resize(760, 680);
+    resize(800, 760);
     setupUI();
     QString resolvedTheme = themeId;
     if (resolvedTheme.isEmpty() && m_settings) {
@@ -85,6 +85,13 @@ ToolchainConfigDialog::ToolchainConfigDialog(QWidget *parent, QSettings *setting
         if (idx >= 0) m_chipCombo->setCurrentIndex(idx);
         else if (!STM32ProfileManager::instance().getProfile(savedChip).chipName.isEmpty())
             m_chipCombo->setCurrentText(savedChip);
+
+        CompilerBuildOptions opts;
+        opts.optLevel = m_settings->value("optLevel", "-O1").toString();
+        opts.debugLevel = m_settings->value("debugLevel", "-g3 -gdwarf-2").toString();
+        opts.enableToleranceFlags = m_settings->value("enableToleranceFlags", true).toBool();
+        opts.customCFlags = m_settings->value("customCFlags", "").toString();
+        setBuildOptions(opts);
         m_settings->endGroup();
     }
 }
@@ -187,8 +194,62 @@ void ToolchainConfigDialog::setupUI()
 
     mainLayout->addWidget(hardwareGroup);
 
-    // 4. 环境自检报告与诊断输出
-    QGroupBox *reportGroup = new QGroupBox(QStringLiteral("4. 环境健康度自检报告"), this);
+    // 4. 编译器优化等级与构建选项
+    QGroupBox *optGroup = new QGroupBox(QStringLiteral("4. 编译器优化等级与构建选项 (Optimization & Build Options)"), this);
+    m_optGroup = optGroup;
+    optGroup->setObjectName("toolchainOptGroup");
+    QGridLayout *optLayout = new QGridLayout(optGroup);
+    optLayout->setColumnStretch(1, 1);
+
+    m_optLevelCombo = new QComboBox(optGroup);
+    m_optLevelCombo->setObjectName("optLevelCombo");
+    m_optLevelCombo->addItem(QStringLiteral("-O1 (默认推荐: 延时精准、对齐 Keil、硬件外设驱动最佳兼容)"), QStringLiteral("-O1"));
+    m_optLevelCombo->addItem(QStringLiteral("-O0 (无优化: 关闭优化生成直白代码，注意裸机软件延时严重放大)"), QStringLiteral("-O0"));
+    m_optLevelCombo->addItem(QStringLiteral("-O2 (性能优先: 指令重排优化，算法速度优先，适合正式发布)"), QStringLiteral("-O2"));
+    m_optLevelCombo->addItem(QStringLiteral("-O3 (极限性能: 激进内联与循环展开，适合算力密集型任务)"), QStringLiteral("-O3"));
+    m_optLevelCombo->addItem(QStringLiteral("-Os (体积优先: 极限精简代码尺寸，适合低容量 Flash 芯片)"), QStringLiteral("-Os"));
+    m_optLevelCombo->addItem(QStringLiteral("-Og (调试体验: GCC 官方标准调试优化，兼顾调试与基本时序)"), QStringLiteral("-Og"));
+
+    m_optDescriptionLabel = new QLabel(optGroup);
+    m_optDescriptionLabel->setObjectName("toolchainOptDescription");
+    m_optDescriptionLabel->setWordWrap(true);
+
+    m_debugLevelCombo = new QComboBox(optGroup);
+    m_debugLevelCombo->setObjectName("debugLevelCombo");
+    m_debugLevelCombo->addItem(QStringLiteral("-g3 -gdwarf-2 (全量 DWARF2 符号，支持宏展开与行级精确定位，推荐)"), QStringLiteral("-g3 -gdwarf-2"));
+    m_debugLevelCombo->addItem(QStringLiteral("-g (标准 DWARF 调试符号)"), QStringLiteral("-g"));
+    m_debugLevelCombo->addItem(QStringLiteral("-g0 (无调试符号，生成固件最小)"), QStringLiteral("-g0"));
+
+    m_tolerantFlagsCheck = new QCheckBox(QStringLiteral("启用 Keil 旧工程兼容模式 (-Wno-error=implicit-function-declaration)"), optGroup);
+    m_tolerantFlagsCheck->setObjectName("tolerantFlagsCheck");
+    m_tolerantFlagsCheck->setChecked(true);
+    m_tolerantFlagsCheck->setToolTip(QStringLiteral("避免因旧工程中的函数隐式声明或类型微小差异导致 GCC 14 报错终止，建议保持开启"));
+
+    m_customFlagsEdit = new QLineEdit(optGroup);
+    m_customFlagsEdit->setObjectName("customFlagsEdit");
+    m_customFlagsEdit->setPlaceholderText(QStringLiteral("可选自定义额外编译参数，如 -fstack-usage 或 -DDEBUG_PRINT"));
+
+    optLayout->addWidget(new QLabel(QStringLiteral("优化等级 (-O):"), optGroup), 0, 0);
+    optLayout->addWidget(m_optLevelCombo, 0, 1, 1, 2);
+
+    optLayout->addWidget(new QLabel(QStringLiteral("等级说明:"), optGroup), 1, 0, Qt::AlignTop);
+    optLayout->addWidget(m_optDescriptionLabel, 1, 1, 1, 2);
+
+    optLayout->addWidget(new QLabel(QStringLiteral("调试信息 (-g):"), optGroup), 2, 0);
+    optLayout->addWidget(m_debugLevelCombo, 2, 1);
+    optLayout->addWidget(m_tolerantFlagsCheck, 2, 2);
+
+    optLayout->addWidget(new QLabel(QStringLiteral("额外 CFLAGS:"), optGroup), 3, 0);
+    optLayout->addWidget(m_customFlagsEdit, 3, 1, 1, 2);
+
+    connect(m_optLevelCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &ToolchainConfigDialog::onOptLevelChanged);
+    updateOptDescription();
+
+    mainLayout->addWidget(optGroup);
+
+    // 5. 环境自检报告与诊断输出
+    QGroupBox *reportGroup = new QGroupBox(QStringLiteral("5. 环境健康度自检报告"), this);
     QVBoxLayout *reportLayout = new QVBoxLayout(reportGroup);
     m_diagnosticReportEdit = new QTextEdit(reportGroup);
     m_diagnosticReportEdit->setObjectName("toolchainDiagnosticReport");
@@ -359,6 +420,18 @@ void ToolchainConfigDialog::applyTheme(const QString &themeId)
         "}").arg(p.windowBg, p.textMain, p.border, p.accent, p.cardBg,
                  p.textSub, p.inputBg, p.inputBorder, p.selectionBg, p.selectionText,
                  p.panelBgGrad, p.accentGrad, p.accentText, IdeTheme::ensureArrowIcon(p.textSub), IdeTheme::ensureArrowIcon(p.accent)));
+
+    if (m_optDescriptionLabel) {
+        m_optDescriptionLabel->setStyleSheet(QString(
+            "QLabel#toolchainOptDescription {"
+            "  background-color: %1;"
+            "  border: 1px solid %2;"
+            "  border-radius: 4px;"
+            "  padding: 6px 10px;"
+            "  color: %3;"
+            "  font-size: 11px;"
+            "}").arg(p.cardBg, p.border, p.textMain));
+    }
 }
 
 void ToolchainConfigDialog::updateFormFromPaths(const ToolchainPaths &paths)
@@ -570,6 +643,11 @@ void ToolchainConfigDialog::onSaveClicked()
     if (m_settings) {
         m_settings->beginGroup("STM32Toolchain");
         if (m_chipSelectionVisible) m_settings->setValue("selectedChip", getSelectedChip());
+        CompilerBuildOptions opts = getBuildOptions();
+        m_settings->setValue("optLevel", opts.optLevel);
+        m_settings->setValue("debugLevel", opts.debugLevel);
+        m_settings->setValue("enableToleranceFlags", opts.enableToleranceFlags);
+        m_settings->setValue("customCFlags", opts.customCFlags);
         m_settings->endGroup();
         m_settings->sync();
     }
@@ -592,4 +670,68 @@ void ToolchainConfigDialog::onOpenChipSelectDialog()
             }
         }
     }
+}
+
+void ToolchainConfigDialog::onOptLevelChanged(int)
+{
+    updateOptDescription();
+}
+
+void ToolchainConfigDialog::updateOptDescription()
+{
+    if (!m_optDescriptionLabel || !m_optLevelCombo) return;
+    const QString opt = m_optLevelCombo->currentData().toString();
+    if (opt == "-O1") {
+        m_optDescriptionLabel->setText(QStringLiteral("💡 【默认推荐】对齐 Keil MDK 默认的 1 级优化。精确保障软件模拟延时（模拟 I2C、触摸屏、单总线、屏幕驱动），杜绝外设握手超时死锁黑屏，同时兼顾源码单步断点调试体验。"));
+    } else if (opt == "-O0") {
+        m_optDescriptionLabel->setText(QStringLiteral("⚠️ 【无优化警告】禁用所有函数内联与寄存器变量分配。在 400MHz Cortex-M7/M4 裸机程序下，空循环软件延时会被放大 10 倍以上，易导致触摸屏/外设握手超时死锁（板卡假死黑屏）。"));
+    } else if (opt == "-O2") {
+        m_optDescriptionLabel->setText(QStringLiteral("🚀 【性能优先】执行深度指令重排、循环展开与函数内联，显著提升算力密集型任务的执行效率，适合成熟产品的正式 Release 发布。部分变量在调试时可能被优化消除。"));
+    } else if (opt == "-O3") {
+        m_optDescriptionLabel->setText(QStringLiteral("⚡ 【极限性能】启用最高强度的激进优化（包含高级向量化）。编译时间相对较长，二进制体积有所增加，适合图像处理、DSP 算法或实时性极高的场景。"));
+    } else if (opt == "-Os") {
+        m_optDescriptionLabel->setText(QStringLiteral("📦 【体积优先】在保证功能正常的前提下极限压缩编译后的机器码尺寸，生成最小的 .bin/.hex 固件，特别适合 Flash 存储空间紧张的中小容量 MCU。"));
+    } else if (opt == "-Og") {
+        m_optDescriptionLabel->setText(QStringLiteral("🐞 【标准调试】GCC 官方专为单步调试设计的优化等级。在消除严重延时失真的同时，尽可能保证调用栈、局部变量与 C 源码行号的精准一致性。"));
+    } else {
+        m_optDescriptionLabel->setText(QStringLiteral("使用用户自定义的编译器优化级别配置。"));
+    }
+}
+
+CompilerBuildOptions ToolchainConfigDialog::getBuildOptions() const
+{
+    CompilerBuildOptions opts;
+    if (m_optLevelCombo) {
+        opts.optLevel = m_optLevelCombo->currentData().toString();
+    }
+    if (m_debugLevelCombo) {
+        opts.debugLevel = m_debugLevelCombo->currentData().toString();
+    }
+    if (m_tolerantFlagsCheck) {
+        opts.enableToleranceFlags = m_tolerantFlagsCheck->isChecked();
+    }
+    if (m_customFlagsEdit) {
+        opts.customCFlags = m_customFlagsEdit->text().trimmed();
+    }
+    return opts;
+}
+
+void ToolchainConfigDialog::setBuildOptions(const CompilerBuildOptions &options)
+{
+    m_buildOptions = options;
+    if (m_optLevelCombo) {
+        int idx = m_optLevelCombo->findData(options.optLevel);
+        if (idx >= 0) m_optLevelCombo->setCurrentIndex(idx);
+    }
+    if (m_debugLevelCombo) {
+        int idx = m_debugLevelCombo->findData(options.debugLevel);
+        if (idx >= 0) m_debugLevelCombo->setCurrentIndex(idx);
+    }
+    if (m_tolerantFlagsCheck) {
+        m_tolerantFlagsCheck->setChecked(options.enableToleranceFlags);
+    }
+    if (m_customFlagsEdit) {
+        m_customFlagsEdit->setText(options.customCFlags);
+    }
+    updateOptDescription();
 }

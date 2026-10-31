@@ -41,18 +41,28 @@ QString BuildManager::getHexPath(const QString &projectDir) const
 
 bool BuildManager::startBuild(const QString &projectDir,
                              BuildConfiguration config,
-                             int parallelJobs)
+                             int parallelJobs,
+                             const CompilerBuildOptions &buildOptions)
 {
     if (isBusy()) {
         emit buildOutput(QStringLiteral("错误: 已有构建任务正在运行中!\n"), true);
         return false;
     }
 
+    CompilerBuildOptions effectiveOpts = buildOptions;
+    if (effectiveOpts.optLevel.trimmed().isEmpty()) {
+        if (!m_buildOptions.optLevel.trimmed().isEmpty()) {
+            effectiveOpts = m_buildOptions;
+        } else {
+            effectiveOpts = MakefileGenerator::defaultOptionsForConfig(config);
+        }
+    }
+
     beginSession(projectDir, QStringLiteral("编译构建"));
 
     // 1. 生成最新 Makefile
     QString genErr;
-    if (!MakefileGenerator::generate(projectDir, m_profile, m_paths, config, QString(), QStringList(), QStringList(), &genErr)) {
+    if (!MakefileGenerator::generate(projectDir, m_profile, m_paths, config, QString(), QStringList(), QStringList(), &genErr, effectiveOpts)) {
         consumeOutput("错误: Makefile 生成失败: " + genErr + "\n", true);
         finishSession(false, -1, 0);
         if (genErr.contains(QStringLiteral("旧版自动生成的链接脚本")))
@@ -61,9 +71,10 @@ bool BuildManager::startBuild(const QString &projectDir,
         return false;
     }
 
-    consumeOutput(QString("====== 开始构建工程 [%1] (%2) ======\n")
+    consumeOutput(QString("====== 开始构建工程 [%1] (%2 / 优化: %3) ======\n")
                      .arg(m_profile.chipName)
-                     .arg(config == BuildConfiguration::Debug ? "Debug" : "Release"), false);
+                     .arg(config == BuildConfiguration::Debug ? "Debug" : "Release")
+                     .arg(effectiveOpts.toOptimizationFlag()), false);
 
     // 2. 准备 make 命令与参数
     QString makeExec = m_paths.makePath;
@@ -133,7 +144,7 @@ bool BuildManager::startClean(const QString &projectDir)
                                  : QStringLiteral("无法清理当前核心构建目录\n"), !cleaned);
         if (cleaned && m_isRebuilding) {
             m_isRebuilding = false;
-            return startBuild(projectDir, m_pendingConfig, m_pendingJobs);
+            return startBuild(projectDir, m_pendingConfig, m_pendingJobs, m_pendingBuildOptions);
         }
         finishSession(cleaned, cleaned ? 0 : -1, 0);
         return cleaned;
@@ -154,7 +165,7 @@ bool BuildManager::startClean(const QString &projectDir)
                               : QStringLiteral("错误: 无法清理当前构建目录\n"), !cleaned);
         if (cleaned && m_isRebuilding) {
             m_isRebuilding = false;
-            return startBuild(projectDir, m_pendingConfig, m_pendingJobs);
+            return startBuild(projectDir, m_pendingConfig, m_pendingJobs, m_pendingBuildOptions);
         }
         finishSession(cleaned, cleaned ? 0 : -1, 0);
         return cleaned;
@@ -165,13 +176,15 @@ bool BuildManager::startClean(const QString &projectDir)
 
 bool BuildManager::startRebuild(const QString &projectDir,
                                BuildConfiguration config,
-                               int parallelJobs)
+                               int parallelJobs,
+                               const CompilerBuildOptions &buildOptions)
 {
     if (isBusy()) return false;
 
     m_isRebuilding = true;
     m_pendingConfig = config;
     m_pendingJobs = parallelJobs;
+    m_pendingBuildOptions = buildOptions;
 
     return startClean(projectDir);
 }
@@ -283,7 +296,7 @@ void BuildManager::onProcessFinished(int exitCode, QProcess::ExitStatus exitStat
         m_isRebuilding = false;
         if (success) {
             // 清理成功后，紧接着触发编译构建
-            startBuild(m_currentProjectDir, m_pendingConfig, m_pendingJobs);
+            startBuild(m_currentProjectDir, m_pendingConfig, m_pendingJobs, m_pendingBuildOptions);
             return;
         }
     }

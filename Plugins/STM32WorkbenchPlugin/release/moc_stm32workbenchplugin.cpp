@@ -125,7 +125,7 @@ static constexpr unsigned char qt_pluginMetaDataV2_STM32WorkbenchPlugin[] = {
     uchar('\xb0'), uchar('\x83'), uchar('\xe8'), uchar('\xaf'), uchar('\x95'), uchar('\xe5'), uchar('\xb7'), uchar('\xa5'),
     uchar('\xe4'), uchar('\xbd'), uchar('\x9c'), uchar('\xe5'), uchar('\x8f'), uchar('\xb0'), 0x67,  'v', 
     'e',  'r',  's',  'i',  'o',  'n',  0x65,  '1', 
-    '.',  '0',  '.',  '0', 
+    '.',  '1',  '.',  '0', 
     0xff, 
 };
 QT_MOC_EXPORT_PLUGIN_V2(STM32WorkbenchPlugin, STM32WorkbenchPlugin, qt_pluginMetaDataV2_STM32WorkbenchPlugin)
@@ -164,7 +164,7 @@ Q_CONSTINIT static constexpr unsigned char qt_pluginMetaData_STM32WorkbenchPlugi
     uchar('\xb0'), uchar('\x83'), uchar('\xe8'), uchar('\xaf'), uchar('\x95'), uchar('\xe5'), uchar('\xb7'), uchar('\xa5'),
     uchar('\xe4'), uchar('\xbd'), uchar('\x9c'), uchar('\xe5'), uchar('\x8f'), uchar('\xb0'), 0x67,  'v', 
     'e',  'r',  's',  'i',  'o',  'n',  0x65,  '1', 
-    '.',  '0',  '.',  '0', 
+    '.',  '1',  '.',  '0', 
     0xff, 
 };
 QT_MOC_EXPORT_PLUGIN(STM32WorkbenchPlugin, STM32WorkbenchPlugin)

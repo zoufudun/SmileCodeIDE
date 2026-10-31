@@ -13,3 +13,7 @@ PhudonTools/MainWindowWorkflowTest_resource.rc
 
 *.o
 scratch/
+Plugins/STM32WorkbenchPlugin/tests/moc/
+Plugins/STM32WorkbenchPlugin/tests/debug/
+Plugins/STM32WorkbenchPlugin/tests/release/*.exe
+

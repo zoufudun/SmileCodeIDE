@@ -127,3 +127,4 @@ Breakpoint 6, Palette_Init () at User/touch/palette.c:70
 
 ## 六、 总结与长效机制
 单片机裸机驱动中普遍存在使用 `for` 循环实现的毫秒/微秒级软件模拟延时（如模拟 I2C、1-Wire、屏驱复位等）。此类代码高度依赖编译器优化级别与指令流水线。SmileCodeIDE 将默认编译参数永久升级为 `-O1 -g3 -gdwarf-2` 后，彻底解决了 GCC 裸机嵌入式开发中延时严重失真导致的假死黑屏隐患，达成了与 Keil MDK 工业级环境一致的执行效果。
+

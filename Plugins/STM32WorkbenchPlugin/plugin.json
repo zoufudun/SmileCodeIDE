@@ -1,7 +1,7 @@
 {
     "id": "stm32_workbench",
     "name": "STM32 嵌入式编译构建与硬件调试工作台",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "author": "SmileCode Team",
     "category": "嵌入式开发"
 }

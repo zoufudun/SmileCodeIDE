@@ -286,6 +286,28 @@ void MakefileGenerator::scanProjectSources(const QString &projectDir,
     outIncludes.sort();
 }
 
+CompilerBuildOptions MakefileGenerator::defaultOptionsForConfig(BuildConfiguration config)
+{
+    CompilerBuildOptions opt;
+    switch (config) {
+        case BuildConfiguration::Release:
+            opt.optLevel = QStringLiteral("-O2");
+            opt.debugLevel = QStringLiteral("-g0");
+            break;
+        case BuildConfiguration::SizeOpt:
+            opt.optLevel = QStringLiteral("-Os");
+            opt.debugLevel = QStringLiteral("-g0");
+            break;
+        case BuildConfiguration::Debug:
+        default:
+            opt.optLevel = QStringLiteral("-O1");
+            opt.debugLevel = QStringLiteral("-g3 -gdwarf-2");
+            break;
+    }
+    opt.enableToleranceFlags = true;
+    return opt;
+}
+
 bool MakefileGenerator::generate(const QString &projectDir,
                                 const STM32ChipProfile &profile,
                                 const ToolchainPaths &paths,
@@ -293,7 +315,8 @@ bool MakefileGenerator::generate(const QString &projectDir,
                                 const QString &customLdFile,
                                 const QStringList &extraDefines,
                                 const QStringList &extraIncludes,
-                                QString *outError)
+                                QString *outError,
+                                const CompilerBuildOptions &buildOptions)
 {
     QDir dir(projectDir);
     if (!dir.exists()) {
@@ -453,7 +476,8 @@ bool MakefileGenerator::generate(const QString &projectDir,
 
     // 4. 生成 Makefile 内容
     QString content = generateMakefileContent(projectDir, profile, paths, config, ldFileName,
-                                            cSources, cppSources, asmSources, includes, defines);
+                                            cSources, cppSources, asmSources, includes, defines,
+                                            buildOptions);
 
     // 5. 写入 Makefile 文件
     QFile makefile(dir.absoluteFilePath("Makefile"));
@@ -478,7 +502,8 @@ QString MakefileGenerator::generateMakefileContent(const QString &projectDir,
                                                   const QStringList &cppSources,
                                                   const QStringList &asmSources,
                                                   const QStringList &includes,
-                                                  const QStringList &defines)
+                                                  const QStringList &defines,
+                                                  const CompilerBuildOptions &buildOptions)
 {
     Q_UNUSED(projectDir);
     QString out;
@@ -553,17 +578,29 @@ QString MakefileGenerator::generateMakefileContent(const QString &projectDir,
 
     // 编译优化与选项
     stream << "# Compiler Flags\n";
-    QString optFlag;
-    switch (config) {
-        case BuildConfiguration::Release: optFlag = "-O2 -g0"; break;
-        case BuildConfiguration::SizeOpt: optFlag = "-Os -g0"; break;
-        case BuildConfiguration::Debug:
-        default:                          optFlag = "-O1 -g3 -gdwarf-2"; break;
+    CompilerBuildOptions finalOpts = buildOptions;
+    if (finalOpts.optLevel.trimmed().isEmpty()) {
+        finalOpts = defaultOptionsForConfig(config);
+    }
+    const QString optFlag = finalOpts.toOptimizationFlag();
+    const QString debugFlag = finalOpts.toDebugFlag();
+    QStringList cflagsList;
+    cflagsList << "$(MCU)" << "$(C_DEFS)" << "$(C_INCLUDES)" << optFlag;
+    if (!debugFlag.isEmpty()) cflagsList << debugFlag;
+    cflagsList << "-Wall" << "-fdata-sections" << "-ffunction-sections";
+    if (finalOpts.enableToleranceFlags) {
+        cflagsList << "-Wno-error=implicit-function-declaration" << "-Wno-error=incompatible-pointer-types";
+    }
+    if (!finalOpts.customCFlags.trimmed().isEmpty()) {
+        cflagsList << finalOpts.customCFlags.trimmed();
     }
 
-    stream << "CFLAGS = $(MCU) $(C_DEFS) $(C_INCLUDES) " << optFlag << " -Wall -fdata-sections -ffunction-sections -Wno-error=implicit-function-declaration -Wno-error=incompatible-pointer-types\n";
+    QString asOpt = optFlag;
+    if (!debugFlag.isEmpty()) asOpt += " " + debugFlag;
+
+    stream << "CFLAGS = " << cflagsList.join(" ") << "\n";
     stream << "CXXFLAGS = $(CFLAGS) -fno-exceptions -fno-rtti\n";
-    stream << "ASFLAGS = $(MCU) $(C_DEFS) $(C_INCLUDES) " << optFlag << " -Wall -fdata-sections -ffunction-sections\n\n";
+    stream << "ASFLAGS = $(MCU) $(C_DEFS) $(C_INCLUDES) " << asOpt << " -Wall -fdata-sections -ffunction-sections\n\n";
 
     // 自动依赖生成标志 (修改头文件只重编相关C文件)
     stream << "# Generate dependency files for incremental builds\n";

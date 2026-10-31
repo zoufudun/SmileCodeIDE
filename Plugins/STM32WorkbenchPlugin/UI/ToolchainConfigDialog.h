@@ -8,11 +8,14 @@
 #include <QTextEdit>
 #include <QSettings>
 #include <QGroupBox>
+#include <QLabel>
+#include <QCheckBox>
 #include "../Core/ToolchainDetector.h"
 #include "../Core/STM32Profile.h"
+#include "../Core/MakefileGenerator.h"
 
 /**
- * @brief 现代化工具链与烧录器自检配置对话框
+ * @brief 现代化工具链与烧录器自检配置对话框（支持编译器优化等级与高级构建选项可视化设置）
  */
 class ToolchainConfigDialog : public QDialog
 {
@@ -29,6 +32,9 @@ public:
     void setPaths(const ToolchainPaths &paths);
     void setChipSelectionVisible(bool visible);
 
+    CompilerBuildOptions getBuildOptions() const;
+    void setBuildOptions(const CompilerBuildOptions &options);
+
 protected:
     void done(int result) override;
 
@@ -43,12 +49,14 @@ private slots:
     void onBrowseStm32Prog();
     void onSaveClicked();
     void onOpenChipSelectDialog();
+    void onOptLevelChanged(int index);
 
 private:
     void setupUI();
     void updateFormFromPaths(const ToolchainPaths &paths);
     void startBackgroundCheck(bool scan);
     void setChecking(bool checking);
+    void updateOptDescription();
 
     QSettings *m_settings;
     ToolchainDetector *m_detector;
@@ -59,6 +67,7 @@ private:
     QGroupBox *m_chipGroup;
     QGroupBox *m_toolchainGroup;
     QGroupBox *m_hardwareGroup;
+    QGroupBox *m_optGroup;
 
     QLineEdit *m_gccEdit;
     QLineEdit *m_gdbEdit;
@@ -67,6 +76,14 @@ private:
     QLineEdit *m_openocdScriptsEdit;
     QLineEdit *m_jlinkEdit;
     QLineEdit *m_stm32ProgEdit;
+
+    // 编译器优化等级与构建选项控件
+    QComboBox *m_optLevelCombo;
+    QLabel *m_optDescriptionLabel;
+    QComboBox *m_debugLevelCombo;
+    QCheckBox *m_tolerantFlagsCheck;
+    QLineEdit *m_customFlagsEdit;
+    CompilerBuildOptions m_buildOptions;
 
     QComboBox *m_chipCombo;
     QPushButton *m_selectChipBtn;

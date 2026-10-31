@@ -29,6 +29,9 @@ public:
     void setChipProfile(const STM32ChipProfile &profile) { m_profile = profile; }
     STM32ChipProfile chipProfile() const { return m_profile; }
 
+    void setBuildOptions(const CompilerBuildOptions &options) { m_buildOptions = options; }
+    CompilerBuildOptions buildOptions() const { return m_buildOptions; }
+
     bool isBusy() const;
     const BuildLogModel &logModel() const { return m_log; }
     QString currentAction() const { return m_currentAction; }
@@ -36,7 +39,8 @@ public:
     // 一键构建 (自动生成最新 Makefile 并启动多核 make)
     bool startBuild(const QString &projectDir,
                     BuildConfiguration config = BuildConfiguration::Debug,
-                    int parallelJobs = 0);
+                    int parallelJobs = 0,
+                    const CompilerBuildOptions &buildOptions = CompilerBuildOptions());
 
     // 一键清理 (make clean 或跨平台安全删除 build 目录)
     bool startClean(const QString &projectDir);
@@ -44,7 +48,8 @@ public:
     // 一键全量重新构建 (clean + build)
     bool startRebuild(const QString &projectDir,
                       BuildConfiguration config = BuildConfiguration::Debug,
-                      int parallelJobs = 0);
+                      int parallelJobs = 0,
+                      const CompilerBuildOptions &buildOptions = CompilerBuildOptions());
 
     bool migrateLegacyLinkerScript(const QString &projectDir,
                                    QString *outBackupPath = nullptr,
@@ -83,10 +88,12 @@ private:
 
     ToolchainPaths m_paths;
     STM32ChipProfile m_profile;
+    CompilerBuildOptions m_buildOptions;
     QProcess *m_process = nullptr;
     QString m_currentProjectDir;
     bool m_isRebuilding = false;
     BuildConfiguration m_pendingConfig = BuildConfiguration::Debug;
+    CompilerBuildOptions m_pendingBuildOptions;
     int m_pendingJobs = 0;
     qint64 m_startTime = 0;
     BuildLogModel m_log;

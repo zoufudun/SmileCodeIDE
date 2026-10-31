@@ -95,3 +95,4 @@ void LCD_DispString_EN_CH(uint16_t usX, uint16_t usY, const uint8_t *pStr);
 
 ## 六、 总结与长效机制
 通过在源码层规范语法书写，并在 IDE 的 Makefile 构建引擎中注入向后兼容的宽容标志，使得 SmileCodeIDE 既能享受 GCC 14 现代编译器的强大优化和诊断能力，又能无缝向下兼容海量存量 Keil/STM32 裸机驱动代码，消除了工具链迁移时的门槛。
+

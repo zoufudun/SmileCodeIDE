@@ -1,5 +1,5 @@
 QT += core gui widgets concurrent testlib
-CONFIG += testcase c++17 console
+CONFIG += testcase c++17 console debug
 TARGET = ToolchainConfigDialogAsyncTest
 INCLUDEPATH += $$PWD/../../../PhudonTools
 MOC_DIR = $$OUT_PWD/moc
