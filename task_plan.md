@@ -44,3 +44,14 @@
   5. [x] 新增自动化单元测试（8 项测试全 PASS）；
   6. [x] 双主题离线渲染截图实测通过（Dark/Light 视觉完美）；
   7. [x] 版本号由 `v2.3.0` 升级为 `v2.3.1`（插件 `v1.1.1`）。
+
+---
+
+### 阶段 6：SmileCodeIDE 官方网站设计与 GitHub 发布及 Pages 部署【已完成】
+- **归档文档**：[docs/SmileCodeIDE官方网站设计与GitHub发布及Pages部署.md](file:///k:/TOPFIRE/SmileCodeIDEUpdate/docs/SmileCodeIDE官方网站设计与GitHub发布及Pages部署.md)
+- **完成项**：
+  1. [x] 深度对齐 [CC Switch](https://ccswitch.io/zh/) 与 [恒基衡迹](https://zoufudun.github.io/hengji/) 视觉系统，完成 `website/`（index.html, style.css, app.js, assets/）；
+  2. [x] 制作并完成 Windows 绿色便携包一键打包脚本（`scripts/package_release.ps1`），测试生成 `dist/SmileCodeIDE-v2.3.1-Windows-x64.zip` (36.41 MB)；
+  3. [x] 编写正式 Release 说明文档 `RELEASE_NOTES_v2.3.1.md`，配置 `.github/workflows/release.yml`；
+  4. [x] 编写 GitHub Pages 自动化部署工作流 `.github/workflows/deploy-pages.yml`；
+  5. [x] 本地提交、推送至远程仓库 `origin/V10.0`，并建立 `gh-pages` 独立分支推送到 `origin/gh-pages` 实现多通道 Pages 部署。

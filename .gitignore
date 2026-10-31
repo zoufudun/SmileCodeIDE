@@ -12,6 +12,7 @@ PhudonTools/Makefile.WorkflowTests*
 PhudonTools/MainWindowWorkflowTest_resource.rc
 
 *.o
+dist/
 scratch/
 Plugins/STM32WorkbenchPlugin/tests/moc/
 Plugins/STM32WorkbenchPlugin/tests/debug/

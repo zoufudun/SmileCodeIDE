@@ -1,0 +1,81 @@
+name: Publish GitHub Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Tag to release (e.g. v2.3.1)'
+        required: true
+        default: 'v2.3.1'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Create GitHub Release
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine Tag
+        id: get_tag
+        shell: pwsh
+        run: |
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            $tag = "${{ github.event.inputs.tag_name }}"
+          } else {
+            $tag = "${{ github.ref_name }}"
+          }
+          Write-Output "RELEASE_TAG=$tag" >> $env:GITHUB_ENV
+          Write-Host "Releasing tag: $tag"
+
+      - name: Prepare Release Package (Portable Zip)
+        shell: pwsh
+        run: |
+          $releaseDir = "dist/SmileCodeIDE-${{ env.RELEASE_TAG }}-Windows-x64"
+          New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
+          
+          # Copy executables and necessary libraries
+          if (Test-Path "PhudonTools/release/PhudonTools.exe") {
+            Copy-Item "PhudonTools/release/PhudonTools.exe" "$releaseDir/" -Force
+          }
+          if (Test-Path "PhudonTools/release/*.dll") {
+            Copy-Item "PhudonTools/release/*.dll" "$releaseDir/" -Force
+          }
+          if (Test-Path "PhudonTools/release/plugins") {
+            Copy-Item "PhudonTools/release/plugins" "$releaseDir/" -Recurse -Force
+          }
+          if (Test-Path "PhudonTools/release/kerneldlls") {
+            Copy-Item "PhudonTools/release/kerneldlls" "$releaseDir/" -Recurse -Force
+          }
+          
+          # Copy documentation
+          Copy-Item "README.md" "$releaseDir/" -Force -ErrorAction SilentlyContinue
+          Copy-Item "CHANGELOG.zh.md" "$releaseDir/" -Force -ErrorAction SilentlyContinue
+          
+          # Compress to zip
+          New-Item -ItemType Directory -Path "dist" -Force | Out-Null
+          $zipPath = "dist/SmileCodeIDE-${{ env.RELEASE_TAG }}-Windows-x64.zip"
+          Compress-Archive -Path "$releaseDir/*" -DestinationPath $zipPath -Force
+          Write-Host "Created archive: $zipPath"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: SmileCodeIDE ${{ env.RELEASE_TAG }}
+          body_path: RELEASE_NOTES_v2.3.1.md
+          draft: false
+          prerelease: false
+          files: |
+            dist/*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+

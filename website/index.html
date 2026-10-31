@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SmileCodeIDE - 新一代现代化嵌入式单片机智能集成开发环境</title>
+  <meta name="description" content="SmileCodeIDE 是一款专为嵌入式单片机开发者打造的现代化开源集成开发环境。原生支持 GCC 14 现代编译工具链、可视化编译器优化设置、OpenOCD/GDB 在线硬件级调试、工业级虚拟示波器与 CAN/串口多协议分析，彻底告别 Keil 锁死与老旧界面。">
+  <meta name="keywords" content="SmileCodeIDE, 嵌入式IDE, STM32, ARM GCC, OpenOCD, GDB调试, 虚拟示波器, 编译器优化, 单片机开发工具, Keil替代">
+  <meta name="author" content="zoufudun">
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/x-icon" href="assets/favicon.ico">
+  
+  <!-- Open Graph / Meta -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://zoufudun.github.io/SmileCodeIDE/">
+  <meta property="og:title" content="SmileCodeIDE - 新一代嵌入式单片机智能开发环境">
+  <meta property="og:description" content="基于 GCC 14 + OpenOCD/GDB，深度集成虚拟示波器与多通信协议栈，具备原生防锁死延时机制与现代化多主题系统。">
+  <meta property="og:image" content="assets/toolchain_config_dialog_dark.png">
+
+  <!-- Fonts & Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  
+  <!-- CSS Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="dark-theme">
+  <!-- Background Glow & Grid Canvas -->
+  <div class="bg-glow bg-glow-1"></div>
+  <div class="bg-glow bg-glow-2"></div>
+  <div class="bg-grid-overlay"></div>
+
+  <!-- Top Navigation Bar -->
+  <header class="navbar" id="navbar">
+    <div class="nav-container">
+      <a href="#" class="nav-brand">
+        <div class="brand-logo-wrap">
+          <img src="assets/favicon.ico" alt="SmileCodeIDE Logo" class="brand-icon">
+        </div>
+        <div class="brand-text">
+          <span class="brand-title">SmileCodeIDE</span>
+          <span class="brand-badge">v2.3.1</span>
+        </div>
+      </a>
+
+      <nav class="nav-links">
+        <a href="#features">核心特性</a>
+        <a href="#comparison">痛点对比</a>
+        <a href="#optimization">编译器优化</a>
+        <a href="#instruments">辅助仪器</a>
+        <a href="#docs">专项文档</a>
+        <a href="#download">软件下载</a>
+        <a href="#faq">常见问答</a>
+      </nav>
+
+      <div class="nav-actions">
+        <a href="https://github.com/zoufudun/SmileCodeIDE" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" title="在 GitHub 查看源代码">
+          <svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+          </svg>
+          <span>Star 源码</span>
+        </a>
+        <a href="#download" class="btn btn-primary btn-sm glow-btn">
+          <span>立即下载</span>
+          <svg class="icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+          </svg>
+        </a>
+      </div>
+
+      <!-- Mobile Hamburger Toggle -->
+      <button class="mobile-toggle" id="mobileToggle" aria-label="切换菜单">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Hero Section -->
+  <section class="hero-section">
+    <div class="container hero-container">
+      <!-- Announcement Pill -->
+      <div class="hero-announcement">
+        <span class="pill-dot"></span>
+        <span class="pill-text"><strong>v2.3.1 正式发布</strong> · 可视化编译器优化配置 & 硬件延时防锁死机制全面上线</span>
+        <a href="#optimization" class="pill-arrow">了解详情 &rarr;</a>
+      </div>
+
+      <!-- Hero Title & Lead -->
+      <h1 class="hero-title">
+        新一代现代化单片机与<br>
+        <span class="gradient-text">全功能智能嵌入式开发环境</span>
+      </h1>
+      <p class="hero-subtitle">
+        彻底告别 Keil 锁死、粗糙与闭源痛点。原生构建在 <strong>GCC 14 现代编译工具链</strong>之上，深度集成 <strong>OpenOCD/GDB 全功能硬件级在线调试</strong>、<strong>工业级虚拟示波器</strong> 与 <strong>CAN/串口多协议分析</strong>，让嵌入式软硬件开发如此纯粹优雅。
+      </p>
+
+      <!-- Hero CTA Buttons -->
+      <div class="hero-cta-group">
+        <a href="#download" class="btn btn-primary btn-lg glow-btn">
+          <svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+          </svg>
+          <span>下载 Windows 64-bit 绿色版</span>
+        </a>
+        <a href="https://github.com/zoufudun/SmileCodeIDE" target="_blank" rel="noopener" class="btn btn-outline btn-lg">
+          <svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+          </svg>
+          <span>查看 GitHub 源码仓库</span>
+        </a>
+      </div>
+
+      <!-- Hero Metric Badges -->
+      <div class="hero-metrics">
+        <div class="metric-card">
+          <div class="metric-value">0-Lockup</div>
+          <div class="metric-label">延时优化防锁死，杜绝假死</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value">GCC 14</div>
+          <div class="metric-label">现代编译链与智能容错兼备</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value">4+ Themes</div>
+          <div class="metric-label">Dark / OneDark / Solarized / Light</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value">100% Free</div>
+          <div class="metric-label">自由开源无 32KB 代码限制</div>
+        </div>
+      </div>
+
+      <!-- Hero Visual Showcase / Mockup -->
+      <div class="hero-showcase">
+        <div class="window-frame">
+          <div class="window-header">
+            <div class="window-controls">
+              <span class="control-btn close"></span>
+              <span class="control-btn minimize"></span>
+              <span class="control-btn maximize"></span>
+            </div>
+            <div class="window-title">
+              <span class="status-indicator"></span>
+              SmileCodeIDE v2.3.1 - STM32H750XBH6 [GCC 14.2.Rel1 · -O2 Balanced]
+            </div>
+            <div class="window-actions">
+              <span class="action-tag">OpenOCD Connected</span>
+            </div>
+          </div>
+          <div class="window-body">
+            <!-- Left File Tree -->
+            <div class="mock-sidebar">
+              <div class="mock-tree-header">PROJECT EXPLORER</div>
+              <div class="mock-tree-item"><span class="folder-icon">📁</span> Core/Src</div>
+              <div class="mock-tree-item active"><span class="file-icon">📄</span> main.c</div>
+              <div class="mock-tree-item"><span class="file-icon">📄</span> stm32h7xx_it.c</div>
+              <div class="mock-tree-item"><span class="file-icon">📄</span> gt9xx.c</div>
+              <div class="mock-tree-item"><span class="folder-icon">📁</span> Drivers/STM32H7xx_HAL</div>
+              <div class="mock-tree-item"><span class="file-icon">⚙️</span> Makefile</div>
+            </div>
+
+            <!-- Center Code Editor -->
+            <div class="mock-editor">
+              <div class="mock-editor-tabs">
+                <div class="mock-tab active">main.c <span class="tab-close">×</span></div>
+                <div class="mock-tab">ToolchainConfig.ini</div>
+              </div>
+              <div class="mock-code">
+                <div class="code-line"><span class="line-no">1</span><span class="c-keyword">#include</span> <span class="c-string">"main.h"</span></div>
+                <div class="code-line"><span class="line-no">2</span><span class="c-keyword">#include</span> <span class="c-string">"bsp_led.h"</span></div>
+                <div class="code-line"><span class="line-no">3</span></div>
+                <div class="code-line"><span class="line-no">4</span><span class="c-type">int</span> <span class="c-func">main</span>(<span class="c-type">void</span>) {</div>
+                <div class="code-line"><span class="line-no">5</span>  HAL_Init();</div>
+                <div class="code-line"><span class="line-no">6</span>  SystemClock_Config();</div>
+                <div class="code-line"><span class="line-no">7</span>  LED_GPIO_Config();</div>
+                <div class="code-line"><span class="line-no">8</span>  <span class="c-comment">// SmileCodeIDE 防死锁延时: -O2 下精准毫秒保持</span></div>
+                <div class="code-line"><span class="line-no">9</span>  <span class="c-keyword">while</span> (<span class="c-number">1</span>) {</div>
+                <div class="code-line"><span class="line-no">10</span>    LED1_TOGGLE;</div>
+                <div class="code-line"><span class="line-no">11</span>    HAL_Delay(<span class="c-number">500</span>);</div>
+                <div class="code-line"><span class="line-no">12</span>  }</div>
+                <div class="code-line"><span class="line-no">13</span>}</div>
+              </div>
+            </div>
+
+            <!-- Right Showcase Panel: Live Optimizer Card -->
+            <div class="mock-right-panel">
+              <div class="mock-panel-title">⚡ 编译与构建配置中心</div>
+              <div class="mock-badge-group">
+                <span class="opt-tag active">-O2 均衡优化</span>
+                <span class="opt-tag">DWARF2 调试</span>
+                <span class="opt-tag">宽松兼容</span>
+              </div>
+              <div class="mock-info-card">
+                <div class="info-title">生成的编译参数:</div>
+                <code>CFLAGS += -O2 -g -gdwarf-2 -fcommon</code>
+                <p class="info-desc">自动配置指令流水吞吐与体积平衡，注入 DWARF2 符号表确保断点精准定位，并容忍旧库隐式声明。</p>
+              </div>
+              <div class="mock-build-status">
+                <div class="status-row">
+                  <span class="status-dot success"></span>
+                  <span class="status-text">构建成功 · 耗时 0.82 秒</span>
+                </div>
+                <div class="memory-bar-wrap">
+                  <div class="memory-label">Flash: 48.2 KB / 2048 KB (2.3%)</div>
+                  <div class="memory-progress"><div class="progress-bar" style="width: 23%;"></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section: Pain Points & Comparison (vs Keil MDK / CubeIDE) -->
+  <section class="section comparison-section" id="comparison">
+    <div class="container">
+      <div class="section-header text-center">
+        <h2 class="section-title">告别传统嵌入式 IDE 的 <span class="gradient-text">核心痛点</span></h2>
+        <p class="section-subtitle">为什么越来越多工程团队与极客开发者从 Keil MDK 与传统工具链迁移到 SmileCodeIDE？</p>
+      </div>
+
+      <div class="comparison-table-wrapper">
+        <table class="comparison-table">
+          <thead>
+            <tr>
+              <th class="col-dim">对比维度</th>
+              <th class="col-keil">传统 Keil MDK / 闭源 IDE</th>
+              <th class="col-cube">STM32CubeIDE / Eclipse系</th>
+              <th class="col-smile highlight">SmileCodeIDE (v2.3.1)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="dim-title">
+                <strong>软延时防死锁机制</strong>
+                <span class="dim-sub">高优化等级下的稳定性</span>
+              </td>
+              <td><span class="cross">✕</span> 高等级优化 (-O2/-O3) 易优化掉空循环延时导致板卡假死</td>
+              <td><span class="warning">△</span> 需手动添加 volatile 或改写底层汇编</td>
+              <td class="highlight-cell"><span class="check">✓</span> <strong>内置防锁死机制</strong>，可视化精准调控，稳定运行</td>
+            </tr>
+            <tr>
+              <td class="dim-title">
+                <strong>现代编译链兼容性</strong>
+                <span class="dim-sub">GCC 14 / C23 标准支持</span>
+              </td>
+              <td><span class="cross">✕</span> ArmCC 语法古老，迁移新 GCC 产生大量报错</td>
+              <td><span class="warning">△</span> 工具链升级滞后，定制参数配置繁琐</td>
+              <td class="highlight-cell"><span class="check">✓</span> <strong>原生配备 GCC 14</strong>，独家宽松兼容模式 (-fcommon)，一键平滑过渡</td>
+            </tr>
+            <tr>
+              <td class="dim-title">
+                <strong>界面颜值与暗黑主题</strong>
+                <span class="dim-sub">长时间编码用眼健康</span>
+              </td>
+              <td><span class="cross">✕</span> 90年代灰白界面，无真正暗色模式，极易视觉疲劳</td>
+              <td><span class="warning">△</span> 基于 Eclipse 暗黑不完整，弹窗控件易白边割裂</td>
+              <td class="highlight-cell"><span class="check">✓</span> <strong>4 套极致调优现代主题</strong> (Dark/OneDark/Solarized/Light)，全局统一</td>
+            </tr>
+            <tr>
+              <td class="dim-title">
+                <strong>内置辅助仪器套件</strong>
+                <span class="dim-sub">示波器、CAN/串口分析</span>
+              </td>
+              <td><span class="cross">✕</span> 纯编辑器，调试复杂协议必须打开多个第三方软件</td>
+              <td><span class="cross">✕</span> 无内置硬件协议示波器，需额外安装拓展插件</td>
+              <td class="highlight-cell"><span class="check">✓</span> <strong>工业级虚拟示波器</strong> + CAN/CANOpen/UDS 汽车诊断 + 高速串口图表一网打尽</td>
+            </tr>
+            <tr>
+              <td class="dim-title">
+                <strong>硬件调试与驱动兼容</strong>
+                <span class="dim-sub">ST-Link / J-Link / DAP</span>
+              </td>
+              <td><span class="warning">△</span> 限制部分盗版调试器，驱动经常遭遇冲突被禁</td>
+              <td><span class="warning">△</span> 主要绑定 ST 原厂调试器，配置多芯片较繁琐</td>
+              <td class="highlight-cell"><span class="check">✓</span> <strong>基于 OpenOCD/GDB</strong>，支持 ST-Link/J-Link/DAP-Link，自动枚举与识别</td>
+            </tr>
+            <tr>
+              <td class="dim-title">
+                <strong>授权费用与代码尺寸限制</strong>
+                <span class="dim-sub">团队商业合规门槛</span>
+              </td>
+              <td><span class="cross">✕</span> 商业授权极其高昂，免费评估版强限 32KB 代码</td>
+              <td><span class="check">✓</span> 免费，但内存占用庞大冷启动慢</td>
+              <td class="highlight-cell"><span class="check">✓</span> <strong>100% 自由开源</strong>，无任何代码尺寸限制，秒级瞬时冷启动</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section: Four Pillar Features -->
+  <section class="section features-section" id="features">
+    <div class="container">
+      <div class="section-header text-center">
+        <h2 class="section-title">全链路打通单片机研发的 <span class="gradient-text">四大核心支柱</span></h2>
+        <p class="section-subtitle">从代码编写、编译构建、到硬件在线烧录调试与数据信号分析，一站式解决。</p>
+      </div>
+
+      <div class="features-grid">
+        <!-- Feature 1 -->
+        <div class="feature-card">
+          <div class="feature-icon-wrap bg-purple">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
+            </svg>
+          </div>
+          <h3 class="feature-title">可视化编译器优化与高级构建中心</h3>
+          <p class="feature-desc">
+            告别在命令行或黑盒脚本中盲写 CFLAGS。提供 -O0 到 -O3、-Os、-Og 六大标准优化挡位可视化选择，配套 DWARF2 符号表注入与经典代码宽容兼容开关，支持动态实时提示。
+          </p>
+          <div class="feature-footer">
+            <span class="badge">已全面支持 GCC 14</span>
+            <span class="badge">动态持久化配置</span>
+          </div>
+        </div>
+
+        <!-- Feature 2 -->
+        <div class="feature-card">
+          <div class="feature-icon-wrap bg-cyan">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/>
+            </svg>
+          </div>
+          <h3 class="feature-title">OpenOCD + GDB 硬件级在线调试</h3>
+          <p class="feature-desc">
+            深度集成 OpenOCD 服务端引擎与 GDB-MI 协议。支持一键扫描 USB 硬件设备（ST-Link / J-Link / CMSIS-DAP），支持断点设置、单步步过/步入、局部变量监视与芯片外设寄存器实时排查。
+          </p>
+          <div class="feature-footer">
+            <span class="badge">硬件自动枚举</span>
+            <span class="badge">毫秒级断点响应</span>
+          </div>
+        </div>
+
+        <!-- Feature 3 -->
+        <div class="feature-card">
+          <div class="feature-icon-wrap bg-emerald">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/>
+            </svg>
+          </div>
+          <h3 class="feature-title">工业级虚拟示波器与协议分析套件</h3>
+          <p class="feature-desc">
+            内置基于 QCustomPlot 深度优化的高速虚拟示波器，支持实时多通道波形采样、波形缩放、测量游标。更有 CAN/CAN-FD 报文解析、DBC 解码、UDS 汽车诊断与 IAP 固件下载。
+          </p>
+          <div class="feature-footer">
+            <span class="badge">多通道高速绘图</span>
+            <span class="badge">CAN / 串口 / UDS</span>
+          </div>
+        </div>
+
+        <!-- Feature 4 -->
+        <div class="feature-card">
+          <div class="feature-icon-wrap bg-blue">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+            </svg>
+          </div>
+          <h3 class="feature-title">敏捷轻量与模块化插件生态</h3>
+          <p class="feature-desc">
+            基于现代 Qt6 C++ 原生构建，摒弃 Electron 与臃肿 Webview 框架的沉重开销。内存占用仅为同类工具的三分之一，毫秒级冷启动，支持插件动态热加载与自由功能解耦扩展。
+          </p>
+          <div class="feature-footer">
+            <span class="badge">Qt6 C++ 原生极速</span>
+            <span class="badge">插件化架构</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section: Interactive Optimization Showcase -->
+  <section class="section optimization-section" id="optimization">
+    <div class="container">
+      <div class="section-header text-center">
+        <h2 class="section-title">全新升级：<span class="gradient-text">可视化编译器优化与高级构建选项</span></h2>
+        <p class="section-subtitle">告别命令行黑盒。直观掌控 GCC 编译参数，平衡执行性能、Flash 体积与单步调试体验。</p>
+      </div>
+
+      <div class="optimization-interactive-grid">
+        <!-- Interactive Controls -->
+        <div class="opt-controls-card">
+          <h3 class="card-inner-title">选择编译器优化等级 (Optimization Level)</h3>
+          <div class="opt-buttons" id="optButtonContainer">
+            <button class="opt-choice-btn" data-opt="-O0">
+              <span class="opt-name">-O0 (无优化)</span>
+              <span class="opt-desc-brief">完整单步调试</span>
+            </button>
+            <button class="opt-choice-btn" data-opt="-O1">
+              <span class="opt-name">-O1 (基础优化)</span>
+              <span class="opt-desc-brief">轻微性能提升</span>
+            </button>
+            <button class="opt-choice-btn active" data-opt="-O2">
+              <span class="opt-name">-O2 (均衡推荐)</span>
+              <span class="opt-desc-brief">官方平衡推荐</span>
+            </button>
+            <button class="opt-choice-btn" data-opt="-O3">
+              <span class="opt-name">-O3 (极致性能)</span>
+              <span class="opt-desc-brief">循环展开与向量化</span>
+            </button>
+            <button class="opt-choice-btn" data-opt="-Os">
+              <span class="opt-name">-Os (极小尺寸)</span>
+              <span class="opt-desc-brief">Flash 资源敏感</span>
+            </button>
+            <button class="opt-choice-btn" data-opt="-Og">
+              <span class="opt-name">-Og (调试友好)</span>
+              <span class="opt-desc-brief">兼顾性能与变量查看</span>
+            </button>
+          </div>
+
+          <div class="opt-switches">
+            <h4 class="switches-title">高级构建与调试开关</h4>
+            <label class="switch-item">
+              <input type="checkbox" id="chkDwarf2" checked>
+              <span class="switch-slider"></span>
+              <span class="switch-label">启用 DWARF2 调试符号 (-g -gdwarf-2)</span>
+            </label>
+            <label class="switch-item">
+              <input type="checkbox" id="chkPermissive" checked>
+              <span class="switch-slider"></span>
+              <span class="switch-label">宽容编译模式 (容忍旧库隐式函数声明与重复定义)</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Dynamic Output & Explanation -->
+        <div class="opt-preview-card">
+          <div class="preview-header">
+            <span class="preview-tag">Makefile 自动生成参数</span>
+            <button class="btn-copy-code" id="btnCopyFlags">复制参数</button>
+          </div>
+          <div class="code-box">
+            <pre><code id="liveGeneratedFlags">CFLAGS += -O2 -g -gdwarf-2 -fcommon</code></pre>
+          </div>
+
+          <div class="opt-dynamic-info" id="dynamicInfoBox">
+            <h4 class="info-headline" id="dynamicInfoTitle">【-O2 推荐平衡优化】</h4>
+            <p class="info-content" id="dynamicInfoContent">
+              推荐用于正式发布版本。在编译速度、代码执行性能与生成固件大小之间取得最佳平衡。开启大部分安全的高级指令调度优化。
+            </p>
+            <div class="info-tags" id="dynamicInfoTags">
+              <span class="info-badge">流水线优化</span>
+              <span class="info-badge">内联扩展</span>
+              <span class="info-badge">生产部署首选</span>
+            </div>
+          </div>
+
+          <!-- Real Screenshot Gallery with Theme Toggle -->
+          <div class="screenshot-preview-box">
+            <div class="screenshot-header">
+              <span>软件真实运行截图 (Qt6 原生呈现)</span>
+              <div class="theme-tabs">
+                <button class="theme-tab-btn active" data-img="dark">暗夜黑 (Dark)</button>
+                <button class="theme-tab-btn" data-img="light">纯白亮 (Light)</button>
+              </div>
+            </div>
+            <div class="screenshot-img-wrap">
+              <img src="assets/toolchain_config_dialog_dark.png" alt="工具链与编译器优化配置界面 (Dark)" id="dialogScreenshot" class="responsive-img">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section: Specialized Documentation Hub -->
+  <section class="section docs-section" id="docs">
+    <div class="container">
+      <div class="section-header text-center">
+        <h2 class="section-title">工程实战与 <span class="gradient-text">专项技术排查归档</span></h2>
+        <p class="section-subtitle">每一项功能演进与关键 Bug 修复均有严谨的技术排查、定位复盘与全流程文档归档。</p>
+      </div>
+
+      <div class="docs-grid">
+        <a href="https://github.com/zoufudun/SmileCodeIDE/blob/V10.0/docs/STM32%E8%BD%AF%E7%A1%AC%E4%BB%B6%E5%BC%80%E5%8F%91%E4%B8%AD%E5%BB%B6%E6%97%B6%E6%AD%BB%E9%94%81%E4%B8%8E%E7%BC%96%E8%AF%91%E5%99%A8%E4%BC%98%E5%8C%96%E7%AD%89%E7%BA%A7%E5%85%B3%E8%81%94%E6%8E%92%E6%9F%A5.md" target="_blank" rel="noopener" class="doc-card">
+          <div class="doc-badge badge-warning">硬件与底层</div>
+          <h3 class="doc-title">STM32 软硬件开发中延时死锁与优化等级关联排查</h3>
+          <p class="doc-excerpt">深入剖析高版本 GCC 将空循环软延时完全优化清空的根本原因，对比 SysTick、DWT 与 volatile 机制，彻底根治“Keil 正常但其他环境不闪灯假死”的顽疾。</p>
+          <div class="doc-link">阅读技术文档 &rarr;</div>
+        </a>
+
+        <a href="https://github.com/zoufudun/SmileCodeIDE/blob/V10.0/docs/GCC%2014%E7%BC%96%E8%AF%91%E6%8A%A5%E9%94%99%E6%B7%B1%E5%BA%A6%E6%A0%B9%E5%9B%A0%E5%88%86%E6%9E%90%E4%B8%8E%E5%85%BC%E5%AE%B9%E6%80%A7%E4%BF%AE%E5%A4%8D.md" target="_blank" rel="noopener" class="doc-card">
+          <div class="doc-badge badge-info">编译工具链</div>
+          <h3 class="doc-title">GCC 14 编译报错深度根因分析与兼容性修复</h3>
+          <p class="doc-excerpt">针对从 Keil 迁移项目在 GCC 14 常见的 invalid suffix 与 implicit declaration of function 报错，制定标准修复与编译宽容双层方案。</p>
+          <div class="doc-link">阅读技术文档 &rarr;</div>
+        </a>
+
+        <a href="https://github.com/zoufudun/SmileCodeIDE/blob/V10.0/docs/%E7%BC%96%E8%AF%91%E5%99%A8%E4%BC%98%E5%8C%96%E7%AD%89%E7%BA%A7%E4%B8%8E%E9%AB%98%E7%BA%A7%E6%9E%84%E5%BB%BA%E9%80%89%E9%A1%B9%E5%8F%AF%E8%A7%86%E5%8C%96%E8%AE%BE%E7%BD%AE%E7%95%8C%E9%9D%A2%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0.md" target="_blank" rel="noopener" class="doc-card">
+          <div class="doc-badge badge-success">UI 与架构</div>
+          <h3 class="doc-title">编译器优化等级与高级构建选项可视化设置界面设计与实现</h3>
+          <p class="doc-excerpt">详解全新分组框“4. 编译器优化等级与高级构建选项”的数据结构定义、UI 布局自适应、QSettings 持久化与异步构建参数无缝传递的全流程。</p>
+          <div class="doc-link">阅读技术文档 &rarr;</div>
+        </a>
+
+        <a href="https://github.com/zoufudun/SmileCodeIDE/blob/V10.0/docs/Qt%E6%A0%B7%E5%BC%8F%E8%A1%A8%E5%85%A8%E5%B1%80%E6%9A%97%E8%89%B2%E4%B8%BB%E9%A2%98%E5%BC%82%E8%89%B2%E9%87%8D%E6%9E%84%E4%B8%8E%E6%8E%A7%E4%BB%B6%E8%A6%86%E7%9B%96%E4%BF%AE%E5%A4%8D.md" target="_blank" rel="noopener" class="doc-card">
+          <div class="doc-badge badge-purple">样式与体验</div>
+          <h3 class="doc-title">Qt 样式表全局暗色主题异色重构与控件覆盖修复</h3>
+          <p class="doc-excerpt">系统性解决暗色模式下 QCheckBox、QRadioButton 等基础控件出现刺眼白底色块的层叠样式覆盖问题，保证深色主题一致性。</p>
+          <div class="doc-link">阅读技术文档 &rarr;</div>
+        </a>
+
+        <a href="https://github.com/zoufudun/SmileCodeIDE/blob/V10.0/docs/%E4%B8%8B%E6%8B%89%E6%A1%86%E6%A8%AA%E7%BA%BF%E7%BC%BA%E9%99%B7%E6%8E%92%E6%9F%A5%E4%B8%8E%E5%80%92%E4%B8%89%E8%A7%92%E6%A0%B7%E5%BC%8F%E4%BF%AE%E5%A4%8D.md" target="_blank" rel="noopener" class="doc-card">
+          <div class="doc-badge badge-purple">细节打磨</div>
+          <h3 class="doc-title">下拉框横线缺陷排查与倒三角样式修复</h3>
+          <p class="doc-excerpt">排查 QComboBox 下拉指示器由于字体缺失或伪类属性挤压导致的黑色横线问题，改用高保真矢量自绘倒三角方案。</p>
+          <div class="doc-link">阅读技术文档 &rarr;</div>
+        </a>
+
+        <a href="https://github.com/zoufudun/SmileCodeIDE/blob/V10.0/docs/%E5%B7%A5%E7%A8%8B%E9%A1%B9%E7%9B%AE%E5%BF%AB%E9%80%9F%E6%89%93%E5%BC%80%E4%B8%8E%E6%9C%80%E8%BF%91%E7%9B%AE%E5%BD%95%E8%AE%B0%E5%BF%86%E5%8A%9F%E8%83%BD%E5%AE%9E%E7%8E%B0.md" target="_blank" rel="noopener" class="doc-card">
+          <div class="doc-badge badge-success">交互体验</div>
+          <h3 class="doc-title">工程项目快速打开与最近目录记忆功能实现</h3>
+          <p class="doc-excerpt">通过 QSettings 注入最近打开工作目录记忆持久化，消除反复翻找深层文件路径的烦琐操作，大幅提升多工程切换开发效率。</p>
+          <div class="doc-link">阅读技术文档 &rarr;</div>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section: Download Area -->
+  <section class="section download-section" id="download">
+    <div class="container">
+      <div class="section-header text-center">
+        <h2 class="section-title">立即开启 <span class="gradient-text">高效单片机开发之旅</span></h2>
+        <p class="section-subtitle">支持 Windows 10/11 64-bit 系统，解压即用，无任何捆绑广告与体积限制。</p>
+      </div>
+
+      <div class="download-card-wrapper">
+        <div class="download-card primary-download">
+          <div class="download-badge">官方推荐</div>
+          <div class="download-info">
+            <h3 class="dl-title">SmileCodeIDE 绿色便携版 (Windows x64)</h3>
+            <p class="dl-desc">解压到任意目录直接运行，配置与插件独立隔离，适合移动办公与多电脑开发。</p>
+            <div class="dl-meta">
+              <span>版本: <strong>v2.3.1 (最新稳定版)</strong></span>
+              <span>架构: <strong>x86_64</strong></span>
+              <span>系统: <strong>Windows 10 / 11</strong></span>
+              <span>大小: <strong>约 45 MB</strong></span>
+            </div>
+          </div>
+          <div class="download-actions">
+            <a href="https://github.com/zoufudun/SmileCodeIDE/releases/tag/v2.3.1" target="_blank" rel="noopener" class="btn btn-primary btn-lg glow-btn">
+              <svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+              </svg>
+              <span>前往 GitHub Release 下载</span>
+            </a>
+            <div class="release-quicklink">
+              <a href="https://github.com/zoufudun/SmileCodeIDE/releases" target="_blank" rel="noopener">查看所有历史版本发布 &rarr;</a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- System Environment Guidance -->
+      <div class="env-tips-card">
+        <h4 class="env-title">💡 运行前置环境与驱动说明：</h4>
+        <ul class="env-list">
+          <li><strong>编译器要求：</strong>内置或本地安装 <code>arm-none-eabi-gcc</code> (推荐 GCC 10 或更高版本，原生支持 GCC 14)。</li>
+          <li><strong>烧录器驱动：</strong>若使用 ST-Link，请确保通过 Zadig 或官方驱动将接口切换为 <code>WinUSB</code> 或 <code>libusb-1.0</code>，以确保 OpenOCD 顺畅连接。</li>
+          <li><strong>构建依赖：</strong>原生提供内嵌与外部两种 Make 模式，无缝对接标准 Makefile。</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section: FAQ Accordion -->
+  <section class="section faq-section" id="faq">
+    <div class="container">
+      <div class="section-header text-center">
+        <h2 class="section-title">常见问题 <span class="gradient-text">与技术解答</span></h2>
+        <p class="section-subtitle">有疑问？这里为您准备了最常见的单片机工程迁移与使用问题。</p>
+      </div>
+
+      <div class="faq-accordion">
+        <div class="faq-item">
+          <button class="faq-question">
+            <span>Q1: SmileCodeIDE 支持哪些 STM32 或 ARM Cortex-M 芯片？</span>
+            <span class="faq-icon">+</span>
+          </button>
+          <div class="faq-answer">
+            <p>基于开放的 OpenOCD 与 CMSIS 架构，SmileCodeIDE 原生支持包括 STM32F0、F1、F2、F3、F4、F7、H7、G0、G4、L0、L1、L4 等在内的全部主流芯片系列，并可通过导入自定义 Linker 脚本与 SVD 文件灵活拓展其他厂商的 Cortex-M0/M3/M4/M7 芯片。</p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question">
+            <span>Q2: 从 Keil MDK 迁移现有工程需要做哪些工作？</span>
+            <span class="faq-icon">+</span>
+          </button>
+          <div class="faq-answer">
+            <p>SmileCodeIDE 支持直接读取 Makefile 与标准 GCC 源码目录。如果工程中含有 Keil 专有语法（如 <code>__breakpoint(0)</code> 或 <code>__packed</code>），只需开启“宽容编译模式 (-fcommon)”或使用 GCC 等效关键字 <code>__attribute__((packed))</code> 即可实现零摩擦编译迁移。</p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question">
+            <span>Q3: 为什么 Keil 下载能正常跑，而 GCC 编译后延时不亮灯？</span>
+            <span class="faq-icon">+</span>
+          </button>
+          <div class="faq-answer">
+            <p>这是经典编译优化陷阱。Keil 默认低优化通常不内联或保留局部空循环，而高版本 GCC 会将诸如 <code>for(i=0; i&lt;0xFFFF; i++);</code> 的空循环视为无副作用代码直接抹除！SmileCodeIDE 推荐将优化设为 <code>-O2</code> 或 <code>-Og</code>，并在延时变量上使用 <code>volatile</code> 或调用系统硬件滴答时钟 HAL_Delay()。</p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question">
+            <span>Q4: OpenOCD 提示 "libusb_open() failed with LIBUSB_ERROR_NOT_SUPPORTED" 怎么解决？</span>
+            <span class="faq-icon">+</span>
+          </button>
+          <div class="faq-answer">
+            <p>这是由于 ST-Link 当前驱动被 Windows 默认识别为标准 MASS STORAGE 或旧版 STSW 专有驱动所致。只需打开开源驱动工具 <strong>Zadig</strong>，找到 ST-Link Debug 接口，将其驱动替换为 <code>WinUSB</code> 或 <code>libusb-win32</code>，即可顺利连接 OpenOCD。</p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question">
+            <span>Q5: SmileCodeIDE 是否支持自定义 Makefile 和 OpenOCD 脚本？</span>
+            <span class="faq-icon">+</span>
+          </button>
+          <div class="faq-answer">
+            <p>完全支持！在【烧录与下载参数配置】中提供了“4. 自定义 OpenOCD 脚本 (可选)”，您可以自由指定专用的 <code>interface/xxx.cfg</code> 与 <code>target/xxx.cfg</code>，满足工业级多核心与特殊调试通道需求。</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container footer-container">
+      <div class="footer-top">
+        <div class="footer-col brand-col">
+          <div class="footer-brand">
+            <img src="assets/favicon.ico" alt="SmileCodeIDE Logo" class="brand-icon">
+            <span class="brand-title">SmileCodeIDE</span>
+          </div>
+          <p class="footer-desc">
+            下一代现代化嵌入式单片机开发工作台。<br>
+            兼具 GCC 14 现代编译生产力与高颜值沉浸式交互。
+          </p>
+          <div class="footer-badges">
+            <span class="badge">Open Source</span>
+            <span class="badge">Qt6 C++</span>
+            <span class="badge">v2.3.1</span>
+          </div>
+        </div>
+
+        <div class="footer-col">
+          <h4 class="col-title">快速链接</h4>
+          <ul class="col-links">
+            <li><a href="#features">核心功能</a></li>
+            <li><a href="#comparison">痛点对比</a></li>
+            <li><a href="#optimization">编译器优化</a></li>
+            <li><a href="#download">软件下载</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-col">
+          <h4 class="col-title">项目文档</h4>
+          <ul class="col-links">
+            <li><a href="https://github.com/zoufudun/SmileCodeIDE/blob/V10.0/walkthrough.md" target="_blank" rel="noopener">全功能 Walkthrough</a></li>
+            <li><a href="https://github.com/zoufudun/SmileCodeIDE/blob/V10.0/docs/README.md" target="_blank" rel="noopener">专项排查归档库</a></li>
+            <li><a href="https://github.com/zoufudun/SmileCodeIDE/blob/V10.0/CHANGELOG.zh.md" target="_blank" rel="noopener">更新日志 (Changelog)</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-col">
+          <h4 class="col-title">开源与社区</h4>
+          <ul class="col-links">
+            <li><a href="https://github.com/zoufudun/SmileCodeIDE" target="_blank" rel="noopener">GitHub 仓库</a></li>
+            <li><a href="https://github.com/zoufudun/SmileCodeIDE/issues" target="_blank" rel="noopener">问题反馈 (Issues)</a></li>
+            <li><a href="https://zoufudun.github.io/hengji/" target="_blank" rel="noopener">友情链接：衡迹 (HengJi)</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <p>© 2026 SmileCodeIDE & zoufudun. 保留所有权利。遵循开源友好许可协议发布。</p>
+        <p class="footer-subtext">Designed with precision for embedded developers worldwide.</p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- App Script -->
+  <script src="app.js"></script>
+</body>
+</html>
+

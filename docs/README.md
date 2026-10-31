@@ -50,6 +50,14 @@
 
 ---
 
-### 6. 综合全景走查报告
+### 6. 官方网站与软件发布及部署专项
+* **[SmileCodeIDE官方网站设计与GitHub发布及Pages部署.md](file:///k:/TOPFIRE/SmileCodeIDEUpdate/docs/SmileCodeIDE官方网站设计与GitHub发布及Pages部署.md)**
+  * **解决问题**：软件正式发布与官网建设，对标 [CC Switch](https://ccswitch.io/zh/) 与 [恒基衡迹](https://zoufudun.github.io/hengji/) 风格，提供软件下载、痛点对比、编译器优化交互演示、全套技术归档直达，并自动化部署至 GitHub Pages 与 GitHub Release。
+  * **核心设计**：采用暗夜流光科技视觉规范，打造响应式单页；配置 `.github/workflows/deploy-pages.yml` 与 `release.yml`；提供 `scripts/package_release.ps1` 自动化绿色便携包打包脚本。
+  * **对应版本**：`v2.3.1`
+
+---
+
+### 7. 综合全景走查报告
 * **[Walkthrough - STM32H7烧录运行、GCC14编译兼容与IDE体验全面升级.md](file:///k:/TOPFIRE/SmileCodeIDEUpdate/docs/Walkthrough%20-%20STM32H7%E7%83%A7%E5%BD%95%E8%BF%90%E8%A1%8C%E3%80%81GCC14%E7%BC%96%E8%AF%91%E5%85%BC%E5%AE%B9%E4%B8%8EIDE%E4%BD%93%E9%AA%8C%E5%85%A8%E9%9D%A2%E5%8D%87%E7%BA%A7.md)**
   * 汇集本次重大发布的全局综合验证矩阵、硬件实测调用链断点与寄存器取证记录。
