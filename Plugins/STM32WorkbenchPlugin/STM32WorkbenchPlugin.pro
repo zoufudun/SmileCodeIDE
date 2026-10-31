@@ -1,4 +1,4 @@
-QT += core gui widgets network
+QT += core gui widgets network concurrent
 
 CONFIG += c++17 plugin
 
@@ -7,6 +7,7 @@ TEMPLATE = lib
 
 # 引入宿主插件接口
 INCLUDEPATH += $$PWD/../../PhudonTools/include
+INCLUDEPATH += $$PWD/../../PhudonTools
 INCLUDEPATH += $$PWD/Core
 INCLUDEPATH += $$PWD/UI
 

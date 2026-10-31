@@ -43,12 +43,12 @@ export function RoomBox({ room, deviceCount, hasAlarm }: RoomBoxProps) {
       ref={ref}
       id={`room-box-${room.id}`}
       data-id={room.id}
-      className={`${styles.box} ${hasAlarm ? styles.alarmActive : ''}`}
+      className={`room-box ${styles.box} ${hasAlarm ? `room-alarm ${styles.alarmActive}` : ''}`}
       style={{ left: room.x, top: room.y, width: room.w, height: room.h }}
     >
       {/* 拖拽手柄（仅 header 可拖拽） */}
       <div
-        className={styles.header}
+        className={`room-header ${styles.header}`}
         {...(isEditMode ? createDragHandler(ref.current!).onMouseDown ? { onMouseDown: (e: React.MouseEvent) => {
           const handler = createDragHandler(ref.current!);
           handler.onMouseDown(e);
@@ -77,7 +77,7 @@ export function RoomBox({ room, deviceCount, hasAlarm }: RoomBoxProps) {
         </div>
 
         {isEditMode && (
-          <div className={styles.actions}>
+          <div className={`room-actions ${styles.actions}`}>
             <button
               className={styles.btnRename}
               title="重命名"

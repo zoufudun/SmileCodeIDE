@@ -32,7 +32,7 @@ export function RoomResizeHandles({ roomId, roomRef }: RoomResizeHandlesProps) {
       {HANDLES.map(({ dir, className }) => (
         <div
           key={dir}
-          className={styles[className]}
+          className={`room-resize-handle-${dir} ${styles[className]}`}
           onMouseDown={(e) => {
             if (roomRef.current) {
               onResizeStart(e, dir, roomRef.current);

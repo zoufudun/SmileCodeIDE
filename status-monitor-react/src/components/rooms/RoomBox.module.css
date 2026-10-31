@@ -1,8 +1,8 @@
 .box {
   position: absolute;
-  background: rgba(15, 23, 42, 0.2);
+  background: var(--panel-bg-muted);
   border: 1.5px dashed var(--primary-border);
-  border-radius: 12px;
+  border-radius: 8px;
   padding: 14px;
   z-index: 2;
   transition: background-color 0.3s, border-color 0.3s, box-shadow 0.3s;
@@ -11,8 +11,8 @@
 }
 
 .alarmActive {
-  border-color: rgba(239, 68, 68, 0.45);
-  background: rgba(239, 68, 68, 0.03);
+  border-color: var(--danger);
+  background: var(--danger-soft);
   animation: room-alarm-pulse 2s infinite ease-in-out;
 }
 
@@ -20,7 +20,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--panel-border);
   padding-bottom: 6px;
   margin-bottom: 8px;
   user-select: none;
@@ -44,8 +44,8 @@
 }
 
 .alarmActive .title {
-  color: #ef4444;
-  text-shadow: 0 0 6px rgba(239, 68, 68, 0.3);
+  color: var(--danger);
+  text-shadow: 0 0 6px var(--danger-soft);
 }
 
 .titleInput {
@@ -61,6 +61,11 @@
   width: 180px;
 }
 
+.titleInput:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
 .badge {
   font-family: 'Share Tech Mono', monospace;
   font-size: 9px;
@@ -73,9 +78,9 @@
 }
 
 .alarmActive .badge {
-  background: rgba(239, 68, 68, 0.15);
-  color: #ef4444;
-  border-color: rgba(239, 68, 68, 0.3);
+  background: var(--danger-soft);
+  color: var(--danger);
+  border-color: var(--danger);
 }
 
 .actions {
@@ -87,7 +92,7 @@
 .btnDelete {
   background: transparent;
   border: none;
-  color: #64748b;
+  color: var(--text-muted);
   cursor: pointer;
   padding: 2px 4px;
   border-radius: 4px;
@@ -101,6 +106,6 @@
 }
 
 .btnDelete:hover {
-  color: #ef4444;
-  background: rgba(239, 68, 68, 0.1);
+  color: var(--danger);
+  background: var(--danger-soft);
 }

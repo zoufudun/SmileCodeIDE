@@ -558,10 +558,10 @@ QString MakefileGenerator::generateMakefileContent(const QString &projectDir,
         case BuildConfiguration::Release: optFlag = "-O2 -g0"; break;
         case BuildConfiguration::SizeOpt: optFlag = "-Os -g0"; break;
         case BuildConfiguration::Debug:
-        default:                          optFlag = "-O0 -g3 -gdwarf-2"; break;
+        default:                          optFlag = "-O1 -g3 -gdwarf-2"; break;
     }
 
-    stream << "CFLAGS = $(MCU) $(C_DEFS) $(C_INCLUDES) " << optFlag << " -Wall -fdata-sections -ffunction-sections\n";
+    stream << "CFLAGS = $(MCU) $(C_DEFS) $(C_INCLUDES) " << optFlag << " -Wall -fdata-sections -ffunction-sections -Wno-error=implicit-function-declaration -Wno-error=incompatible-pointer-types\n";
     stream << "CXXFLAGS = $(CFLAGS) -fno-exceptions -fno-rtti\n";
     stream << "ASFLAGS = $(MCU) $(C_DEFS) $(C_INCLUDES) " << optFlag << " -Wall -fdata-sections -ffunction-sections\n\n";
 

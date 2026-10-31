@@ -21,10 +21,13 @@ class FlashConfigDialog : public QDialog
 
 public:
     explicit FlashConfigDialog(QWidget *parent = nullptr, QSettings *settings = nullptr,
-                               const STM32ChipProfile &profile = STM32ChipProfile());
+                               const STM32ChipProfile &profile = STM32ChipProfile(),
+                               const QString &themeId = QString());
     ~FlashConfigDialog() override = default;
 
     FlashOptions getOptions() const;
+    void setOptions(const FlashOptions &options);
+    void applyTheme(const QString &themeId = QString());
 
 private slots:
     void onSaveClicked();
@@ -33,7 +36,6 @@ private slots:
 
 private:
     void setupUI();
-    void applyTheme();
     void loadFromSettings();
     void updateProbeInfo();
     void updateDriverOptions();

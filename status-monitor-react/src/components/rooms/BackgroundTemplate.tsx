@@ -19,7 +19,7 @@ export function BackgroundTemplate({ type }: BackgroundTemplateProps) {
   if (!Component) return null;
 
   return (
-    <div className={styles.bg}>
+    <div className={`canvas-background ${styles.bg}`}>
       <Component />
     </div>
   );

@@ -5,6 +5,7 @@
 #include <QStringList>
 #include <QColor>
 #include <QVector>
+#include "idetheme.h"
 
 namespace ScopeTheme {
 
@@ -821,7 +822,11 @@ QTextEdit, QPlainTextEdit {
   .arg(p.scrollTrack)      // %16
   .arg(p.scrollThumb)      // %17
   .arg(p.textDisabled)     // %18
-  .arg(p.accentPressed);   // %19
+  .arg(p.accentPressed)    // %19
+
+  .arg(IdeTheme::ensureArrowIcon(p.textSub))   // %20
+
+  .arg(IdeTheme::ensureArrowIcon(p.accent));   // %21
 
   return qss;
 }

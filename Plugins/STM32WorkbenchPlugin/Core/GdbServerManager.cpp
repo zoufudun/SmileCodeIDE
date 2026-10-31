@@ -3,10 +3,14 @@
 #include <QFileInfo>
 #include <QTimer>
 #include <QDebug>
+#include <QRegularExpression>
+#include <QScopeGuard>
 
 GdbServerManager::GdbServerManager(QObject *parent)
     : QObject(parent), m_process(new QProcess(this))
 {
+    ProbeProcessGuard::registerDebugServer(this, true);
+    m_processGuard = new ProbeProcessGuard(m_process, [this](const QString &error) { emit serverError(error); });
     connect(m_process, &QProcess::readyReadStandardOutput, this, &GdbServerManager::onProcessReadyReadStd);
     connect(m_process, &QProcess::readyReadStandardError, this, &GdbServerManager::onProcessReadyReadErr);
     connect(m_process, static_cast<void(QProcess::*)(int, QProcess::ExitStatus)>(&QProcess::finished),
@@ -16,6 +20,7 @@ GdbServerManager::GdbServerManager(QObject *parent)
 GdbServerManager::~GdbServerManager()
 {
     stopServer();
+    ProbeProcessGuard::registerDebugServer(this, false);
 }
 
 bool GdbServerManager::isRunning() const
@@ -38,23 +43,34 @@ bool GdbServerManager::isPortInUse(int port, int timeoutMs)
 bool GdbServerManager::startServer(GdbServerType type,
                                    const QString &customInterface,
                                    const QString &customTarget,
-                                   int port)
+                                   int port, const QString &probeSerial, int speedKhz)
 {
-    if (isRunning()) {
-        emit serverOutput(QStringLiteral("GDB Server 已在运行中\n"), false);
-        return true;
+    if (speedKhz < 100 || speedKhz > 20000 ||
+        (!probeSerial.isEmpty() && !QRegularExpression(QStringLiteral("^[A-Za-z0-9_.:-]+$")).match(probeSerial).hasMatch())) {
+        emit serverError(QStringLiteral("调试探针序列号或 SWD 速率无效"));
+        return false;
+    }
+    stopServer();
+    if (!ProbeProcessGuard::releaseDebugServers(this)) {
+        emit serverError(QStringLiteral("旧调试服务尚未退出，无法切换硬件连接。"));
+        return false;
     }
 
     m_gdbPort = port;
     m_isReady = false;
+    m_pendingOutput.clear();
 
     // 先检查端口是否已被外部现有进程监听（若已有，直接复用并报告就绪）
     if (isPortInUse(port, 200)) {
-        emit serverOutput(QString("检测到端口 %1 已处于监听状态，直接复用现有 GDB Server 服务\n").arg(port), false);
-        m_isReady = true;
-        emit serverReady(port);
-        return true;
+        emit serverError(QStringLiteral("调试端口 %1 已被占用，请先关闭其他调试会话。").arg(port));
+        return false;
     }
+    QString accessError;
+    if (!m_processGuard->acquire(&accessError)) {
+        emit serverError(accessError);
+        return false;
+    }
+    const auto releaseOnFailure = qScopeGuard([this] { m_processGuard->release(); });
 
     if (type == GdbServerType::OpenOCD) {
         if (m_paths.openocdPath.isEmpty() || !QFile::exists(m_paths.openocdPath)) {
@@ -73,6 +89,8 @@ bool GdbServerManager::startServer(GdbServerType type,
         }
         args << "-f" << interfaceCfg;
         args << "-f" << targetCfg;
+        if (!probeSerial.isEmpty()) args << "-c" << QString("adapter serial {%1}").arg(probeSerial);
+        args << "-c" << QString("adapter speed %1").arg(speedKhz);
         args << "-c" << QString("gdb_port %1").arg(port);
 
         emit serverOutput(QString("启动 OpenOCD 服务端: %1 %2\n").arg(m_paths.openocdPath, args.join(" ")), false);
@@ -93,11 +111,11 @@ bool GdbServerManager::startServer(GdbServerType type,
         }
 
         QStringList args;
-        args << "-select" << "USB"
+        args << "-select" << (probeSerial.isEmpty() ? QString("USB") : "USB=" + probeSerial)
              << "-device" << (m_profile.jlinkDeviceName.isEmpty() ? "STM32F103C8" : m_profile.jlinkDeviceName)
              << "-endian" << "little"
              << "-if" << "SWD"
-             << "-speed" << "4000"
+             << "-speed" << QString::number(speedKhz)
              << "-port" << QString::number(port);
 
         emit serverOutput(QString("启动 J-Link GDB Server: %1 %2\n").arg(jlinkServer, args.join(" ")), false);
@@ -109,10 +127,12 @@ bool GdbServerManager::startServer(GdbServerType type,
         }
     }
 
+    if (!isRunning()) return false;
     emit serverStarted();
 
     // 设定心跳保底探测定时器，每 300ms 检测端口是否就绪
     QTimer *readyCheckTimer = new QTimer(this);
+    m_readyTimer = readyCheckTimer;
     connect(readyCheckTimer, &QTimer::timeout, this, [this, readyCheckTimer, port]() {
         if (!isRunning() || m_isReady) {
             readyCheckTimer->stop();
@@ -134,14 +154,21 @@ bool GdbServerManager::startServer(GdbServerType type,
 
 void GdbServerManager::stopServer()
 {
+    if (m_readyTimer) {
+        m_readyTimer->stop();
+        m_readyTimer->deleteLater();
+        m_readyTimer = nullptr;
+    }
     if (isRunning()) {
         m_process->terminate();
         if (!m_process->waitForFinished(1000)) {
             m_process->kill();
+            m_process->waitForFinished(3000);
         }
         emit serverOutput(QStringLiteral("\n[GDB Server 服务端已终止]\n"), false);
     }
     m_isReady = false;
+    m_processGuard->release();
 }
 
 void GdbServerManager::onProcessReadyReadStd()
@@ -160,9 +187,12 @@ void GdbServerManager::onProcessReadyReadErr()
 
 void GdbServerManager::checkServerReadyOutput(const QString &text)
 {
+    m_pendingOutput += text;
+    if (m_pendingOutput.size() > 16384) m_pendingOutput = m_pendingOutput.right(8192);
     if (!m_isReady) {
-        if (text.contains("Listening on port", Qt::CaseInsensitive) ||
-            text.contains("Waiting for GDB connection", Qt::CaseInsensitive)) {
+        const QRegularExpression ready(QStringLiteral("Listening on port %1 for gdb connections|Waiting for GDB connection")
+                                           .arg(m_gdbPort), QRegularExpression::CaseInsensitiveOption);
+        if (ready.match(m_pendingOutput).hasMatch()) {
             m_isReady = true;
             emit serverReady(m_gdbPort);
             emit serverOutput(QString("✅ GDB Server 服务已就绪 (端口 %1)\n").arg(m_gdbPort), false);
@@ -174,5 +204,7 @@ void GdbServerManager::onProcessFinished(int exitCode, QProcess::ExitStatus exit
 {
     Q_UNUSED(exitStatus);
     m_isReady = false;
+    const QString hint = ProbeProcessGuard::accessFailureHint(m_pendingOutput);
+    if (!hint.isEmpty()) emit serverError(hint);
     emit serverStopped(exitCode);
 }

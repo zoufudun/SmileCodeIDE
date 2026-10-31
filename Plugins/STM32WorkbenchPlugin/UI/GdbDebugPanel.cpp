@@ -1,3 +1,4 @@
+#include "idetheme.h"
 #include "GdbDebugPanel.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -159,20 +160,27 @@ void GdbDebugPanel::setupUI()
     mainLayout->addWidget(m_tabWidget, 1);
 }
 
-void GdbDebugPanel::applyTheme()
+void GdbDebugPanel::applyTheme(const QString &themeId)
 {
-    setStyleSheet(
-        "QWidget { background-color: #181825; color: #cdd6f4; font-family: 'Segoe UI', 'Microsoft YaHei'; }"
-        "QTabWidget::pane { border: 1px solid #313244; background: #11111b; }"
-        "QTabBar::tab { background: #1e1e2e; color: #a6adc8; padding: 6px 14px; border: 1px solid #313244; border-bottom: none; }"
-        "QTabBar::tab:selected { background: #11111b; color: #89b4fa; font-weight: bold; border-top: 2px solid #89b4fa; }"
-        "QTableWidget, QTreeWidget, QTextEdit { background-color: #11111b; border: 1px solid #313244; color: #cdd6f4; gridline-color: #313244; }"
-        "QHeaderView::section { background-color: #1e1e2e; color: #89b4fa; border: 1px solid #313244; padding: 4px; font-weight: bold; }"
-        "QLineEdit { background-color: #181825; border: 1px solid #45475a; border-radius: 4px; padding: 4px 8px; color: #f5e0dc; }"
-        "QPushButton { background-color: #313244; color: #cdd6f4; border: 1px solid #45475a; border-radius: 4px; padding: 4px 10px; font-size: 11px; }"
-        "QPushButton:hover { background-color: #45475a; }"
-        "QPushButton:disabled { background-color: #181825; color: #585b70; border-color: #313244; }"
-    );
+    if (!themeId.isEmpty()) {
+        m_currentTheme = themeId;
+    }
+    const IdeTheme::ThemePalette p = IdeTheme::paletteFor(m_currentTheme);
+
+    setStyleSheet(QString(
+        "QWidget { background-color: %1; color: %2; font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif; }"
+        "QTabWidget::pane { border: 1px solid %3; background: %4; }"
+        "QTabBar::tab { background: %5; color: %6; padding: 6px 14px; border: 1px solid %3; border-bottom: none; }"
+        "QTabBar::tab:selected { background: %4; color: %2; font-weight: bold; border-top: 2px solid %7; }"
+        "QTableWidget, QTreeWidget, QTextEdit { background-color: %4; border: 1px solid %3; color: %2; gridline-color: %3; }"
+        "QHeaderView::section { background-color: %8; color: %6; border: 1px solid %3; padding: 4px; font-weight: bold; }"
+        "QLineEdit { background-color: %9; border: 1px solid %10; border-radius: 4px; padding: 4px 8px; color: %2; }"
+        "QPushButton { background: %11; color: %2; border: 1px solid %3; border-radius: 4px; padding: 4px 10px; font-size: 11px; }"
+        "QPushButton:hover { background: %12; color: %13; border: 1px solid %7; }"
+        "QPushButton:disabled { background-color: %1; color: %14; border-color: %3; }"
+    ).arg(p.windowBg, p.textMain, p.border, p.cardBg, p.panelBg,
+         p.textSub, p.accent, p.headerBg, p.inputBg, p.inputBorder,
+         p.panelBgGrad, p.accentGrad, p.accentText, p.textDisabled));
 }
 
 void GdbDebugPanel::updateActionButtons(GdbTargetState state)
@@ -190,30 +198,31 @@ void GdbDebugPanel::updateActionButtons(GdbTargetState state)
     m_downloadBtn->setEnabled(isStopped);
     m_stopBtn->setEnabled(isConnected);
 
+    const IdeTheme::ThemePalette p = IdeTheme::paletteFor(m_currentTheme);
     switch (state) {
         case GdbTargetState::Disconnected:
             m_statusLabel->setText(QStringLiteral("状态: 未连接"));
-            m_statusLabel->setStyleSheet("color: #6c7086;");
+            m_statusLabel->setStyleSheet(QString("color: %1;").arg(p.textDisabled));
             break;
         case GdbTargetState::Connecting:
             m_statusLabel->setText(QStringLiteral("状态: 连接硬件中..."));
-            m_statusLabel->setStyleSheet("color: #f9e2af;");
+            m_statusLabel->setStyleSheet(QString("color: %1;").arg(p.warning));
             break;
         case GdbTargetState::Connected:
             m_statusLabel->setText(QStringLiteral("状态: 已连接目标 (就绪)"));
-            m_statusLabel->setStyleSheet("color: #a6e3a1;");
+            m_statusLabel->setStyleSheet(QString("color: %1; font-weight: bold;").arg(p.success));
             break;
         case GdbTargetState::Running:
             m_statusLabel->setText(QStringLiteral("状态: 目标硬件运行中 ▶"));
-            m_statusLabel->setStyleSheet("color: #89b4fa;");
+            m_statusLabel->setStyleSheet(QString("color: %1; font-weight: bold;").arg(p.accent));
             break;
         case GdbTargetState::Stopped:
             m_statusLabel->setText(QStringLiteral("状态: 已暂停 (断点/单步) ⏸"));
-            m_statusLabel->setStyleSheet("color: #fab387; font-weight: bold;");
+            m_statusLabel->setStyleSheet(QString("color: %1; font-weight: bold;").arg(p.warning));
             break;
         case GdbTargetState::Exited:
             m_statusLabel->setText(QStringLiteral("状态: 会话已结束"));
-            m_statusLabel->setStyleSheet("color: #f38ba8;");
+            m_statusLabel->setStyleSheet(QString("color: %1;").arg(p.danger));
             break;
     }
 }

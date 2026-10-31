@@ -3,7 +3,10 @@ release/ToolchainDetector.o
 release/STM32Profile.o
 release/MakefileGenerator.o
 release/BuildManager.o
+release/BuildLogModel.o
+release/SourceNavigator.o
 release/FlashProgrammer.o
+release/FlashLogModel.o
 release/ProbeDetector.o
 release/GdbServerManager.o
 release/GdbMiEngine.o

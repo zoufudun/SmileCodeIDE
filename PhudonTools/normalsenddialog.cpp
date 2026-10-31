@@ -220,7 +220,7 @@ void NormalSendPage::setupUi() {
   m_addToListButton = new QPushButton("添加到列表");
   m_immediateSendButton = new QPushButton("立即发送");
   m_immediateSendTimeLabel = new QLabel("发送时间(s): 0.000");
-  m_immediateSendTimeLabel->setStyleSheet("font-weight: bold; color: #abb2bf; margin-left: 10px;");
+  m_immediateSendTimeLabel->setStyleSheet("font-weight: bold; margin-left: 10px;");
 
   btnLayout->addWidget(m_addToListButton);
   btnLayout->addWidget(m_immediateSendButton);

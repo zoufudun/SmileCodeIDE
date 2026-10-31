@@ -6,10 +6,14 @@
 #include <QUuid>
 #include <QRegularExpression>
 #include <QDebug>
+#include <QScopeGuard>
 
 FlashProgrammer::FlashProgrammer(QObject *parent)
     : QObject(parent), m_process(new QProcess(this))
 {
+    m_processGuard = new ProbeProcessGuard(m_process, [this](const QString &error) {
+        emit flashOutput(error + '\n', true);
+    });
     connect(m_process, &QProcess::readyReadStandardOutput, this, &FlashProgrammer::onProcessReadyReadStd);
     connect(m_process, &QProcess::readyReadStandardError, this, &FlashProgrammer::onProcessReadyReadErr);
     connect(m_process, static_cast<void(QProcess::*)(int, QProcess::ExitStatus)>(&QProcess::finished),
@@ -55,6 +59,7 @@ bool FlashProgrammer::flashFirmware(const QString &firmwarePath, const FlashOpti
         return false;
     }
     m_processLog.reset(options.verify, options.resetAndRun);
+    m_usbOutputTail.clear();
     m_cancelled = false;
     emit flashSessionStarted(firmwarePath, options);
     if (m_profile.chipName.isEmpty()) {
@@ -89,6 +94,16 @@ bool FlashProgrammer::flashFirmware(const QString &firmwarePath, const FlashOpti
     }
 
     m_startTime = QDateTime::currentMSecsSinceEpoch();
+    if (!ProbeProcessGuard::releaseDebugServers()) {
+        emit flashOutput(QStringLiteral("错误: 旧调试服务尚未退出，下载未启动。\n"), true);
+        return false;
+    }
+    QString accessError;
+    if (!m_processGuard->acquire(&accessError)) {
+        emit flashOutput(accessError + '\n', true);
+        return false;
+    }
+    const auto releaseOnFailure = qScopeGuard([this] { m_processGuard->release(); });
 
     switch (options.driver) {
         case FlashDriverType::OpenOCD_STLink:
@@ -320,7 +335,7 @@ bool FlashProgrammer::flashViaOpenOCD(const QString &firmwarePath, const FlashOp
     emit flashOutput(QString("执行: %1 %2\n\n").arg(m_paths.openocdPath, args.join(" ")), false);
     m_process->start(m_paths.openocdPath, args);
 
-    if (m_process->waitForStarted(3000)) return true;
+    if (m_process->waitForStarted(3000) && isBusy()) return true;
     emit flashOutput(QStringLiteral("错误: 无法启动 OpenOCD: %1\n").arg(m_process->errorString()), true);
     return false;
 }
@@ -377,7 +392,7 @@ bool FlashProgrammer::flashViaJLink(const QString &firmwarePath, const FlashOpti
     emit flashOutput(QString("执行: %1 %2\n\n").arg(m_paths.jlinkPath, args.join(" ")), false);
     m_process->start(m_paths.jlinkPath, args);
 
-    if (m_process->waitForStarted(3000)) return true;
+    if (m_process->waitForStarted(3000) && isBusy()) return true;
     emit flashOutput(QString("错误: 无法启动 J-Link: %1\n").arg(m_process->errorString()), true);
     QFile::remove(m_tempScriptPath);
     QFile::remove(m_tempFirmwarePath);
@@ -399,7 +414,7 @@ bool FlashProgrammer::flashViaSTM32Cube(const QString &firmwarePath, const Flash
     const QStringList args = cubeProgrammerArguments(firmwarePath, options);
 
     m_process->start(m_paths.stm32ProgPath, args);
-    if (m_process->waitForStarted(3000)) return true;
+    if (m_process->waitForStarted(3000) && isBusy()) return true;
     emit flashOutput(QStringLiteral("错误: 无法启动 STM32CubeProgrammer: %1\n").arg(m_process->errorString()), true);
     return false;
 }
@@ -417,7 +432,7 @@ bool FlashProgrammer::flashViaStFlash(const QString &firmwarePath, const FlashOp
     args << "write" << firmwarePath << options.targetAddress;
 
     m_process->start(stflash, args);
-    if (m_process->waitForStarted(3000)) return true;
+    if (m_process->waitForStarted(3000) && isBusy()) return true;
     emit flashOutput(QStringLiteral("错误: 无法启动 st-flash: %1\n").arg(m_process->errorString()), true);
     return false;
 }
@@ -434,6 +449,8 @@ void FlashProgrammer::onProcessReadyReadErr()
 
 void FlashProgrammer::consumeProcessOutput(const QString &text, bool fromStderr)
 {
+    m_usbOutputTail += text;
+    if (m_usbOutputTail.size() > 16384) m_usbOutputTail = m_usbOutputTail.right(8192);
     const qsizetype firstLine = m_processLog.detailedEntries().size();
     const auto stages = m_processLog.append(text, fromStderr);
     publishProcessLines(firstLine, stages);
@@ -474,6 +491,11 @@ void FlashProgrammer::onProcessFinished(int exitCode, QProcess::ExitStatus exitS
     const FlashLogEntry summary = m_processLog.finish(success, message);
     success = summary.severity == FlashLogSeverity::Success;
     message = summary.text;
+    const QString accessHint = ProbeProcessGuard::accessFailureHint(m_usbOutputTail);
+    if (!success && !accessHint.isEmpty()) {
+        emit flashOutput(accessHint + '\n', true);
+        message += '\n' + accessHint;
+    }
 
     // 清理临时脚本
     if (!m_tempScriptPath.isEmpty() && QFile::exists(m_tempScriptPath)) {

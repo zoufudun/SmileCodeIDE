@@ -1,49 +1,50 @@
-# XX项目阶段性工作总结 PPT 任务计划
+# SmileCodeIDE 专项升级与问题攻坚任务计划 (task_plan.md)
 
-## 目标
-基于仓库最近一周提交与项目文档，按 ppt-director controlled 流程生成管理层汇报 PPT：先产出 MD 大纲与页面视觉导演稿，再生成 HTML 预览；经人工确认后映射为保留可编辑文本的 PPTX。
+## 一、 标准工作流规范 (Standard Operating Procedure)
 
-## 阶段
-- [x] 1. 素材盘点与受众校准
-- [x] 2. MD 大纲与标准交付文档
-- [x] 3. 页面描述_优化版与设计语言对表
-- [x] 4. 生成就绪导演稿
-- [x] 5. HTML 预览、截图与布局审查
-- [ ] 6. 用户确认 HTML
-- [ ] 7. 可编辑 PPTX 映射、渲染与最终审查
+根据用户明确要求，从即日起，每次问题解决均严格执行以下四步标准化流程：
 
-## 约束
-- 受众：部门领导；目的：阶段工作汇报；风格：商务极简，默认采用 registry 的 digital-zhejiang。
-- 事实来源：最近一周 git 提交、`docs/` 中 2026-09-10 至 2026-09-12 的验收/走查/实施文档。
-- 无独立“项目周报”文件，必须在交付文档中显式标注素材边界。
-- PPTX 不使用整页截图作为唯一内容；标题、正文、矩形、箭头、流程等保持原生可编辑。
-
-## 错误记录
-| 错误 | 尝试 | 处理 |
-|---|---:|---|
-| `C:\Users\Phodon\.codex\skills\planning-with-files\SKILL.md` 不存在 | 1 | 改读工作区 `.agents/skills` 镜像路径 |
-| `C:\Users\Phodon\.codex\skills\using-superpowers\SKILL.md` 不存在 | 1 | 改读工作区 `.agents/skills` 镜像路径 |
+1. **阶段 1：问题分析与定位 (Problem Analysis & Root Cause)**
+   - 深入分析用户反馈的故障现象、外部环境与异常日志；
+   - 结合源代码、调用栈、底层汇编或硬件调试器（GDB / 寄存器现场）精准锁定根本原因，杜绝主观臆测。
+2. **阶段 2：修改计划与方案 (Modification Plan)**
+   - 制定严密具体的实施计划，明确涉及的代码文件、预期修改点、风险规避与交付验证标准。
+3. **阶段 3：具体修改措施与总结报告 (Implementation & Walkthrough Documentation)**
+   - 给出清晰、完整、逐项对照的修改措施与技术原理总结；
+   - 严格落实到可下载、易保存的本地 Markdown 归档报告（如 `walkthrough.md` 及 `docs/` 副本）。
+4. **阶段 4：Git 版本控制与版本号策略 (Git Version Control & Bumping)**
+   - **大修正 (Major / Minor)**：涉及重大机制调整、底层架构重构、关键外设/系统故障修复，递增主版本或次版本号（例如 `v2.2.0` $\rightarrow$ `v2.3.0`）；
+   - **小修正 (Patch)**：涉及局部 UI 微调、样式优化、特定环境兼容小修，递增补丁版本号（例如 `v2.3.0` $\rightarrow$ `v2.3.1`）；
+   - 同步更新项目版本配置（如 `PhudonTools.pro` 的 `VERSION` 与 `plugin.json` 的 `version`）；
+   - 提交 Git Commit 并打上对应版本的清晰说明。
 
 ---
 
-# 火灾探测报警控制系统宣传 PPT 任务计划（2026-09-17）
+## 二、 阶段执行与闭环记录
 
-## 目标
-面向集团领导制作 3 页对外展示 PPT，采用浅蓝、国企/行政单位审美和商务极简排版，覆盖系统概念与组成、EST3 回路通信与探测机理、市场应用场景与未来趋势；先交付 MD 大纲、页面导演稿和 HTML 预览，确认后生成保留全部可编辑文本的 PPTX。
+### 阶段 1：野火 STM32H743 触摸画板工程烧录后板卡无效果排查与解决【完成】
+- **问题分析与定位**：
+  - GDB 抓取芯片现场停在 `Handler External Interrupt(40)` 及 `i2c_Delay()`；
+  - 根因：Makefile 默认 `-O0`（无优化）使得 400MHz Cortex-M7 内核上的软件循环延时放大 10 倍以上，在 `GTP_Init_Panel()` 触发 I2C 超时重试与外部中断风暴，后续 `LCD_Init()`、开启背光与画板绘制根本未被执行；Keil MDK 默认 `-O1` 故无此问题。
+- **具体修改措施**：
+  - 将编译优化升级为 `-O1 -g3 -gdwarf-2`（硬件现场验证通过：断点全过，背光使能 PD7=1，显存 `0xD0177000` 完整绘制白色画板与按钮）；
+  - 修改 `Plugins/STM32WorkbenchPlugin/Core/MakefileGenerator.cpp` 永久默认使用 `-O1`，重新编译部署 `STM32WorkbenchPlugin.dll`。
 
-## 阶段
-- [x] B1. EST3 技术事实核验与内容边界
-- [x] B2. 3 页 MD 大纲与标准交付文档
-- [x] B3. 页面描述_优化版、设计语言对表、生成就绪导演稿
-- [x] B4. 设备/机理/场景宣传图片生成与入库
-- [x] B5. HTML 预览、PNG、contact sheet 与布局审查
-- [x] B5.1 回路二总线动态联动与舰船/石化场景增补及复核
-- [x] B5.2 第二页真实设备版布局重构与动态复核
-- [ ] B6. 用户确认 HTML
-- [ ] B7. 可编辑 PPTX 映射、实际渲染与最终审查
+### 阶段 2：C 语言语法与 GCC 14 宽容度兼容【完成】
+- **修改措施**：
+  - 修复 `gt9xx.c:811` 科学计数法词法贪婪冲突为 `0x80FE - 0x8047 + 1`；
+  - 在 `bsp_lcd.h` 补全 `LCD_DispString_EN_CH` 导出声明；
+  - 在 `MakefileGenerator.cpp` 的 `CFLAGS` 中注入 `-Wno-error=implicit-function-declaration -Wno-error=incompatible-pointer-types` 保证与 Keil 对齐。
 
-## 关键约束
-- 严格 3 页，不单设封面：第 1 页兼具主题建立和概念/组成；第 2 页讲工作机理；第 3 页讲场景与趋势。
-- 不虚构 EST3 的速率、容量、专利算法或认证参数；无可靠公开依据时使用机制级表述。
-- 生成图片不出现品牌 Logo、型号铭牌、乱码文字、火灾伤亡画面或夸张灾难效果。
-- 最终 PPTX 中所有标题、正文、流程节点和标签均为原生可编辑文本。
+### 阶段 3：UI 主题与体验深度优化【完成】
+- **修改措施**：
+  - 重写 `idetheme.h` 中的 QComboBox 下拉倒三角绘制，用矢量抗锯齿平滑多边形替换硬编码横线；
+  - 消除目标芯片选择、固件烧录、工具链配置等对话框的白底异色与高对比残留；
+  - 打开项目自动记忆并优先定位到最近访问目录；
+  - 修复视图重复添加与后台进程生命周期导致的崩溃隐患。
+
+### 阶段 4：版本控制与发布归档 (Release v2.3.0)【当前进行中】
+- [x] 更新 `PhudonTools/PhudonTools.pro` 版本为 `2.3.0`
+- [x] 更新 `Plugins/STM32WorkbenchPlugin/plugin.json` 版本为 `1.1.0`
+- [x] 生成并保存详细走查报告 `walkthrough.md` 与 `docs/` 副本
+- [ ] 执行 Git 暂存与版本提交 (Commit & Tag)

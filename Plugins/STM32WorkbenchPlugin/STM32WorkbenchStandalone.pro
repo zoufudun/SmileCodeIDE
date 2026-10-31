@@ -6,6 +6,7 @@ TARGET = STM32Workbench
 TEMPLATE = app
 
 INCLUDEPATH += $$PWD/../../PhudonTools/include
+INCLUDEPATH += $$PWD/../../PhudonTools
 INCLUDEPATH += $$PWD/Core
 INCLUDEPATH += $$PWD/UI
 

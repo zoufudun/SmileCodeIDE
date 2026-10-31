@@ -10,14 +10,14 @@
 
 .formGroup label {
   font-size: 11px;
-  color: #94a3b8;
+  color: var(--text-secondary);
   font-weight: 600;
 }
 
 .input {
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #ffffff;
+  background: var(--control-bg);
+  border: 1px solid var(--panel-border);
+  color: var(--text-primary);
   padding: 8px 12px;
   border-radius: 6px;
   font-size: 12px;
@@ -27,8 +27,13 @@
 }
 
 .input:focus {
-  border-color: rgba(0, 240, 255, 0.5);
-  box-shadow: 0 0 8px rgba(0, 240, 255, 0.25);
+  border-color: var(--primary-color);
+  box-shadow: 0 0 8px var(--primary-glow-light);
+}
+
+.input:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
 }
 
 .footer {
@@ -36,8 +41,8 @@
   justify-content: flex-end;
   gap: 10px;
   padding: 14px 20px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(0, 0, 0, 0.15);
+  border-top: 1px solid var(--panel-border);
+  background: var(--control-bg);
 }
 
 .btn {
@@ -52,22 +57,22 @@
 }
 
 .primary {
-  background: rgba(0, 240, 255, 0.15);
-  color: #00f0ff;
-  border: 1px solid rgba(0, 240, 255, 0.3);
+  background: var(--primary-glow-light);
+  color: var(--primary-color);
+  border: 1px solid var(--primary-border);
 }
 
 .primary:hover {
-  background: rgba(0, 240, 255, 0.25);
-  box-shadow: 0 0 10px rgba(0, 240, 255, 0.2);
+  background: var(--primary-border);
+  box-shadow: 0 0 10px var(--primary-glow-light);
 }
 
 .secondary {
-  background: rgba(255, 255, 255, 0.03);
-  color: #cbd5e1;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--control-hover);
+  color: var(--text-secondary);
+  border: 1px solid var(--panel-border);
 }
 
 .secondary:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--panel-border-strong);
 }

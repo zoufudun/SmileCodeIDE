@@ -1,3 +1,4 @@
+#include <QPointer>
 /*
  * @Description:
  * @Version: 1.0
@@ -790,46 +791,7 @@ public:
     mainLayout->addWidget(m_replaceRowWidget);
     m_replaceRowWidget->setVisible(false);
 
-    // 统一样式
-    setStyleSheet(
-        "#FindReplaceWidget {"
-        "  background-color: #252526;"
-        "  border: 1px solid #3E4451;"
-        "  border-radius: 6px;"
-        "}"
-        "QLineEdit {"
-        "  background-color: #1E1E1E;"
-        "  color: #D4D4D4;"
-        "  border: 1px solid #3E4451;"
-        "  border-radius: 3px;"
-        "  padding: 2px 6px;"
-        "  font-family: 'Consolas', monospace;"
-        "  font-size: 12px;"
-        "}"
-        "QLineEdit:focus {"
-        "  border: 1px solid #007ACC;"
-        "}"
-        "QToolButton {"
-        "  background-color: transparent;"
-        "  color: #CCCCCC;"
-        "  border: 1px solid transparent;"
-        "  border-radius: 3px;"
-        "  font-weight: bold;"
-        "  font-size: 11px;"
-        "  padding: 1px 4px;"
-        "}"
-        "QToolButton:hover {"
-        "  background-color: #383B40;"
-        "  border: 1px solid #4B5263;"
-        "}"
-        "QToolButton:checked {"
-        "  background-color: #0E639C;"
-        "  color: #FFFFFF;"
-        "  border: 1px solid #1177BB;"
-        "}"
-        "QToolButton:pressed {"
-        "  background-color: #007ACC;"
-        "}");
+    updateTheme(IdeTheme::paletteFor("dark"));
 
     // 信号连接
     connect(m_toggleReplaceBtn, &QToolButton::toggled, this, &FindReplaceWidget::setReplaceVisible);
@@ -844,6 +806,53 @@ public:
     connect(m_replaceBtn, &QToolButton::clicked, this, &FindReplaceWidget::replaceSingle);
     connect(m_replaceAllBtn, &QToolButton::clicked, this, &FindReplaceWidget::replaceAll);
     connect(m_replaceEdit, &QLineEdit::returnPressed, this, &FindReplaceWidget::replaceSingle);
+  }
+
+  void updateTheme(const IdeTheme::ThemePalette &p) {
+    if (m_matchCountLabel) {
+      m_matchCountLabel->setStyleSheet(QString("color: %1; font-size: 11px; padding: 0 4px;").arg(p.textSub));
+    }
+    setStyleSheet(QString(
+        "#FindReplaceWidget {"
+        "  background-color: %1;"
+        "  border: 1px solid %2;"
+        "  border-radius: 6px;"
+        "}"
+        "QLineEdit {"
+        "  background-color: %3;"
+        "  color: %4;"
+        "  border: 1px solid %5;"
+        "  border-radius: 3px;"
+        "  padding: 2px 6px;"
+        "  font-family: 'Consolas', monospace;"
+        "  font-size: 12px;"
+        "}"
+        "QLineEdit:focus {"
+        "  border: 1px solid %6;"
+        "}"
+        "QToolButton {"
+        "  background-color: transparent;"
+        "  color: %4;"
+        "  border: 1px solid transparent;"
+        "  border-radius: 3px;"
+        "  font-weight: bold;"
+        "  font-size: 11px;"
+        "  padding: 1px 4px;"
+        "}"
+        "QToolButton:hover {"
+        "  background-color: %7;"
+        "  border: 1px solid %8;"
+        "}"
+        "QToolButton:checked {"
+        "  background: %9;"
+        "  color: %10;"
+        "  border: 1px solid %6;"
+        "}"
+        "QToolButton:pressed {"
+        "  background-color: %11;"
+        "  color: %10;"
+        "}").arg(p.cardBg, p.borderLight, p.inputBg, p.textMain, p.inputBorder,
+                 p.accent, p.panelBg, p.border, p.accentGrad, p.accentText, p.accentPressed));
   }
 
   void setReplaceVisible(bool visible) {
@@ -1356,7 +1365,7 @@ public:
         int line = item->data(Qt::UserRole).toInt();
         int col = item->data(Qt::UserRole + 1).toInt();
         int len = item->data(Qt::UserRole + 2).toInt();
-        m_editor->currentEditor()->setCursorPosition(line, col);
+        m_editor->openFileAndGoTo(m_filePath, line + 1, col + 1);
         m_editor->currentEditor()->ensureLineVisible(line);
         m_editor->currentEditor()->setSelection(line, col, line, col + len);
         m_editor->currentEditor()->setFocus();
@@ -1540,7 +1549,7 @@ protected:
     if (event->button() == Qt::LeftButton && m_targetLine >= 0 && m_codeEditor) {
       QsciScintilla *editor = m_codeEditor->currentEditor();
       if (editor) {
-        editor->setCursorPosition(m_targetLine, m_targetCol);
+        m_codeEditor->openFileAndGoTo(m_codeEditor->currentFilePath(), m_targetLine + 1, m_targetCol + 1);
         editor->ensureLineVisible(m_targetLine);
         int visibleLines = editor->SendScintilla(QsciScintilla::SCI_LINESONSCREEN);
         int scrollLine = qMax(0, m_targetLine - visibleLines / 3);
@@ -1603,9 +1612,7 @@ CodeEditor::CodeEditor(QWidget *parent)
   layout->setContentsMargins(0, 0, 0, 0);
   layout->setSpacing(0);
 
-  // 创建工具栏
-  createToolBar();
-  layout->addWidget(m_toolBar);
+  initializeEditorCommands();
 
   // 创建 VS Code 风格面包屑导航栏
   createBreadcrumbBar();
@@ -1658,6 +1665,8 @@ CodeEditor::CodeEditor(QWidget *parent)
       "// PhudonTools 代码编辑器\n#include <stdint.h>\n\nint main(void) {\n    // "
       "初始化代码\n    while(1) {\n        // 主循环\n    }\n    return 0;\n}");
 
+  editor->setModified(false);
+
   // 连接信号和槽
   connect(editor, &QsciScintilla::textChanged, this,
           &CodeEditor::updateVariableList);
@@ -1703,8 +1712,13 @@ QString CodeEditor::text() const {
 }
 
 bool CodeEditor::openFile(const QString &filePath) {
+  QString canonical = QFileInfo(filePath).canonicalFilePath();
+  if (canonical.isEmpty()) canonical = QFileInfo(filePath).absoluteFilePath();
+  if (canonical == m_currentFilePath) return true;
   QFile file(filePath);
   if (file.open(QIODevice::ReadOnly)) {
+    if (!confirmDiscardChanges()) return false;
+    const auto origin = navigationPosition();
     QByteArray data = file.readAll();
     file.close();
 
@@ -1730,6 +1744,7 @@ bool CodeEditor::openFile(const QString &filePath) {
     // 在当前编辑器中显示文件内容
     if (m_currentEditor) {
       m_currentEditor->setText(content);
+      m_currentEditor->setModified(false);
       // 应用该文件的断点与执行指针标记
       applyBreakpointsToEditor(m_currentEditor, m_currentFilePath);
       // Trigger highlighting manually after loading file
@@ -1743,6 +1758,8 @@ bool CodeEditor::openFile(const QString &filePath) {
     // 更新函数列表
     updateFunctionList();
 
+    if (!m_replayingHistory) recordNavigation(origin);
+    emit currentBufferChanged(m_currentFilePath, m_currentEditor->text());
     emit fileOpened(m_currentFilePath);
     return true;
   }
@@ -1766,6 +1783,8 @@ bool CodeEditor::saveFile(const QString &filePath) {
       m_currentFilePath = QFileInfo(filePath).absoluteFilePath();
     }
 
+    m_currentEditor->setModified(false);
+    emit currentBufferChanged(m_currentFilePath, m_currentEditor->text());
     emit fileSaved(m_currentFilePath);
     return true;
   }
@@ -1906,6 +1925,10 @@ void CodeEditor::applyTheme(const QString &themeName) {
     editor->SendScintilla(QsciScintilla::SCI_INDICSETOUTLINEALPHA, (unsigned long)OCCURRENCE_INDICATOR, (long)255);
   }
 
+  if (m_findReplaceBar) {
+    static_cast<FindReplaceWidget *>(m_findReplaceBar)->updateTheme(p);
+  }
+
   // 2. 深度定制面包屑导航栏与函数大纲列表
   if (m_breadcrumbBar) {
     m_breadcrumbBar->setStyleSheet(QString(
@@ -2022,31 +2045,7 @@ void CodeEditor::applyTheme(const QString &themeName) {
   }
 
   // 4. 自定义函数名与类名高亮设置
-  setupFunctionNameHighlighting(p.isDark);
-
-  // 5. 编辑器迷你工具栏配色
-  if (m_toolBar) {
-    m_toolBar->setStyleSheet(QString(
-        "QToolBar {"
-        "    background-color: %1;"
-        "    border-bottom: 1px solid %2;"
-        "    spacing: 3px;"
-        "    padding: 2px 4px;"
-        "}"
-        "QToolButton {"
-        "    background: transparent;"
-        "    border: 1px solid transparent;"
-        "    border-radius: 3px;"
-        "    padding: 2px;"
-        "}"
-        "QToolButton:hover {"
-        "    background-color: %3;"
-        "    border: 1px solid %2;"
-        "}"
-        "QToolButton:pressed {"
-        "    background-color: %4;"
-        "}").arg(p.panelBg, p.border, p.menuHover, p.accent));
-  }
+  setupFunctionNameHighlighting(p);
 
   // 6. 粘性滚动 (Sticky Scroll) 主题更新
   if (m_stickyScrollWidget) {
@@ -2056,7 +2055,16 @@ void CodeEditor::applyTheme(const QString &themeName) {
 }
 
 void CodeEditor::setupFunctionNameHighlighting(bool isDarkTheme) {
-  // 为每个编辑器设置函数名高亮
+  setupFunctionNameHighlighting(IdeTheme::paletteFor(isDarkTheme ? "dark" : "light"));
+}
+
+void CodeEditor::setupFunctionNameHighlighting(const IdeTheme::ThemePalette &p) {
+  auto toScintillaColor = [](const QColor &c) -> long {
+    return (c.red() & 0xFF) | ((c.green() & 0xFF) << 8) | ((c.blue() & 0xFF) << 16);
+  };
+  long funcColor = toScintillaColor(p.synFunction);
+  long classColor = toScintillaColor(p.synGlobalClass);
+
   for (QsciScintilla *editor : m_editors) {
     if (!editor)
       continue;
@@ -2064,54 +2072,32 @@ void CodeEditor::setupFunctionNameHighlighting(bool isDarkTheme) {
     const int FUNCTION_INDICATOR = 20;
     const int CLASS_INDICATOR = 27;
 
-    // 设置指示器样式为文本前景色
     editor->SendScintilla(QsciScintilla::SCI_INDICSETSTYLE, FUNCTION_INDICATOR,
                           QsciScintilla::INDIC_TEXTFORE);
     editor->SendScintilla(QsciScintilla::SCI_INDICSETSTYLE, CLASS_INDICATOR,
                           QsciScintilla::INDIC_TEXTFORE);
 
-    // 根据主题设置颜色
-    if (isDarkTheme) {
-      // 深色主题
-      editor->SendScintilla(QsciScintilla::SCI_INDICSETFORE, FUNCTION_INDICATOR,
-                            0xAADCDC); // 橙色 #DCDCAA
-      editor->SendScintilla(QsciScintilla::SCI_INDICSETFORE, CLASS_INDICATOR,
-                            0xB0C94E); // 青绿色 #4EC9B0
-    } else {
-      // 浅色主题
-      editor->SendScintilla(QsciScintilla::SCI_INDICSETFORE, FUNCTION_INDICATOR,
-                            0x008CFF); // 深橙色
-      editor->SendScintilla(QsciScintilla::SCI_INDICSETFORE, CLASS_INDICATOR,
-                            0x997F26); // 深青色
-    }
+    editor->SendScintilla(QsciScintilla::SCI_INDICSETFORE, FUNCTION_INDICATOR, funcColor);
+    editor->SendScintilla(QsciScintilla::SCI_INDICSETFORE, CLASS_INDICATOR, classColor);
 
-    // 设置指示器透明度和优先级
-    editor->SendScintilla(QsciScintilla::SCI_INDICSETALPHA, FUNCTION_INDICATOR,
-                          255);
-    editor->SendScintilla(QsciScintilla::SCI_INDICSETUNDER, FUNCTION_INDICATOR,
-                          false);
-    editor->SendScintilla(QsciScintilla::SCI_INDICSETOUTLINEALPHA,
-                          FUNCTION_INDICATOR, 255);
+    editor->SendScintilla(QsciScintilla::SCI_INDICSETALPHA, FUNCTION_INDICATOR, 255);
+    editor->SendScintilla(QsciScintilla::SCI_INDICSETUNDER, FUNCTION_INDICATOR, false);
+    editor->SendScintilla(QsciScintilla::SCI_INDICSETOUTLINEALPHA, FUNCTION_INDICATOR, 255);
 
-    editor->SendScintilla(QsciScintilla::SCI_INDICSETALPHA, CLASS_INDICATOR,
-                          255);
-    editor->SendScintilla(QsciScintilla::SCI_INDICSETUNDER, CLASS_INDICATOR,
-                          false);
-    editor->SendScintilla(QsciScintilla::SCI_INDICSETOUTLINEALPHA,
-                          CLASS_INDICATOR, 255);
+    editor->SendScintilla(QsciScintilla::SCI_INDICSETALPHA, CLASS_INDICATOR, 255);
+    editor->SendScintilla(QsciScintilla::SCI_INDICSETUNDER, CLASS_INDICATOR, false);
+    editor->SendScintilla(QsciScintilla::SCI_INDICSETOUTLINEALPHA, CLASS_INDICATOR, 255);
 
-    // 连接信号(如果尚未连接)
-    // 注意：这里为了简单起见，可能会重复连接。
-    // 理想情况下应该检查是否连接，或者在setupEditor中只连接一次。
-    // 断开所有 textChanged 信号可能会破坏 CodeEditor 的其他功能
-    connect(editor, &QsciScintilla::textChanged, [this, editor]() {
-      QTimer::singleShot(200, [this, editor]() {
-        if (editor)
-          highlightFunctionNames(editor, 20);
-      });
-    });
+    QPointer<QsciScintilla> safeEditor = editor;
+    connect(editor, &QsciScintilla::textChanged, this, [this, safeEditor]() {
+      if (safeEditor) {
+        QTimer::singleShot(200, safeEditor.data(), [this, safeEditor]() {
+          if (safeEditor)
+            highlightFunctionNames(safeEditor.data(), 20);
+        });
+      }
+    }, Qt::UniqueConnection);
 
-    // 立即更新
     highlightFunctionNames(editor, FUNCTION_INDICATOR);
   }
 }
@@ -2620,6 +2606,12 @@ QsciScintilla *CodeEditor::findFirstEditor(QSplitter *splitter) {
 }
 
 void CodeEditor::setupEditor(QsciScintilla *editor) {
+  connect(editor, &QsciScintilla::textChanged, this, [this, editor] {
+    if (editor == m_currentEditor) emit currentBufferChanged(m_currentFilePath, editor->text());
+  });
+  connect(editor, &QsciScintilla::textChanged, this, [this, editor]() {
+    updateBracketHighlighting(editor);
+  });
   // 设置编辑器字体
   QFont font("Consolas", 10);
   font.setFixedPitch(true);
@@ -2785,9 +2777,6 @@ void CodeEditor::setupEditor(QsciScintilla *editor) {
     editor->viewport()->installEventFilter(this);
   }
 
-  new QShortcut(QKeySequence(Qt::Key_F12), editor, this, &CodeEditor::gotoDefinitionAtCursor);
-  new QShortcut(QKeySequence("Shift+F12"), editor, this, &CodeEditor::findReferencesAtCursor);
-  new QShortcut(QKeySequence(Qt::Key_F2), editor, this, &CodeEditor::renameSymbolAtCursor);
   new QShortcut(QKeySequence(Qt::Key_F9), editor, this, &CodeEditor::toggleBreakpointAtCursor);
 
   // Initialize line number highlighting, breadcrumb & sticky scroll
@@ -2832,20 +2821,8 @@ void CodeEditor::setupRainbowBrackets(QsciScintilla *editor) {
     editor->SendScintilla(QsciScintilla::SCI_INDICSETUNDER, indicator, false);
   }
 
-  // Connect to textChanged with debounce to avoid heavy processing on
-  // every keystroke
-  editor->disconnect(
-      SIGNAL(textChanged())); // Careful, this might disconnect others
-  // Better: use a specific connection or rely on the single valid
-  // connection. In `setupEditor` we already have connections. Let's add a
-  // connection specifically for brackets if not present.
-
-  // Note: We are using a unified updateBracketHighlighting now.
-  connect(editor, &QsciScintilla::textChanged, [this, editor]() {
-    // Debounce?
-    // For now, simple direct call or short timer
-    updateBracketHighlighting(editor);
-  });
+  // updateBracketHighlighting is connected in setupEditor; do not disconnect textChanged
+  // here because that clears currentBufferChanged and variable listeners.
 
   // Initial update
   updateBracketHighlighting(editor);
@@ -3370,7 +3347,9 @@ void CodeEditor::navigateToSymbol(const FunctionInfo &info) {
   int nameLen = baseName.length();
 
   // 1. 设置光标位置并确保行可见
+  const auto origin = navigationPosition();
   m_currentEditor->setCursorPosition(targetLine, targetCol);
+  recordNavigation(origin);
   m_currentEditor->ensureLineVisible(targetLine);
 
   // 2. 将目标行平滑滚动至视口大约 1/3 黄金阅读位置
@@ -5482,430 +5461,8 @@ void CodeEditor::onEditorChanged(QsciScintilla *editor) {
   }
 }
 
-// 添加创建工具栏的方法
-void CodeEditor::createToolBar() {
-  m_toolBar = new QToolBar("编辑器工具栏", this);
-  m_toolBar->setMovable(true);
-  m_toolBar->setIconSize(QSize(16, 16));
-
-  // 创建动作
-
-  // 使用Qt内置图标
-  QStyle *style = QApplication::style();
-
-  // 文件操作
-  // QAction* newFileAction = new QAction("新建文件", this);
-  // newFileAction->setIcon(style->standardIcon(QStyle::SP_FileIcon));
-  // newFileAction->setToolTip("创建新文件");
-  // connect(newFileAction, &QAction::triggered, [this]() {
-  //     // 实现新建文件功能
-  //     emit newFileRequested();
-  // });
-
-  QAction *newFileAction = new QAction("新建文件", this);
-  newFileAction->setIcon(style->standardIcon(QStyle::SP_FileIcon));
-  newFileAction->setToolTip("创建新文件");
-  connect(newFileAction, &QAction::triggered, this, &CodeEditor::createNewFile);
-  m_toolBar->addAction(newFileAction);
-
-  QAction *openFileAction = new QAction("打开文件", this);
-  openFileAction->setIcon(style->standardIcon(QStyle::SP_DialogOpenButton));
-  openFileAction->setToolTip("打开文件");
-  connect(openFileAction, &QAction::triggered, [this]() {
-    // 实现打开文件功能
-    emit openFileRequested();
-  });
-  m_toolBar->addAction(openFileAction);
-
-  QAction *saveFileAction = new QAction("保存文件", this);
-  saveFileAction->setIcon(style->standardIcon(QStyle::SP_DialogSaveButton));
-  saveFileAction->setToolTip("保存文件");
-  connect(saveFileAction, &QAction::triggered, [this]() {
-    // 实现保存文件功能
-    emit saveFileRequested();
-  });
-  m_toolBar->addAction(saveFileAction);
-
-  m_toolBar->addSeparator();
-
-  // 水平分栏动作
-  QAction *horizontalSplitAction =
-      new QAction(QIcon(":/icons/horizontal_split.png"), "水平分栏", this);
-  horizontalSplitAction->setToolTip("创建水平分栏");
-  connect(horizontalSplitAction, &QAction::triggered,
-          [this]() { createSplitView(Qt::Horizontal); });
-  m_toolBar->addAction(horizontalSplitAction);
-
-  // 垂直分栏动作
-  QAction *verticalSplitAction =
-      new QAction(QIcon(":/icons/vertical_split.png"), "垂直分栏", this);
-  verticalSplitAction->setToolTip("创建垂直分栏");
-  connect(verticalSplitAction, &QAction::triggered,
-          [this]() { createSplitView(Qt::Vertical); });
-  m_toolBar->addAction(verticalSplitAction);
-
-  // 关闭分栏动作
-  QAction *closeSplitAction =
-      new QAction(QIcon(":/icons/close_split.png"), "关闭分栏", this);
-  closeSplitAction->setToolTip("关闭当前分栏");
-  connect(closeSplitAction, &QAction::triggered,
-          [this]() { closeSplitView(); });
-  m_toolBar->addAction(closeSplitAction);
-
-  m_toolBar->addSeparator();
-
-  // 撤销动作
-  QAction *undoAction = new QAction(QIcon(":/icons/undo.png"), "撤销", this);
-  undoAction->setToolTip("撤销上一步操作");
-  connect(undoAction, &QAction::triggered, [this]() {
-    if (m_currentEditor) {
-      m_currentEditor->undo();
-    }
-  });
-  m_toolBar->addAction(undoAction);
-
-  // 重做动作
-  QAction *redoAction = new QAction(QIcon(":/icons/redo.png"), "重做", this);
-  redoAction->setToolTip("重做上一步操作");
-  connect(redoAction, &QAction::triggered, [this]() {
-    if (m_currentEditor) {
-      m_currentEditor->redo();
-    }
-  });
-  m_toolBar->addAction(redoAction);
-
-  m_toolBar->addSeparator();
-
-  // 剪切动作
-  QAction *cutAction = new QAction(QIcon(":/icons/cut.png"), "剪切", this);
-  cutAction->setToolTip("剪切选中的文本");
-  connect(cutAction, &QAction::triggered, [this]() {
-    if (m_currentEditor) {
-      m_currentEditor->cut();
-    }
-  });
-  m_toolBar->addAction(cutAction);
-
-  // 复制动作
-  QAction *copyAction = new QAction(QIcon(":/icons/copy.png"), "复制", this);
-  copyAction->setToolTip("复制选中的文本");
-  connect(copyAction, &QAction::triggered, [this]() {
-    if (m_currentEditor) {
-      m_currentEditor->copy();
-    }
-  });
-  m_toolBar->addAction(copyAction);
-
-  // 粘贴动作
-  QAction *pasteAction = new QAction(QIcon(":/icons/paste.png"), "粘贴", this);
-  pasteAction->setToolTip("粘贴文本");
-  connect(pasteAction, &QAction::triggered, [this]() {
-    if (m_currentEditor) {
-      m_currentEditor->paste();
-    }
-  });
-  m_toolBar->addAction(pasteAction);
-
-  m_toolBar->addSeparator();
-
-  // 查找动作
-  QAction *findAction = new QAction(QIcon(":/icons/find.png"), "查找", this);
-  findAction->setToolTip("查找文本");
-  connect(findAction, &QAction::triggered, [this]() {
-    if (m_currentEditor) {
-      // 这里可以实现查找功能，或者调用已有的查找方法
-      // 暂时使用简单的实现
-      m_currentEditor->findFirst("", false, false, false, true);
-    }
-  });
-  m_toolBar->addAction(findAction);
-
-  // 替换动作
-  QAction *replaceAction =
-      new QAction(QIcon(":/icons/replace.png"), "替换", this);
-  replaceAction->setToolTip("替换文本");
-  connect(replaceAction, &QAction::triggered, [this]() {
-    if (m_currentEditor) {
-      // 这里可以实现替换功能，或者调用已有的替换方法
-      // 暂时使用简单的实现
-      // 需要更复杂的实现可以添加一个替换对话框
-    }
-  });
-  m_toolBar->addAction(replaceAction);
-
-  m_toolBar->addSeparator();
-
-  // 缩进动作
-  QAction *indentAction =
-      new QAction(QIcon(":/icons/indent.png"), "增加缩进", this);
-  indentAction->setToolTip("增加选中文本的缩进");
-  connect(indentAction, &QAction::triggered, [this]() {
-    if (m_currentEditor) {
-      // QsciScintilla doesn't have an indent() method
-      // Instead, we need to manually insert spaces or tabs at the
-      // beginning of selected lines
-      int lineFrom, indexFrom, lineTo, indexTo;
-      m_currentEditor->getSelection(&lineFrom, &indexFrom, &lineTo, &indexTo);
-
-      // If no selection, use current line
-      if (lineFrom == -1) {
-        // Fix: getCursorPosition requires two parameters
-        m_currentEditor->getCursorPosition(&lineFrom, &indexFrom);
-        lineTo = lineFrom;
-      }
-
-      // Begin undo action
-      m_currentEditor->beginUndoAction();
-
-      // Add indentation to each line
-      for (int line = lineFrom; line <= lineTo; ++line) {
-        m_currentEditor->insertAt("    ", line, 0); // Insert 4 spaces
-      }
-
-      // End undo action
-      m_currentEditor->endUndoAction();
-    }
-  });
-  m_toolBar->addAction(indentAction);
-
-  // 取消缩进动作
-  QAction *unindentAction =
-      new QAction(QIcon(":/icons/unindent.png"), "减少缩进", this);
-  unindentAction->setToolTip("减少选中文本的缩进");
-  connect(unindentAction, &QAction::triggered, [this]() {
-    if (m_currentEditor) {
-      // QsciScintilla doesn't have an unindent() method
-      // Instead, we need to manually remove spaces or tabs from the
-      // beginning of selected lines
-      int lineFrom, indexFrom, lineTo, indexTo;
-      m_currentEditor->getSelection(&lineFrom, &indexFrom, &lineTo, &indexTo);
-
-      // If no selection, use current line
-      if (lineFrom == -1) {
-        // Fix: getCursorPosition requires two parameters
-        m_currentEditor->getCursorPosition(&lineFrom, &indexFrom);
-        lineTo = lineFrom;
-      }
-
-      // Begin undo action
-      m_currentEditor->beginUndoAction();
-
-      // Remove indentation from each line
-      for (int line = lineFrom; line <= lineTo; ++line) {
-        QString lineText = m_currentEditor->text(line);
-        if (lineText.startsWith("    ")) {
-          // Remove 4 spaces
-          m_currentEditor->setSelection(line, 0, line, 4);
-          m_currentEditor->removeSelectedText();
-        } else if (lineText.startsWith("\t")) {
-          // Remove tab
-          m_currentEditor->setSelection(line, 0, line, 1);
-          m_currentEditor->removeSelectedText();
-        } else if (lineText.startsWith("  ")) {
-          // Remove 2 spaces
-          m_currentEditor->setSelection(line, 0, line, 2);
-          m_currentEditor->removeSelectedText();
-        } else if (lineText.startsWith(" ")) {
-          // Remove 1 space
-          m_currentEditor->setSelection(line, 0, line, 1);
-          m_currentEditor->removeSelectedText();
-        }
-      }
-
-      // End undo action
-      m_currentEditor->endUndoAction();
-    }
-  });
-  m_toolBar->addAction(unindentAction);
-
-  m_toolBar->addSeparator();
-
-  // 注释动作
-  QAction *commentAction =
-      new QAction(QIcon(":/icons/comment.png"), "注释", this);
-  commentAction->setToolTip("注释选中的代码");
-  connect(commentAction, &QAction::triggered, [this]() {
-    if (m_currentEditor) {
-      // 获取选中的文本范围
-      int lineFrom, indexFrom, lineTo, indexTo;
-      m_currentEditor->getSelection(&lineFrom, &indexFrom, &lineTo, &indexTo);
-
-      // 如果没有选中文本，则使用当前行
-      if (lineFrom == -1) {
-        // Fix: getCursorPosition requires two parameters
-        m_currentEditor->getCursorPosition(&lineFrom, &indexFrom);
-        lineTo = lineFrom;
-        indexTo = indexFrom;
-      }
-
-      // 为每一行添加注释
-      for (int line = lineFrom; line <= lineTo; ++line) {
-        m_currentEditor->insertAt("// ", line, 0);
-      }
-    }
-  });
-  m_toolBar->addAction(commentAction);
-  // 取消注释动作
-  QAction *uncommentAction =
-      new QAction(QIcon(":/icons/uncomment.png"), "取消注释", this);
-  uncommentAction->setToolTip("取消选中代码的注释");
-  connect(uncommentAction, &QAction::triggered, [this]() {
-    if (m_currentEditor) {
-      // 获取选中的文本范围
-      int lineFrom, indexFrom, lineTo, indexTo;
-      m_currentEditor->getSelection(&lineFrom, &indexFrom, &lineTo, &indexTo);
-
-      // 如果没有选中文本，则使用当前行
-      if (lineFrom == -1) {
-        // Fix: getCursorPosition requires two parameters
-        m_currentEditor->getCursorPosition(&lineFrom, &indexFrom);
-        lineTo = lineFrom;
-        indexTo = indexFrom;
-      }
-
-      // 为每一行移除注释
-      for (int line = lineFrom; line <= lineTo; ++line) {
-        QString lineText = m_currentEditor->text(line);
-        if (lineText.startsWith("// ")) {
-          m_currentEditor->setSelection(line, 0, line, 3);
-          m_currentEditor->removeSelectedText();
-        } else if (lineText.startsWith("//")) {
-          m_currentEditor->setSelection(line, 0, line, 2);
-          m_currentEditor->removeSelectedText();
-        }
-      }
-    }
-  });
-  m_toolBar->addAction(uncommentAction);
-
-  // 构建操作
-  QAction *buildAction = new QAction("构建", this);
-  buildAction->setIcon(style->standardIcon(QStyle::SP_ComputerIcon));
-  buildAction->setToolTip("构建项目");
-  connect(buildAction, &QAction::triggered, [this]() {
-    // 实现构建功能
-    emit buildRequested();
-  });
-  m_toolBar->addAction(buildAction);
-
-  QAction *cleanAction = new QAction("清理", this);
-  cleanAction->setIcon(style->standardIcon(QStyle::SP_TrashIcon));
-  cleanAction->setToolTip("清理构建文件");
-  connect(cleanAction, &QAction::triggered, [this]() {
-    // 实现清理功能
-    emit cleanRequested();
-  });
-  m_toolBar->addAction(cleanAction);
-
-  m_toolBar->addSeparator();
-
-  // 调试操作
-  QAction *debugAction = new QAction("调试", this);
-  debugAction->setIcon(style->standardIcon(QStyle::SP_BrowserReload));
-  debugAction->setToolTip("开始调试");
-  connect(debugAction, &QAction::triggered, [this]() {
-    // 实现调试功能
-    emit debugRequested();
-  });
-  m_toolBar->addAction(debugAction);
-
-  QAction *runAction = new QAction("运行", this);
-  runAction->setIcon(style->standardIcon(QStyle::SP_MediaPlay));
-  runAction->setToolTip("运行程序");
-  connect(runAction, &QAction::triggered, [this]() {
-    // 实现运行功能
-    emit runRequested();
-  });
-  m_toolBar->addAction(runAction);
-
-  QAction *stopAction = new QAction("停止", this);
-  stopAction->setIcon(style->standardIcon(QStyle::SP_MediaStop));
-  stopAction->setToolTip("停止运行");
-  connect(stopAction, &QAction::triggered, [this]() {
-    // 实现停止功能
-    emit stopRequested();
-  });
-  m_toolBar->addAction(stopAction);
-
-  m_toolBar->addSeparator();
-
-  // 工具操作
-  QAction *serialMonitorAction = new QAction("串口监视器", this);
-  serialMonitorAction->setIcon(style->standardIcon(QStyle::SP_ComputerIcon));
-  serialMonitorAction->setToolTip("打开串口监视器");
-  connect(serialMonitorAction, &QAction::triggered, [this]() {
-    // 实现串口监视器功能
-    emit serialMonitorRequested();
-  });
-  m_toolBar->addAction(serialMonitorAction);
-
-  QAction *settingsAction = new QAction("设置", this);
-  settingsAction->setIcon(
-      style->standardIcon(QStyle::SP_FileDialogDetailedView));
-  settingsAction->setToolTip("打开设置");
-  connect(settingsAction, &QAction::triggered, [this]() {
-    // 实现设置功能
-    emit settingsRequested();
-  });
-  m_toolBar->addAction(settingsAction);
-
-  m_toolBar->addSeparator();
-
-  // 视图操作
-  QAction *zoomInAction = new QAction("放大", this);
-  zoomInAction->setIcon(style->standardIcon(QStyle::SP_TitleBarMaxButton));
-  zoomInAction->setToolTip("放大视图");
-  connect(zoomInAction, &QAction::triggered, [this]() {
-    if (m_currentEditor) {
-      m_currentEditor->zoomIn();
-    }
-  });
-  m_toolBar->addAction(zoomInAction);
-
-  QAction *zoomOutAction = new QAction("缩小", this);
-  zoomOutAction->setIcon(style->standardIcon(QStyle::SP_TitleBarMinButton));
-  zoomOutAction->setToolTip("缩小视图");
-  connect(zoomOutAction, &QAction::triggered, [this]() {
-    if (m_currentEditor) {
-      m_currentEditor->zoomOut();
-    }
-  });
-  m_toolBar->addAction(zoomOutAction);
-
-  QAction *resetZoomAction = new QAction("重置缩放", this);
-  resetZoomAction->setIcon(
-      style->standardIcon(QStyle::SP_TitleBarNormalButton));
-  resetZoomAction->setToolTip("重置缩放级别");
-  connect(resetZoomAction, &QAction::triggered, [this]() {
-    if (m_currentEditor) {
-      m_currentEditor->zoomTo(0);
-    }
-  });
-  m_toolBar->addAction(resetZoomAction);
-
-  m_toolBar->addSeparator();
-
-  // 帮助操作
-  QAction *helpAction = new QAction("帮助", this);
-  helpAction->setIcon(style->standardIcon(QStyle::SP_MessageBoxQuestion));
-  helpAction->setToolTip("查看帮助");
-  connect(helpAction, &QAction::triggered, [this]() {
-    // 实现帮助功能
-    emit helpRequested();
-  });
-  m_toolBar->addAction(helpAction);
-
-  QAction *aboutAction = new QAction("关于", this);
-  aboutAction->setIcon(style->standardIcon(QStyle::SP_MessageBoxInformation));
-  aboutAction->setToolTip("关于PhudonTools");
-  connect(aboutAction, &QAction::triggered, [this]() {
-    // 实现关于功能
-    emit aboutRequested();
-  });
-  m_toolBar->addAction(aboutAction);
-}
-
 void CodeEditor::createNewFile() {
+  if (!confirmDiscardChanges()) return;
   // 清空当前编辑器内容
   if (m_currentEditor) {
     m_currentEditor->clear();
@@ -6133,18 +5690,6 @@ bool CodeEditor::eventFilter(QObject *watched, QEvent *event) {
     if (keyEvent->matches(QKeySequence::Replace) ||
         (keyEvent->modifiers() == Qt::ControlModifier && keyEvent->key() == Qt::Key_H)) {
       showFindReplaceBar(true);
-      return true;
-    }
-    if (keyEvent->key() == Qt::Key_F12 && keyEvent->modifiers() == Qt::NoModifier) {
-      gotoDefinitionAtCursor();
-      return true;
-    }
-    if (keyEvent->key() == Qt::Key_F12 && keyEvent->modifiers() == Qt::ShiftModifier) {
-      findReferencesAtCursor();
-      return true;
-    }
-    if (keyEvent->key() == Qt::Key_F2 && keyEvent->modifiers() == Qt::NoModifier) {
-      renameSymbolAtCursor();
       return true;
     }
     if (keyEvent->key() == Qt::Key_F3) {
@@ -6860,9 +6405,8 @@ QList<CodeEditor::DefinitionCandidate> CodeEditor::findSymbolDefinitionsInProjec
 
 void CodeEditor::openDefinitionCandidate(const DefinitionCandidate &cand) {
   if (cand.filePath.isEmpty()) return;
-  if (cand.filePath != m_currentFilePath) {
-    openFile(cand.filePath);
-  }
+  openFileAndGoTo(cand.filePath, cand.line + 1, cand.col + 1);
+  if (m_currentFilePath != QFileInfo(cand.filePath).canonicalFilePath()) return;
   if (m_currentEditor) {
     m_currentEditor->setCursorPosition(cand.line, cand.col);
     m_currentEditor->ensureLineVisible(cand.line);
@@ -6890,7 +6434,7 @@ void CodeEditor::gotoDefinitionAtCursor() {
   if (res.isValid && (res.kind == ScopeLocalVariable || res.kind == ScopeFunctionParam)) {
     if (res.definitionLine != -1) {
       if (res.definitionLine != line || res.definitionCol != col) {
-        m_currentEditor->setCursorPosition(res.definitionLine, res.definitionCol);
+        openFileAndGoTo(m_currentFilePath, res.definitionLine + 1, res.definitionCol + 1);
         m_currentEditor->ensureLineVisible(res.definitionLine);
         int visibleLines = m_currentEditor->SendScintilla(QsciScintilla::SCI_LINESONSCREEN);
         int scrollLine = qMax(0, res.definitionLine - visibleLines / 3);
@@ -6933,7 +6477,7 @@ void CodeEditor::gotoDefinitionAtCursor() {
 
   if (candidates.isEmpty()) {
     if (res.definitionLine != -1 && (res.definitionLine != line || res.definitionCol != col)) {
-      m_currentEditor->setCursorPosition(res.definitionLine, res.definitionCol);
+      openFileAndGoTo(m_currentFilePath, res.definitionLine + 1, res.definitionCol + 1);
       m_currentEditor->ensureLineVisible(res.definitionLine);
       m_currentEditor->setSelection(res.definitionLine, res.definitionCol, res.definitionLine, res.definitionCol + sym.length());
       m_currentEditor->setFocus();
@@ -6970,9 +6514,20 @@ void CodeEditor::findReferencesAtCursor() {
   if (!m_currentEditor) return;
   int line, col;
   m_currentEditor->getCursorPosition(&line, &col);
+  const QString symbol = getIdentifierAt(m_currentEditor, line, col);
+  if (symbol.isEmpty()) {
+    QMessageBox::information(this, tr("查找引用"), tr("请将光标放在需要查找的标识符上。"));
+    return;
+  }
   SymbolScopeResult res = analyzeSymbolScopeAt(line, col, m_currentEditor);
-  if (!res.isValid || res.occurrences.isEmpty()) return;
-
+  if (!res.isValid || (res.kind != ScopeLocalVariable && res.kind != ScopeFunctionParam)) {
+    emit projectReferencesRequested(symbol);
+    return;
+  }
+  if (res.occurrences.isEmpty()) {
+    QMessageBox::information(this, tr("查找引用"), tr("当前源码扫描未找到可识别的引用。可使用项目查找搜索标识符。"));
+    return;
+  }
   ReferencesDialog dlg(res.symbolName, res.occurrences, m_currentFilePath, this, this);
   dlg.exec();
 }
@@ -7165,103 +6720,17 @@ void CodeEditor::renameSymbolInProject(const QString &symbolName, ScopeKind kind
 }
 
 void CodeEditor::onCustomContextMenuRequested(const QPoint &pos) {
+  auto editor = qobject_cast<QsciScintilla *>(sender());
+  if (editor) onEditorChanged(editor);
   if (!m_currentEditor) return;
-
-  // 将光标定位到右键点击处（如果当前未选中文本）
-  if (!m_currentEditor->hasSelectedText()) {
-    long scintillaPos = m_currentEditor->SendScintilla(QsciScintilla::SCI_POSITIONFROMPOINT, pos.x(), pos.y());
-    if (scintillaPos >= 0) {
-      int clickLine = m_currentEditor->SendScintilla(QsciScintilla::SCI_LINEFROMPOSITION, scintillaPos);
-      int lineStartPos = m_currentEditor->SendScintilla(QsciScintilla::SCI_POSITIONFROMLINE, clickLine);
-      QString lineText = m_currentEditor->text(clickLine);
-      int byteOffsetInLine = scintillaPos - lineStartPos;
-      int clickCol = 0;
-      int curBytes = 0;
-      while (clickCol < lineText.length() && curBytes < byteOffsetInLine) {
-        curBytes += QString(lineText[clickCol]).toUtf8().length();
-        ++clickCol;
-      }
-      m_currentEditor->setCursorPosition(clickLine, clickCol);
-    }
-  }
-
   QMenu menu(this);
-  menu.setStyleSheet(
-      "QMenu {"
-      "  background-color: #252526;"
-      "  color: #CCCCCC;"
-      "  border: 1px solid #3E4451;"
-      "  padding: 4px;"
-      "}"
-      "QMenu::item {"
-      "  padding: 5px 24px 5px 12px;"
-      "  border-radius: 3px;"
-      "}"
-      "QMenu::item:selected {"
-      "  background-color: #094771;"
-      "  color: #FFFFFF;"
-      "}"
-      "QMenu::separator {"
-      "  height: 1px;"
-      "  background: #3E4451;"
-      "  margin: 4px 0;"
-      "}");
-
-  QAction *defAct = menu.addAction(QString("🔍 转到定义 (F12)"));
-  connect(defAct, &QAction::triggered, this, &CodeEditor::gotoDefinitionAtCursor);
-
-  QAction *refAct = menu.addAction(QString("📑 查找所有引用 (Shift+F12)"));
-  connect(refAct, &QAction::triggered, this, &CodeEditor::findReferencesAtCursor);
-
-  QAction *renAct = menu.addAction(QString("✏️ 一键重命名符号 (F2)"));
-  connect(renAct, &QAction::triggered, this, &CodeEditor::renameSymbolAtCursor);
-
-  menu.addSeparator();
-
-  QAction *bpAct = menu.addAction(QString("🔴 切换断点 (F9)"));
-  connect(bpAct, &QAction::triggered, this, &CodeEditor::toggleBreakpointAtCursor);
-
-  QAction *clearBpAct = menu.addAction(QString("⚪ 清空当前文件断点"));
-  connect(clearBpAct, &QAction::triggered, this, [this]() {
-    if (!m_currentFilePath.isEmpty()) {
-      clearBreakpointsForFile(m_currentFilePath);
-    }
-  });
-
-  menu.addSeparator();
-
-  QAction *findAct = menu.addAction(QString("🔎 查找 (Ctrl+F)"));
-  connect(findAct, &QAction::triggered, this, [this]() { showFindReplaceBar(false); });
-
-  QAction *repAct = menu.addAction(QString("🔄 替换 (Ctrl+H)"));
-  connect(repAct, &QAction::triggered, this, [this]() { showFindReplaceBar(true); });
-
-  menu.addSeparator();
-
-  QAction *undoAct = menu.addAction("撤销 (Ctrl+Z)");
-  undoAct->setEnabled(m_currentEditor->isUndoAvailable());
-  connect(undoAct, &QAction::triggered, m_currentEditor, &QsciScintilla::undo);
-
-  QAction *redoAct = menu.addAction("重做 (Ctrl+Y)");
-  redoAct->setEnabled(m_currentEditor->isRedoAvailable());
-  connect(redoAct, &QAction::triggered, m_currentEditor, &QsciScintilla::redo);
-
-  menu.addSeparator();
-
-  QAction *cutAct = menu.addAction("剪切 (Ctrl+X)");
-  cutAct->setEnabled(m_currentEditor->hasSelectedText());
-  connect(cutAct, &QAction::triggered, m_currentEditor, &QsciScintilla::cut);
-
-  QAction *copyAct = menu.addAction("复制 (Ctrl+C)");
-  copyAct->setEnabled(m_currentEditor->hasSelectedText());
-  connect(copyAct, &QAction::triggered, m_currentEditor, &QsciScintilla::copy);
-
-  QAction *pasteAct = menu.addAction("粘贴 (Ctrl+V)");
-  connect(pasteAct, &QAction::triggered, m_currentEditor, &QsciScintilla::paste);
-
-  QAction *selAllAct = menu.addAction("全选 (Ctrl+A)");
-  connect(selAllAct, &QAction::triggered, m_currentEditor, &QsciScintilla::selectAll);
-
+  QString group;
+  for (auto action : m_editorActions) {
+    QString next = action->property("commandGroup").toString();
+    if (!group.isEmpty() && next != group) menu.addSeparator();
+    menu.addAction(action);
+    group = next;
+  }
   menu.exec(m_currentEditor->mapToGlobal(pos));
 }
 
@@ -7340,9 +6809,8 @@ void CodeEditor::setExecutionLine(const QString &filePath, int line) {
   }
   m_executionLine = line;
 
-  if (m_executionFilePath != m_currentFilePath) {
-    openFile(m_executionFilePath);
-  }
+  openFileAndGoTo(m_executionFilePath, line, 1);
+  if (m_currentFilePath != m_executionFilePath) return;
 
   if (m_currentEditor) {
     int zeroLine = line - 1;
@@ -7453,21 +6921,20 @@ void CodeEditor::applyBreakpointsToEditor(QsciScintilla *editor, const QString &
 
 void CodeEditor::openFileAndGoTo(const QString &filePath, int line, int column) {
   if (filePath.isEmpty()) return;
-  QString canonical = QFileInfo(filePath).canonicalFilePath();
-  if (canonical.isEmpty()) canonical = QFileInfo(filePath).absoluteFilePath();
-  if (canonical != m_currentFilePath) {
-    openFile(canonical);
+  const auto origin = navigationPosition();
+  const bool replaying = m_replayingHistory;
+  m_replayingHistory = true;
+  const bool opened = openFile(filePath);
+  m_replayingHistory = replaying;
+  if (!opened) {
+    if (!QFileInfo(filePath).isReadable())
+      QMessageBox::warning(this, tr("无法导航"), tr("无法打开文件：%1").arg(filePath));
+    return;
   }
-  if (m_currentEditor) {
-    int zeroBasedLine = qMax(0, line - 1);
-    int zeroBasedCol = qMax(0, column - 1);
-    m_currentEditor->setCursorPosition(zeroBasedLine, zeroBasedCol);
-    m_currentEditor->ensureLineVisible(zeroBasedLine);
-    int visibleLines = m_currentEditor->SendScintilla(QsciScintilla::SCI_LINESONSCREEN);
-    int scrollLine = qMax(0, zeroBasedLine - visibleLines / 3);
-    m_currentEditor->SendScintilla(QsciScintilla::SCI_SETFIRSTVISIBLELINE, scrollLine);
-    m_currentEditor->setFocus();
-    updateBreadcrumb(zeroBasedLine);
-  }
+  if (!m_currentEditor) return;
+  m_currentEditor->setCursorPosition(qMax(0, line - 1), qMax(0, column - 1));
+  m_currentEditor->ensureCursorVisible();
+  m_currentEditor->setFocus();
+  updateBreadcrumb(qMax(0, line - 1));
+  if (!m_replayingHistory) recordNavigation(origin);
 }
-

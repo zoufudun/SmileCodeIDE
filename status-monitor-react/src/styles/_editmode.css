@@ -33,12 +33,12 @@ body.edit-mode .room-resize-handle-se {
 }
 
 /* 房间在编辑模式下高亮 */
-body.edit-mode .room-box {
-  border-color: var(--primary-border) !important;
-  background: rgba(15, 23, 42, 0.4) !important;
+body.edit-mode .room-box:not(.room-alarm) {
+  border-color: var(--primary-border);
+  background: var(--panel-bg-muted);
 }
 
-body.edit-mode .room-box:hover {
+body.edit-mode .room-box:not(.room-alarm):hover {
   border-color: var(--primary-color) !important;
   box-shadow: 0 0 8px var(--primary-glow-light);
 }

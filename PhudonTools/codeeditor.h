@@ -16,7 +16,8 @@
 #include <QLabel>
 #include <QSet>
 #include <QSplitter>
-#include <QToolBar>
+#include <QAction>
+class QMenuBar;
 #include <QToolButton>
 #include <QTreeWidget>
 #include <QTreeWidgetItem>
@@ -25,6 +26,7 @@
 #include <Qsci/qsciapis.h>
 #include <Qsci/qscilexercpp.h>
 #include <Qsci/qsciscintilla.h>
+#include "idetheme.h"
 
 // Constants
 static const int FUNCTION_INDICATOR = 20;
@@ -131,6 +133,11 @@ public:
   explicit CodeEditor(QWidget *parent = nullptr);
   ~CodeEditor();
 
+  QList<QAction *> editorActions() const;
+  QAction *editorAction(const QString &objectName) const;
+  void createEditorMenus(QMenuBar *menuBar);
+  QString currentFilePath() const { return m_currentFilePath; }
+
   // 获取当前编辑器
   QsciScintilla *currentEditor() const;
 
@@ -191,6 +198,9 @@ public:
   void openFileAndGoTo(const QString &filePath, int line, int column = 0);
 
 signals:
+  void projectSearchRequested();
+  void projectReferencesRequested(const QString &symbol);
+  void currentBufferChanged(const QString &path, const QString &text);
   void fileOpened(const QString &filePath);
   void fileSaved(const QString &filePath);
 
@@ -224,8 +234,21 @@ private:
   // 设置自动补全
   void setupAutoCompletion(QsciScintilla *editor);
 
-  // 创建工具栏
-  void createToolBar();
+  void initializeEditorCommands();
+  void transformSelectedLines(bool unindent, bool comment = false);
+  void toggleBlockComment();
+  void insertDoxygen(bool fileComment);
+  void editDoxygenTemplates();
+  bool confirmDiscardChanges();
+  struct NavigationPosition { QString path; int line = 0; int column = 0; };
+  NavigationPosition navigationPosition() const;
+  void recordNavigation(const NavigationPosition &origin);
+  void replayNavigation(int offset);
+  void updateNavigationActions();
+  QList<QAction *> m_editorActions;
+  QList<NavigationPosition> m_navigationHistory;
+  int m_navigationIndex = -1;
+  bool m_replayingHistory = false;
 
   // 主分割器
   QSplitter *m_mainSplitter;
@@ -245,8 +268,6 @@ private:
   // 当前文件路径
   QString m_currentFilePath;
 
-  // 工具栏
-  QToolBar *m_toolBar;
 
   // 面包屑导航栏控件 (VS Code 风格)
   QWidget *m_breadcrumbBar;
@@ -344,6 +365,7 @@ private:
 
   // 函数名高亮
   void setupFunctionNameHighlighting(bool isDarkTheme);
+  void setupFunctionNameHighlighting(const IdeTheme::ThemePalette &p);
   void highlightFunctionNames(QsciScintilla *editor, int indicatorId);
 
   // Rainbow Brackets Setting

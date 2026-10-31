@@ -1,3 +1,5 @@
+#include <QApplication>
+#include "idetheme.h"
 #include "TargetChipDialog.h"
 
 #include <QVBoxLayout>
@@ -10,7 +12,7 @@
 #include <QScrollArea>
 #include <QListView>
 
-TargetChipDialog::TargetChipDialog(QWidget *parent, QSettings *settings, const QString &initialChip)
+TargetChipDialog::TargetChipDialog(QWidget *parent, QSettings *settings, const QString &initialChip, const QString &themeId)
     : QDialog(parent), m_settings(settings), m_selectedChip(initialChip)
 {
     setWindowTitle(QStringLiteral("目标芯片选择 (Target Device Selection)"));
@@ -19,7 +21,39 @@ TargetChipDialog::TargetChipDialog(QWidget *parent, QSettings *settings, const Q
 
     initChipData();
     setupUI();
-    applyTheme();
+    QString resolvedTheme = themeId;
+    if (resolvedTheme.isEmpty()) {
+        QWidget *w = parentWidget();
+        while (w) {
+            QVariant v = w->property("currentTheme");
+            if (v.isValid() && !v.toString().isEmpty()) {
+                resolvedTheme = v.toString();
+                break;
+            }
+            w = w->parentWidget();
+        }
+    }
+    if (resolvedTheme.isEmpty() && qApp) {
+        QVariant v = qApp->property("currentTheme");
+        if (v.isValid() && !v.toString().isEmpty()) {
+            resolvedTheme = v.toString();
+        }
+    }
+    if (resolvedTheme.isEmpty() && m_settings) {
+        m_settings->beginGroup("MainWindow");
+        resolvedTheme = m_settings->value("currentTheme").toString();
+        m_settings->endGroup();
+        if (resolvedTheme.isEmpty()) {
+            resolvedTheme = m_settings->value("theme").toString();
+        }
+    }
+    if (resolvedTheme.isEmpty()) {
+        resolvedTheme = IdeTheme::currentThemeId();
+    }
+    if (resolvedTheme.isEmpty()) {
+        resolvedTheme = QStringLiteral("dark");
+    }
+    applyTheme(resolvedTheme);
 
     if (m_selectedChip.isEmpty() && m_settings) {
         m_settings->beginGroup("STM32Toolchain");
@@ -231,11 +265,7 @@ void TargetChipDialog::setupUI()
         m_deviceCombo->completer()->setCaseSensitivity(Qt::CaseInsensitive);
         m_deviceCombo->completer()->setFilterMode(Qt::MatchContains);
         if (m_deviceCombo->completer()->popup()) {
-            m_deviceCombo->completer()->popup()->setStyleSheet(
-                "QListView { background-color: #181825; color: #cdd6f4; border: 1px solid #45475a; "
-                "selection-background-color: #313244; selection-color: #89b4fa; padding: 4px; font-size: 12px; } "
-                "QListView::item { padding: 4px 8px; min-height: 24px; } "
-                "QListView::item:selected { background-color: #313244; color: #89b4fa; font-weight: bold; }");
+            // Popup style handled dynamically in applyTheme
         }
     }
     deviceCol->addWidget(deviceLabel);
@@ -296,7 +326,9 @@ void TargetChipDialog::setupUI()
     m_deviceTable->setColumnWidth(4, 85);
 
     // 右侧：规格参数详情面板
-    QGroupBox *specGroup = new QGroupBox(QStringLiteral("选中芯片硬件参数与调试配置 (Device Profile)"), centerSplitter);
+    m_specGroupBox = new QGroupBox(QStringLiteral("选中芯片硬件参数与调试配置 (Device Profile)"), centerSplitter);
+    m_specGroupBox->setAutoFillBackground(true);
+    QGroupBox *specGroup = m_specGroupBox;
     specGroup->setObjectName("specGroupBox");
     QVBoxLayout *specLayout = new QVBoxLayout(specGroup);
     specLayout->setContentsMargins(14, 16, 14, 14);
@@ -331,6 +363,12 @@ void TargetChipDialog::setupUI()
     specLayout->addStretch(1);
 
     QScrollArea *specScroll = new QScrollArea(centerSplitter);
+    m_specScrollArea = specScroll;
+    if (specScroll->viewport()) {
+        specScroll->viewport()->setAutoFillBackground(false);
+        specScroll->viewport()->setStyleSheet("background: transparent;");
+    }
+    specScroll->setStyleSheet("background: transparent; border: none;");
     specScroll->setObjectName("specScrollArea");
     specScroll->setWidgetResizable(true);
     specScroll->setFrameShape(QFrame::NoFrame);
@@ -384,30 +422,74 @@ void TargetChipDialog::setupUI()
     connect(m_cancelBtn, &QPushButton::clicked, this, &QDialog::reject);
 }
 
-void TargetChipDialog::applyTheme()
+void TargetChipDialog::applyTheme(const QString &themeId)
 {
-    setStyleSheet(
+    if (!themeId.isEmpty()) {
+        m_currentTheme = themeId;
+    } else {
+        QWidget *w = parentWidget();
+        while (w) {
+            QVariant v = w->property("currentTheme");
+            if (v.isValid() && !v.toString().isEmpty()) {
+                m_currentTheme = v.toString();
+                break;
+            }
+            w = w->parentWidget();
+        }
+        if (m_currentTheme.isEmpty() && qApp) {
+            QVariant v = qApp->property("currentTheme");
+            if (v.isValid() && !v.toString().isEmpty()) {
+                m_currentTheme = v.toString();
+            }
+        }
+        if (m_currentTheme.isEmpty() && m_settings) {
+            m_settings->beginGroup("MainWindow");
+            m_currentTheme = m_settings->value("currentTheme").toString();
+            m_settings->endGroup();
+            if (m_currentTheme.isEmpty()) {
+                m_currentTheme = m_settings->value("theme", IdeTheme::currentThemeId()).toString();
+            }
+        }
+        if (m_currentTheme.isEmpty()) {
+            m_currentTheme = IdeTheme::currentThemeId();
+        }
+    }
+    if (m_currentTheme.isEmpty()) {
+        m_currentTheme = QStringLiteral("dark");
+    }
+    const IdeTheme::ThemePalette p = IdeTheme::paletteFor(m_currentTheme);
+
+    QPalette pal = palette();
+    pal.setColor(QPalette::Window, QColor(p.windowBg));
+    pal.setColor(QPalette::WindowText, QColor(p.textMain));
+    pal.setColor(QPalette::Base, QColor(p.inputBg));
+    pal.setColor(QPalette::AlternateBase, QColor(p.baseAltBg));
+    pal.setColor(QPalette::Text, QColor(p.textMain));
+    pal.setColor(QPalette::Button, QColor(p.cardBg));
+    pal.setColor(QPalette::ButtonText, QColor(p.textMain));
+    setPalette(pal);
+    setAutoFillBackground(true);
+
+    setStyleSheet(QString(
         "QDialog {"
-        "    background-color: #1e1e2e;"
-        "    color: #cdd6f4;"
+        "    background-color: %1;"
+        "    color: %2;"
         "    font-family: 'Segoe UI', 'Microsoft YaHei', 'PingFang SC', sans-serif;"
         "}"
-        // 顶部级联选择卡片
         "QWidget#chipHeaderCard {"
-        "    background-color: #181825;"
-        "    border: 1px solid #313244;"
+        "    background-color: %3;"
+        "    border: 1px solid %4;"
         "    border-radius: 8px;"
         "}"
         "QLabel#chipHeaderTitle {"
-        "    color: #89b4fa;"
+        "    color: %5;"
         "    font-size: 12px;"
         "    font-weight: bold;"
         "}"
-        // 下拉选择框整体风格：深色融为一体，高对比度清晰文字
         "QComboBox#chipHeaderCombo {"
-        "    background-color: #1e1e2e;"
-        "    color: #f5f6fa;"
-        "    border: 1px solid #45475a;"
+        "    background-color: %6;"
+        "    color: %2;"
+        "    border: 1px solid %7;"
         "    border-radius: 6px;"
         "    padding: 4px 10px;"
         "    min-height: 28px;"
@@ -416,275 +498,210 @@ void TargetChipDialog::applyTheme()
         "    font-family: 'Consolas', 'Segoe UI', 'Microsoft YaHei', sans-serif;"
         "}"
         "QComboBox#chipHeaderCombo:hover {"
-        "    border: 1px solid #89b4fa;"
-        "    background-color: #24273a;"
-        "}"
-        "QComboBox#chipHeaderCombo:focus {"
-        "    border: 1px solid #89b4fa;"
-        "    background-color: #24273a;"
+        "    border: 1px solid %5;"
+        "    background-color: %8;"
         "}"
         "QComboBox#chipHeaderCombo::drop-down {"
         "    subcontrol-origin: padding;"
         "    subcontrol-position: top right;"
-        "    width: 22px;"
-        "    border-left: 1px solid #313244;"
-        "    border-top-right-radius: 5px;"
-        "    border-bottom-right-radius: 5px;"
+        "    width: 24px;"
+        "    border: none;"
         "    background: transparent;"
         "}"
         "QComboBox#chipHeaderCombo::down-arrow {"
-        "    image: url(:/stm32/ui/arrow_down.png);"
+        "    image: url(\"%14\");"
         "    width: 10px;"
         "    height: 10px;"
         "    margin-right: 6px;"
         "}"
-        // 下拉菜单弹出视图
-        "QComboBox QAbstractItemView {"
-        "    background-color: #181825;"
-        "    color: #cdd6f4;"
-        "    border: 1px solid #45475a;"
-        "    border-radius: 6px;"
-        "    selection-background-color: #313244;"
-        "    selection-color: #89b4fa;"
-        "    outline: none;"
+        "QComboBox#chipHeaderCombo::down-arrow:hover {"
+        "    image: url(\"%15\");"
+        "}"
+        "QComboBox#chipHeaderCombo QAbstractItemView {"
+        "    background-color: %6;"
+        "    color: %2;"
+        "    border: 1px solid %4;"
+        "    selection-background-color: %5;"
+        "    selection-color: %11;"
         "    padding: 4px;"
         "}"
-        "QComboBox QAbstractItemView::item {"
-        "    min-height: 26px;"
-        "    padding: 4px 8px;"
-        "}"
-        "QComboBox QAbstractItemView::item:selected {"
-        "    background-color: #313244;"
-        "    color: #89b4fa;"
-        "    font-weight: bold;"
-        "}"
-        // 可编辑下拉框内部单行编辑框
-        "QComboBox#chipHeaderCombo QLineEdit {"
-        "    background-color: transparent;"
-        "    color: #f5f6fa;"
-        "    border: none;"
-        "    font-size: 13px;"
-        "    font-weight: bold;"
-        "    font-family: 'Consolas', monospace;"
-        "    selection-background-color: #585b70;"
-        "    selection-color: #ffffff;"
-        "}"
-        // 快速筛选栏
         "QLabel#searchLabel {"
-        "    color: #89b4fa;"
+        "    color: %9;"
+        "    font-size: 12px;"
         "    font-weight: bold;"
-        "    font-size: 13px;"
         "}"
         "QLineEdit#searchEdit {"
-        "    background-color: #181825;"
-        "    border: 1px solid #313244;"
+        "    background-color: %6;"
+        "    border: 1px solid %7;"
         "    border-radius: 6px;"
         "    padding: 6px 12px;"
-        "    color: #f5f6fa;"
-        "    font-size: 12px;"
-        "    selection-background-color: #585b70;"
-        "    selection-color: #ffffff;"
-        "}"
-        "QLineEdit#searchEdit:hover {"
-        "    border: 1px solid #45475a;"
+        "    color: %2;"
+        "    font-size: 13px;"
         "}"
         "QLineEdit#searchEdit:focus {"
-        "    border: 1px solid #89b4fa;"
-        "    background-color: #1e1e2e;"
+        "    border: 1px solid %5;"
+        "    background-color: %8;"
         "}"
-        // 分割条
-        "QSplitter::handle {"
-        "    background-color: #313244;"
-        "    width: 3px;"
+        "QSplitter#chipSplitter::handle {"
+        "    background-color: %4;"
         "}"
-        "QSplitter::handle:hover {"
-        "    background-color: #89b4fa;"
-        "}"
-        // 左侧器件表格
         "QTableWidget#deviceTable {"
-        "    background-color: #11111b;"
-        "    alternate-background-color: #181825;"
-        "    color: #cdd6f4;"
-        "    border: 1px solid #313244;"
-        "    border-radius: 8px;"
-        "    gridline-color: #26293b;"
-        "    outline: none;"
-        "    selection-background-color: #2b3b5c;"
-        "    selection-color: #ffffff;"
-        "}"
-        "QTableWidget#deviceTable::item {"
-        "    padding: 4px 8px;"
-        "    border: none;"
+        "    background-color: %6;"
+        "    alternate-background-color: %12;"
+        "    color: %2;"
+        "    gridline-color: %4;"
+        "    border: 1px solid %4;"
+        "    border-radius: 6px;"
+        "    selection-background-color: %5;"
+        "    selection-color: %11;"
+        "    font-family: 'Consolas', 'Segoe UI', monospace;"
+        "    font-size: 12px;"
         "}"
         "QTableWidget#deviceTable::item:selected {"
-        "    background-color: #2b3b5c;"
-        "    color: #ffffff;"
-        "    font-weight: bold;"
-        "}"
-        "QTableWidget#deviceTable::item:hover {"
-        "    background-color: #1f2233;"
+        "    background-color: %5;"
+        "    color: %11;"
         "}"
         "QHeaderView::section {"
-        "    background-color: #181825;"
-        "    color: #89b4fa;"
+        "    background-color: %3;"
+        "    color: %9;"
         "    font-weight: bold;"
+        "    padding: 5px 8px;"
+        "    border: none;"
+        "    border-bottom: 2px solid %4;"
         "    font-size: 12px;"
-        "    padding: 6px 8px;"
-        "    border: none;"
-        "    border-right: 1px solid #313244;"
-        "    border-bottom: 1px solid #313244;"
         "}"
-        "QTableCornerButton::section {"
-        "    background-color: #181825;"
-        "    border: none;"
-        "}"
-        // 滚动条样式（与暗色主题融为一体）
-        "QScrollBar:vertical {"
-        "    background-color: #181825;"
-        "    width: 8px;"
-        "    margin: 0px;"
-        "    border-radius: 4px;"
-        "}"
-        "QScrollBar::handle:vertical {"
-        "    background-color: #45475a;"
-        "    min-height: 24px;"
-        "    border-radius: 4px;"
-        "}"
-        "QScrollBar::handle:vertical:hover {"
-        "    background-color: #585b70;"
-        "}"
-        "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {"
-        "    height: 0px;"
-        "    border: none;"
-        "    background: none;"
-        "}"
-        "QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {"
-        "    background: none;"
-        "}"
-        "QScrollBar:horizontal {"
-        "    background-color: #181825;"
-        "    height: 8px;"
-        "    margin: 0px;"
-        "    border-radius: 4px;"
-        "}"
-        "QScrollBar::handle:horizontal {"
-        "    background-color: #45475a;"
-        "    min-width: 24px;"
-        "    border-radius: 4px;"
-        "}"
-        "QScrollBar::handle:horizontal:hover {"
-        "    background-color: #585b70;"
-        "}"
-        "QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {"
-        "    width: 0px;"
-        "    border: none;"
-        "    background: none;"
-        "}"
-        "QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {"
-        "    background: none;"
-        "}"
-        // 右侧硬件详情面板
-        "QScrollArea#specScrollArea {"
+        "QScrollArea#specScrollArea, QScrollArea#specScrollArea > QWidget, QScrollArea#specScrollArea QWidget#qt_scrollarea_viewport {"
         "    background-color: transparent;"
         "    border: none;"
         "}"
         "QGroupBox#specGroupBox {"
-        "    background-color: #181825;"
-        "    border: 1px solid #313244;"
+        "    font-weight: bold;"
+        "    color: %5;"
+        "    font-size: 13px;"
+        "    border: 1px solid %4;"
         "    border-radius: 8px;"
         "    margin-top: 10px;"
-        "    padding-top: 18px;"
-        "    padding-left: 12px;"
-        "    padding-right: 12px;"
-        "    padding-bottom: 12px;"
-        "    color: #89b4fa;"
-        "    font-weight: bold;"
-        "    font-size: 13px;"
+        "    padding-top: 16px;"
+        "    background-color: %3;"
         "}"
         "QGroupBox#specGroupBox::title {"
         "    subcontrol-origin: margin;"
-        "    subcontrol-position: top left;"
         "    left: 12px;"
         "    padding: 0 6px;"
-        "    background-color: #181825;"
-        "    color: #89b4fa;"
+        "    color: %5;"
         "}"
         "QLabel#specTitleLabel {"
-        "    color: #a6adc8;"
-        "    font-weight: bold;"
+        "    color: %9;"
         "    font-size: 12px;"
+        "    font-weight: bold;"
         "}"
-        // 底部提示与按钮
         "QLabel#tipLabel {"
-        "    color: #a6adc8;"
+        "    color: %9;"
         "    font-size: 12px;"
         "}"
         "QPushButton#okBtn {"
-        "    background-color: #3867d6;"
-        "    color: #ffffff;"
-        "    border: 1px solid #4b7bec;"
+        "    background-color: %5;"
+        "    color: %11;"
+        "    border: 1px solid %5;"
         "    border-radius: 6px;"
         "    padding: 7px 22px;"
-        "    font-weight: bold;"
         "    font-size: 13px;"
+        "    font-weight: bold;"
         "}"
         "QPushButton#okBtn:hover {"
-        "    background-color: #4b7bec;"
-        "}"
-        "QPushButton#okBtn:pressed {"
-        "    background-color: #2b56b8;"
+        "    background-color: %13;"
         "}"
         "QPushButton#cancelBtn {"
-        "    background-color: #313244;"
-        "    color: #cdd6f4;"
-        "    border: 1px solid #45475a;"
+        "    background-color: %10;"
+        "    color: %2;"
+        "    border: 1px solid %4;"
         "    border-radius: 6px;"
         "    padding: 7px 18px;"
         "    font-size: 13px;"
         "}"
         "QPushButton#cancelBtn:hover {"
-        "    background-color: #45475a;"
-        "    color: #ffffff;"
+        "    background-color: %8;"
+        "    border-color: %5;"
         "}"
-        "QPushButton#cancelBtn:pressed {"
-        "    background-color: #252739;"
-        "}"
-        // 优雅深色滚动条
         "QScrollBar:vertical {"
-        "    background: #11111b;"
+        "    background: %1;"
         "    width: 8px;"
         "    margin: 0;"
         "    border-radius: 4px;"
         "}"
         "QScrollBar::handle:vertical {"
-        "    background: #313244;"
+        "    background: %4;"
         "    min-height: 24px;"
         "    border-radius: 4px;"
         "}"
         "QScrollBar::handle:vertical:hover {"
-        "    background: #45475a;"
+        "    background: %5;"
         "}"
-        "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {"
-        "    height: 0;"
-        "}"
+        "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }"
         "QScrollBar:horizontal {"
-        "    background: #11111b;"
+        "    background: %1;"
         "    height: 8px;"
         "    margin: 0;"
         "    border-radius: 4px;"
         "}"
         "QScrollBar::handle:horizontal {"
-        "    background: #313244;"
+        "    background: %4;"
         "    min-width: 24px;"
         "    border-radius: 4px;"
         "}"
         "QScrollBar::handle:horizontal:hover {"
-        "    background: #45475a;"
+        "    background: %5;"
         "}"
-        "QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {"
-        "    width: 0;"
-        "}"
-    );
+        "QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { width: 0; }"
+    ).arg(p.windowBg,
+          p.textMain,
+          p.cardBg,
+          p.border,
+          p.accent,
+          p.inputBg,
+          p.inputBorder,
+          p.menuHover,
+          p.textSub,
+          p.panelBg,
+          p.accentText,
+          p.baseAltBg,
+          p.accentHover,
+          IdeTheme::ensureArrowIcon(p.textSub),
+          IdeTheme::ensureArrowIcon(p.accent)
+    ));
+
+    if (m_specChipLabel) {
+        updateChipSpecs(m_selectedChip);
+    }
+    if (m_specGroupBox) {
+        QPalette pal = m_specGroupBox->palette();
+        pal.setColor(QPalette::Window, QColor(p.cardBg));
+        pal.setColor(QPalette::WindowText, QColor(p.textMain));
+        m_specGroupBox->setPalette(pal);
+    }
+    if (m_specScrollArea && m_specScrollArea->viewport()) {
+        m_specScrollArea->viewport()->setAutoFillBackground(false);
+        m_specScrollArea->viewport()->setStyleSheet("background: transparent;");
+    }
+
+    if (m_deviceTable && m_deviceTable->rowCount() > 0) {
+        for (int r = 0; r < m_deviceTable->rowCount(); ++r) {
+            if (auto it0 = m_deviceTable->item(r, 0)) it0->setForeground(QColor(p.textMain));
+            if (auto it1 = m_deviceTable->item(r, 1)) it1->setForeground(QColor(p.textSub));
+            if (auto it2 = m_deviceTable->item(r, 2)) it2->setForeground(QColor(p.accent));
+            if (auto it3 = m_deviceTable->item(r, 3)) it3->setForeground(QColor(p.success));
+            if (auto it4 = m_deviceTable->item(r, 4)) it4->setForeground(QColor(p.success));
+        }
+    }
+
+    if (m_deviceCombo && m_deviceCombo->completer() && m_deviceCombo->completer()->popup()) {
+        m_deviceCombo->completer()->popup()->setStyleSheet(QString(
+            "QListView { background-color: %1; color: %2; border: 1px solid %3; "
+            "selection-background-color: %4; selection-color: %5; padding: 4px; font-size: 12px; } "
+            "QListView::item { padding: 4px 8px; min-height: 24px; } "
+            "QListView::item:selected { background-color: %4; color: %5; font-weight: bold; }")
+            .arg(p.inputBg, p.textMain, p.border, p.selectionBg, p.selectionText));
+    }
 }
 
 void TargetChipDialog::setSelectedChip(const QString &chip)
@@ -845,29 +862,30 @@ void TargetChipDialog::updateDeviceTable()
             ? QString("%1 KB").arg(p.ramSizeBytes / 1024)
             : QStringLiteral("通用/自动");
 
+        const IdeTheme::ThemePalette tp = IdeTheme::paletteFor(m_currentTheme);
         QTableWidgetItem *itemDev = new QTableWidgetItem(dev);
         itemDev->setFont(QFont("Consolas", 10, QFont::Bold));
-        itemDev->setForeground(QColor("#ffffff"));
+        itemDev->setForeground(QColor(tp.textMain));
         itemDev->setTextAlignment(Qt::AlignLeft | Qt::AlignVCenter);
 
         QTableWidgetItem *itemFam = new QTableWidgetItem(family);
         itemFam->setFont(QFont("Segoe UI", 9));
-        itemFam->setForeground(QColor("#a6adc8"));
+        itemFam->setForeground(QColor(tp.textSub));
         itemFam->setTextAlignment(Qt::AlignCenter);
 
         QTableWidgetItem *itemCore = new QTableWidgetItem(displayCore);
         itemCore->setFont(QFont("Consolas", 9, QFont::Bold));
-        itemCore->setForeground(QColor("#89b4fa"));
+        itemCore->setForeground(QColor(tp.accent));
         itemCore->setTextAlignment(Qt::AlignCenter);
 
         QTableWidgetItem *itemFlash = new QTableWidgetItem(flashStr);
         itemFlash->setFont(QFont("Consolas", 9));
-        itemFlash->setForeground(QColor("#a6e3a1"));
+        itemFlash->setForeground(QColor(tp.success));
         itemFlash->setTextAlignment(Qt::AlignCenter);
 
         QTableWidgetItem *itemRam = new QTableWidgetItem(ramStr);
         itemRam->setFont(QFont("Consolas", 9));
-        itemRam->setForeground(QColor("#a6e3a1"));
+        itemRam->setForeground(QColor(tp.success));
         itemRam->setTextAlignment(Qt::AlignCenter);
 
         m_deviceTable->setItem(i, 0, itemDev);
@@ -943,14 +961,13 @@ void TargetChipDialog::onTableDoubleClicked(int row, int column)
 
 void TargetChipDialog::updateChipSpecs(const QString &chipName)
 {
+    const IdeTheme::ThemePalette tp = IdeTheme::paletteFor(m_currentTheme);
     m_specChipLabel->setText(chipName.isEmpty() ? QStringLiteral("未选择") : chipName);
-    m_specChipLabel->setStyleSheet(
-        "color: #89dceb; font-weight: bold; font-family: Consolas, monospace; font-size: 13px; "
-        "background-color: #11111b; border: 1px solid #313244; border-radius: 4px; padding: 3px 8px;");
+    m_specChipLabel->setStyleSheet(QString("color: %1; font-weight: bold; font-family: Consolas, monospace; font-size: 13px; background-color: %2; border: 1px solid %3; border-radius: 4px; padding: 3px 8px;").arg(tp.accent, tp.inputBg, tp.border));
 
     m_specVendorFamilyLabel->setText(
         QString("%1 · %2").arg(m_vendorCombo->currentText()).arg(m_familyCombo->currentText()));
-    m_specVendorFamilyLabel->setStyleSheet("color: #cdd6f4; font-weight: bold; font-size: 12px;");
+    m_specVendorFamilyLabel->setStyleSheet(QString("color: %1; font-weight: bold; font-size: 12px;").arg(tp.textMain));
 
     STM32ChipProfile p = STM32ProfileManager::instance().getProfile(chipName);
     if (!p.chipName.isEmpty()) {
@@ -962,7 +979,7 @@ void TargetChipDialog::updateChipSpecs(const QString &chipName)
             coreStr += " (硬件浮点 FPU: " + p.fpuFlags + ")";
         }
         m_specCoreLabel->setText(coreStr);
-        m_specCoreLabel->setStyleSheet("color: #f9e2af; font-weight: bold; font-family: Consolas, monospace; font-size: 12px;");
+        m_specCoreLabel->setStyleSheet(QString("color: %1; font-weight: bold; font-family: Consolas, monospace; font-size: 12px;").arg(tp.warning));
 
         QString flashStr = QString("%1 KB").arg(p.flashSizeBytes / 1024);
         if (p.flashSizeBytes >= 1024 * 1024) {
@@ -970,7 +987,7 @@ void TargetChipDialog::updateChipSpecs(const QString &chipName)
         }
         flashStr += " @ " + p.flashOrigin;
         m_specFlashLabel->setText(flashStr);
-        m_specFlashLabel->setStyleSheet("color: #a6e3a1; font-weight: bold; font-family: Consolas, monospace; font-size: 12px;");
+        m_specFlashLabel->setStyleSheet(QString("color: %1; font-weight: bold; font-family: Consolas, monospace; font-size: 12px;").arg(tp.success));
 
         QString ramStr = QString("%1 KB").arg(p.ramSizeBytes / 1024);
         if (p.linkerRamSizeBytes > 0 && p.linkerRamSizeBytes != p.ramSizeBytes) {
@@ -978,14 +995,14 @@ void TargetChipDialog::updateChipSpecs(const QString &chipName)
         }
         ramStr += " @ " + p.ramOrigin;
         m_specRamLabel->setText(ramStr);
-        m_specRamLabel->setStyleSheet("color: #a6e3a1; font-weight: bold; font-family: Consolas, monospace; font-size: 12px;");
+        m_specRamLabel->setStyleSheet(QString("color: %1; font-weight: bold; font-family: Consolas, monospace; font-size: 12px;").arg(tp.success));
 
         QString macroStr = p.defaultMacro;
         if (!p.extraMacros.isEmpty()) {
             macroStr += " " + p.extraMacros.join(" ");
         }
         m_specMacroLabel->setText(macroStr.isEmpty() ? QStringLiteral("默认无") : macroStr);
-        m_specMacroLabel->setStyleSheet("color: #fab387; font-weight: bold; font-family: Consolas, monospace; font-size: 11px;");
+        m_specMacroLabel->setStyleSheet(QString("color: %1; font-weight: bold; font-family: Consolas, monospace; font-size: 11px;").arg(tp.accent));
 
         QString ldStr = p.defaultLdFile;
         if (!p.linkerResourcePath.isEmpty()) {
@@ -994,32 +1011,32 @@ void TargetChipDialog::updateChipSpecs(const QString &chipName)
             ldStr += QStringLiteral(" (SmileCode GCC 规范智能链接脚本)");
         }
         m_specLdLabel->setText(ldStr);
-        m_specLdLabel->setStyleSheet("color: #89b4fa; font-family: Consolas, monospace; font-size: 11px;");
+        m_specLdLabel->setStyleSheet(QString("background: transparent; color: %1; font-family: Consolas, monospace; font-size: 11px;").arg(tp.accent));
 
         QString dbgStr = QString("OpenOCD: %1\nJ-Link: %2")
             .arg(p.openocdTargetCfg.isEmpty() ? QStringLiteral("自动适配") : p.openocdTargetCfg)
             .arg(p.jlinkDeviceName.isEmpty() ? p.chipName : p.jlinkDeviceName);
         m_specDebuggerLabel->setText(dbgStr);
-        m_specDebuggerLabel->setStyleSheet("color: #cba6f7; font-family: Consolas, monospace; font-size: 11px;");
+        m_specDebuggerLabel->setStyleSheet(QString("background: transparent; color: %1; font-family: Consolas, monospace; font-size: 11px;").arg(tp.textMain));
     } else {
         // 外部通用或尚未定义具体宏的型号
         m_specCoreLabel->setText(QStringLiteral("ARM Cortex-M (根据工程配置自适应)"));
-        m_specCoreLabel->setStyleSheet("color: #f9e2af; font-family: Consolas, monospace; font-size: 12px;");
+        m_specCoreLabel->setStyleSheet(QString("background: transparent; color: %1; font-family: Consolas, monospace; font-size: 12px;").arg(tp.warning));
 
         m_specFlashLabel->setText(QStringLiteral("自动检测 / 连续 0x08000000 区域"));
-        m_specFlashLabel->setStyleSheet("color: #a6e3a1; font-family: Consolas, monospace; font-size: 12px;");
+        m_specFlashLabel->setStyleSheet(QString("background: transparent; color: %1; font-family: Consolas, monospace; font-size: 12px;").arg(tp.success));
 
         m_specRamLabel->setText(QStringLiteral("自动检测 / 连续 0x20000000 区域"));
-        m_specRamLabel->setStyleSheet("color: #a6e3a1; font-family: Consolas, monospace; font-size: 12px;");
+        m_specRamLabel->setStyleSheet(QString("background: transparent; color: %1; font-family: Consolas, monospace; font-size: 12px;").arg(tp.success));
 
         m_specMacroLabel->setText(QStringLiteral("标准 HAL / CMSIS 头文件宏"));
-        m_specMacroLabel->setStyleSheet("color: #fab387; font-family: Consolas, monospace; font-size: 11px;");
+        m_specMacroLabel->setStyleSheet(QString("background: transparent; color: %1; font-family: Consolas, monospace; font-size: 11px;").arg(tp.accent));
 
         m_specLdLabel->setText(QStringLiteral("自动生成标准 GNU LD 链接脚本"));
-        m_specLdLabel->setStyleSheet("color: #89b4fa; font-family: Consolas, monospace; font-size: 11px;");
+        m_specLdLabel->setStyleSheet(QString("background: transparent; color: %1; font-family: Consolas, monospace; font-size: 11px;").arg(tp.accent));
 
         m_specDebuggerLabel->setText(QStringLiteral("OpenOCD: target cfg (自动匹配)\nJ-Link / CMSIS-DAP / ST-Link"));
-        m_specDebuggerLabel->setStyleSheet("color: #cba6f7; font-family: Consolas, monospace; font-size: 11px;");
+        m_specDebuggerLabel->setStyleSheet(QString("background: transparent; color: %1; font-family: Consolas, monospace; font-size: 11px;").arg(tp.textMain));
     }
 }
 

@@ -7,6 +7,7 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QTableWidget>
+#include <QScrollArea>
 #include <QGroupBox>
 #include <QSettings>
 #include <QMap>
@@ -24,13 +25,15 @@ class TargetChipDialog : public QDialog
 
 public:
     explicit TargetChipDialog(QWidget *parent = nullptr, QSettings *settings = nullptr,
-                              const QString &initialChip = QString());
+                              const QString &initialChip = QString(),
+                              const QString &themeId = QString());
     ~TargetChipDialog() override = default;
 
     QString getSelectedChip() const;
     void setSelectedChip(const QString &chip);
 
     static bool selectChip(QWidget *parent, QString &chipInOut, QSettings *settings = nullptr);
+    void applyTheme(const QString &themeId = QString());
 
 private slots:
     void onVendorChanged(int index);
@@ -43,7 +46,6 @@ private slots:
 
 private:
     void setupUI();
-    void applyTheme();
     void initChipData();
     void updateFamilyCombo();
     void updateDeviceCombo();
@@ -52,6 +54,7 @@ private:
 
     QSettings *m_settings;
     QString m_selectedChip;
+    QString m_currentTheme = "dark";
     bool m_updatingUi = false;
 
     // 顶部级联选择控件 (三级联动，与用户截图保持一致)
@@ -62,6 +65,8 @@ private:
     // 搜索过滤与器件表格
     QLineEdit *m_searchEdit;
     QTableWidget *m_deviceTable;
+    QGroupBox *m_specGroupBox = nullptr;
+    QScrollArea *m_specScrollArea = nullptr;
 
     // 详细规格参数展示标签
     QLabel *m_specChipLabel;

@@ -59,7 +59,7 @@ export function DeviceCanvas() {
 
   return (
     <>
-      <div id="device-grid" className={styles.canvas}>
+      <div id="device-grid" className={`device-canvas ${styles.canvas}`}>
         {/* SVG 背景模板 */}
         {backgroundTemplate && <BackgroundTemplate type={backgroundTemplate} />}
 

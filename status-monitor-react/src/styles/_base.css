@@ -16,8 +16,8 @@ html, body, #root {
 
 body {
   background-color: var(--bg-color);
-  color: #e2e8f0;
-  font-family: 'Inter', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', -apple-system, sans-serif;
+  color: var(--text-primary);
+  font-family: var(--font-body);
   font-size: 14px;
   line-height: 1.5;
   transition: background-color 0.5s ease, color 0.5s ease;
@@ -30,18 +30,29 @@ body {
   flex-direction: column;
 }
 
-button {
-  font-family: inherit;
-  cursor: pointer;
-}
-
-select {
-  font-family: inherit;
-  cursor: pointer;
-}
-
+button,
+select,
 input {
-  font-family: inherit;
+  font: inherit;
+}
+
+button,
+select {
+  cursor: pointer;
+}
+
+button:focus-visible,
+select:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+button:disabled,
+select:disabled,
+input:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 /* Google Fonts 回退 */
@@ -63,4 +74,15 @@ input {
   src: local('Inter');
   font-weight: 300 700;
   font-display: swap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }

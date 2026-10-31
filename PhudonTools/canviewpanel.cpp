@@ -76,13 +76,7 @@ void CanViewPanel::setupUi() {
   m_chkClassify = new QCheckBox("分类显示");
   m_btnSetting = new QPushButton("设置");
 
-  // Style buttons to look flat and neat
-  QString flatBtnStyle = "QPushButton { padding: 4px 10px; font-size: 12px; }";
-  m_btnSaveRealtime->setStyleSheet(flatBtnStyle);
-  m_btnSave->setStyleSheet(flatBtnStyle);
-  m_btnClear->setStyleSheet(flatBtnStyle);
-  m_btnPause->setStyleSheet(flatBtnStyle);
-  m_btnSetting->setStyleSheet(flatBtnStyle);
+  // Style buttons handled gracefully by global theme QSS
 
   toolbarLayout->addWidget(m_btnSaveRealtime);
   toolbarLayout->addWidget(m_btnSave);
@@ -120,8 +114,7 @@ void CanViewPanel::setupUi() {
   m_dataLineEdit = new QLineEdit("00 11 22 33 44 55 66 77");
   m_sendButton = new QPushButton("发送");
   m_clearButton = new QPushButton("清空");
-  m_sendButton->setStyleSheet("QPushButton { padding: 4px 15px; }");
-  m_clearButton->setStyleSheet("QPushButton { padding: 4px 15px; }");
+  // Button padding and colors handled by global QSS
 
   m_stdFrameBtn = new QRadioButton("标准帧");
   m_extFrameBtn = new QRadioButton("扩展帧");
@@ -185,9 +178,9 @@ void CanViewPanel::setupUi() {
     m_paused = !m_paused;
     m_btnPause->setText(m_paused ? "启动" : "暂停");
     if (m_paused) {
-      m_btnPause->setStyleSheet("QPushButton { background-color: #e67e22; color: white; padding: 4px 10px; }");
+      m_btnPause->setStyleSheet("QPushButton { background-color: #e67e22; color: white; padding: 4px 10px; font-weight: bold; border-radius: 4px; }");
     } else {
-      m_btnPause->setStyleSheet("QPushButton { padding: 4px 10px; }");
+      m_btnPause->setStyleSheet("");
     }
   });
 

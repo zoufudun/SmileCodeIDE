@@ -8,6 +8,8 @@
 #include <QTcpSocket>
 #include "ToolchainDetector.h"
 #include "STM32Profile.h"
+#include "ProbeProcessGuard.h"
+#include <QTimer>
 
 enum class GdbServerType {
     OpenOCD,
@@ -25,8 +27,8 @@ public:
     explicit GdbServerManager(QObject *parent = nullptr);
     ~GdbServerManager() override;
 
-    void setToolchainPaths(const ToolchainPaths &paths) { m_paths = paths; }
-    void setChipProfile(const STM32ChipProfile &profile) { m_profile = profile; }
+    void setToolchainPaths(const ToolchainPaths &paths) { stopServer(); m_paths = paths; }
+    void setChipProfile(const STM32ChipProfile &profile) { stopServer(); m_profile = profile; }
 
     bool isRunning() const;
     int gdbPort() const { return m_gdbPort; }
@@ -35,10 +37,11 @@ public:
     bool startServer(GdbServerType type = GdbServerType::OpenOCD,
                      const QString &customInterface = QString(),
                      const QString &customTarget = QString(),
-                     int port = 3333);
+                     int port = 3333, const QString &probeSerial = QString(),
+                     int speedKhz = 4000);
 
     // 停止 GDB Server
-    void stopServer();
+    Q_INVOKABLE void stopServer();
 
     // 检测指定端口是否已有监听服务存活
     static bool isPortInUse(int port, int timeoutMs = 400);
@@ -63,6 +66,9 @@ private:
     QProcess *m_process = nullptr;
     int m_gdbPort = 3333;
     bool m_isReady = false;
+    ProbeProcessGuard *m_processGuard = nullptr;
+    QPointer<QTimer> m_readyTimer;
+    QString m_pendingOutput;
 };
 
 #endif // GDBSERVERMANAGER_H

@@ -1,4 +1,6 @@
+#include "idetheme.h"
 #include "STM32WorkbenchWidget.h"
+#include <QApplication>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QGridLayout>
@@ -127,7 +129,7 @@ void STM32WorkbenchWidget::setupUI()
 
     // 1. 顶部集成主工具栏
     QWidget *toolBar = new QWidget(this);
-    toolBar->setStyleSheet("background-color: #1e1e2e; border: 1px solid #313244; border-radius: 6px;");
+    toolBar->setObjectName("stm32ToolBarCard");
     QVBoxLayout *tbMainLayout = new QVBoxLayout(toolBar);
     tbMainLayout->setContentsMargins(8, 6, 8, 6);
     tbMainLayout->setSpacing(6);
@@ -153,7 +155,7 @@ void STM32WorkbenchWidget::setupUI()
 
     m_selectChipBtn = new QPushButton(QStringLiteral("芯片选择..."), toolBar);
     m_selectChipBtn->setToolTip(QStringLiteral("打开目标芯片分类级联选择对话框 (厂商/系列/器件)"));
-    m_selectChipBtn->setStyleSheet("background-color: #2f3542; color: #f1f2f6; padding: 4px 8px; border: 1px solid #57606f; border-radius: 4px; font-weight: bold;");
+    m_selectChipBtn->setObjectName("btnSelectChip");
     connect(m_selectChipBtn, &QPushButton::clicked, this, &STM32WorkbenchWidget::onOpenChipSelectDialog);
 
     QLabel *cfgLabel = new QLabel(QStringLiteral("⚙ 构建模式:"), toolBar);
@@ -177,7 +179,7 @@ void STM32WorkbenchWidget::setupUI()
     row2->setSpacing(6);
 
     m_buildBtn = new QPushButton(QStringLiteral("🔨 一键编译 (Build)"), toolBar);
-    m_buildBtn->setStyleSheet("background-color: #3867d6; color: white; font-weight: bold; padding: 6px 14px; border-radius: 4px;");
+    m_buildBtn->setObjectName("btnWorkbenchBuild");
     connect(m_buildBtn, &QPushButton::clicked, this, &STM32WorkbenchWidget::onBuildClicked);
 
     m_cleanBtn = new QPushButton(QStringLiteral("🧹 清理 (Clean)"), toolBar);
@@ -187,11 +189,11 @@ void STM32WorkbenchWidget::setupUI()
     connect(m_rebuildBtn, &QPushButton::clicked, this, &STM32WorkbenchWidget::onRebuildClicked);
 
     m_flashBtn = new QPushButton(QStringLiteral("⚡ 一键烧录/下载 (Flash)"), toolBar);
-    m_flashBtn->setStyleSheet("background-color: #fa8231; color: white; font-weight: bold; padding: 6px 14px; border-radius: 4px;");
+    m_flashBtn->setObjectName("btnWorkbenchFlash");
     connect(m_flashBtn, &QPushButton::clicked, this, &STM32WorkbenchWidget::onFlashClicked);
 
     m_debugBtn = new QPushButton(QStringLiteral("🐞 启动 GDB 硬件调试"), toolBar);
-    m_debugBtn->setStyleSheet("background-color: #20bf6b; color: white; font-weight: bold; padding: 6px 14px; border-radius: 4px;");
+    m_debugBtn->setObjectName("btnWorkbenchDebug");
     connect(m_debugBtn, &QPushButton::clicked, this, &STM32WorkbenchWidget::onToggleDebugSession);
 
     m_toolchainConfigBtn = new QPushButton(QStringLiteral("🛠️ 工具链配置"), toolBar);
@@ -308,14 +310,14 @@ void STM32WorkbenchWidget::setupUI()
     m_flashMemBar->setRange(0, 100);
     m_flashMemBar->setValue(0);
     m_flashMemBar->setFixedWidth(140);
-    m_flashMemBar->setStyleSheet("QProgressBar::chunk { background-color: #3867d6; border-radius: 2px; }");
+    m_flashMemBar->setObjectName("meterFlashBar");
 
     m_ramMemLabel = new QLabel(QStringLiteral("RAM: 0 / 20 KB (0%)"), meterWidget);
     m_ramMemBar = new QProgressBar(meterWidget);
     m_ramMemBar->setRange(0, 100);
     m_ramMemBar->setValue(0);
     m_ramMemBar->setFixedWidth(140);
-    m_ramMemBar->setStyleSheet("QProgressBar::chunk { background-color: #20bf6b; border-radius: 2px; }");
+    m_ramMemBar->setObjectName("meterRamBar");
 
     m_taskStatusLabel = new QLabel(QStringLiteral("就绪"), meterWidget);
     m_taskProgressBar = new QProgressBar(meterWidget);
@@ -345,28 +347,68 @@ void STM32WorkbenchWidget::setupUI()
     mainLayout->addWidget(m_mainSplitter, 1);
 }
 
-void STM32WorkbenchWidget::applyTheme()
+void STM32WorkbenchWidget::applyTheme(const QString &themeId)
 {
-    setStyleSheet(
-        "QWidget { background-color: #11111b; color: #cdd6f4; font-family: 'Segoe UI', 'Microsoft YaHei'; }"
-        "QLabel { color: #bac2de; font-size: 12px; }"
-        "QLineEdit { background-color: #181825; border: 1px solid #45475a; border-radius: 4px; padding: 4px 8px; color: #f5e0dc; }"
-        "QComboBox { background-color: #181825; border: 1px solid #45475a; border-radius: 4px; padding: 4px 8px; color: #cdd6f4; }"
-        "QTextBrowser, QTextEdit { background-color: #11111b; border: 1px solid #313244; color: #cdd6f4; }"
-        "QTreeWidget { background-color: #11111b; alternate-background-color: #181825; color: #cdd6f4; border: 1px solid #313244; }"
-        "QTreeWidget::item:selected { background-color: #313244; }"
-        "QHeaderView::section { background-color: #1e1e2e; color: #bac2de; border: 0; padding: 5px; }"
-        "QTabWidget::pane { border: 1px solid #313244; }"
-        "QTabBar::tab { background-color: #181825; color: #bac2de; padding: 5px 12px; }"
-        "QTabBar::tab:selected { background-color: #313244; color: #cdd6f4; }"
-        "QProgressBar { background-color: #181825; border: 1px solid #45475a; border-radius: 3px; text-align: center; color: #ffffff; font-size: 10px; }"
-        "QPushButton { background-color: #313244; color: #cdd6f4; border: 1px solid #45475a; border-radius: 4px; padding: 4px 12px; }"
-        "QPushButton:hover { background-color: #45475a; }"
-    );
+    if (!themeId.isEmpty()) {
+        m_currentTheme = themeId;
+    } else if (qApp && qApp->property("currentTheme").isValid() && !qApp->property("currentTheme").toString().isEmpty()) {
+        m_currentTheme = qApp->property("currentTheme").toString();
+    } else if (m_settings) {
+        m_currentTheme = m_settings->value("theme", "dark").toString();
+    }
+    if (m_currentTheme.isEmpty()) {
+        m_currentTheme = QStringLiteral("dark");
+    }
+    setProperty("currentTheme", m_currentTheme);
+    IdeTheme::setCurrentThemeId(m_currentTheme);
+    const IdeTheme::ThemePalette p = IdeTheme::paletteFor(m_currentTheme);
+
+    setStyleSheet(QString(
+        "QWidget { background-color: %1; color: %2; font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif; }"
+        "QWidget#stm32ToolBarCard { background-color: %3; border: 1px solid %4; border-radius: 6px; }"
+        "QLabel { color: %5; font-size: 12px; }"
+        "QLineEdit, QComboBox { background-color: %6; border: 1px solid %7; border-radius: 4px; padding: 4px 8px; color: %2; }"
+        "QLineEdit:focus, QComboBox:focus { border: 1px solid %8; }"
+
+        "QComboBox::drop-down { subcontrol-origin: padding; subcontrol-position: top right; border: none; width: 22px; background: transparent; }"
+
+        "QComboBox::down-arrow { image: url(\"%18\"); width: 10px; height: 10px; margin-right: 6px; }"
+
+        "QComboBox::down-arrow:hover { image: url(\"%19\"); }"
+        "QTextBrowser, QTextEdit { background-color: %9; border: 1px solid %4; color: %2; }"
+        "QTreeWidget { background-color: %9; alternate-background-color: %10; color: %2; border: 1px solid %4; }"
+        "QTreeWidget::item:selected { background-color: %11; color: %12; }"
+        "QHeaderView::section { background-color: %13; color: %5; border: 1px solid %4; padding: 5px; }"
+        "QTabWidget::pane { border: 1px solid %4; }"
+        "QTabBar::tab { background-color: %13; color: %5; padding: 6px 14px; border: 1px solid %4; border-bottom: none; }"
+        "QTabBar::tab:selected { background-color: %3; color: %2; font-weight: bold; border-top: 2px solid %8; }"
+        "QProgressBar { background-color: %6; border: 1px solid %7; border-radius: 3px; text-align: center; color: %2; font-size: 10px; }"
+        "QProgressBar#meterFlashBar::chunk { background: %14; border-radius: 2px; }"
+        "QProgressBar#meterRamBar::chunk { background: %15; border-radius: 2px; }"
+        "QPushButton { background: %16; color: %2; border: 1px solid %4; border-radius: 4px; padding: 5px 12px; }"
+        "QPushButton:hover { background: %14; color: %17; border: 1px solid %8; }"
+        "QPushButton#btnWorkbenchBuild { background: %14; color: %17; font-weight: bold; border: 1px solid %8; }"
+        "QPushButton#btnWorkbenchFlash { background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #F59E0B, stop:1 #D97706); color: #FFFFFF; font-weight: bold; border: 1px solid #F59E0B; }"
+        "QPushButton#btnWorkbenchDebug { background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #10B981, stop:1 #059669); color: #FFFFFF; font-weight: bold; border: 1px solid #10B981; }"
+    ).arg(p.windowBg, p.textMain, p.cardBg, p.border, p.textSub,
+         p.inputBg, p.inputBorder, p.accent, p.editorBg, p.baseAltBg,
+         p.selectionBg, p.selectionText, p.panelBg, p.accentGrad, p.success,
+         p.panelBgGrad, p.accentText, IdeTheme::ensureArrowIcon(p.textSub), IdeTheme::ensureArrowIcon(p.accent)));
+
+    if (m_debugPanel) {
+        m_debugPanel->applyTheme(m_currentTheme);
+    }
 }
 
 void STM32WorkbenchWidget::setProjectPath(const QString &path)
 {
+    if (QDir::cleanPath(QDir::fromNativeSeparators(path)) !=
+        QDir::cleanPath(QDir::fromNativeSeparators(m_projectPath))) {
+        m_gdbEngine->stopSession();
+        m_serverManager->stopServer();
+        m_flashProgrammer->cancelFlash();
+        m_buildManager->stopBuild();
+    }
     m_projectPath = QDir::toNativeSeparators(path);
     m_projectPathEdit->setText(m_projectPath);
     emit projectPathChanged(m_projectPath);
@@ -408,11 +450,35 @@ void STM32WorkbenchWidget::saveSettings()
 
 void STM32WorkbenchWidget::onBrowseProjectDir()
 {
-    QString dir = QFileDialog::getExistingDirectory(this, QStringLiteral("选择 STM32 工程根目录"),
-                                                   m_projectPath.isEmpty() ? QDir::homePath() : m_projectPath);
+    QString initDir = m_projectPath;
+    if (initDir.isEmpty() || !QDir(initDir).exists()) {
+        if (m_settings) {
+            initDir = m_settings->value("STM32Toolchain/lastProject").toString();
+            if (initDir.isEmpty()) {
+                m_settings->beginGroup("MainWindow");
+                initDir = m_settings->value("lastOpenDir").toString();
+                if (initDir.isEmpty()) {
+                    initDir = m_settings->value("projectPath").toString();
+                }
+                m_settings->endGroup();
+            }
+        }
+    }
+    if (initDir.isEmpty() || !QDir(initDir).exists()) {
+        initDir = QDir::homePath();
+    }
+    QString dir = QFileDialog::getExistingDirectory(this, QStringLiteral("选择 STM32 工程根目录"), initDir);
     if (!dir.isEmpty()) {
+        dir = QDir::toNativeSeparators(QDir::cleanPath(dir));
         setProjectPath(dir);
         saveSettings();
+        if (m_settings) {
+            m_settings->beginGroup("MainWindow");
+            m_settings->setValue("lastOpenDir", dir);
+            m_settings->endGroup();
+            m_settings->setValue("lastOpenDir", dir);
+            m_settings->sync();
+        }
     }
 }
 
@@ -501,12 +567,19 @@ void STM32WorkbenchWidget::onFlashClicked()
 
     FlashOptions opt;
     if (m_settings) {
-        FlashConfigDialog dlg(this, m_settings, m_currentProfile);
+        FlashConfigDialog dlg(this, m_settings, m_currentProfile, m_currentTheme);
+        dlg.applyTheme(m_currentTheme);
         opt = dlg.getOptions();
     }
 
     m_taskStatusLabel->setText(QStringLiteral("正在烧录固件..."));
     m_taskProgressBar->setValue(10);
+    m_gdbEngine->stopSession();
+    m_serverManager->stopServer();
+    if (m_serverManager->isRunning()) {
+        appendLogText(QStringLiteral("下载未启动：调试服务尚未退出，请稍后重试。\n"), true);
+        return;
+    }
     if (!m_flashProgrammer->flashFirmware(binPath, opt) && m_flashActive)
         finishFlashLog(false, QStringLiteral("下载未启动，请检查上方错误信息。"));
 }
@@ -559,7 +632,7 @@ void STM32WorkbenchWidget::onGdbStateChanged(GdbTargetState state)
         m_debugBtn->setStyleSheet("background-color: #eb3b5a; color: white; font-weight: bold; padding: 6px 14px; border-radius: 4px;");
     } else {
         m_debugBtn->setText(QStringLiteral("🐞 启动 GDB 硬件调试"));
-        m_debugBtn->setStyleSheet("background-color: #20bf6b; color: white; font-weight: bold; padding: 6px 14px; border-radius: 4px;");
+        m_debugBtn->setObjectName("btnWorkbenchDebug");
     }
 }
 
@@ -885,7 +958,8 @@ void STM32WorkbenchWidget::onMemoryUsageUpdated(quint32 flashUsed, quint32 flash
 
 void STM32WorkbenchWidget::onOpenToolchainSettings()
 {
-    ToolchainConfigDialog dlg(this, m_settings);
+    ToolchainConfigDialog dlg(this, m_settings, m_currentTheme);
+    dlg.applyTheme(m_currentTheme);
     if (dlg.exec() == QDialog::Accepted) {
         m_paths = dlg.getPaths();
         m_buildManager->setToolchainPaths(m_paths);
@@ -902,7 +976,8 @@ void STM32WorkbenchWidget::onOpenToolchainSettings()
 
 void STM32WorkbenchWidget::onOpenFlashSettings()
 {
-    FlashConfigDialog dlg(this, m_settings, m_currentProfile);
+    FlashConfigDialog dlg(this, m_settings, m_currentProfile, m_currentTheme);
+    dlg.applyTheme(m_currentTheme);
     if (dlg.exec() == QDialog::Accepted) {
         m_buildTerminal->append(QStringLiteral("✅ 固件烧录参数配置已更新\n"));
     }
@@ -910,7 +985,8 @@ void STM32WorkbenchWidget::onOpenFlashSettings()
 
 void STM32WorkbenchWidget::onOpenChipSelectDialog()
 {
-    TargetChipDialog dlg(this, m_settings, m_chipCombo->currentText());
+    TargetChipDialog dlg(this, m_settings, m_chipCombo->currentText(), m_currentTheme);
+    dlg.applyTheme(m_currentTheme);
     if (dlg.exec() == QDialog::Accepted) {
         QString chip = dlg.getSelectedChip();
         if (!chip.isEmpty()) {

@@ -31,6 +31,11 @@
 #include "appmanager.h"
 #include "idetheme.h"
 #include "ideworkflowicons.h"
+#include "../Plugins/STM32WorkbenchPlugin/UI/TargetChipDialog.h"
+#include "../Plugins/STM32WorkbenchPlugin/UI/FlashConfigDialog.h"
+#include "../Plugins/STM32WorkbenchPlugin/UI/ToolchainConfigDialog.h"
+#include <QSignalBlocker>
+#include <QStyle>
 #include "TOOLS/CIconFont.h"
 #include <QDialog>
 #include <QtSerialPort/QSerialPort>
@@ -92,6 +97,13 @@ MainWindow::MainWindow(QWidget *parent)
     onBuildFinished(success);
   });
   connect(m_debugController, &STM32DebugController::diagnosticFound, this, &MainWindow::addProblemDiagnostic);
+  connect(m_debugController, &STM32DebugController::chipChanged, this, [this](const QString &) {
+    updateDebugUiState(m_isDebugging, false);
+    updateStatusInfo();
+  });
+  connect(m_debugController, &STM32DebugController::probeChanged, this, [this](const QString &) {
+    updateStatusInfo();
+  });
 
   connect(m_debugController, &STM32DebugController::flashStarted, this, [this]() {
     if (m_outputConsole) m_outputConsole->append(">>> 开始固件烧录...");
@@ -116,6 +128,8 @@ MainWindow::MainWindow(QWidget *parent)
     if (state == STM32SessionState::StartingDebug) {
       m_tabWidget->setCurrentWidget(m_debugConsole);
       if (m_variablesDock) m_variablesDock->show();
+      if (m_registersDock) m_registersDock->show();
+      if (m_breakpointsDock) m_breakpointsDock->show();
       if (m_callStackDock) m_callStackDock->show();
       statusBar()->showMessage("GDB调试会话启动中...", 3000);
     }
@@ -128,6 +142,8 @@ MainWindow::MainWindow(QWidget *parent)
     if (m_callStackDock) m_callStackDock->clear();
     if (m_variablesDock) m_variablesDock->clear();
     if (m_registersDock) m_registersDock->clear();
+    for (auto dock : {static_cast<QDockWidget *>(m_variablesDock), static_cast<QDockWidget *>(m_registersDock),
+                      static_cast<QDockWidget *>(m_callStackDock), static_cast<QDockWidget *>(m_breakpointsDock)}) dock->hide();
     statusBar()->showMessage("调试会话已退出", 3000);
   });
 
@@ -234,9 +250,11 @@ MainWindow::MainWindow(QWidget *parent)
 
   // 设置窗口属性
   setWindowTitle("PhudonTools");
-  resize(1200, 800);
+  resize(1360, 900);
 
   // 确保快捷键能够正常工作
+  for (auto dock : {static_cast<QDockWidget *>(m_variablesDock), static_cast<QDockWidget *>(m_registersDock),
+                    static_cast<QDockWidget *>(m_callStackDock), static_cast<QDockWidget *>(m_breakpointsDock)}) dock->hide();
   setFocusPolicy(Qt::StrongFocus);
   updateDebugUiState(false, false);
 }
@@ -346,102 +364,37 @@ bool MainWindow::isCurrentFileModified() const {
 }
 
 void MainWindow::createToolbars() {
-  const QSize unifiedIconSize(22, 22);
-
-  // 1. 主工具栏
-  QToolBar *mainToolbar = addToolBar("主工具栏");
-  mainToolbar->setMovable(true);
-  mainToolbar->setIconSize(unifiedIconSize);
-
-  // Add file actions
-  mainToolbar->addAction(m_newProjectAction);
-  mainToolbar->addAction(m_openProjectAction);
-  mainToolbar->addAction(m_saveProjectAction);
-  mainToolbar->addAction(m_closeProjectAction);
-  mainToolbar->addAction(m_saveFileAction);
-  mainToolbar->addSeparator();
-
-  // Add build actions
-  mainToolbar->addAction(m_buildAction);
-  mainToolbar->addAction(m_rebuildAction);
-  mainToolbar->addAction(m_cleanAction);
-  mainToolbar->addAction(m_flashAction);
-  mainToolbar->addAction(m_cancelTaskAction);
-  mainToolbar->addSeparator();
-
-  // Add debug actions
-  mainToolbar->addAction(m_debugAction);
-  mainToolbar->addAction(m_stopDebugAction);
-  mainToolbar->addAction(m_continueAction);
-  mainToolbar->addAction(m_pauseDebugAction);
-  mainToolbar->addAction(m_stepOverAction);
-  mainToolbar->addAction(m_stepIntoAction);
-  mainToolbar->addAction(m_stepOutAction);
-  mainToolbar->addSeparator();
-
-  // 2. 调试工具栏
-  QToolBar *toolsToolbar = addToolBar("调试工具");
-  toolsToolbar->setMovable(true);
-  toolsToolbar->setIconSize(unifiedIconSize);
-  toolsToolbar->addAction(m_appHubAction);       // 应用工作台 (0xe635)
-  toolsToolbar->addSeparator();
-  toolsToolbar->addAction(m_configureToolchainAction);
-  toolsToolbar->addSeparator();
-  toolsToolbar->addAction(m_oscilloscopeAction); // 数字示波器 (0xe86e)
-  toolsToolbar->addAction(m_serialToolAction);   // 串口调试助手 (0xe661)
-  toolsToolbar->addAction(m_networkToolAction);  // 网络调试助手 (0xe7d2)
-  toolsToolbar->addAction(m_canToolAction);      // CAN调试助手 (0xe8a2)
-  toolsToolbar->addAction(m_iapToolAction);      // IAP升级工具 (0xe8bf)
-
-  // 3. 视图动作
-  mainToolbar->addAction(findChild<QAction *>("全屏模式"));
-
-  // 4. 分栏工具栏
-  QToolBar *splitToolbar = addToolBar("分栏工具栏");
-  splitToolbar->setMovable(true);
-  splitToolbar->setIconSize(unifiedIconSize);
-  splitToolbar->addAction(m_horizontalSplitAction);
-  splitToolbar->addAction(m_verticalSplitAction);
-  splitToolbar->addAction(m_closeSplitAction);
-
-  // 5. 主题切换快捷图标按钮 (0xe622，与串口调试助手完全一致)
-  QToolButton *btnTheme = new QToolButton(this);
-  btnTheme->setObjectName("btnThemeIcon");
-  try {
-    QFont iconFont = CIconFont::instance()->getIconFont(18);
-    iconFont.setPixelSize(18);
-    btnTheme->setFont(iconFont);
-  } catch (...) {
-  }
-  btnTheme->setText(QString(QChar(0xe622)));
-  btnTheme->setToolTip("切换主题");
-  btnTheme->setPopupMode(QToolButton::InstantPopup);
-  btnTheme->setStyleSheet("QToolButton::menu-indicator { image: none; }");
-
-  QMenu *menuTheme = new QMenu(btnTheme);
-  // 旗舰奢华主题
-  QMenu *menuFlagship = menuTheme->addMenu("🌟 旗舰奢华主题");
-  menuFlagship->addAction("⚡ 极客钛金 (Titanium Dark)", this, [this]() { applyTheme("dark"); });
-  menuFlagship->addAction("🌌 赛博霓虹 (Cyber Neon)", this, [this]() { applyTheme("cyberneon"); });
-  menuFlagship->addAction("🌋 熔岩黑金 (Obsidian Gold)", this, [this]() { applyTheme("obsidiangold"); });
-  menuFlagship->addAction("🔮 星云紫晶 (Nebula Violet)", this, [this]() { applyTheme("dracula"); });
-  menuFlagship->addAction("🌊 碧海深渊 (Abyssal Ocean)", this, [this]() { applyTheme("nord"); });
-  menuFlagship->addAction("🌲 极客翡翠 (Emerald Matrix)", this, [this]() { applyTheme("vue"); });
-  menuFlagship->addAction("☀️ 纯白曜石 (Crystal Light)", this, [this]() { applyTheme("light"); });
-  menuFlagship->addAction("📜 暖阳羊皮 (Solarized Light)", this, [this]() { applyTheme("solarizedlight"); });
-
-  // 经典主题
-  QMenu *menuClassic = menuTheme->addMenu("经典主题");
-  menuClassic->addAction("GitHub Dark", this, [this]() { applyTheme("githubdark"); });
-  menuClassic->addAction("GitHub Light", this, [this]() { applyTheme("githublight"); });
-  menuClassic->addAction("One Dark", this, [this]() { applyTheme("onedark"); });
-  menuClassic->addAction("Xcode Dark", this, [this]() { applyTheme("xcodedark"); });
-  menuClassic->addAction("Monokai Pro", this, [this]() { applyTheme("monokaipro"); });
-  menuClassic->addAction("Night Owl", this, [this]() { applyTheme("nightowl"); });
-
-  btnTheme->setMenu(menuTheme);
-  toolsToolbar->addSeparator();
-  toolsToolbar->addWidget(btnTheme);
+  auto *toolbar = addToolBar(tr("开发工作台"));
+  toolbar->setObjectName("developmentToolbar");
+  toolbar->setMovable(false);
+  toolbar->setFloatable(false);
+  toolbar->setIconSize(QSize(19, 19));
+  toolbar->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+  toolbar->addAction(m_openProjectAction);
+  toolbar->addAction(m_saveFileAction);
+  toolbar->addSeparator();
+  toolbar->addAction(m_buildAction);
+  toolbar->addAction(m_flashAction);
+  toolbar->addAction(m_debugAction);
+  toolbar->addAction(m_cancelTaskAction);
+  toolbar->addAction(m_continueAction);
+  toolbar->addAction(m_pauseDebugAction);
+  toolbar->addAction(m_stepOverAction);
+  toolbar->addAction(m_stepIntoAction);
+  toolbar->addAction(m_stepOutAction);
+  toolbar->addSeparator();
+  toolbar->addAction(m_configureChipAction);
+  toolbar->addAction(m_configureFlashAction);
+  toolbar->addAction(m_configureToolchainAction);
+  auto *spacer = new QWidget(toolbar);
+  spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+  toolbar->addWidget(spacer);
+  m_configurationSummary = new QLabel(toolbar);
+  m_configurationSummary->setObjectName("configurationSummary");
+  m_configurationSummary->setMaximumWidth(250);
+  m_configurationSummary->setContentsMargins(8, 0, 8, 0);
+  toolbar->addWidget(m_configurationSummary);
+  updateStatusInfo();
 }
 
 // 在目标选择部分之后添加下载工具选择
@@ -683,7 +636,10 @@ void MainWindow::setupUi() {
   m_projectTreeView = new QTreeView();
   m_fileSystemModel = new QFileSystemModel();
   m_projectTreeView->setModel(m_fileSystemModel);
-  m_projectTreeView->setColumnWidth(0, 250);
+  m_projectTreeView->setColumnWidth(0, 230);
+  m_projectTreeView->setHeaderHidden(true);
+  for (int column = 1; column < m_fileSystemModel->columnCount(); ++column)
+    m_projectTreeView->hideColumn(column);
   m_projectTreeView->setContextMenuPolicy(Qt::CustomContextMenu);
   projectLayout->addWidget(m_projectTreeView);
   mainSplitter->addWidget(projectGroup);
@@ -714,7 +670,9 @@ void MainWindow::setupUi() {
   editorOutputSplitter->addWidget(m_codeEditor);
 
   // 目标选择
-  QHBoxLayout *targetLayout = new QHBoxLayout();
+  auto *targetControls = new QWidget(this);
+  targetControls->hide();
+  QHBoxLayout *targetLayout = new QHBoxLayout(targetControls);
   targetLayout->addWidget(new QLabel("目标芯片:"));
   m_targetComboBox = new QComboBox();
   QStringList supportedChips = STM32ProfileManager::instance().supportedChips();
@@ -736,10 +694,12 @@ void MainWindow::setupUi() {
   m_downloaderComboBox->addItems({"STLINK", "Jlink", "CMSIS-DAP"});
   targetLayout->addWidget(m_downloaderComboBox);
 
-  rightLayout->addLayout(targetLayout);
+
 
   // 工具按钮
-  QHBoxLayout *toolLayout = new QHBoxLayout();
+  auto *legacyControls = new QWidget(this);
+  legacyControls->hide();
+  QHBoxLayout *toolLayout = new QHBoxLayout(legacyControls);
   m_buildButton = new QPushButton("编译");
   m_rebuildButton = new QPushButton("重建");
   m_cleanButton = new QPushButton("清理");
@@ -770,7 +730,7 @@ void MainWindow::setupUi() {
   m_stepIntoButton->setEnabled(false);
   m_stepOutButton->setEnabled(false);
 
-  rightLayout->addLayout(toolLayout);
+
 
   // 输出、调试与问题诊断选项卡
   m_tabWidget = new QTabWidget();
@@ -797,6 +757,19 @@ void MainWindow::setupUi() {
   m_tabWidget->addTab(m_outputConsole, "编译输出");
   m_tabWidget->addTab(m_debugConsole, "调试输出");
   m_tabWidget->addTab(m_problemsTable, "问题诊断");
+  m_projectSearch = new ProjectSearchPanel(this);
+  m_projectSearch->setObjectName("projectSearchPanel");
+  m_tabWidget->addTab(m_projectSearch, tr("项目搜索"));
+  connect(m_codeEditor, &CodeEditor::projectSearchRequested, this, [this]() {
+    m_projectSearch->setProjectRoot(m_codeEditor->projectRootPath());
+    m_projectSearch->setCurrentBuffer(m_codeEditor->currentFilePath(), m_codeEditor->text());
+    m_tabWidget->setCurrentWidget(m_projectSearch);
+    m_projectSearch->focusSearch();
+  });
+  connect(m_projectSearch, &ProjectSearchPanel::sourceLocationActivated,
+          this, [this](const QString &file, int line, int column) {
+    openSourceLocation(file, line, column);
+  });
   editorOutputSplitter->addWidget(m_tabWidget);
 
   // 连接双击问题跳转到源代码所在行
@@ -814,18 +787,22 @@ void MainWindow::setupUi() {
   });
 
   // 设置分割器比例
-  editorOutputSplitter->setStretchFactor(0, 2);
+  editorOutputSplitter->setStretchFactor(0, 4);
+  editorOutputSplitter->setSizes({640, 180});
   editorOutputSplitter->setStretchFactor(1, 1);
 
   // 命令行
-  QHBoxLayout *commandLayout = new QHBoxLayout();
+  m_gdbCommandBar = new QWidget(this);
+  m_gdbCommandBar->setObjectName("gdbCommandBar");
+  m_gdbCommandBar->hide();
+  QHBoxLayout *commandLayout = new QHBoxLayout(m_gdbCommandBar);
   commandLayout->addWidget(new QLabel("GDB命令:"));
   m_commandLine = new QLineEdit();
   m_commandLine->setEnabled(false);
   m_commandLine->setPlaceholderText("输入原生GDB指令，按Enter执行...");
   connect(m_commandLine, &QLineEdit::returnPressed, this, &MainWindow::executeGdbCommand);
   commandLayout->addWidget(m_commandLine);
-  rightLayout->addLayout(commandLayout);
+  rightLayout->addWidget(m_gdbCommandBar);
 
   // 连接信号和槽
   connect(m_buildButton, &QPushButton::clicked, this,
@@ -855,7 +832,9 @@ void MainWindow::setupUi() {
 
   // 设置分割器比例
   mainSplitter->setStretchFactor(0, 1);
-  mainSplitter->setStretchFactor(1, 3);
+  mainSplitter->setStretchFactor(1, 5);
+  mainSplitter->setChildrenCollapsible(false);
+  mainSplitter->setSizes({240, 1100});
 
   // 初始化状态栏
   setupStatusBar();
@@ -1398,8 +1377,10 @@ void MainWindow::setupDockWidgets() {
   addDockWidget(Qt::RightDockWidgetArea, m_breakpointsDock);
   tabifyDockWidget(m_callStackDock, m_breakpointsDock);
 
-  m_variablesDock->raise();
-  m_callStackDock->raise();
+  m_variablesDock->hide();
+  m_registersDock->hide();
+  m_callStackDock->hide();
+  m_breakpointsDock->hide();
 
   connect(m_breakpointsDock, &BreakpointsDock::breakpointJumpRequested, this, [this](const QString &file, int line) {
     if (m_codeEditor) {
@@ -1479,7 +1460,7 @@ void MainWindow::updateDebugUiState(bool isDebugging, bool isRunning) {
                                                    : STM32SessionState::Idle;
   const bool idle = state == STM32SessionState::Idle;
   const bool stopped = state == STM32SessionState::Stopped;
-  const bool hasProject = !m_projectPath.isEmpty() || !m_currentFilePath.isEmpty();
+  const bool hasProject = (m_debugController && m_debugController->hasProject()) || !m_projectPath.isEmpty() || !m_currentFilePath.isEmpty();
   isDebugging = state == STM32SessionState::StartingDebug || stopped ||
                 state == STM32SessionState::Running;
   isRunning = state == STM32SessionState::Running;
@@ -1493,6 +1474,12 @@ void MainWindow::updateDebugUiState(bool isDebugging, bool isRunning) {
   if (m_cancelTaskAction) m_cancelTaskAction->setEnabled(!idle);
   if (m_pauseDebugAction) m_pauseDebugAction->setEnabled(isRunning);
   if (m_configureToolchainAction) m_configureToolchainAction->setEnabled(idle);
+  if (m_configureChipAction) m_configureChipAction->setEnabled(idle);
+  if (m_configureFlashAction) m_configureFlashAction->setEnabled(idle && hasProject);
+  if (m_cancelTaskAction) m_cancelTaskAction->setVisible(!idle);
+  for (auto action : {m_continueAction, m_pauseDebugAction, m_stepOverAction,
+                      m_stepIntoAction, m_stepOutAction}) action->setVisible(isDebugging);
+  if (m_gdbCommandBar) m_gdbCommandBar->setVisible(isDebugging);
   if (m_targetComboBox) m_targetComboBox->setEnabled(idle);
   if (m_downloaderComboBox) m_downloaderComboBox->setEnabled(idle);
 
@@ -1911,8 +1898,16 @@ void MainWindow::openFile(const QModelIndex &index) {
 // }
 
 void MainWindow::applyTheme(const QString &themeName) {
-  // 保存当前主题名称
+  // 保存当前主题名称并同步到全局主题内核
   m_currentTheme = themeName;
+  IdeTheme::setCurrentThemeId(themeName);
+  if (qApp) {
+    qApp->setProperty("currentTheme", themeName);
+  }
+  setProperty("currentTheme", themeName);
+  if (AppManager::instance()->getCurrentTheme() != themeName) {
+    AppManager::instance()->setCurrentTheme(themeName);
+  }
 
   // 根据主题名称设置对应的选中状态
   if (m_darkThemeAction) m_darkThemeAction->setChecked(themeName == "dark");
@@ -1964,12 +1959,70 @@ void MainWindow::loadStyleSheet(const QString &sheetName) {
   qDebug() << "已应用" << sheetName << "全局一体化主题样式表";
 }
 
+QString MainWindow::getRecentProjectDirectory() const {
+  // 1. 如果当前打开的项目路径有效且在磁盘存在，优先定位到该目录
+  if (!m_projectPath.isEmpty() && QDir(m_projectPath).exists()) {
+    return m_projectPath;
+  }
+
+  // 2. 如果当前有打开编辑的文件，定位到该文件所在目录
+  if (!m_currentFilePath.isEmpty()) {
+    QFileInfo fi(m_currentFilePath);
+    if (fi.exists() && fi.dir().exists()) {
+      return fi.dir().absolutePath();
+    }
+  }
+
+  // 3. 从持久化配置中获取最近打开过的项目/文件夹
+  if (m_settings) {
+    QString lastDir;
+    m_settings->beginGroup("MainWindow");
+    lastDir = m_settings->value("lastOpenDir").toString();
+    if (lastDir.isEmpty()) {
+      lastDir = m_settings->value("projectPath").toString();
+    }
+    m_settings->endGroup();
+
+    if (lastDir.isEmpty()) {
+      lastDir = m_settings->value("lastOpenDir").toString();
+    }
+    if (lastDir.isEmpty()) {
+      lastDir = m_settings->value("projectPath").toString();
+    }
+    if (lastDir.isEmpty()) {
+      lastDir = m_settings->value("STM32Toolchain/lastProject").toString();
+    }
+
+    if (!lastDir.isEmpty() && QDir(lastDir).exists()) {
+      return lastDir;
+    }
+  }
+
+  // 4. 回退到用户主目录
+  return QDir::homePath();
+}
+
 void MainWindow::openProject() {
+  const QString initialDir = getRecentProjectDirectory();
   QString dir = QFileDialog::getExistingDirectory(
-      this, "选择项目目录", QDir::homePath(),
+      this, "选择项目目录", initialDir,
       QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
   if (!dir.isEmpty()) {
+    dir = QDir::toNativeSeparators(QDir::cleanPath(dir));
     m_projectPath = dir;
+
+    // 立即持久化记录最近打开的文件夹，保证下次打开项目立即定位在此处
+    if (m_settings) {
+      m_settings->beginGroup("MainWindow");
+      m_settings->setValue("projectPath", dir);
+      m_settings->setValue("lastOpenDir", dir);
+      m_settings->endGroup();
+      m_settings->setValue("lastOpenDir", dir);
+      m_settings->setValue("projectPath", dir);
+      m_settings->setValue("STM32Toolchain/lastProject", dir);
+      m_settings->sync();
+    }
+
     updateProjectTree(dir);
     if (m_codeEditor) {
       m_codeEditor->setProjectRootPath(dir);
@@ -1984,6 +2037,7 @@ void MainWindow::openProject() {
 }
 
 void MainWindow::updateProjectTree(const QString &path) {
+  if (m_projectSearch) m_projectSearch->setProjectRoot(path);
   m_fileSystemModel->setRootPath(path);
   m_projectTreeView->setRootIndex(m_fileSystemModel->index(path));
 }
@@ -2063,15 +2117,27 @@ void MainWindow::updateProjectTree(const QString &path) {
 // }
 
 void MainWindow::newProject() {
+  const QString initialDir = getRecentProjectDirectory();
   // 选择项目目录
   QString projectDir = QFileDialog::getExistingDirectory(
-      this, "选择STM32项目目录", QDir::homePath(), QFileDialog::ShowDirsOnly);
+      this, "选择STM32项目目录", initialDir, QFileDialog::ShowDirsOnly);
   if (projectDir.isEmpty()) {
     return;
   }
 
-  // 设置项目路径
+  projectDir = QDir::toNativeSeparators(QDir::cleanPath(projectDir));
   m_projectPath = projectDir;
+
+  if (m_settings) {
+    m_settings->beginGroup("MainWindow");
+    m_settings->setValue("projectPath", projectDir);
+    m_settings->setValue("lastOpenDir", projectDir);
+    m_settings->endGroup();
+    m_settings->setValue("lastOpenDir", projectDir);
+    m_settings->setValue("projectPath", projectDir);
+    m_settings->setValue("STM32Toolchain/lastProject", projectDir);
+    m_settings->sync();
+  }
   if (m_debugController) {
     m_debugController->setProjectPath(projectDir);
   }
@@ -2084,9 +2150,6 @@ void MainWindow::newProject() {
 
   // 更新状态栏
   updateStatusInfo();
-
-  // 保存项目设置
-  m_settings->setValue("project/path", projectDir);
   updateMenuState();
 
   statusBar()->showMessage("已选择STM32项目: " + projectDir, 3000);
@@ -2126,8 +2189,12 @@ void MainWindow::saveProject() {
 // 实现构建相关的槽函数
 void MainWindow::buildProject() {
   saveAllFiles();
-  m_outputConsole->clear();
-  m_tabWidget->setCurrentWidget(m_outputConsole);
+  if (m_outputConsole) {
+    m_outputConsole->clear();
+  }
+  if (m_tabWidget && m_outputConsole) {
+    m_tabWidget->setCurrentWidget(m_outputConsole);
+  }
 
   QString projectPath = m_projectPath;
   if (projectPath.isEmpty() && !m_currentFilePath.isEmpty()) {
@@ -2136,22 +2203,46 @@ void MainWindow::buildProject() {
   }
 
   if (projectPath.isEmpty()) {
-    m_outputConsole->append("错误: 请先打开或创建项目");
+    if (m_outputConsole) {
+      m_outputConsole->append("错误: 请先打开或创建STM32项目工程");
+    }
+    QMessageBox::information(this, tr("提示"), tr("请先打开或创建一个STM32项目工程，再执行编译构建。"));
+    return;
+  }
+
+  if (!m_debugController) {
+    if (m_outputConsole) m_outputConsole->append("错误: 调试总控中心未就绪");
     return;
   }
 
   m_debugController->setProjectPath(projectPath);
-  m_debugController->setTargetChip(m_targetComboBox->currentText());
-  m_debugController->setProbeName(m_downloaderComboBox->currentText());
+  if (m_debugController->targetChip().isEmpty() && m_targetComboBox) {
+    m_debugController->setTargetChip(m_targetComboBox->currentText());
+  }
+  if (m_debugController->probeName().isEmpty() && m_downloaderComboBox) {
+    m_debugController->setProbeName(m_downloaderComboBox->currentText());
+  }
 
-  if (!m_debugController->buildProject()) {
-    m_outputConsole->append("错误: 无法启动构建进程");
+  try {
+    if (!m_debugController->buildProject()) {
+      if (m_outputConsole) {
+        m_outputConsole->append("错误: 无法启动构建进程，请检查当前芯片配置与工具链状态。");
+      }
+    }
+  } catch (const std::exception &e) {
+    if (m_outputConsole) m_outputConsole->append(QString("构建发生异常: %1").arg(e.what()));
+  } catch (...) {
+    if (m_outputConsole) m_outputConsole->append("构建发生未知异常");
   }
 }
 
 void MainWindow::cleanProject() {
-  m_outputConsole->clear();
-  m_tabWidget->setCurrentWidget(m_outputConsole);
+  if (m_outputConsole) {
+    m_outputConsole->clear();
+  }
+  if (m_tabWidget && m_outputConsole) {
+    m_tabWidget->setCurrentWidget(m_outputConsole);
+  }
 
   QString projectPath = m_projectPath;
   if (projectPath.isEmpty() && !m_currentFilePath.isEmpty()) {
@@ -2160,30 +2251,62 @@ void MainWindow::cleanProject() {
   }
 
   if (projectPath.isEmpty()) {
-    m_outputConsole->append("错误: 请先打开或创建项目");
+    if (m_outputConsole) {
+      m_outputConsole->append("错误: 请先打开或创建项目");
+    }
+    QMessageBox::information(this, tr("提示"), tr("请先打开或创建项目工程，再执行清理。"));
     return;
   }
 
+  if (!m_debugController) return;
   m_debugController->setProjectPath(projectPath);
-  m_debugController->cleanProject();
+  try {
+    m_debugController->cleanProject();
+  } catch (...) {
+    if (m_outputConsole) m_outputConsole->append("清理发生未知异常");
+  }
 }
 
 void MainWindow::rebuildProject() {
   saveAllFiles();
+  if (m_outputConsole) {
+    m_outputConsole->clear();
+  }
+  if (m_tabWidget && m_outputConsole) {
+    m_tabWidget->setCurrentWidget(m_outputConsole);
+  }
+
   QString projectPath = m_projectPath;
   if (projectPath.isEmpty() && !m_currentFilePath.isEmpty()) {
     projectPath = QFileInfo(m_currentFilePath).absolutePath();
     m_projectPath = projectPath;
   }
-  m_tabWidget->setCurrentWidget(m_outputConsole);
+
   if (projectPath.isEmpty()) {
-    m_outputConsole->append(tr("错误: 请先打开或创建项目"));
+    if (m_outputConsole) {
+      m_outputConsole->append(tr("错误: 请先打开或创建项目"));
+    }
+    QMessageBox::information(this, tr("提示"), tr("请先打开或创建项目工程，再执行重新构建。"));
     return;
   }
+
+  if (!m_debugController) return;
   m_debugController->setProjectPath(projectPath);
-  m_debugController->setTargetChip(m_targetComboBox->currentText());
-  if (!m_debugController->rebuildProject()) {
-    m_outputConsole->append(tr("错误: 无法启动重建，请检查工具链与当前任务状态"));
+  if (m_debugController->targetChip().isEmpty() && m_targetComboBox) {
+    m_debugController->setTargetChip(m_targetComboBox->currentText());
+  }
+  if (m_debugController->probeName().isEmpty() && m_downloaderComboBox) {
+    m_debugController->setProbeName(m_downloaderComboBox->currentText());
+  }
+
+  try {
+    if (!m_debugController->rebuildProject()) {
+      if (m_outputConsole) {
+        m_outputConsole->append(tr("错误: 无法启动重建，请检查工具链与当前任务状态"));
+      }
+    }
+  } catch (...) {
+    if (m_outputConsole) m_outputConsole->append("重建发生未知异常");
   }
 }
 
@@ -2299,27 +2422,44 @@ void MainWindow::setBreakpoint() {
 }
 
 void MainWindow::configureToolchain() {
-  ToolchainDialog dialog(this, m_settings);
+  if (m_debugController->state() != STM32SessionState::Idle) return;
+  ToolchainConfigDialog dialog(this, m_settings, m_currentTheme.isEmpty() ? IdeTheme::currentThemeId() : m_currentTheme);
+  dialog.setObjectName("toolchainConfigurationDialog");
+  dialog.setPaths(m_debugController->toolchainPaths());
+  dialog.setChipSelectionVisible(false);
+  dialog.applyTheme(m_currentTheme.isEmpty() ? IdeTheme::currentThemeId() : m_currentTheme);
+  if (dialog.exec() != QDialog::Accepted) return;
+  const ToolchainPaths paths = dialog.getPaths();
+  m_debugController->setToolchainPaths(paths);
+  m_gccPath = paths.gccPath;
+  m_openocdPath = paths.openocdPath;
+  m_outputConsole->append(tr("工具链配置已更新，可在配置窗口后台扫描并查看环境自检报告。"));
+  statusBar()->showMessage(tr("工具链配置已应用"), 3000);
+}
 
-  if (dialog.exec() == QDialog::Accepted) {
-    m_gccPath = dialog.getGccPath();
-    m_openocdPath = dialog.getOpenocdPath();
-    m_openocdConfig = dialog.getOpenocdConfig();
+void MainWindow::configureChip() {
+  if (m_debugController->state() != STM32SessionState::Idle) return;
+  TargetChipDialog dialog(this, m_settings, m_debugController->targetChip(), m_currentTheme.isEmpty() ? IdeTheme::currentThemeId() : m_currentTheme);
+  dialog.setObjectName("chipConfigurationDialog");
+  dialog.applyTheme(m_currentTheme.isEmpty() ? IdeTheme::currentThemeId() : m_currentTheme);
+  if (dialog.exec() != QDialog::Accepted) return;
+  m_debugController->setTargetChip(dialog.getSelectedChip());
+  updateStatusInfo();
+}
 
-    if (m_debugController) {
-      ToolchainPaths paths = m_debugController->toolchainPaths();
-      if (!m_gccPath.isEmpty()) paths.gccPath = m_gccPath;
-      if (!m_openocdPath.isEmpty()) paths.openocdPath = m_openocdPath;
-      m_debugController->setToolchainPaths(paths);
-    }
-
-    statusBar()->showMessage("工具链配置已更新", 2000);
-
-    m_outputConsole->append("工具链配置已更新:");
-    m_outputConsole->append("GCC 路径: " + m_gccPath);
-    m_outputConsole->append("OpenOCD 路径: " + m_openocdPath);
-    m_outputConsole->append("OpenOCD 配置: " + m_openocdConfig);
+void MainWindow::configureFlash() {
+  if (m_debugController->state() != STM32SessionState::Idle) return;
+  if (!m_debugController->hasProject()) {
+    statusBar()->showMessage(tr("请先打开项目，再配置该项目的烧录参数。"), 5000);
+    return;
   }
+  FlashConfigDialog dialog(this, m_settings, m_debugController->currentProfile(), m_currentTheme.isEmpty() ? IdeTheme::currentThemeId() : m_currentTheme);
+  dialog.setObjectName("flashConfigurationDialog");
+  dialog.setOptions(m_debugController->flashOptions());
+  dialog.applyTheme(m_currentTheme.isEmpty() ? IdeTheme::currentThemeId() : m_currentTheme);
+  if (dialog.exec() != QDialog::Accepted) return;
+  m_debugController->setFlashOptions(dialog.getOptions());
+  updateStatusInfo();
 }
 
 // 实现configureToolchain方法
@@ -2392,6 +2532,10 @@ void MainWindow::processFinished(int exitCode,
 }
 
 void MainWindow::updateStatusInfo() {
+  if (m_configurationSummary && m_debugController) {
+    m_configurationSummary->setText(m_debugController->targetChip() + " · " + m_debugController->probeName());
+    m_configurationSummary->setToolTip(tr("使用芯片配置和烧录配置修改当前工程目标"));
+  }
   // 更新状态栏信息
   if (m_statusProjectLabel) {
     QString projectName =
@@ -2567,25 +2711,24 @@ void MainWindow::downloaderChanged(int index) {
 
 // 修改saveCurrentFile方法以使用新的编辑器
 void MainWindow::saveCurrentFile() {
-  // 获取当前打开的文件路径
-  QString currentFilePath = statusBar()->currentMessage();
-  if (currentFilePath.startsWith("已打开文件: ")) {
-    currentFilePath = currentFilePath.mid(7); // 去掉前缀
-
-    QFile file(currentFilePath);
-    if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-      QTextStream out(&file);
-      out << m_editor->text();
-      file.close();
-
-      m_editor->setModified(false);
-      statusBar()->showMessage("已保存文件: " + currentFilePath);
-    } else {
-      QMessageBox::warning(this, "错误", "无法保存文件: " + currentFilePath);
+  QString filePath = m_currentFilePath;
+  if (filePath.isEmpty()) {
+    QString msg = statusBar()->currentMessage();
+    if (msg.startsWith("已打开文件: ")) {
+      filePath = msg.mid(7).trimmed();
     }
-  } else {
-    // 如果没有当前文件，则执行另存为
+  }
+  if (filePath.isEmpty()) {
     saveFileAs();
+    return;
+  }
+  if (m_codeEditor) {
+    if (m_codeEditor->saveFile(filePath)) {
+      m_currentFilePath = filePath;
+      statusBar()->showMessage(tr("已保存文件: ") + filePath, 3000);
+    } else {
+      QMessageBox::warning(this, tr("错误"), tr("无法保存文件: ") + filePath);
+    }
   }
 }
 
@@ -2917,11 +3060,11 @@ void MainWindow::createActions() {
   connect(m_exitAction, &QAction::triggered, this, &QWidget::close);
 
   // Build menu actions
-  m_buildAction = new QAction("编译", this);
+  m_buildAction = new QAction(tr("编译"), this);
   m_buildAction->setObjectName("编译");
   m_buildAction->setIcon(IDEWorkflowIcons::icon(IDEWorkflowIcons::Kind::Build));
-  m_buildAction->setStatusTip("编译当前工程 (F7)");
-  m_buildAction->setToolTip("编译构建 (F7)");
+  m_buildAction->setStatusTip(tr("编译当前工程 (F7)"));
+  m_buildAction->setToolTip(tr("编译构建 (F7)"));
   m_buildAction->setShortcut(QKeySequence("F7"));
   connect(m_buildAction, &QAction::triggered, this, &MainWindow::buildProject);
 
@@ -2929,14 +3072,14 @@ void MainWindow::createActions() {
   m_rebuildAction->setObjectName("rebuildProject");
   m_rebuildAction->setIcon(IDEWorkflowIcons::icon(IDEWorkflowIcons::Kind::Rebuild));
   m_rebuildAction->setShortcut(QKeySequence("Ctrl+F7"));
-  m_rebuildAction->setToolTip(tr("清理后重新构建 (Ctrl+F7)"));
+  m_rebuildAction->setToolTip(tr("重新构建 (Ctrl+F7)"));
   connect(m_rebuildAction, &QAction::triggered, this, &MainWindow::rebuildProject);
 
   m_cancelTaskAction = new QAction(tr("取消当前任务"), this);
   m_cancelTaskAction->setObjectName("cancelCurrentTask");
   m_cancelTaskAction->setIcon(IDEWorkflowIcons::icon(IDEWorkflowIcons::Kind::Stop));
   m_cancelTaskAction->setShortcut(QKeySequence("Ctrl+Shift+F5"));
-  m_cancelTaskAction->setToolTip(tr("停止当前构建、烧写或调试 (Ctrl+Shift+F5)"));
+  m_cancelTaskAction->setToolTip(tr("停止当前后台处理 (Ctrl+Shift+F5)"));
   connect(m_cancelTaskAction, &QAction::triggered, this, &MainWindow::cancelCurrentTask);
 
   m_pauseDebugAction = new QAction(tr("暂停调试"), this);
@@ -2946,68 +3089,68 @@ void MainWindow::createActions() {
   m_pauseDebugAction->setToolTip(tr("暂停目标 CPU (F6)"));
   connect(m_pauseDebugAction, &QAction::triggered, this, &MainWindow::pauseDebug);
 
-  m_cleanAction = new QAction("清理", this);
-  m_cleanAction->setObjectName("清理");
+  m_cleanAction = new QAction(tr("清理"), this);
+  m_cleanAction->setObjectName("cleanProject");
   m_cleanAction->setIcon(IDEWorkflowIcons::icon(IDEWorkflowIcons::Kind::Clean));
-  m_cleanAction->setStatusTip("清理构建生成文件");
-  m_cleanAction->setToolTip("清理构建产物");
+  m_cleanAction->setStatusTip(tr("清理构建输出"));
+  m_cleanAction->setToolTip(tr("清理项目"));
   connect(m_cleanAction, &QAction::triggered, this, &MainWindow::cleanProject);
 
-  m_flashAction = new QAction("烧录", this);
-  m_flashAction->setObjectName("烧录");
+  m_flashAction = new QAction(tr("烧录"), this);
+  m_flashAction->setObjectName("flashProject");
   m_flashAction->setIcon(IDEWorkflowIcons::icon(IDEWorkflowIcons::Kind::Flash));
-  m_flashAction->setStatusTip("烧录固件到STM32芯片 (F8)");
-  m_flashAction->setToolTip("烧录固件 (F8)");
+  m_flashAction->setStatusTip(tr("烧录固件至目标芯片 (F8)"));
+  m_flashAction->setToolTip(tr("烧录固件 (F8)"));
   m_flashAction->setShortcut(QKeySequence("F8"));
   connect(m_flashAction, &QAction::triggered, this, &MainWindow::flashProject);
 
   // Debug menu actions
-  m_debugAction = new QAction("开始调试", this);
-  m_debugAction->setObjectName("开始调试");
+  m_debugAction = new QAction(tr("开始调试"), this);
+  m_debugAction->setObjectName("startDebug");
   m_debugAction->setIcon(IDEWorkflowIcons::icon(IDEWorkflowIcons::Kind::Debug));
-  m_debugAction->setStatusTip("启动STM32 GDB异步调试 (F5)");
-  m_debugAction->setToolTip("开始调试 (F5)");
+  m_debugAction->setStatusTip(tr("启动 STM32 GDB 异步调试会话 (F5)"));
+  m_debugAction->setToolTip(tr("开始调试 (F5)"));
   m_debugAction->setShortcut(QKeySequence("F5"));
   connect(m_debugAction, &QAction::triggered, this, &MainWindow::startDebug);
 
-  m_stopDebugAction = new QAction("停止调试", this);
-  m_stopDebugAction->setObjectName("停止调试");
+  m_stopDebugAction = new QAction(tr("停止调试"), this);
+  m_stopDebugAction->setObjectName("stopDebug");
   m_stopDebugAction->setIcon(IDEWorkflowIcons::icon(IDEWorkflowIcons::Kind::Stop));
-  m_stopDebugAction->setStatusTip("终止当前GDB调试会话 (Shift+F5)");
-  m_stopDebugAction->setToolTip("停止调试 (Shift+F5)");
+  m_stopDebugAction->setStatusTip(tr("终止当前 GDB 调试会话 (Shift+F5)"));
+  m_stopDebugAction->setToolTip(tr("停止调试 (Shift+F5)"));
   m_stopDebugAction->setShortcut(QKeySequence("Shift+F5"));
   connect(m_stopDebugAction, &QAction::triggered, this, &MainWindow::stopDebug);
 
-  m_continueAction = new QAction("继续", this);
-  m_continueAction->setObjectName("继续");
+  m_continueAction = new QAction(tr("继续运行"), this);
+  m_continueAction->setObjectName("continueDebug");
   m_continueAction->setIcon(IDEWorkflowIcons::icon(IDEWorkflowIcons::Kind::Continue));
-  m_continueAction->setStatusTip("全速继续运行目标CPU (F5)");
-  m_continueAction->setToolTip("继续运行 (F5)");
+  m_continueAction->setStatusTip(tr("全速继续运行目标 CPU (F5)"));
+  m_continueAction->setToolTip(tr("继续运行 (F5)"));
   m_continueAction->setShortcut(QKeySequence("F5"));
   connect(m_continueAction, &QAction::triggered, this,
           &MainWindow::continueDebug);
 
-  m_stepOverAction = new QAction("单步跳过", this);
-  m_stepOverAction->setObjectName("单步跳过");
+  m_stepOverAction = new QAction(tr("单步跳过"), this);
+  m_stepOverAction->setObjectName("stepOver");
   m_stepOverAction->setIcon(IDEWorkflowIcons::icon(IDEWorkflowIcons::Kind::StepOver));
-  m_stepOverAction->setStatusTip("单步步过函数 (F10)");
-  m_stepOverAction->setToolTip("单步跳过 (F10)");
+  m_stepOverAction->setStatusTip(tr("单步执行，跳过函数 (F10)"));
+  m_stepOverAction->setToolTip(tr("单步跳过 (F10)"));
   m_stepOverAction->setShortcut(QKeySequence("F10"));
   connect(m_stepOverAction, &QAction::triggered, this, &MainWindow::stepOver);
 
-  m_stepIntoAction = new QAction("单步进入", this);
+  m_stepIntoAction = new QAction(tr("单步进入"), this);
   m_stepIntoAction->setObjectName("单步进入");
   m_stepIntoAction->setIcon(IDEWorkflowIcons::icon(IDEWorkflowIcons::Kind::StepInto));
-  m_stepIntoAction->setStatusTip("单步步入函数内部 (F11)");
-  m_stepIntoAction->setToolTip("单步进入 (F11)");
+  m_stepIntoAction->setStatusTip(tr("单步进入函数内部 (F11)"));
+  m_stepIntoAction->setToolTip(tr("单步进入 (F11)"));
   m_stepIntoAction->setShortcut(QKeySequence("F11"));
   connect(m_stepIntoAction, &QAction::triggered, this, &MainWindow::stepInto);
 
-  m_stepOutAction = new QAction("单步跳出", this);
-  m_stepOutAction->setObjectName("单步跳出");
+  m_stepOutAction = new QAction(tr("单步跳出"), this);
+  m_stepOutAction->setObjectName("stepOut");
   m_stepOutAction->setIcon(IDEWorkflowIcons::icon(IDEWorkflowIcons::Kind::StepOut));
-  m_stepOutAction->setStatusTip("单步跳出当前函数 (Shift+F11)");
-  m_stepOutAction->setToolTip("单步跳出 (Shift+F11)");
+  m_stepOutAction->setStatusTip(tr("执行直到跳出当前函数 (Shift+F11)"));
+  m_stepOutAction->setToolTip(tr("单步跳出 (Shift+F11)"));
   m_stepOutAction->setShortcut(QKeySequence("Shift+F11"));
   connect(m_stepOutAction, &QAction::triggered, this, &MainWindow::stepOut);
 
@@ -3035,7 +3178,16 @@ void MainWindow::createActions() {
 
   // Tools menu actions
 
-  m_configureToolchainAction = new QAction("配置工具链", this);
+  m_configureChipAction = new QAction(tr("芯片配置"), this);
+  m_configureChipAction->setObjectName("configureChip");
+  m_configureChipAction->setIcon(style()->standardIcon(QStyle::SP_ComputerIcon));
+  connect(m_configureChipAction, &QAction::triggered, this, &MainWindow::configureChip);
+  m_configureFlashAction = new QAction(tr("烧录配置"), this);
+  m_configureFlashAction->setObjectName("configureFlash");
+  m_configureFlashAction->setIcon(IDEWorkflowIcons::icon(IDEWorkflowIcons::Kind::Flash));
+  connect(m_configureFlashAction, &QAction::triggered, this, &MainWindow::configureFlash);
+  m_configureToolchainAction = new QAction(tr("工具链配置"), this);
+  m_configureToolchainAction->setObjectName("configureToolchain");
   m_configureToolchainAction->setIcon(QIcon(":/icons/ToosSetting.png"));
   m_configureToolchainAction->setStatusTip("配置编译和调试工具链");
   m_configureToolchainAction->setToolTip("配置编译和调试工具链");
@@ -3156,9 +3308,8 @@ void MainWindow::createMenus() {
   // 创建主菜单栏
   QMenuBar *menuBar = this->menuBar();
 
-  // 文件菜单
+  // 1. 文件菜单
   QMenu *fileMenu = menuBar->addMenu("文件");
-
   fileMenu->addAction(m_newProjectAction);
   fileMenu->addAction(m_openProjectAction);
   fileMenu->addAction(m_saveProjectAction);
@@ -3170,61 +3321,35 @@ void MainWindow::createMenus() {
   fileMenu->addSeparator();
   fileMenu->addAction(m_exitAction);
 
-  // 构建菜单
-  QMenu *buildMenu = menuBar->addMenu("构建");
-  buildMenu->addAction(m_buildAction);
-  buildMenu->addAction(m_rebuildAction);
-  buildMenu->addAction(m_cleanAction);
-  buildMenu->addAction(m_flashAction);
-  buildMenu->addSeparator();
-  buildMenu->addAction(m_cancelTaskAction);
+  // 2. 编辑菜单 (预先创建，方便 codeEditor 注入)
+  QMenu *editMenu = menuBar->addMenu("编辑");
+  Q_UNUSED(editMenu);
 
-  // 调试菜单
-  QMenu *debugMenu = menuBar->addMenu("调试");
-  debugMenu->addAction(m_debugAction);
-  debugMenu->addAction(m_stopDebugAction);
-  debugMenu->addSeparator();
-  debugMenu->addAction(m_continueAction);
-  debugMenu->addAction(m_pauseDebugAction);
-  debugMenu->addAction(m_stepOverAction);
-  debugMenu->addAction(m_stepIntoAction);
-  debugMenu->addAction(m_stepOutAction);
-  debugMenu->addSeparator();
-  debugMenu->addAction(m_breakpointAction);
-
-  // 工具菜单全屏模式
-  QMenu *toolsMenu = menuBar->addMenu("工具");
-  toolsMenu->addAction(m_configureToolchainAction);
-  toolsMenu->addSeparator();
-  toolsMenu->addAction(m_oscilloscopeAction); // 添加数字示波器工具按钮
-  toolsMenu->addAction(m_serialToolAction); // 添加串口调试助手工具按钮
-  toolsMenu->addAction(m_networkToolAction); // 添加网络调试助手工具按钮
-  toolsMenu->addAction(m_canToolAction); // 添加CAN调试助手工具按钮
-  toolsMenu->addAction(m_iapToolAction); // 添加IAP升级工具按钮
-
-  // 视图菜单
+  // 3. 视图菜单 (全局唯一)
   QMenu *viewMenu = menuBar->addMenu("视图");
   viewMenu->addAction(m_fullScreenAction);
 
-  // 添加分栏子菜单
-  QMenu *splitMenu = viewMenu->addMenu("分栏");
-  splitMenu->addAction(m_horizontalSplitAction);
-  splitMenu->addAction(m_verticalSplitAction);
-  splitMenu->addAction(m_closeSplitAction);
+  // 4. 导航菜单
+  QMenu *navMenu = menuBar->addMenu("导航");
+  Q_UNUSED(navMenu);
 
-  // 调试停靠窗口子菜单
+  // 5. 搜索菜单
+  QMenu *searchMenu = menuBar->addMenu("搜索");
+  Q_UNUSED(searchMenu);
+
+  // 注入代码编辑器命令：将撤销/复制等入编辑、查找入搜索、大纲/分栏入视图、定义跳转入导航
+  m_codeEditor->createEditorMenus(menuBar);
+
+  // 完善视图菜单特有面板与主题
+  viewMenu->addSeparator();
   QMenu *debugPanelsMenu = viewMenu->addMenu("调试面板");
   if (m_variablesDock) debugPanelsMenu->addAction(m_variablesDock->toggleViewAction());
   if (m_registersDock) debugPanelsMenu->addAction(m_registersDock->toggleViewAction());
   if (m_callStackDock) debugPanelsMenu->addAction(m_callStackDock->toggleViewAction());
   if (m_breakpointsDock) debugPanelsMenu->addAction(m_breakpointsDock->toggleViewAction());
 
-  // 主题子菜单
   QMenu *themeMenu = viewMenu->addMenu("主题");
-
   themeMenu->addSeparator();
-
-  // 添加深色主题组
   QMenu *darkThemesMenu = themeMenu->addMenu("深色主题");
   darkThemesMenu->addAction(m_darkThemeAction);
   darkThemesMenu->addAction(m_oneDarkThemeAction);
@@ -3241,17 +3366,51 @@ void MainWindow::createMenus() {
   darkThemesMenu->addAction(m_gerryThemeAction);
   darkThemesMenu->addAction(m_materialIconsThemeAction);
 
-  // 添加浅色主题组
   QMenu *lightThemesMenu = themeMenu->addMenu("浅色主题");
   lightThemesMenu->addAction(m_lightThemeAction);
   lightThemesMenu->addAction(m_solarizedLightThemeAction);
   lightThemesMenu->addAction(m_materialLightThemeAction);
 
-  // 终端菜单
+  // 6. 构建菜单
+  QMenu *buildMenu = menuBar->addMenu("构建");
+  buildMenu->addAction(m_buildAction);
+  buildMenu->addAction(m_rebuildAction);
+  buildMenu->addAction(m_cleanAction);
+  buildMenu->addAction(m_flashAction);
+  buildMenu->addSeparator();
+  buildMenu->addAction(m_cancelTaskAction);
+
+  // 7. 调试菜单
+  QMenu *debugMenu = menuBar->addMenu("调试");
+  debugMenu->addAction(m_debugAction);
+  debugMenu->addAction(m_stopDebugAction);
+  debugMenu->addSeparator();
+  debugMenu->addAction(m_continueAction);
+  debugMenu->addAction(m_pauseDebugAction);
+  debugMenu->addAction(m_stepOverAction);
+  debugMenu->addAction(m_stepIntoAction);
+  debugMenu->addAction(m_stepOutAction);
+  debugMenu->addSeparator();
+  debugMenu->addAction(m_breakpointAction);
+
+  // 8. 工具菜单
+  QMenu *toolsMenu = menuBar->addMenu("工具");
+  toolsMenu->addAction(m_configureChipAction);
+  toolsMenu->addAction(m_configureFlashAction);
+  toolsMenu->addAction(m_configureToolchainAction);
+  toolsMenu->addAction(m_appHubAction);
+  toolsMenu->addSeparator();
+  toolsMenu->addAction(m_oscilloscopeAction);
+  toolsMenu->addAction(m_serialToolAction);
+  toolsMenu->addAction(m_networkToolAction);
+  toolsMenu->addAction(m_canToolAction);
+  toolsMenu->addAction(m_iapToolAction);
+
+  // 9. 终端菜单
   QMenu *terminalMenu = menuBar->addMenu("终端");
   terminalMenu->addAction(m_newTerminalAction);
 
-  // 帮助菜单
+  // 10. 帮助菜单
   QMenu *helpMenu = menuBar->addMenu("帮助");
   helpMenu->addAction(m_welcomeAction);
   helpMenu->addAction(m_checkUpdatesAction);
@@ -3318,10 +3477,18 @@ void MainWindow::loadSettings() {
   }
 
   if (m_debugController) {
-    ToolchainPaths paths = m_debugController->toolchainPaths();
-    if (!m_gccPath.isEmpty()) paths.gccPath = m_gccPath;
-    if (!m_openocdPath.isEmpty()) paths.openocdPath = m_openocdPath;
+    ToolchainPaths paths;
+    if (m_settings->contains("STM32Toolchain/gccPath")) {
+      ToolchainDetector detector;
+      paths = detector.loadSettings(m_settings);
+    } else {
+      paths = m_debugController->toolchainPaths();
+      if (!m_gccPath.isEmpty()) paths.gccPath = m_gccPath;
+      if (!m_openocdPath.isEmpty()) paths.openocdPath = m_openocdPath;
+    }
     m_debugController->setToolchainPaths(paths);
+    m_gccPath = paths.gccPath;
+    m_openocdPath = paths.openocdPath;
   }
 
   // Update the downloader combobox to match the saved setting
@@ -3450,7 +3617,10 @@ void MainWindow::createCentralWidget() {
   m_projectTreeView->setAnimated(true);
   m_projectTreeView->setIndentation(20);
   m_projectTreeView->setSortingEnabled(true);
-  m_projectTreeView->setColumnWidth(0, 250);
+  m_projectTreeView->setColumnWidth(0, 230);
+  m_projectTreeView->setHeaderHidden(true);
+  for (int column = 1; column < m_fileSystemModel->columnCount(); ++column)
+    m_projectTreeView->hideColumn(column);
   m_projectTreeView->setContextMenuPolicy(Qt::CustomContextMenu);
 
   connect(m_projectTreeView, &QTreeView::doubleClicked, this,
@@ -3833,20 +4003,16 @@ void MainWindow::saveFile() {
 // 修改saveFileAs方法以使用新的编辑器
 void MainWindow::saveFileAs() {
   QString filePath = QFileDialog::getSaveFileName(
-      this, "保存文件", m_projectPath,
-      "C/C++源文件 (*.c *.cpp *.h *.hpp);;汇编文件 (*.s *.asm);;所有文件 "
-      "(*.*)");
-  if (!filePath.isEmpty()) {
-    QFile file(filePath);
-    if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-      QTextStream out(&file);
-      out << m_editor->text();
-      file.close();
+      this, tr("保存文件"), m_projectPath,
+      "C/C++源文件 (*.c *.cpp *.h *.hpp);;汇编文件 (*.s *.asm);;所有文件 (*.*)");
+  if (filePath.isEmpty()) return;
 
-      m_editor->setModified(false);
-      statusBar()->showMessage("已保存文件: " + filePath);
+  if (m_codeEditor) {
+    if (m_codeEditor->saveFile(filePath)) {
+      m_currentFilePath = filePath;
+      statusBar()->showMessage(tr("已保存文件: ") + filePath, 3000);
     } else {
-      QMessageBox::warning(this, "错误", "无法保存文件: " + filePath);
+      QMessageBox::warning(this, tr("错误"), tr("无法保存文件: ") + filePath);
     }
   }
 }
@@ -4046,9 +4212,9 @@ void MainWindow::closeProject() {
 
     // 清除额外动态选项卡（如终端），保留核心控制台与诊断
     if (m_tabWidget) {
-      while (m_tabWidget->count() > 3) {
-        QWidget *w = m_tabWidget->widget(3);
-        m_tabWidget->removeTab(3);
+      while (m_tabWidget->count() > 4) {
+        QWidget *w = m_tabWidget->widget(4);
+        m_tabWidget->removeTab(4);
         if (w) w->deleteLater();
       }
     }
@@ -4056,6 +4222,7 @@ void MainWindow::closeProject() {
     // 清空项目路径
     m_projectPath.clear();
     m_currentFilePath.clear();
+    if (m_projectSearch) m_projectSearch->setProjectRoot(QString());
 
     if (m_codeEditor) {
       m_codeEditor->clearExecutionLine();
@@ -4103,65 +4270,16 @@ void MainWindow::onProjectClosed() {
 
 // 添加检查未保存更改的方法
 bool MainWindow::hasUnsavedChanges() {
-  // 遍历所有打开的编辑器，检查是否有未保存的更改
-  // 这里需要根据你的编辑器实现来编写具体代码
-  // 简单示例：
-
-  // for (auto editor : m_openEditors) {
-  //     if (editor->isModified()) {
-  //         return true;
-  //     }
-  // }
-  // Check if any editor has unsaved changes
-  if (m_editor && m_editor->isModified()) {
-    return true;
+  if (m_codeEditor && m_codeEditor->currentEditor()) {
+    return m_codeEditor->currentEditor()->isModified();
   }
-
-  // If using a tab widget to manage editors
-  if (m_tabWidget) {
-    for (int i = 0; i < m_tabWidget->count(); i++) {
-      QWidget *widget = m_tabWidget->widget(i);
-      QsciScintilla *editor = qobject_cast<QsciScintilla *>(widget);
-      if (editor && editor->isModified()) {
-        return true;
-      }
-    }
-  }
-
   return false;
 }
 
 // 添加保存所有文件的方法
 void MainWindow::saveAllFiles() {
-  // 遍历所有打开的编辑器，保存文件
-  // 这里需要根据你的编辑器实现来编写具体代码
-  // 简单示例：
-  // for (auto editor : m_openEditors) {
-  //     if (editor->isModified()) {
-  //         editor->save();
-  //     }
-  // }
-
-  // Save individual editors
-  if (m_editor && m_editor->isModified()) {
-    // Get the file path for this editor (you need to track this)
-    QString filePath = m_currentFilePath; // or however you track the file path
-    saveEditorContent(m_editor, filePath);
-  }
-
-  // If using a tab widget to manage editors
-  if (m_tabWidget) {
-    for (int i = 0; i < m_tabWidget->count(); i++) {
-      QWidget *widget = m_tabWidget->widget(i);
-      QsciScintilla *editor = qobject_cast<QsciScintilla *>(widget);
-      if (editor && editor->isModified()) {
-        // Get the file path for this editor (you need to track this)
-        // This might be stored in tab data or elsewhere
-        QString filePath =
-            m_tabWidget->tabToolTip(i); // if you store path in tooltip
-        saveEditorContent(editor, filePath);
-      }
-    }
+  if (m_codeEditor && !m_currentFilePath.isEmpty()) {
+    m_codeEditor->saveFile(m_currentFilePath);
   }
 }
 

@@ -101,7 +101,6 @@ QPixmap drawGreyDotIcon() {
 // 按钮统一样式设置助手
 void setActionButtonStyle(QPushButton *btn, bool active) {
   btn->setEnabled(active);
-  btn->setStyleSheet("QPushButton { font-size: 11px; padding: 4px 10px; border-radius: 4px; min-width: 50px; font-family: 'Microsoft YaHei'; }");
 }
 
 QString getParentStyleSheet(QWidget *w) {

@@ -10,3 +10,6 @@ PhudonTools/release/
 PhudonTools/tests-bin/
 PhudonTools/Makefile.WorkflowTests*
 PhudonTools/MainWindowWorkflowTest_resource.rc
+
+*.o
+scratch/

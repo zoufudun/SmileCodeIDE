@@ -1,4 +1,4 @@
-QT       += core gui serialport printsupport network websockets serialbus
+QT       += core gui serialport printsupport network websockets serialbus concurrent
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 greaterThan(QT_MAJOR_VERSION, 5): QT += core5compat
@@ -6,7 +6,7 @@ greaterThan(QT_MAJOR_VERSION, 5): QT += core5compat
 CONFIG += c++17
 # The bundled QScintilla target is a shared library; import its signal methods.
 DEFINES += QSCINTILLA_DLL
-VERSION = 2.2.0
+VERSION = 2.3.0
 DEFINES += SMILECODE_VERSION=\\\"$${VERSION}\\\"
 QMAKE_TARGET_PRODUCT = SmileCodeIDE
 QMAKE_TARGET_DESCRIPTION = SmileCodeIDE Embedded Development Studio
@@ -79,6 +79,12 @@ win32: RC_ICONS = resources/app.ico
 
 # 源文件
 SOURCES += \
+    codeeditorcommands.cpp \
+    projectsearchengine.cpp \
+    projectsearchpanel.cpp \
+    ../Plugins/STM32WorkbenchPlugin/UI/TargetChipDialog.cpp \
+    ../Plugins/STM32WorkbenchPlugin/UI/FlashConfigDialog.cpp \
+    ../Plugins/STM32WorkbenchPlugin/UI/ToolchainConfigDialog.cpp \
     ../qcustomplot/qcustomplot.cpp \
     TOOLS/CConversion.cpp \
     TOOLS/CIconFont.cpp \
@@ -150,6 +156,11 @@ SOURCES += \
 
 # 头文件
 HEADERS += \
+    projectsearchengine.h \
+    projectsearchpanel.h \
+    ../Plugins/STM32WorkbenchPlugin/UI/TargetChipDialog.h \
+    ../Plugins/STM32WorkbenchPlugin/UI/FlashConfigDialog.h \
+    ../Plugins/STM32WorkbenchPlugin/UI/ToolchainConfigDialog.h \
     ideworkflowicons.h \
     ../qcustomplot/qcustomplot.h \
     TOOLS/CConversion.h \

@@ -48,6 +48,7 @@
 #include "terminalwidget.h"
 #include "stm32debugcontroller.h"
 #include "stm32debugdocks.h"
+#include "projectsearchpanel.h"
 #include "STM32Profile.h"
 #include <QTableWidget>
 
@@ -66,6 +67,8 @@ public:
   bool isCurrentFileModified() const;
   void applyTheme(const QString &themeName);
   Q_INVOKABLE bool openSourceLocation(QString filePath, int line, int column = 0);
+  QString getRecentProjectDirectory() const;
+  void closeProject();
 
 private slots:
   void openProject();
@@ -85,6 +88,8 @@ private slots:
   void stepOut();
   void setBreakpoint();
   void configureToolchain();
+  void configureChip();
+  void configureFlash();
   void processOutput();
   void processError();
   void processFinished(int exitCode, QProcess::ExitStatus exitStatus);
@@ -136,8 +141,6 @@ private slots:
   void clearProblemsTable();
   void syncBreakpointsToEditor();
 
-  // 关闭当前工程
-  void closeProject();
 
   // 处理工程关闭信号
   void onProjectClosed();
@@ -195,6 +198,11 @@ private:
   QAction *m_breakpointAction;
 
   QAction *m_configureToolchainAction;
+  QAction *m_configureChipAction = nullptr;
+  QAction *m_configureFlashAction = nullptr;
+  QLabel *m_configurationSummary = nullptr;
+  QWidget *m_gdbCommandBar = nullptr;
+  ProjectSearchPanel *m_projectSearch = nullptr;
   QAction *m_fullScreenAction;
 
   // Help menu actions
@@ -278,11 +286,11 @@ private:
   // QsciScintilla* m_codeEditor2;
 
   // 在MainWindow类的private部分添加QScintilla相关成员变量
-  QsciScintilla *m_editor; // QScintilla编辑器
+  QsciScintilla *m_editor = nullptr; // QScintilla编辑器
 
-  QsciLexerCPP *m_lexerCPP;       // C++语法高亮器
-  QsciLexerMakefile *m_lexerMake; // Makefile语法高亮器
-  QsciAPIs *m_apiCPP;             // C++自动补全API
+  QsciLexerCPP *m_lexerCPP = nullptr;       // C++语法高亮器
+  QsciLexerMakefile *m_lexerMake = nullptr; // Makefile语法高亮器
+  QsciAPIs *m_apiCPP = nullptr;             // C++自动补全API
 
   // 添加设置编辑器的方法
   void setupEditor();

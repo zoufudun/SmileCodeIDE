@@ -54,7 +54,8 @@ template <> constexpr inline auto GdbServerManager::qt_create_metaobjectdata<qt_
         "onProcessReadyReadErr",
         "onProcessFinished",
         "QProcess::ExitStatus",
-        "exitStatus"
+        "exitStatus",
+        "stopServer"
     };
 
     QtMocHelpers::UintData qt_methods {
@@ -84,6 +85,8 @@ template <> constexpr inline auto GdbServerManager::qt_create_metaobjectdata<qt_
         QtMocHelpers::SlotData<void(int, QProcess::ExitStatus)>(14, 2, QMC::AccessPrivate, QMetaType::Void, {{
             { QMetaType::Int, 9 }, { 0x80000000 | 15, 16 },
         }}),
+        // Method 'stopServer'
+        QtMocHelpers::MethodData<void()>(17, 2, QMC::AccessPublic, QMetaType::Void),
     };
     QtMocHelpers::UintData qt_properties {
     };
@@ -115,6 +118,7 @@ void GdbServerManager::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int
         case 5: _t->onProcessReadyReadStd(); break;
         case 6: _t->onProcessReadyReadErr(); break;
         case 7: _t->onProcessFinished((*reinterpret_cast<std::add_pointer_t<int>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<QProcess::ExitStatus>>(_a[2]))); break;
+        case 8: _t->stopServer(); break;
         default: ;
         }
     }
@@ -151,14 +155,14 @@ int GdbServerManager::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 8)
+        if (_id < 9)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 8;
+        _id -= 9;
     }
     if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
-        if (_id < 8)
+        if (_id < 9)
             *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType();
-        _id -= 8;
+        _id -= 9;
     }
     return _id;
 }

@@ -63,14 +63,14 @@ const containerStyle: React.CSSProperties = {
   justifyContent: 'center',
   alignItems: 'center',
   height: '100vh',
-  background: '#070b13',
-  color: '#e2e8f0',
+  background: 'var(--bg-color)',
+  color: 'var(--text-primary)',
   fontFamily: "'Inter', -apple-system, sans-serif",
 };
 
 const cardStyle: React.CSSProperties = {
-  background: 'rgba(15, 23, 42, 0.8)',
-  border: '1px solid rgba(239, 68, 68, 0.3)',
+  background: 'var(--panel-bg-solid)',
+  border: '1px solid var(--danger)',
   borderRadius: '12px',
   padding: '40px',
   maxWidth: '480px',
@@ -86,21 +86,21 @@ const iconStyle: React.CSSProperties = {
 const titleStyle: React.CSSProperties = {
   fontSize: '20px',
   fontWeight: 700,
-  color: '#ef4444',
+  color: 'var(--danger)',
   marginBottom: '12px',
   fontFamily: "'Orbitron', sans-serif",
 };
 
 const descStyle: React.CSSProperties = {
   fontSize: '14px',
-  color: '#94a3b8',
+  color: 'var(--text-secondary)',
   marginBottom: '20px',
   lineHeight: 1.6,
 };
 
 const errorStyle: React.CSSProperties = {
   background: 'rgba(0, 0, 0, 0.4)',
-  border: '1px solid rgba(255, 255, 255, 0.1)',
+  border: '1px solid var(--panel-border)',
   borderRadius: '6px',
   padding: '12px',
   fontSize: '12px',
@@ -114,9 +114,9 @@ const errorStyle: React.CSSProperties = {
 
 const buttonStyle: React.CSSProperties = {
   padding: '10px 24px',
-  border: '1px solid rgba(0, 240, 255, 0.25)',
-  background: 'rgba(0, 240, 255, 0.1)',
-  color: '#00f0ff',
+  border: '1px solid var(--primary-border)',
+  background: 'var(--primary-glow-light)',
+  color: 'var(--primary-color)',
   borderRadius: '8px',
   fontSize: '14px',
   fontWeight: 600,

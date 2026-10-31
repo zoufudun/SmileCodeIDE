@@ -5,8 +5,79 @@
 #include <QStringList>
 #include <QColor>
 #include <QVector>
+#include <QDir>
+
+#include <QFile>
+
+#include <QPixmap>
+
+#include <QPainter>
+
+#include <QPolygonF>
+
 
 namespace IdeTheme {
+
+
+inline QString ensureArrowIcon(const QString &colorHex) {
+
+  QString cleanHex = colorHex;
+
+  cleanHex.remove('#');
+
+  QString dirPath = QDir::tempPath() + "/SmileCodeIDE_theme";
+
+  QDir().mkpath(dirPath);
+
+  QString filePath = dirPath + QString("/arrow_%1.png").arg(cleanHex);
+
+  if (!QFile::exists(filePath)) {
+
+    QPixmap pix(24, 24);
+
+    pix.fill(Qt::transparent);
+
+    QPainter painter(&pix);
+
+    painter.setRenderHint(QPainter::Antialiasing);
+
+    painter.setBrush(QColor(colorHex));
+
+    painter.setPen(Qt::NoPen);
+
+    QPolygonF poly;
+
+    // 精致平滑的标准倒三角 ▼ (base 14, height 7)
+
+    poly << QPointF(5.0, 9.0) << QPointF(19.0, 9.0) << QPointF(12.0, 16.0);
+
+    painter.drawPolygon(poly);
+
+    pix.save(filePath, "PNG");
+
+  }
+
+  return filePath.replace('\\', '/');
+
+}
+
+
+
+
+inline QString &currentThemeIdRef() {
+  static QString s_currentTheme = QStringLiteral("dark");
+  return s_currentTheme;
+}
+
+inline QString currentThemeId() {
+  return currentThemeIdRef();
+}
+
+inline void setCurrentThemeId(const QString &id) {
+  if (!id.isEmpty()) {
+    currentThemeIdRef() = id;
+  }
+}
 
 // 旗舰级主题调色板
 struct ThemePalette {
@@ -23,14 +94,17 @@ struct ThemePalette {
   QString sidebarBg;      // 侧边栏/项目树/大纲背景
   QString editorBg;       // 代码编辑器/控制台底色
   QString cardBg;         // 控件/组卡片底色
+  QString inputBg;        // 输入框/下拉框底色
   QString baseAltBg;      // 表格/列表交替行底色
   QString headerBg;       // 视图头部/Dock标题背景
+  QString disabledBg;     // 禁用控件底色
 
   // 边框与光影
   QString border;         // 基础边框
   QString borderLight;    // 高亮/微光边框
   QString borderDark;     // 深色/对比边框
   QString borderGlow;     // 霓虹发光边框
+  QString inputBorder;    // 输入框边框
   QString splitterHandle; // 分割条颜色
 
   // 文字层级 (超清晰对比度)
@@ -48,6 +122,11 @@ struct ThemePalette {
   QString menuHover;      // 菜单/项目悬停底色
   QString selectionBg;    // 选中背景
   QString selectionText;  // 选中文字
+
+  // 悬浮提示框 ToolTip
+  QString tooltipBg;      // 提示框背景
+  QString tooltipText;    // 提示框文字
+  QString tooltipBorder;  // 提示框边框
 
   // 状态指示
   QString success;        // 成功/运行中 (绿色)
@@ -109,12 +188,15 @@ inline ThemePalette getRawPaletteFor(const QString &themeName) {
     p.sidebarBg = "#090E1A";
     p.editorBg = "#060A12";
     p.cardBg = "#111E36";
+    p.inputBg = "#060A12";
     p.baseAltBg = "#0D172A";
     p.headerBg = "#162542";
+    p.disabledBg = "#070B14";
     p.border = "#1E355B";
     p.borderLight = "#2F548F";
     p.borderDark = "#122038";
     p.borderGlow = "rgba(0, 229, 255, 0.45)";
+    p.inputBorder = "#1E355B";
     p.splitterHandle = "#192B48";
     p.textMain = "#FFFFFF";
     p.textSub = "#94A9C9";
@@ -128,6 +210,9 @@ inline ThemePalette getRawPaletteFor(const QString &themeName) {
     p.menuHover = "#1A2E50";
     p.selectionBg = "#154273";
     p.selectionText = "#00E5FF";
+    p.tooltipBg = "#0F1A2E";
+    p.tooltipText = "#00E5FF";
+    p.tooltipBorder = "#00E5FF";
     p.success = "#00E676";
     p.warning = "#FFB300";
     p.danger = "#FF1744";
@@ -185,12 +270,15 @@ inline ThemePalette getRawPaletteFor(const QString &themeName) {
     p.sidebarBg = "#15110E";
     p.editorBg = "#0E0B09";
     p.cardBg = "#271E18";
+    p.inputBg = "#0E0B09";
     p.baseAltBg = "#1A1410";
     p.headerBg = "#2F231B";
+    p.disabledBg = "#120F0D";
     p.border = "#473528";
     p.borderLight = "#694E3B";
     p.borderDark = "#2B2018";
     p.borderGlow = "rgba(245, 158, 11, 0.45)";
+    p.inputBorder = "#473528";
     p.splitterHandle = "#36281E";
     p.textMain = "#FFFBF5";
     p.textSub = "#BFA693";
@@ -204,6 +292,9 @@ inline ThemePalette getRawPaletteFor(const QString &themeName) {
     p.menuHover = "#382920";
     p.selectionBg = "#54381C";
     p.selectionText = "#FBBF24";
+    p.tooltipBg = "#221B16";
+    p.tooltipText = "#FBBF24";
+    p.tooltipBorder = "#F59E0B";
     p.success = "#10B981";
     p.warning = "#F59E0B";
     p.danger = "#EF4444";
@@ -215,7 +306,7 @@ inline ThemePalette getRawPaletteFor(const QString &themeName) {
     p.synString = QColor("#FCD34D");
     p.synChar = QColor("#FCD34D");
     p.synNumber = QColor("#34D399");
-    p.synComment = QColor("#8C7260");
+    p.synComment = QColor("#9E8370");
     p.synPreprocessor = QColor("#FB7185");
     p.synGlobalClass = QColor("#FBBF24");
     p.synFunction = QColor("#F59E0B");
@@ -225,7 +316,7 @@ inline ThemePalette getRawPaletteFor(const QString &themeName) {
     p.caretColor = QColor("#F59E0B");
     p.caretLineBg = QColor("#1D1612");
     p.marginBg = "#15110E";
-    p.marginFg = "#8C7260";
+    p.marginFg = "#9E8370";
     p.foldMarginBg = "#15110E";
 
     p.plotBg = QColor("#0E0B09");
@@ -261,12 +352,15 @@ inline ThemePalette getRawPaletteFor(const QString &themeName) {
     p.sidebarBg = "#161322";
     p.editorBg = "#0E0C16";
     p.cardBg = "#251F38";
+    p.inputBg = "#0E0C16";
     p.baseAltBg = "#191527";
     p.headerBg = "#2E2645";
+    p.disabledBg = "#13111C";
     p.border = "#42385F";
     p.borderLight = "#61528C";
     p.borderDark = "#29233B";
     p.borderGlow = "rgba(189, 147, 249, 0.45)";
+    p.inputBorder = "#42385F";
     p.splitterHandle = "#332B4A";
     p.textMain = "#FFFFFF";
     p.textSub = "#A89EC0";
@@ -280,6 +374,9 @@ inline ThemePalette getRawPaletteFor(const QString &themeName) {
     p.menuHover = "#352B4E";
     p.selectionBg = "#493C6E";
     p.selectionText = "#FFFFFF";
+    p.tooltipBg = "#201B30";
+    p.tooltipText = "#FFFFFF";
+    p.tooltipBorder = "#BD93F9";
     p.success = "#50FA7B";
     p.warning = "#F1FA8C";
     p.danger = "#FF5555";
@@ -337,12 +434,15 @@ inline ThemePalette getRawPaletteFor(const QString &themeName) {
     p.sidebarBg = "#0A1424";
     p.editorBg = "#050B14";
     p.cardBg = "#152845";
+    p.inputBg = "#050B14";
     p.baseAltBg = "#0E1A2D";
     p.headerBg = "#1C3357";
+    p.disabledBg = "#08101E";
     p.border = "#23406D";
     p.borderLight = "#355F9E";
     p.borderDark = "#152742";
     p.borderGlow = "rgba(0, 180, 216, 0.45)";
+    p.inputBorder = "#23406D";
     p.splitterHandle = "#1A3052";
     p.textMain = "#FFFFFF";
     p.textSub = "#8CB4E0";
@@ -356,6 +456,9 @@ inline ThemePalette getRawPaletteFor(const QString &themeName) {
     p.menuHover = "#1C375C";
     p.selectionBg = "#1E477A";
     p.selectionText = "#FFFFFF";
+    p.tooltipBg = "#12233C";
+    p.tooltipText = "#FFFFFF";
+    p.tooltipBorder = "#00B4D8";
     p.success = "#06D6A0";
     p.warning = "#FFD166";
     p.danger = "#EF476F";
@@ -413,12 +516,15 @@ inline ThemePalette getRawPaletteFor(const QString &themeName) {
     p.sidebarBg = "#0D1A14";
     p.editorBg = "#060D0A";
     p.cardBg = "#1A3629";
+    p.inputBg = "#060D0A";
     p.baseAltBg = "#0F2018";
     p.headerBg = "#204231";
+    p.disabledBg = "#0A140F";
     p.border = "#2B5741";
     p.borderLight = "#3E7D5E";
     p.borderDark = "#193527";
     p.borderGlow = "rgba(16, 185, 129, 0.45)";
+    p.inputBorder = "#2B5741";
     p.splitterHandle = "#204231";
     p.textMain = "#FFFFFF";
     p.textSub = "#7CE8BE";
@@ -432,6 +538,9 @@ inline ThemePalette getRawPaletteFor(const QString &themeName) {
     p.menuHover = "#224A37";
     p.selectionBg = "#175E46";
     p.selectionText = "#FFFFFF";
+    p.tooltipBg = "#152B20";
+    p.tooltipText = "#FFFFFF";
+    p.tooltipBorder = "#10B981";
     p.success = "#10B981";
     p.warning = "#FBBF24";
     p.danger = "#F87171";
@@ -476,7 +585,7 @@ inline ThemePalette getRawPaletteFor(const QString &themeName) {
     return p;
   }
 
-  // 6. ☀️ 纯白曜石 (Crystal Light) / Light - 全屏纯净瓷白 + 宝石湛蓝高对比 (零深色残留)
+  // 6. ☀️ 纯白曜石 (Crystal Light) / Light - 全屏纯净瓷白 + 宝石湛蓝高对比 (零异色/高可读)
   if (id == "light" || id == "githublight" || id == "materiallight" || id == "crystallight") {
     p.id = "light";
     p.displayName = QStringLiteral("纯白曜石 (Crystal Light)");
@@ -489,15 +598,18 @@ inline ThemePalette getRawPaletteFor(const QString &themeName) {
     p.sidebarBg = "#F1F5F9";
     p.editorBg = "#FFFFFF";
     p.cardBg = "#FFFFFF";
+    p.inputBg = "#FFFFFF";
     p.baseAltBg = "#F8FAFC";
     p.headerBg = "#E2E8F0";
+    p.disabledBg = "#F1F5F9";
     p.border = "#CBD5E1";
     p.borderLight = "#E2E8F0";
     p.borderDark = "#94A3B8";
     p.borderGlow = "rgba(37, 99, 235, 0.25)";
+    p.inputBorder = "#CBD5E1";
     p.splitterHandle = "#E2E8F0";
-    p.textMain = "#0F172A";
-    p.textSub = "#475569";
+    p.textMain = "#0F172A";       // 高对比深墨黑
+    p.textSub = "#334155";        // 增强至 6.8:1 对比度
     p.textDisabled = "#94A3B8";
     p.accent = "#2563EB";
     p.accentGrad = "qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #3B82F6, stop:1 #2563EB)";
@@ -508,6 +620,9 @@ inline ThemePalette getRawPaletteFor(const QString &themeName) {
     p.menuHover = "#E0E7FF";
     p.selectionBg = "#BFDBFE";
     p.selectionText = "#1E3A8A";
+    p.tooltipBg = "#0F172A";      // 现代深色高反差悬浮气泡
+    p.tooltipText = "#F8FAFC";
+    p.tooltipBorder = "#334155";
     p.success = "#16A34A";
     p.warning = "#D97706";
     p.danger = "#DC2626";
@@ -515,25 +630,25 @@ inline ThemePalette getRawPaletteFor(const QString &themeName) {
     p.statusBarBg = "#F1F5F9";
     p.statusBarText = "#1E293B";
 
-    p.synKeyword = QColor("#2563EB");
-    p.synString = QColor("#DC2626");
-    p.synChar = QColor("#DC2626");
-    p.synNumber = QColor("#0D9488");
-    p.synComment = QColor("#64748B");
-    p.synPreprocessor = QColor("#7C3AED");
-    p.synGlobalClass = QColor("#0284C7");
-    p.synFunction = QColor("#D97706");
-    p.synIdentifier = QColor("#0F172A");
-    p.synOperator = QColor("#0F172A");
+    p.synKeyword = QColor("#0969DA");
+    p.synString = QColor("#A40E26");
+    p.synChar = QColor("#A40E26");
+    p.synNumber = QColor("#0550AE");
+    p.synComment = QColor("#57606A");
+    p.synPreprocessor = QColor("#8250DF");
+    p.synGlobalClass = QColor("#953800");
+    p.synFunction = QColor("#8250DF");
+    p.synIdentifier = QColor("#1F2328");
+    p.synOperator = QColor("#24292F");
 
     p.caretColor = QColor("#0F172A");
     p.caretLineBg = QColor("#F1F5F9");
     p.marginBg = "#F8FAFC";
-    p.marginFg = "#64748B";
+    p.marginFg = "#57606A";
     p.foldMarginBg = "#F8FAFC";
 
     p.plotBg = QColor("#FFFFFF");
-    p.plotAxis = QColor("#94A3B8");
+    p.plotAxis = QColor("#64748B");
     p.plotTick = QColor("#2563EB");
     p.plotSubTick = QColor("#CBD5E1");
     p.plotGrid = QColor("#E2E8F0");
@@ -552,7 +667,7 @@ inline ThemePalette getRawPaletteFor(const QString &themeName) {
     return p;
   }
 
-  // 7. 📜 暖阳羊皮 (Solarized Light) - 经典暖黄羊皮纸护眼
+  // 7. 📜 暖阳羊皮 (Solarized Light) - 经典暖黄羊皮纸护眼 (高对比重塑)
   if (id == "solarizedlight") {
     p.id = "solarizedlight";
     p.displayName = QStringLiteral("暖阳羊皮 (Solarized Light)");
@@ -565,15 +680,18 @@ inline ThemePalette getRawPaletteFor(const QString &themeName) {
     p.sidebarBg = "#EEE8D5";
     p.editorBg = "#FDF6E3";
     p.cardBg = "#FDF6E3";
+    p.inputBg = "#FFFDF8";        // 纯净米白输入底，与羊皮纸自然融合
     p.baseAltBg = "#E9E2CE";
     p.headerBg = "#E4DCBF";
+    p.disabledBg = "#EEE8D5";
     p.border = "#D5CDAE";
     p.borderLight = "#E6DEC7";
     p.borderDark = "#BDB490";
     p.borderGlow = "rgba(181, 137, 0, 0.3)";
+    p.inputBorder = "#D5CDAE";
     p.splitterHandle = "#D5CDAE";
-    p.textMain = "#4B5B61";
-    p.textSub = "#657B83";
+    p.textMain = "#073642";       // 正统 Base02，高清晰对比度
+    p.textSub = "#586E75";        // 正统 Base01，对比度 > 5.5:1
     p.textDisabled = "#93A1A1";
     p.accent = "#268BD2";
     p.accentGrad = "qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #268BD2, stop:1 #2AA198)";
@@ -582,34 +700,37 @@ inline ThemePalette getRawPaletteFor(const QString &themeName) {
     p.accentText = "#FDF6E3";
     p.accentGlow = "rgba(38, 139, 210, 0.3)";
     p.menuHover = "#E8DFCA";
-    p.selectionBg = "#EEE8D5";
-    p.selectionText = "#268BD2";
+    p.selectionBg = "#D6E9F8";
+    p.selectionText = "#073642";
+    p.tooltipBg = "#073642";      // 深绿墨灰高级气泡
+    p.tooltipText = "#FDF6E3";
+    p.tooltipBorder = "#586E75";
     p.success = "#859900";
     p.warning = "#B58900";
     p.danger = "#DC322F";
     p.info = "#268BD2";
     p.statusBarBg = "#EEE8D5";
-    p.statusBarText = "#4B5B61";
+    p.statusBarText = "#073642";
 
     p.synKeyword = QColor("#859900");
     p.synString = QColor("#2AA198");
     p.synChar = QColor("#2AA198");
     p.synNumber = QColor("#D33682");
-    p.synComment = QColor("#93A1A1");
+    p.synComment = QColor("#657B83"); // 清晰 Base00
     p.synPreprocessor = QColor("#CB4B16");
     p.synGlobalClass = QColor("#B58900");
     p.synFunction = QColor("#268BD2");
-    p.synIdentifier = QColor("#4B5B61");
+    p.synIdentifier = QColor("#073642");
     p.synOperator = QColor("#859900");
 
-    p.caretColor = QColor("#657B83");
-    p.caretLineBg = QColor("#EEE8D5");
+    p.caretColor = QColor("#073642");
+    p.caretLineBg = QColor("#F4ECE1");
     p.marginBg = "#EEE8D5";
-    p.marginFg = "#93A1A1";
+    p.marginFg = "#657B83";
     p.foldMarginBg = "#EEE8D5";
 
     p.plotBg = QColor("#FDF6E3");
-    p.plotAxis = QColor("#93A1A1");
+    p.plotAxis = QColor("#657B83");
     p.plotTick = QColor("#268BD2");
     p.plotSubTick = QColor("#D5CDAE");
     p.plotGrid = QColor("#EEE8D5");
@@ -640,12 +761,15 @@ inline ThemePalette getRawPaletteFor(const QString &themeName) {
   p.sidebarBg = "#161921";
   p.editorBg = "#101217";
   p.cardBg = "#232834";
+  p.inputBg = "#101217";
   p.baseAltBg = "#181C24";
   p.headerBg = "#2B3240";
+  p.disabledBg = "#14171E";
   p.border = "#363E50";
   p.borderLight = "#4C5770";
   p.borderDark = "#232834";
   p.borderGlow = "rgba(99, 102, 241, 0.45)";
+  p.inputBorder = "#363E50";
   p.splitterHandle = "#282E3C";
   p.textMain = "#FFFFFF";
   p.textSub = "#A4B3C6";
@@ -659,6 +783,9 @@ inline ThemePalette getRawPaletteFor(const QString &themeName) {
   p.menuHover = "#2E3647";
   p.selectionBg = "#374261";
   p.selectionText = "#FFFFFF";
+  p.tooltipBg = "#1E232D";
+  p.tooltipText = "#FFFFFF";
+  p.tooltipBorder = "#4C5770";
   p.success = "#10B981";
   p.warning = "#F59E0B";
   p.danger = "#EF4444";
@@ -713,6 +840,24 @@ inline ThemePalette paletteFor(const QString &themeName) {
   if (p.menuHover.isEmpty()) {
     p.menuHover = p.panelBg;
   }
+  if (p.inputBg.isEmpty()) {
+    p.inputBg = p.isDark ? p.editorBg : "#FFFFFF";
+  }
+  if (p.inputBorder.isEmpty()) {
+    p.inputBorder = p.border;
+  }
+  if (p.disabledBg.isEmpty()) {
+    p.disabledBg = p.isDark ? p.windowBg : "#F1F5F9";
+  }
+  if (p.tooltipBg.isEmpty()) {
+    p.tooltipBg = p.isDark ? p.cardBg : "#0F172A";
+  }
+  if (p.tooltipText.isEmpty()) {
+    p.tooltipText = p.isDark ? p.textMain : "#F8FAFC";
+  }
+  if (p.tooltipBorder.isEmpty()) {
+    p.tooltipBorder = p.isDark ? p.borderLight : "#334155";
+  }
   return p;
 }
 
@@ -730,17 +875,33 @@ inline QStringList themeList() {
   };
 }
 
-// 生成覆盖全 IDE、串口调试助手、CAN 调试助手的殿堂级 QSS
+// 生成覆盖全 IDE、STM32插件、串口调试助手、CAN 调试助手的殿堂级 QSS
 inline QString generateStyleSheet(const QString &themeName) {
+  setCurrentThemeId(themeName);
   const ThemePalette p = paletteFor(themeName);
 
   QString qss = QStringLiteral(R"QSS(
 /* 全局基础设定与高端字体渲染 */
-QMainWindow, QDialog, QWidget#centralWidget, QWidget#canRoot, QWidget#serialRoot, QWidget#serialContainer, QWidget#appHubRoot, QWidget#hubCentral, QWidget#networkToolRoot, QWidget#iapToolRoot, QWidget#oscilloscopeRoot, QWidget#tabCornerWidget {
+QMainWindow, QDialog, QWidget#centralWidget, QWidget#canRoot, QWidget#serialRoot,
+QWidget#serialContainer, QWidget#appHubRoot, QWidget#hubCentral, QWidget#networkToolRoot,
+QWidget#iapToolRoot, QWidget#oscilloscopeRoot, QWidget#tabCornerWidget, QWidget#projectSearchPanel,
+QWidget#FlashConfigDialog, QWidget#TargetChipDialog, QWidget#ToolchainConfigDialog,
+QWidget#stm32WorkbenchWidget, QWidget#gdbDebugPanel {
   background-color: {{WINDOW_BG}};
   color: {{TEXT_MAIN}};
   font-family: 'Segoe UI', 'Microsoft YaHei', 'PingFang SC', sans-serif;
   font-size: 12px;
+}
+
+/* 全局悬浮气泡 ToolTip (杜绝系统原生黄色或白色方块刺眼异色) */
+QToolTip {
+  background-color: {{TOOLTIP_BG}};
+  color: {{TOOLTIP_TEXT}};
+  border: 1px solid {{TOOLTIP_BORDER}};
+  border-radius: 5px;
+  padding: 5px 9px;
+  font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+  font-size: 11px;
 }
 
 /* 主工作台 AppHub 现代融合视觉 */
@@ -761,16 +922,16 @@ QWidget#appHubFooter {
   border-top: 1px solid {{BORDER}};
 }
 QLineEdit#appHubSearchEdit {
-  background-color: {{CARD_BG}};
+  background-color: {{INPUT_BG}};
   color: {{TEXT_MAIN}};
-  border: 1px solid {{BORDER}};
+  border: 1px solid {{INPUT_BORDER}};
   border-radius: 17px;
   padding: 0 16px;
   font-size: 13px;
 }
 QLineEdit#appHubSearchEdit:focus {
   border: 1px solid {{ACCENT}};
-  background-color: {{CARD_BG}};
+  background-color: {{INPUT_BG}};
 }
 
 /* 视图头部与标题栏 (CAN/串口/示波器一体化卡片头) */
@@ -841,8 +1002,11 @@ QMenuBar::item:selected {
   color: {{TEXT_MAIN}};
   border: 1px solid {{BORDER}};
 }
+QMenuBar::item:disabled {
+  color: {{TEXT_DISABLED}};
+}
 
-/* 下拉菜单 */
+/* 下拉菜单 (深度清除原生白边与对比度缺失) */
 QMenu {
   background-color: {{CARD_BG}};
   color: {{TEXT_MAIN}};
@@ -854,10 +1018,15 @@ QMenu::item {
   padding: 6px 26px 6px 20px;
   border-radius: 4px;
   color: {{TEXT_MAIN}};
+  background: transparent;
 }
 QMenu::item:selected {
   background: {{ACCENT_GRAD}};
   color: {{ACCENT_TEXT}};
+}
+QMenu::item:disabled {
+  color: {{TEXT_DISABLED}};
+  background: transparent;
 }
 QMenu::separator {
   height: 1px;
@@ -894,6 +1063,11 @@ QToolButton:pressed, QToolButton:checked, QToolButton#canNavButton:pressed {
   background: {{ACCENT_GRAD}};
   color: {{ACCENT_TEXT}};
   border: 1px solid {{ACCENT}};
+}
+QToolButton:disabled {
+  color: {{TEXT_DISABLED}};
+  background-color: transparent;
+  border-color: transparent;
 }
 
 /* 右上角主题切换快捷图标按钮 (0xe622) */
@@ -989,26 +1163,49 @@ QDockWidget, QDockWidget#dataDock {
   font-weight: bold;
   font-size: 12px;
   border: 1px solid {{BORDER}};
-  border-radius: 8px;
+  border-radius: 6px;
 }
 QDockWidget::title, QDockWidget#dataDock::title {
   background: {{PANEL_BG_GRAD}};
   border: none;
   border-bottom: 1px solid {{BORDER}};
-  border-top-left-radius: 8px;
-  border-top-right-radius: 8px;
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
   padding: 6px 10px;
   text-align: left;
   color: {{TEXT_MAIN}};
 }
+QDockWidget::close-button, QDockWidget::float-button {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  padding: 2px;
+  subcontrol-position: top right;
+  subcontrol-origin: margin;
+  position: absolute;
+  top: 5px;
+}
+QDockWidget::close-button {
+  right: 6px;
+}
+QDockWidget::float-button {
+  right: 26px;
+}
+QDockWidget::close-button:hover, QDockWidget::float-button:hover {
+  background-color: {{PANEL_BG}};
+  border: 1px solid {{BORDER_LIGHT}};
+}
+QDockWidget::close-button:pressed, QDockWidget::float-button:pressed {
+  background-color: {{ACCENT}};
+}
 QDockWidget QWidget#dockContentWidget, QDockWidget#dataDock QWidget#dockContentWidget {
   background-color: {{WINDOW_BG}};
   border: none;
-  border-bottom-left-radius: 8px;
-  border-bottom-right-radius: 8px;
+  border-bottom-left-radius: 6px;
+  border-bottom-right-radius: 6px;
 }
 
-/* 选项卡 TabWidget 胶囊化与发光下划线 (消除顶部右侧白色死角) */
+/* 选项卡 TabWidget 胶囊化与发光下划线 */
 QTabWidget {
   background-color: transparent;
 }
@@ -1048,6 +1245,18 @@ QTabBar::tab:hover:!selected {
   background: {{PANEL_BG}};
   color: {{TEXT_MAIN}};
 }
+QTabBar::tab:bottom {
+  border-top: none;
+  border-bottom: 1px solid {{BORDER}};
+  border-top-left-radius: 0px;
+  border-top-right-radius: 0px;
+  border-bottom-left-radius: 6px;
+  border-bottom-right-radius: 6px;
+}
+QTabBar::tab:bottom:selected {
+  border-bottom: 2px solid {{ACCENT}};
+  border-top: 2px solid transparent;
+}
 QTabBar QToolButton {
   background-color: {{PANEL_BG_GRAD}};
   color: {{TEXT_MAIN}};
@@ -1069,6 +1278,15 @@ QTreeView, QTableWidget, QTableView, QTreeWidget, QListWidget {
   gridline-color: {{BORDER}};
   outline: 0;
 }
+QTreeView:focus, QTableWidget:focus, QTableView:focus, QTreeWidget:focus, QListWidget:focus {
+  border: 1px solid {{ACCENT}};
+}
+QTreeView::branch {
+  background-color: transparent;
+}
+QTreeView::branch:selected {
+  background-color: {{SELECTION_BG}};
+}
 QTreeView::item, QTableWidget::item, QTreeWidget::item, QListWidget::item {
   padding: 4px 6px;
   border-radius: 3px;
@@ -1082,24 +1300,34 @@ QTreeView::item:selected, QTableWidget::item:selected, QTreeWidget::item:selecte
   color: {{SELECTION_TEXT}};
   font-weight: 500;
 }
+QTreeView::item:selected:!active, QTableWidget::item:selected:!active, QTreeWidget::item:selected:!active, QListWidget::item:selected:!active {
+  background-color: {{SELECTION_BG}};
+  color: {{SELECTION_TEXT}};
+}
 QHeaderView {
-  background: {{PANEL_BG_GRAD}};
+  background: {{HEADER_BG}};
   border: none;
 }
 QHeaderView::section {
-  background: {{PANEL_BG_GRAD}};
+  background: {{HEADER_BG}};
   color: {{TEXT_SUB}};
   font-weight: bold;
   padding: 6px 8px;
   border: 1px solid {{BORDER}};
+  border-top: none;
+  border-left: none;
   font-size: 12px;
 }
+QHeaderView::section:hover {
+  background: {{PANEL_BG}};
+  color: {{TEXT_MAIN}};
+}
 QTableCornerButton::section {
-  background: {{PANEL_BG_GRAD}};
+  background: {{HEADER_BG}};
   border: 1px solid {{BORDER}};
 }
 QAbstractScrollArea::corner {
-  background: {{PANEL_BG_GRAD}};
+  background: {{HEADER_BG}};
   border: none;
 }
 
@@ -1142,7 +1370,7 @@ QScrollBar::add-page, QScrollBar::sub-page {
   background: transparent;
 }
 
-/* 文本编辑器与控制台输入 (编译输出/调试控制台/接收区/发送区全覆盖，彻底消除白色背景) */
+/* 文本编辑器与控制台输入 */
 QTextEdit, QPlainTextEdit {
   background-color: {{EDITOR_BG}};
   color: {{TEXT_MAIN}};
@@ -1155,12 +1383,16 @@ QTextEdit, QPlainTextEdit {
 QTextEdit:focus, QPlainTextEdit:focus {
   border: 1px solid {{ACCENT}};
 }
+QTextEdit:disabled, QPlainTextEdit:disabled {
+  background-color: {{DISABLED_BG}};
+  color: {{TEXT_DISABLED}};
+}
 
 /* 输入框与下拉选框 QLineEdit / QComboBox / QSpinBox */
 QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox {
-  background-color: {{CARD_BG}};
+  background-color: {{INPUT_BG}};
   color: {{TEXT_MAIN}};
-  border: 1px solid {{BORDER}};
+  border: 1px solid {{INPUT_BORDER}};
   border-radius: 5px;
   padding: 4px 10px;
   font-size: 12px;
@@ -1169,21 +1401,33 @@ QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox {
 QLineEdit:focus, QComboBox:focus, QSpinBox:focus, QDoubleSpinBox:focus {
   border: 1px solid {{ACCENT}};
 }
+QLineEdit:disabled, QComboBox:disabled, QSpinBox:disabled, QDoubleSpinBox:disabled {
+  background-color: {{DISABLED_BG}};
+  color: {{TEXT_DISABLED}};
+  border: 1px solid {{BORDER}};
+}
+QLineEdit[readOnly="true"] {
+  background-color: {{DISABLED_BG}};
+  color: {{TEXT_SUB}};
+}
 QComboBox::drop-down {
+  subcontrol-origin: padding;
+  subcontrol-position: top right;
   border: none;
-  width: 24px;
+  width: 22px;
+  background: transparent;
 }
 QComboBox::down-arrow {
-  image: none;
-  border-left: 4px solid transparent;
-  border-right: 4px solid transparent;
-  border-top: 5px solid {{TEXT_SUB}};
-  width: 0px;
-  height: 0px;
+  image: url("{{ARROW_NORMAL}}");
+  width: 10px;
+  height: 10px;
   margin-right: 6px;
 }
 QComboBox::down-arrow:hover {
-  border-top-color: {{ACCENT}};
+  image: url("{{ARROW_HOVER}}");
+}
+QComboBox::down-arrow:disabled {
+  image: url("{{ARROW_DISABLED}}");
 }
 QComboBox QAbstractItemView,
 QComboBox QListView {
@@ -1218,7 +1462,6 @@ QComboBox QListView::item:disabled {
   font-weight: bold;
 }
 
-
 /* 华丽高阶按钮 PushButton */
 QPushButton {
   background: {{PANEL_BG_GRAD}};
@@ -1239,9 +1482,19 @@ QPushButton:pressed {
   color: {{ACCENT_TEXT}};
 }
 QPushButton:disabled {
-  background-color: {{WINDOW_BG}};
+  background-color: {{DISABLED_BG}};
   color: {{TEXT_DISABLED}};
   border-color: {{BORDER}};
+}
+
+/* 对话框标准按钮与通用样式 */
+QDialog {
+  background-color: {{WINDOW_BG}};
+  color: {{TEXT_MAIN}};
+}
+QDialogButtonBox QPushButton {
+  min-width: 72px;
+  min-height: 24px;
 }
 
 /* 卡片容器与参数分组框 GroupBox / Card */
@@ -1289,6 +1542,9 @@ QLabel {
   color: {{TEXT_MAIN}};
   background: transparent;
 }
+QLabel:disabled {
+  color: {{TEXT_DISABLED}};
+}
 
 /* 勾选框 CheckBox 与单选框 RadioButton */
 QCheckBox, QRadioButton {
@@ -1296,6 +1552,9 @@ QCheckBox, QRadioButton {
   spacing: 6px;
   font-size: 12px;
   background: transparent;
+}
+QCheckBox:disabled, QRadioButton:disabled {
+  color: {{TEXT_DISABLED}};
 }
 QCheckBox::indicator, QRadioButton::indicator {
   width: 16px;
@@ -1331,6 +1590,55 @@ QLabel#sessionStatusStat {
   font-weight: bold;
   color: {{TEXT_SUB}};
 }
+
+/* 查找替换面板 (FindReplaceWidget) 统一融合适配 */
+QWidget#FindReplaceWidget {
+  background-color: {{CARD_BG}};
+  border: 1px solid {{BORDER_LIGHT}};
+  border-radius: 6px;
+}
+QWidget#FindReplaceWidget QLineEdit {
+  background-color: {{INPUT_BG}};
+  color: {{TEXT_MAIN}};
+  border: 1px solid {{INPUT_BORDER}};
+  border-radius: 3px;
+}
+QWidget#FindReplaceWidget QLineEdit:focus {
+  border: 1px solid {{ACCENT}};
+}
+QWidget#FindReplaceWidget QToolButton {
+  background-color: transparent;
+  color: {{TEXT_MAIN}};
+  border: 1px solid transparent;
+  border-radius: 3px;
+  font-weight: bold;
+  font-size: 11px;
+}
+QWidget#FindReplaceWidget QToolButton:hover {
+  background-color: {{PANEL_BG}};
+  border: 1px solid {{BORDER_LIGHT}};
+}
+QWidget#FindReplaceWidget QToolButton:checked {
+  background: {{ACCENT_GRAD}};
+  color: {{ACCENT_TEXT}};
+  border: 1px solid {{ACCENT}};
+}
+
+/* 全局工程搜索面板 (ProjectSearchPanel) 统一融合适配 */
+QWidget#projectSearchPanel {
+  background-color: {{WINDOW_BG}};
+}
+QLabel#projectSearchStatus {
+  color: {{TEXT_SUB}};
+  font-size: 11px;
+  padding: 2px 4px;
+}
+QTreeWidget#projectSearchResults {
+  background-color: {{CARD_BG}};
+  color: {{TEXT_MAIN}};
+  border: 1px solid {{BORDER}};
+  border-radius: 4px;
+}
 )QSS");
 
   qss.replace("{{WINDOW_BG}}", p.windowBg)
@@ -1340,11 +1648,14 @@ QLabel#sessionStatusStat {
      .replace("{{SIDEBAR_BG}}", p.sidebarBg)
      .replace("{{EDITOR_BG}}", p.editorBg)
      .replace("{{CARD_BG}}", p.cardBg)
+     .replace("{{INPUT_BG}}", p.inputBg)
      .replace("{{BASE_ALT_BG}}", p.baseAltBg)
      .replace("{{HEADER_BG}}", p.headerBg)
+     .replace("{{DISABLED_BG}}", p.disabledBg)
      .replace("{{BORDER}}", p.border)
      .replace("{{BORDER_LIGHT}}", p.borderLight)
      .replace("{{BORDER_DARK}}", p.borderDark)
+     .replace("{{INPUT_BORDER}}", p.inputBorder)
      .replace("{{SPLITTER_HANDLE}}", p.splitterHandle)
      .replace("{{TEXT_MAIN}}", p.textMain)
      .replace("{{TEXT_SUB}}", p.textSub)
@@ -1357,8 +1668,27 @@ QLabel#sessionStatusStat {
      .replace("{{MENU_HOVER}}", p.menuHover)
      .replace("{{SELECTION_BG}}", p.selectionBg)
      .replace("{{SELECTION_TEXT}}", p.selectionText)
+     .replace("{{TOOLTIP_BG}}", p.tooltipBg)
+     .replace("{{TOOLTIP_TEXT}}", p.tooltipText)
+     .replace("{{TOOLTIP_BORDER}}", p.tooltipBorder)
      .replace("{{STATUSBAR_BG}}", p.statusBarBg)
      .replace("{{STATUSBAR_TEXT}}", p.statusBarText);
+
+
+
+  QString arrowNormal = ensureArrowIcon(p.textSub);
+
+  QString arrowHover = ensureArrowIcon(p.accent);
+
+  QString arrowDisabled = ensureArrowIcon(p.textDisabled);
+
+
+
+  qss.replace("{{ARROW_NORMAL}}", arrowNormal)
+
+     .replace("{{ARROW_HOVER}}", arrowHover)
+
+     .replace("{{ARROW_DISABLED}}", arrowDisabled);
 
   return qss;
 }

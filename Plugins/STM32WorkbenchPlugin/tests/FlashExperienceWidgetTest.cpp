@@ -5,6 +5,9 @@
 #include <QTextCursor>
 #include <QThread>
 #include <cstdio>
+#ifdef Q_OS_WIN
+#include <windows.h>
+#endif
 #include "../UI/STM32WorkbenchWidget.h"
 #include "../UI/FlashConfigDialog.h"
 
@@ -19,8 +22,144 @@ private slots:
     void backendClassifiesBothStreams_data();
     void backendClassifiesBothStreams();
     void cancelledDownloadCannotSucceed();
+    void switchingProjectReleasesDebugServer();
+    void downloadReleasesDebugServerBeforeStarting();
+    void abnormalHostExitReleasesDebugServer();
+    void backendDownloadReleasesOtherWorkbenchServer();
+    void concurrentDownloadsAreRejected();
+    void serverConfigurationChangeReleasesProbe();
     void capturesPreviews();
 };
+
+static bool startIdleServer(GdbServerManager *server)
+{
+    auto *process = server->findChild<QProcess *>();
+    if (!process) return false;
+    process->start(QStringLiteral("powershell.exe"),
+                   {QStringLiteral("-NoProfile"), QStringLiteral("-Command"),
+                    QStringLiteral("Start-Sleep -Seconds 60")});
+    return process->waitForStarted();
+}
+
+static void configureOfflineProgrammer(FlashProgrammer &programmer)
+{
+    ToolchainPaths paths;
+    paths.jlinkPath = QCoreApplication::applicationFilePath();
+    programmer.setToolchainPaths(paths);
+    programmer.setChipProfile(STM32ProfileManager::instance().getProfile("STM32F407VG"));
+}
+
+void FlashExperienceWidgetTest::backendDownloadReleasesOtherWorkbenchServer()
+{
+    GdbServerManager otherWorkbench;
+    QVERIFY(startIdleServer(&otherWorkbench));
+    FlashProgrammer programmer;
+    configureOfflineProgrammer(programmer);
+    QTemporaryFile firmware;
+    QVERIFY(firmware.open());
+    FlashOptions options;
+    options.driver = FlashDriverType::JLink_Native;
+    QVERIFY(programmer.flashFirmware(firmware.fileName(), options));
+    QVERIFY2(!otherWorkbench.isRunning(), "Common download backend did not release another workbench's server");
+    programmer.cancelFlash();
+}
+
+void FlashExperienceWidgetTest::concurrentDownloadsAreRejected()
+{
+    FlashProgrammer first, second;
+    configureOfflineProgrammer(first);
+    configureOfflineProgrammer(second);
+    QTemporaryFile firmware;
+    QVERIFY(firmware.open());
+    FlashOptions options;
+    options.driver = FlashDriverType::JLink_Native;
+    QVERIFY(first.flashFirmware(firmware.fileName(), options));
+    const bool competing = second.flashFirmware(firmware.fileName(), options);
+    second.cancelFlash();
+    first.cancelFlash();
+    QVERIFY2(!competing, "Two download processes were allowed to access the hardware simultaneously");
+    QVERIFY(second.flashFirmware(firmware.fileName(), options));
+    second.cancelFlash();
+}
+
+void FlashExperienceWidgetTest::serverConfigurationChangeReleasesProbe()
+{
+    GdbServerManager server;
+    QVERIFY(startIdleServer(&server));
+    server.setChipProfile(STM32ProfileManager::instance().getProfile("STM32H743IITx"));
+    QVERIFY2(!server.isRunning(), "Chip change kept the old server running");
+    QVERIFY(startIdleServer(&server));
+    server.setToolchainPaths(ToolchainPaths());
+    QVERIFY2(!server.isRunning(), "Toolchain change kept the old server running");
+}
+
+void FlashExperienceWidgetTest::abnormalHostExitReleasesDebugServer()
+{
+#ifdef Q_OS_WIN
+    QProcess host;
+    host.start(QCoreApplication::applicationFilePath(), {"--idle-server-host", "-platform", "offscreen"});
+    QVERIFY(host.waitForStarted());
+    QByteArray output;
+    QElapsedTimer timeout;
+    timeout.start();
+    while (!output.contains('\n') && timeout.elapsed() < 10000) {
+        host.waitForReadyRead(200);
+        output += host.readAllStandardOutput();
+    }
+    bool valid = false;
+    const DWORD pid = output.trimmed().toULong(&valid);
+    QVERIFY2(valid, output.constData());
+    HANDLE server = OpenProcess(SYNCHRONIZE | PROCESS_TERMINATE, FALSE, pid);
+    QVERIFY(server);
+    host.kill();
+    QVERIFY(host.waitForFinished());
+    const DWORD result = WaitForSingleObject(server, 5000);
+    if (result != WAIT_OBJECT_0) TerminateProcess(server, 1);
+    CloseHandle(server);
+    QCOMPARE(result, DWORD(WAIT_OBJECT_0));
+#else
+    QSKIP("Windows process ownership regression");
+#endif
+}
+
+void FlashExperienceWidgetTest::switchingProjectReleasesDebugServer()
+{
+    STM32WorkbenchWidget widget;
+    QTemporaryDir first, second;
+    widget.setProjectPath(first.path());
+    auto *server = widget.findChild<GdbServerManager *>();
+    QVERIFY(server);
+    QVERIFY(startIdleServer(server));
+    widget.setProjectPath(first.path());
+    QVERIFY(server->isRunning());
+    widget.setProjectPath(second.path());
+    QVERIFY2(!server->isRunning(), "Previous project's server still owns the probe");
+}
+
+void FlashExperienceWidgetTest::downloadReleasesDebugServerBeforeStarting()
+{
+    STM32WorkbenchWidget widget;
+    QTemporaryDir project;
+    widget.setProjectPath(project.path());
+    // Keep this lifecycle test offline: no configured tool can access hardware.
+    widget.flashProgrammer()->setToolchainPaths(ToolchainPaths());
+    const QString bin = widget.buildManager()->getBinPath(project.path());
+    QVERIFY(QDir().mkpath(QFileInfo(bin).absolutePath()));
+    QFile firmware(bin);
+    QVERIFY(firmware.open(QIODevice::WriteOnly));
+    firmware.write("test");
+    firmware.close();
+    auto *server = widget.findChild<GdbServerManager *>();
+    QVERIFY(server);
+    QVERIFY(startIdleServer(server));
+    bool started = false;
+    bool released = false;
+    connect(widget.flashProgrammer(), &FlashProgrammer::flashSessionStarted,
+            &widget, [&] { started = true; released = !server->isRunning(); });
+    widget.onFlashClicked();
+    QVERIFY(started);
+    QVERIFY2(released, "Download started before debug server released the probe");
+}
 
 static QString successLog()
 {
@@ -253,6 +392,16 @@ int main(int argc, char **argv)
         return 0;
     }
     QApplication app(argc, argv);
+    if (app.arguments().contains("-CommandFile")) {
+        return app.exec(); // Fake J-Link tool: lifecycle tests never access hardware.
+    }
+    if (app.arguments().contains("--idle-server-host")) {
+        GdbServerManager server;
+        if (!startIdleServer(&server)) return 2;
+        std::printf("%lld\n", static_cast<long long>(server.findChild<QProcess *>()->processId()));
+        std::fflush(stdout);
+        return app.exec();
+    }
     FlashExperienceWidgetTest test;
     return QTest::qExec(&test, argc, argv);
 }

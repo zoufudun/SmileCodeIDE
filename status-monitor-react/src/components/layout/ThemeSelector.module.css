@@ -1,5 +1,5 @@
 .select {
-  background: rgba(15, 23, 42, 0.7);
+  background: var(--control-bg);
   border: 1px solid var(--primary-border);
   color: var(--primary-color);
   padding: 4px 8px;
@@ -12,11 +12,16 @@
 }
 
 .select:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--control-hover);
   box-shadow: 0 0 8px var(--primary-glow);
 }
 
+.select:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
 .select option {
-  background: #0f172a;
-  color: #e2e8f0;
+  background: var(--panel-bg-solid);
+  color: var(--text-primary);
 }

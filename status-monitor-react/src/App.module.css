@@ -1,17 +1,18 @@
 .container {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
   padding: 16px;
   gap: 16px;
 }
 
 .main {
   flex: 1;
-  background: rgba(15, 23, 42, 0.4);
+  background: var(--panel-bg-muted);
   backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 12px;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
   position: relative;
   overflow: auto;
   padding: 20px;

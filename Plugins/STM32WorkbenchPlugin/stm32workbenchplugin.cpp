@@ -37,5 +37,7 @@ QWidget* STM32WorkbenchPlugin::createWidget(QWidget *parent)
 
 void STM32WorkbenchPlugin::applyTheme(const QString &themeId)
 {
-    Q_UNUSED(themeId);
+    if (m_currentWidget) {
+        m_currentWidget->applyTheme(themeId);
+    }
 }

@@ -1,10 +1,52 @@
 #include <QtTest>
 #include <QTemporaryDir>
+#include <QTcpServer>
 #include "stm32debugcontroller.h"
 
 class STM32DebugControllerTest : public QObject {
     Q_OBJECT
 private slots:
+    void configurationChangeReleasesIdleServer_data() {
+        QTest::addColumn<int>("setting");
+        QTest::newRow("chip") << 0;
+        QTest::newRow("probe") << 1;
+        QTest::newRow("flash-options") << 2;
+        QTest::newRow("toolchain") << 3;
+    }
+
+    void configurationChangeReleasesIdleServer() {
+        QFETCH(int, setting);
+        STM32DebugController controller;
+        QTemporaryDir project;
+        controller.openProject(project.path());
+        auto *server = controller.findChild<GdbServerManager *>();
+        auto *process = server->findChild<QProcess *>();
+        process->start("powershell.exe", {"-NoProfile", "-Command", "Start-Sleep -Seconds 60"});
+        QVERIFY(process->waitForStarted());
+        switch (setting) {
+        case 0: controller.setTargetChip("STM32F407VG"); break;
+        case 1: controller.setProbeName("J-Link"); break;
+        case 2: controller.setFlashOptions(FlashOptions()); break;
+        case 3: controller.setCustomOpenocdPath("Z:/offline/openocd.exe"); break;
+        }
+        QVERIFY2(!server->isRunning(), "Configuration change did not release the old probe session");
+    }
+
+    void projectSwitchReleasesServerEvenWhenSessionIsIdle() {
+        STM32DebugController controller;
+        QTemporaryDir first, second;
+        controller.openProject(first.path());
+        auto *server = controller.findChild<GdbServerManager *>();
+        QVERIFY(server);
+        auto *process = server->findChild<QProcess *>();
+        QVERIFY(process);
+        process->start("powershell.exe", {"-NoProfile", "-Command", "Start-Sleep -Seconds 60"});
+        QVERIFY(process->waitForStarted());
+        QCOMPARE(controller.state(), STM32SessionState::Idle);
+        controller.openProject(second.path());
+        QVERIFY2(!server->isRunning(), "Idle session left a debug server holding the probe");
+    }
+
     void initTestCase() {
         // Invalid paths prevent these tests from accessing a hardware probe.
         m_controller = new STM32DebugController;
@@ -202,6 +244,68 @@ private slots:
         QVERIFY(!STM32DebugController::instance());
     }
 
+    void projectFlashConfigurationIsIsolatedAndPreservesUnknownFields() {
+        QTemporaryDir first;
+        QTemporaryDir second;
+        m_controller->openProject(first.path());
+        FlashOptions firstOptions;
+        firstOptions.driver = FlashDriverType::OpenOCD_CMSISDAP;
+        firstOptions.targetAddress = "0x08004000";
+        firstOptions.swdSpeedKhz = 1200;
+        firstOptions.probeSerial = "probe-one";
+        firstOptions.verify = false;
+        firstOptions.resetAndRun = false;
+        firstOptions.customOpenocdInterfaceCfg = "custom/interface.cfg";
+        firstOptions.customOpenocdTargetCfg = "custom/target.cfg";
+        m_controller->setFlashOptions(firstOptions);
+        QFile config(first.filePath(".smilecode/project.json"));
+        QVERIFY(config.open(QIODevice::ReadOnly));
+        auto json = QJsonDocument::fromJson(config.readAll()).object();
+        config.close();
+        json["customProjectField"] = "preserve-me";
+        QVERIFY(config.open(QIODevice::WriteOnly | QIODevice::Truncate));
+        config.write(QJsonDocument(json).toJson());
+        config.close();
+        m_controller->openProject(second.path());
+        FlashOptions secondOptions;
+        secondOptions.driver = FlashDriverType::JLink_Native;
+        secondOptions.targetAddress = "0x08008000";
+        m_controller->setFlashOptions(secondOptions);
+        m_controller->openProject(first.path());
+        const auto loaded = m_controller->flashOptions();
+        QCOMPARE(loaded.driver, firstOptions.driver);
+        QCOMPARE(loaded.targetAddress, firstOptions.targetAddress);
+        QCOMPARE(loaded.swdSpeedKhz, firstOptions.swdSpeedKhz);
+        QCOMPARE(loaded.probeSerial, firstOptions.probeSerial);
+        QCOMPARE(loaded.verify, false);
+        QCOMPARE(loaded.resetAndRun, false);
+        QCOMPARE(loaded.customOpenocdTargetCfg, firstOptions.customOpenocdTargetCfg);
+        QVERIFY(config.open(QIODevice::ReadOnly));
+        QCOMPARE(QJsonDocument::fromJson(config.readAll()).object().value("customProjectField").toString(),
+                 QString("preserve-me"));
+    }
+
+    void debugServerReceivesSelectedProbeAndScripts() {
+        GdbServerManager server;
+        ToolchainPaths paths;
+        paths.openocdPath = QCoreApplication::applicationFilePath();
+        server.setToolchainPaths(paths);
+        QTcpServer portReservation;
+        QVERIFY(portReservation.listen(QHostAddress::LocalHost, 0));
+        const int port = portReservation.serverPort();
+        portReservation.close();
+        QVERIFY(server.startServer(GdbServerType::OpenOCD, "custom interface.cfg", "custom target.cfg",
+                                   port, "probe-test-123", 1800));
+        const auto process = server.findChild<QProcess *>();
+        QVERIFY(process);
+        const auto args = process->arguments();
+        QVERIFY(args.contains("custom interface.cfg"));
+        QVERIFY(args.contains("custom target.cfg"));
+        QVERIFY(args.contains("adapter serial {probe-test-123}"));
+        QVERIFY(args.contains("adapter speed 1800"));
+        server.stopServer();
+    }
+
 private:
     STM32DebugController *m_controller = nullptr;
 };
@@ -209,7 +313,8 @@ private:
 int main(int argc, char **argv) {
     QCoreApplication app(argc, argv);
     // The test binary also serves as a harmless, bounded fake make/J-Link process.
-    if (app.arguments().contains("-j4") || app.arguments().contains("-CommandFile")) {
+    if (app.arguments().contains("-j4") || app.arguments().contains("-CommandFile") ||
+        app.arguments().contains("custom interface.cfg")) {
         QTimer::singleShot(15000, &app, &QCoreApplication::quit);
         return app.exec();
     }

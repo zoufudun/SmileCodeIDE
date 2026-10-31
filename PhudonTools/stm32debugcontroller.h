@@ -63,6 +63,8 @@ public:
     void setProbeName(const QString &probeName);
     void setCustomGccPath(const QString &path);
     void setCustomOpenocdPath(const QString &path);
+    FlashOptions flashOptions() const { return resolveFlashOptions(); }
+    void setFlashOptions(const FlashOptions &options);
 
     void setProjectPath(const QString &path) { openProject(path); }
     void setProbeType(ProbeType type) {
@@ -181,6 +183,8 @@ private:
     int m_probeAttempts = 0;
     bool m_stoppingDebug = false;
     bool m_startingGdbClient = false;
+    FlashOptions m_flashOptions;
+    bool m_hasFlashOptions = false;
 
     // 断点记录 (规范化绝对路径 -> 1-based 行号集合)
     QMap<QString, QSet<int>> m_breakpoints;

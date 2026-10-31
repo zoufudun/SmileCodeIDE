@@ -9,6 +9,7 @@
 #include "STM32Profile.h"
 #include "ProbeDetector.h"
 #include "FlashLogModel.h"
+#include "ProbeProcessGuard.h"
 
 /**
  * @brief 烧录器驱动类型
@@ -104,6 +105,8 @@ private:
     qint64 m_startTime = 0;
     FlashLogModel m_processLog;
     bool m_cancelled = false;
+    ProbeProcessGuard *m_processGuard = nullptr;
+    QString m_usbOutputTail;
 };
 
 #endif // FLASHPROGRAMMER_H

@@ -7,6 +7,7 @@
 #include <QComboBox>
 #include <QTextEdit>
 #include <QSettings>
+#include <QGroupBox>
 #include "../Core/ToolchainDetector.h"
 #include "../Core/STM32Profile.h"
 
@@ -18,11 +19,18 @@ class ToolchainConfigDialog : public QDialog
     Q_OBJECT
 
 public:
-    explicit ToolchainConfigDialog(QWidget *parent = nullptr, QSettings *settings = nullptr);
+    explicit ToolchainConfigDialog(QWidget *parent = nullptr, QSettings *settings = nullptr,
+                                   const QString &themeId = QString());
+    void applyTheme(const QString &themeId = QString());
     ~ToolchainConfigDialog() override = default;
 
     ToolchainPaths getPaths() const;
     QString getSelectedChip() const;
+    void setPaths(const ToolchainPaths &paths);
+    void setChipSelectionVisible(bool visible);
+
+protected:
+    void done(int result) override;
 
 private slots:
     void onAutoDetectClicked();
@@ -39,10 +47,18 @@ private slots:
 private:
     void setupUI();
     void updateFormFromPaths(const ToolchainPaths &paths);
-    void applyTheme();
+    void startBackgroundCheck(bool scan);
+    void setChecking(bool checking);
 
     QSettings *m_settings;
     ToolchainDetector *m_detector;
+    ToolchainPaths m_paths;
+    quint64 m_checkGeneration = 0;
+    bool m_checking = false;
+    bool m_chipSelectionVisible = true;
+    QGroupBox *m_chipGroup;
+    QGroupBox *m_toolchainGroup;
+    QGroupBox *m_hardwareGroup;
 
     QLineEdit *m_gccEdit;
     QLineEdit *m_gdbEdit;

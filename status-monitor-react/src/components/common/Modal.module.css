@@ -13,13 +13,14 @@
 }
 
 .content {
-  background: rgba(15, 23, 42, 0.96);
-  border: 1px solid rgba(0, 240, 255, 0.3);
-  border-radius: 12px;
-  width: 360px;
-  box-shadow: 0 8px 32px rgba(0, 240, 255, 0.2);
+  background: var(--panel-bg-solid);
+  border: 1px solid var(--primary-border);
+  border-radius: 8px;
+  width: min(360px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
   animation: modal-fade-in 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-  overflow: hidden;
 }
 
 .header {
@@ -27,26 +28,26 @@
   justify-content: space-between;
   align-items: center;
   padding: 14px 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid var(--panel-border);
 }
 
 .header h3 {
   font-family: 'Orbitron', sans-serif;
   font-size: 13px;
   font-weight: 700;
-  color: #00f0ff;
+  color: var(--primary-color);
   letter-spacing: 0.5px;
 }
 
 .btnClose {
   background: transparent;
   border: none;
-  color: #64748b;
+  color: var(--text-muted);
   font-size: 14px;
   cursor: pointer;
   transition: color 0.2s;
 }
 
 .btnClose:hover {
-  color: #ef4444;
+  color: var(--danger);
 }

@@ -20,6 +20,7 @@ class GdbDebugPanel : public QWidget
 
 public:
     explicit GdbDebugPanel(GdbMiEngine *engine, QWidget *parent = nullptr);
+    void applyTheme(const QString &themeId = QString());
     ~GdbDebugPanel() override = default;
 
 signals:
@@ -40,7 +41,6 @@ private slots:
 
 private:
     void setupUI();
-    void applyTheme();
     void updateActionButtons(GdbTargetState state);
 
     GdbMiEngine *m_engine;
@@ -55,6 +55,7 @@ private:
     QPushButton *m_downloadBtn;
     QPushButton *m_stopBtn;
     QLabel *m_statusLabel;
+    QString m_currentTheme = "dark";
 
     // 观测视窗选项卡
     QTabWidget *m_tabWidget;

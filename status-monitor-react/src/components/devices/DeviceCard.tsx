@@ -51,7 +51,7 @@ export function DeviceCard({ device, absolute, position, dragProps }: DeviceCard
       data-id={deviceId}
       data-type={deviceType}
       data-label={label}
-      className={`${styles.card} ${styles[`kind-${deviceType}`]} ${styles[`status-${statusKey}`]}`}
+      className={`device-card ${styles.card} ${styles[`kind-${deviceType}`]} ${styles[`status-${statusKey}`]}`}
       style={absolute && position ? { position: 'absolute', left: position.x, top: position.y } : undefined}
       {...(dragProps && absolute ? dragProps : {})}
     >

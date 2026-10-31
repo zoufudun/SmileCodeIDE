@@ -3,11 +3,12 @@
   justify-content: space-between;
   align-items: center;
   padding: 12px 20px;
-  background: rgba(15, 23, 42, 0.6);
+  background: var(--panel-bg);
   backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 12px;
-  flex-shrink: 0;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
 .logoArea {
@@ -31,18 +32,20 @@
   font-size: 16px;
   font-weight: 900;
   letter-spacing: 2px;
-  color: #ffffff;
-  text-shadow: 0 0 8px rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+  text-shadow: 0 0 8px var(--primary-glow-light);
 }
 
 .subtitle {
   font-size: 10px;
-  color: #64748b;
+  color: var(--text-muted);
   text-transform: uppercase;
 }
 
 .infoGroup {
   display: flex;
   align-items: center;
-  gap: 15px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
 }

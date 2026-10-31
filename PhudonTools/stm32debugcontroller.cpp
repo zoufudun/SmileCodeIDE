@@ -113,6 +113,10 @@ void STM32DebugController::setTargetChip(const QString &chipName)
     STM32ChipProfile profile = STM32ProfileManager::instance().getProfile(chipName);
     if (!profile.chipName.isEmpty()) {
         m_currentProfile = profile;
+        if (m_hasFlashOptions) {
+            m_flashOptions.targetAddress = profile.flashOrigin;
+            m_flashOptions.customOpenocdTargetCfg.clear();
+        }
         applyToolchainAndChip();
         saveProjectConfig();
         emit chipChanged(m_currentProfile.chipName);
@@ -123,10 +127,38 @@ void STM32DebugController::setProbeName(const QString &probeName)
 {
     if (m_state != STM32SessionState::Idle) return;
     if (m_probeName != probeName) {
+        auto category = [](QString name) {
+            name = name.toUpper().remove('-').remove(' ');
+            return name.contains("JLINK") ? 1 : name.contains("DAP") ? 2 : 0;
+        };
+        if (m_hasFlashOptions && category(m_probeName) != category(probeName)) {
+            m_flashOptions.driver = category(probeName) == 1 ? FlashDriverType::JLink_Native
+                : category(probeName) == 2 ? FlashDriverType::OpenOCD_CMSISDAP
+                                         : FlashDriverType::OpenOCD_STLink;
+            m_flashOptions.probeSerial.clear();
+            m_flashOptions.probeInstanceId.clear();
+        }
         m_probeName = probeName;
         saveProjectConfig();
         emit probeChanged(m_probeName);
     }
+}
+
+void STM32DebugController::setFlashOptions(const FlashOptions &options)
+{
+    if (m_state != STM32SessionState::Idle) return;
+    const int driver = static_cast<int>(options.driver);
+    if (driver < 0 || driver > static_cast<int>(FlashDriverType::StFlash) ||
+        !FlashProgrammer::validTargetAddress(options.targetAddress) ||
+        options.swdSpeedKhz < 100 || options.swdSpeedKhz > 20000) return;
+    m_flashOptions = options;
+    m_hasFlashOptions = true;
+    m_probeName = options.driver == FlashDriverType::JLink_Native ||
+                  options.driver == FlashDriverType::OpenOCD_JLink ? QStringLiteral("J-Link")
+                : options.driver == FlashDriverType::OpenOCD_CMSISDAP ? QStringLiteral("CMSIS-DAP")
+                                                                     : QStringLiteral("ST-Link");
+    saveProjectConfig();
+    emit probeChanged(m_probeName);
 }
 
 void STM32DebugController::setCustomGccPath(const QString &path)
@@ -151,6 +183,11 @@ void STM32DebugController::openProject(const QString &projectDir)
     if (!QFileInfo(resolved).isDir() || resolved == m_projectDir) return;
     closeProject();
     m_projectDir = resolved;
+    m_hasFlashOptions = false;
+    m_flashOptions = FlashOptions();
+    m_probeName = QStringLiteral("ST-Link");
+    m_currentProfile = STM32ProfileManager::instance().getProfile("STM32F103C8");
+    applyToolchainAndChip();
 
     if (!loadProjectConfig(m_projectDir)) {
         QString detectedChip = autoDetectChipFromProject(m_projectDir);
@@ -236,6 +273,7 @@ void STM32DebugController::onBuildFinished(bool success, int exitCode, int durat
 
 FlashOptions STM32DebugController::resolveFlashOptions() const
 {
+    if (m_hasFlashOptions) return m_flashOptions;
     FlashOptions opt;
     QString probe = m_probeName.toUpper();
     probe.remove('-').remove(' ');
@@ -269,6 +307,11 @@ bool STM32DebugController::flashProject()
         binPath = elfPath;
     }
 
+    stopDebug();
+    if (m_gdbServerManager->isRunning()) {
+        emit flashFinished(false, tr("调试服务尚未退出，请稍后重试下载。"));
+        return false;
+    }
     setState(STM32SessionState::Flashing);
     emit flashStarted();
 
@@ -316,10 +359,18 @@ bool STM32DebugController::startDebug()
 
     // 启动 GDB Server
     m_startingGdbClient = false;
-    const QString interfaceCfg = flashOptions.driver == FlashDriverType::OpenOCD_CMSISDAP
-        ? QStringLiteral("interface/cmsis-dap.cfg") : QStringLiteral("interface/stlink.cfg");
+    QString interfaceCfg = flashOptions.customOpenocdInterfaceCfg;
+    if (interfaceCfg.isEmpty()) {
+        interfaceCfg = flashOptions.driver == FlashDriverType::OpenOCD_CMSISDAP
+            ? QStringLiteral("interface/cmsis-dap.cfg")
+            : flashOptions.driver == FlashDriverType::OpenOCD_JLink
+                ? QStringLiteral("interface/jlink.cfg") : QStringLiteral("interface/stlink.cfg");
+    }
+    const QString targetCfg = flashOptions.customOpenocdTargetCfg.isEmpty()
+        ? m_currentProfile.openocdTargetCfg : flashOptions.customOpenocdTargetCfg;
     bool ok = m_gdbServerManager->startServer(srvType, interfaceCfg,
-                                              m_currentProfile.openocdTargetCfg, m_targetGdbPort);
+                                              targetCfg, m_targetGdbPort,
+                                              flashOptions.probeSerial, flashOptions.swdSpeedKhz);
     if (!ok) {
         setState(STM32SessionState::Idle);
         emit gdbConsoleOutput(tr("错误: 无法启动 GDB Server 后台进程！"));
@@ -402,7 +453,7 @@ void STM32DebugController::stopDebug()
     const bool active = m_state == STM32SessionState::StartingDebug ||
                         m_state == STM32SessionState::Stopped ||
                         m_state == STM32SessionState::Running;
-    if (!active) return;
+    if (!active && !m_gdbServerManager->isRunning() && !m_gdbEngine->isConnected()) return;
     m_stoppingDebug = true;
     m_probeTimer->stop();
     m_gdbEngine->stopSession();
@@ -591,6 +642,26 @@ bool STM32DebugController::loadProjectConfig(const QString &projectDir)
     if (!probe.isEmpty()) {
         m_probeName = probe;
     }
+    const QJsonObject flash = obj.value("flash").toObject();
+    if (!flash.isEmpty()) {
+        FlashOptions options;
+        options.driver = static_cast<FlashDriverType>(flash.value("driver").toInt());
+        options.targetAddress = flash.value("address").toString(m_currentProfile.flashOrigin);
+        options.swdSpeedKhz = flash.value("speedKhz").toInt(4000);
+        options.verify = flash.value("verify").toBool(true);
+        options.resetAndRun = flash.value("resetAndRun").toBool(true);
+        options.eraseAll = flash.value("eraseAll").toBool(false);
+        options.probeSerial = flash.value("probeSerial").toString();
+        options.probeInstanceId = flash.value("probeInstanceId").toString();
+        options.customOpenocdInterfaceCfg = flash.value("interfaceCfg").toString();
+        options.customOpenocdTargetCfg = flash.value("targetCfg").toString();
+        if (static_cast<int>(options.driver) >= 0 && static_cast<int>(options.driver) <= 5 &&
+            options.swdSpeedKhz >= 100 && options.swdSpeedKhz <= 20000 &&
+            FlashProgrammer::validTargetAddress(options.targetAddress)) {
+            m_flashOptions = options;
+            m_hasFlashOptions = true;
+        }
+    }
     return true;
 }
 
@@ -601,13 +672,30 @@ bool STM32DebugController::saveProjectConfig()
     QDir().mkpath(dirPath);
 
     QJsonObject obj;
+    QFile previous(dirPath + "/project.json");
+    if (previous.open(QIODevice::ReadOnly)) {
+        obj = QJsonDocument::fromJson(previous.readAll()).object();
+    }
     obj["projectType"] = "STM32";
     obj["targetChip"] = m_currentProfile.chipName;
     obj["series"] = m_currentProfile.family;
     obj["core"] = m_currentProfile.core;
     obj["probe"] = m_probeName;
     obj["openocdTarget"] = m_currentProfile.openocdTargetCfg;
-    obj["flashAddress"] = "0x08000000";
+    const FlashOptions flash = resolveFlashOptions();
+    obj["flashAddress"] = flash.targetAddress;
+    QJsonObject flashJson;
+    flashJson["driver"] = static_cast<int>(flash.driver);
+    flashJson["address"] = flash.targetAddress;
+    flashJson["speedKhz"] = flash.swdSpeedKhz;
+    flashJson["verify"] = flash.verify;
+    flashJson["resetAndRun"] = flash.resetAndRun;
+    flashJson["eraseAll"] = flash.eraseAll;
+    flashJson["probeSerial"] = flash.probeSerial;
+    flashJson["probeInstanceId"] = flash.probeInstanceId;
+    flashJson["interfaceCfg"] = flash.customOpenocdInterfaceCfg;
+    flashJson["targetCfg"] = flash.customOpenocdTargetCfg;
+    obj["flash"] = flashJson;
 
     QJsonDocument doc(obj);
     QFile file(dirPath + "/project.json");

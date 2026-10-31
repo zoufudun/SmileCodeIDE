@@ -1,3 +1,4 @@
+#include "idetheme.h"
 #include "FlashConfigDialog.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -8,9 +9,11 @@
 #include <QRegularExpression>
 #include <QSignalBlocker>
 #include <QFileInfo>
+#include <QApplication>
 
 FlashConfigDialog::FlashConfigDialog(QWidget *parent, QSettings *settings,
-                                     const STM32ChipProfile &profile)
+                                     const STM32ChipProfile &profile,
+                                     const QString &themeId)
     : QDialog(parent), m_settings(settings), m_profile(profile)
 {
     m_addressSettingKey = profile.chipName.isEmpty()
@@ -22,7 +25,39 @@ FlashConfigDialog::FlashConfigDialog(QWidget *parent, QSettings *settings,
     setupUI();
     m_targetAddrEdit->setText(profile.flashOrigin.isEmpty()
                                  ? QStringLiteral("0x08000000") : profile.flashOrigin);
-    applyTheme();
+    QString resolvedTheme = themeId;
+    if (resolvedTheme.isEmpty()) {
+        QWidget *w = parentWidget();
+        while (w) {
+            QVariant v = w->property("currentTheme");
+            if (v.isValid() && !v.toString().isEmpty()) {
+                resolvedTheme = v.toString();
+                break;
+            }
+            w = w->parentWidget();
+        }
+    }
+    if (resolvedTheme.isEmpty() && qApp) {
+        QVariant v = qApp->property("currentTheme");
+        if (v.isValid() && !v.toString().isEmpty()) {
+            resolvedTheme = v.toString();
+        }
+    }
+    if (resolvedTheme.isEmpty() && m_settings) {
+        m_settings->beginGroup("MainWindow");
+        resolvedTheme = m_settings->value("currentTheme").toString();
+        m_settings->endGroup();
+        if (resolvedTheme.isEmpty()) {
+            resolvedTheme = m_settings->value("theme").toString();
+        }
+    }
+    if (resolvedTheme.isEmpty()) {
+        resolvedTheme = IdeTheme::currentThemeId();
+    }
+    if (resolvedTheme.isEmpty()) {
+        resolvedTheme = QStringLiteral("dark");
+    }
+    applyTheme(resolvedTheme);
     loadFromSettings();
     updateDriverOptions();
     scanProbes();
@@ -60,6 +95,7 @@ void FlashConfigDialog::setupUI()
     probeLayout->addWidget(m_probeCombo, 0, 1);
     probeLayout->addWidget(refreshButton, 0, 2);
     m_probeInfoLabel = new QLabel(probeGroup);
+    m_probeInfoLabel->setObjectName("probeInfoLabel");
     m_probeInfoLabel->setWordWrap(true);
     m_probeInfoLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
     probeLayout->addWidget(m_probeInfoLabel, 1, 0, 1, 3);
@@ -75,10 +111,12 @@ void FlashConfigDialog::setupUI()
     QGridLayout *pgLayout = new QGridLayout(paramGroup);
 
     m_targetAddrEdit = new QLineEdit("0x08000000", paramGroup);
+    m_targetAddrEdit->setObjectName("flashAddress");
     pgLayout->addWidget(new QLabel(QStringLiteral("Flash 起始基地址:"), paramGroup), 0, 0);
     pgLayout->addWidget(m_targetAddrEdit, 0, 1);
 
     m_speedSpin = new QSpinBox(paramGroup);
+    m_speedSpin->setObjectName("flashSpeed");
     m_speedSpin->setRange(100, 20000);
     m_speedSpin->setSingleStep(500);
     m_speedSpin->setValue(4000);
@@ -124,7 +162,8 @@ void FlashConfigDialog::setupUI()
     connect(m_cancelBtn, &QPushButton::clicked, this, &QDialog::reject);
 
     m_saveBtn = new QPushButton(QStringLiteral("确定并保存"), this);
-    m_saveBtn->setStyleSheet("background-color: #20bf6b; color: white; font-weight: bold; padding: 6px 18px; border-radius: 4px;");
+    m_saveBtn->setObjectName("saveFlashConfiguration");
+    m_cancelBtn->setObjectName("flashCancelBtn");
     connect(m_saveBtn, &QPushButton::clicked, this, &FlashConfigDialog::onSaveClicked);
 
     btnLayout->addWidget(m_cancelBtn);
@@ -132,19 +171,178 @@ void FlashConfigDialog::setupUI()
     mainLayout->addLayout(btnLayout);
 }
 
-void FlashConfigDialog::applyTheme()
+void FlashConfigDialog::applyTheme(const QString &themeId)
 {
-    setStyleSheet(
-        "QDialog { background-color: #1e1e2e; color: #cdd6f4; font-family: 'Segoe UI', 'Microsoft YaHei'; }"
-        "QGroupBox { font-weight: bold; border: 1px solid #45475a; border-radius: 6px; margin-top: 8px; padding-top: 14px; color: #89b4fa; }"
-        "QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 4px; }"
-        "QLabel { color: #bac2de; font-size: 12px; }"
-        "QLineEdit, QSpinBox { background-color: #181825; border: 1px solid #45475a; border-radius: 4px; padding: 4px 8px; color: #f5e0dc; }"
-        "QComboBox { background-color: #181825; border: 1px solid #45475a; border-radius: 4px; padding: 4px 8px; color: #cdd6f4; }"
-        "QCheckBox { color: #cdd6f4; spacing: 6px; }"
-        "QPushButton { background-color: #313244; color: #cdd6f4; border: 1px solid #45475a; border-radius: 4px; padding: 4px 14px; }"
-        "QPushButton:hover { background-color: #45475a; }"
-    );
+    QString tid = themeId;
+    if (tid.isEmpty()) {
+        QWidget *w = parentWidget();
+        while (w) {
+            QVariant v = w->property("currentTheme");
+            if (v.isValid() && !v.toString().isEmpty()) {
+                tid = v.toString();
+                break;
+            }
+            w = w->parentWidget();
+        }
+    }
+    if (tid.isEmpty() && qApp) {
+        QVariant v = qApp->property("currentTheme");
+        if (v.isValid() && !v.toString().isEmpty()) {
+            tid = v.toString();
+        }
+    }
+    if (tid.isEmpty() && m_settings) {
+        m_settings->beginGroup("MainWindow");
+        tid = m_settings->value("currentTheme").toString();
+        m_settings->endGroup();
+        if (tid.isEmpty()) {
+            tid = m_settings->value("theme").toString();
+        }
+    }
+    if (tid.isEmpty()) {
+        tid = IdeTheme::currentThemeId();
+    }
+    if (tid.isEmpty()) {
+        tid = QStringLiteral("dark");
+    }
+    const IdeTheme::ThemePalette p = IdeTheme::paletteFor(tid);
+
+    QPalette pal = palette();
+    pal.setColor(QPalette::Window, QColor(p.windowBg));
+    pal.setColor(QPalette::WindowText, QColor(p.textMain));
+    pal.setColor(QPalette::Base, QColor(p.inputBg));
+    pal.setColor(QPalette::AlternateBase, QColor(p.baseAltBg));
+    pal.setColor(QPalette::Text, QColor(p.textMain));
+    pal.setColor(QPalette::Button, QColor(p.cardBg));
+    pal.setColor(QPalette::ButtonText, QColor(p.textMain));
+    setPalette(pal);
+    setAutoFillBackground(true);
+
+    setStyleSheet(QString(
+        "QDialog {"
+        "    background-color: %1;"
+        "    color: %2;"
+        "    font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;"
+        "}"
+        "QGroupBox {"
+        "    font-weight: bold;"
+        "    border: 1px solid %3;"
+        "    border-radius: 6px;"
+        "    margin-top: 8px;"
+        "    padding-top: 14px;"
+        "    color: %4;"
+        "    background-color: %5;"
+        "}"
+        "QGroupBox::title {"
+        "    subcontrol-origin: margin;"
+        "    left: 10px;"
+        "    padding: 0 4px;"
+        "    color: %4;"
+        "    background: transparent;"
+        "}"
+        "QLabel {"
+        "    background: transparent;"
+        "    background-color: transparent;"
+        "    color: %6;"
+        "    font-size: 12px;"
+        "}"
+        "QLabel#probeInfoLabel, QLabel[objectName=\"probeInfoLabel\"] {"
+        "    background-color: %7;"
+        "    color: %2;"
+        "    border: 1px solid %8;"
+        "    border-radius: 4px;"
+        "    padding: 6px 10px;"
+        "    font-family: 'Consolas', 'Courier New', monospace;"
+        "    font-size: 11px;"
+        "}"
+        "QLineEdit, QSpinBox {"
+        "    background-color: %7;"
+        "    border: 1px solid %8;"
+        "    border-radius: 4px;"
+        "    padding: 4px 8px;"
+        "    color: %2;"
+        "    selection-background-color: %9;"
+        "    selection-color: %10;"
+        "}"
+        "QLineEdit:focus, QSpinBox:focus { border: 1px solid %4; }"
+        "QComboBox {"
+        "    background-color: %7;"
+        "    border: 1px solid %8;"
+        "    border-radius: 4px;"
+        "    padding: 4px 8px;"
+        "    color: %2;"
+        "}"
+        "QComboBox:hover { border: 1px solid %4; }"
+        "QComboBox::drop-down { subcontrol-origin: padding; subcontrol-position: top right; border: none; width: 22px; background: transparent; }"
+
+        "QComboBox::down-arrow { image: url(\"%16\"); width: 10px; height: 10px; margin-right: 6px; }"
+
+        "QComboBox::down-arrow:hover { image: url(\"%17\"); }"
+        "QComboBox QAbstractItemView {"
+        "    background-color: %7;"
+        "    color: %2;"
+        "    selection-background-color: %9;"
+        "    selection-color: %10;"
+        "    border: 1px solid %3;"
+        "}"
+        "QCheckBox {"
+        "    background: transparent;"
+        "    background-color: transparent;"
+        "    color: %2;"
+        "    spacing: 8px;"
+        "    font-size: 12px;"
+        "}"
+        "QCheckBox:hover { color: %4; }"
+        "QCheckBox::indicator {"
+        "    width: 15px;"
+        "    height: 15px;"
+        "    border: 1px solid %8;"
+        "    border-radius: 3px;"
+        "    background-color: %7;"
+        "}"
+        "QCheckBox::indicator:hover {"
+        "    border-color: %4;"
+        "}"
+        "QCheckBox::indicator:checked {"
+        "    background-color: %4;"
+        "    border-color: %4;"
+        "}"
+        "QPushButton {"
+        "    background-color: %11;"
+        "    color: %2;"
+        "    border: 1px solid %3;"
+        "    border-radius: 4px;"
+        "    padding: 5px 14px;"
+        "}"
+        "QPushButton:hover { background-color: %12; border-color: %4; color: %13; }"
+        "QPushButton#saveFlashConfiguration, QPushButton#flashSaveBtn {"
+        "    background-color: %4;"
+        "    color: %14;"
+        "    font-weight: bold;"
+        "    border: 1px solid %4;"
+        "    padding: 6px 18px;"
+        "}"
+        "QPushButton#saveFlashConfiguration:hover, QPushButton#flashSaveBtn:hover {"
+        "    background-color: %15;"
+        "}"
+    ).arg(p.windowBg,
+          p.textMain,
+          p.border,
+          p.accent,
+          p.cardBg,
+          p.textSub,
+          p.inputBg,
+          p.inputBorder,
+          p.accent,
+          p.accentText,
+          p.panelBg,
+          p.menuHover,
+          p.textMain,
+          p.accentText,
+          p.accentHover,
+          IdeTheme::ensureArrowIcon(p.textSub),
+          IdeTheme::ensureArrowIcon(p.accent)
+    ));
 }
 
 void FlashConfigDialog::loadFromSettings()
@@ -329,4 +527,28 @@ FlashOptions FlashConfigDialog::getOptions() const
     opt.probeInstanceId = m_probeCombo->currentData().toString();
     opt.probeSerial = m_probeSerialEdit->text().trimmed();
     return opt;
+}
+
+void FlashConfigDialog::setOptions(const FlashOptions &options)
+{
+    int idx = m_driverCombo->findData(static_cast<int>(options.driver));
+    if (idx >= 0) m_driverCombo->setCurrentIndex(idx);
+    if (!options.targetAddress.isEmpty()) {
+        m_targetAddrEdit->setText(options.targetAddress);
+    }
+    if (options.swdSpeedKhz > 0) {
+        m_speedSpin->setValue(options.swdSpeedKhz);
+    }
+    m_verifyCheck->setChecked(options.verify);
+    m_resetCheck->setChecked(options.resetAndRun);
+    m_eraseAllCheck->setChecked(options.eraseAll);
+    m_customInterfaceEdit->setText(options.customOpenocdInterfaceCfg);
+    m_customTargetEdit->setText(options.customOpenocdTargetCfg);
+    if (!options.probeInstanceId.isEmpty()) {
+        int pidx = m_probeCombo->findData(options.probeInstanceId);
+        if (pidx >= 0) m_probeCombo->setCurrentIndex(pidx);
+    }
+    if (!options.probeSerial.isEmpty()) {
+        m_probeSerialEdit->setText(options.probeSerial);
+    }
 }

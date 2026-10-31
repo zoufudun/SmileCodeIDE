@@ -47,6 +47,7 @@ public:
 
     // 断点快速操作（供外部代码编辑器调用联动）
     void toggleBreakpoint(const QString &file, int line);
+    void applyTheme(const QString &themeId = QString());
 
 signals:
     void jumpToSourceLine(const QString &file, int line);
@@ -74,7 +75,6 @@ private slots:
 
 private:
     void setupUI();
-    void applyTheme();
     void loadSettings();
     void saveSettings();
     void appendLogText(const QString &text, bool isError);
@@ -93,6 +93,7 @@ private:
 
     QSettings *m_settings;
     QString m_projectPath;
+    QString m_currentTheme = "dark";
 
     // 核心引擎层
     ToolchainDetector *m_detector;
