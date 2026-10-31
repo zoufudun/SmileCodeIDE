@@ -56,6 +56,11 @@
   * **核心设计**：采用暗夜流光科技视觉规范，打造响应式单页；配置 `.github/workflows/deploy-pages.yml` 与 `release.yml`；提供 `scripts/package_release.ps1` 自动化绿色便携包打包脚本。
   * **对应版本**：`v2.3.1`
 
+* **[SmileCodeIDE免安装包与EXE及MSI安装包打包与GitHub发布.md](file:///k:/TOPFIRE/SmileCodeIDEUpdate/docs/SmileCodeIDE免安装包与EXE及MSI安装包打包与GitHub发布.md)**
+  * **解决问题**：全格式跨平台打包体系，生成直接在任何电脑运行的免安装便携包 (ZIP)、图形安装向导 (EXE) 与微软标准企业安装包 (MSI)，并完成 GitHub Release 全流程发布与哈希校验。
+  * **核心设计**：结合 Qt 运行时部署、MinGW 运行时补齐、Qt Installer Framework 交互向导与 WiX Toolset 原生 MSI 编译链接；输出 SHA256/MD5 校验报告；升级官网三列安装包下载卡片。
+  * **对应版本**：`v2.3.1`
+
 ---
 
 ### 7. 综合全景走查报告

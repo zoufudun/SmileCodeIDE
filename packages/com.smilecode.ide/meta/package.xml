@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Package>
+    <DisplayName>SmileCodeIDE 核心工作台与开发套件</DisplayName>
+    <Description>新一代现代化嵌入式单片机集成开发环境，内置 GCC 14 工具链配置、OpenOCD/GDB 在线调试与虚拟示波器。</Description>
+    <Version>2.3.1</Version>
+    <ReleaseDate>2026-10-31</ReleaseDate>
+    <Default>true</Default>
+    <ForcedInstallation>true</ForcedInstallation>
+    <Script>installscript.qs</Script>
+</Package>
+

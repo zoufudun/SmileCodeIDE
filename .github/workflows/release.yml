@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   release:
-    name: Create GitHub Release
+    name: Build & Publish GitHub Release Packages
     runs-on: windows-latest
     steps:
       - name: Checkout Repository
@@ -36,35 +36,20 @@ jobs:
           Write-Output "RELEASE_TAG=$tag" >> $env:GITHUB_ENV
           Write-Host "Releasing tag: $tag"
 
-      - name: Prepare Release Package (Portable Zip)
+      - name: Setup WiX Toolset
         shell: pwsh
         run: |
-          $releaseDir = "dist/SmileCodeIDE-${{ env.RELEASE_TAG }}-Windows-x64"
-          New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
-          
-          # Copy executables and necessary libraries
-          if (Test-Path "PhudonTools/release/PhudonTools.exe") {
-            Copy-Item "PhudonTools/release/PhudonTools.exe" "$releaseDir/" -Force
-          }
-          if (Test-Path "PhudonTools/release/*.dll") {
-            Copy-Item "PhudonTools/release/*.dll" "$releaseDir/" -Force
-          }
-          if (Test-Path "PhudonTools/release/plugins") {
-            Copy-Item "PhudonTools/release/plugins" "$releaseDir/" -Recurse -Force
-          }
-          if (Test-Path "PhudonTools/release/kerneldlls") {
-            Copy-Item "PhudonTools/release/kerneldlls" "$releaseDir/" -Recurse -Force
-          }
-          
-          # Copy documentation
-          Copy-Item "README.md" "$releaseDir/" -Force -ErrorAction SilentlyContinue
-          Copy-Item "CHANGELOG.zh.md" "$releaseDir/" -Force -ErrorAction SilentlyContinue
-          
-          # Compress to zip
-          New-Item -ItemType Directory -Path "dist" -Force | Out-Null
-          $zipPath = "dist/SmileCodeIDE-${{ env.RELEASE_TAG }}-Windows-x64.zip"
-          Compress-Archive -Path "$releaseDir/*" -DestinationPath $zipPath -Force
-          Write-Host "Created archive: $zipPath"
+          New-Item -ItemType Directory -Path "tools/wix" -Force | Out-Null
+          $wixZip = "tools/wix.zip"
+          Invoke-WebRequest -Uri "https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip" -OutFile $wixZip
+          Expand-Archive -Path $wixZip -DestinationPath "tools/wix" -Force
+          Remove-Item $wixZip -Force
+
+      - name: Build Release Artifacts (ZIP, EXE, MSI)
+        shell: pwsh
+        run: |
+          # If dist already built or build via script
+          powershell -ExecutionPolicy Bypass -File scripts/package_release.ps1 -Version "${{ env.RELEASE_TAG }}"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -76,6 +61,8 @@ jobs:
           prerelease: false
           files: |
             dist/*.zip
+            dist/*.exe
+            dist/*.msi
+            dist/checksums.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-

@@ -1577,3 +1577,122 @@ body {
   }
 }
 
+
+/* Download Trio Cards Grid */
+.download-grid-trio {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  max-width: 1140px;
+  margin: 0 auto;
+}
+
+.dl-package-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 18px;
+  padding: 32px 26px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  transition: all var(--transition-normal);
+  backdrop-filter: blur(14px);
+  box-shadow: var(--shadow-card);
+}
+
+.dl-package-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--border-hover);
+  box-shadow: var(--shadow-glow-purple);
+}
+
+.dl-package-card.featured {
+  background: linear-gradient(135deg, rgba(26, 20, 54, 0.85) 0%, rgba(15, 23, 42, 0.85) 100%);
+  border-color: rgba(139, 92, 246, 0.5);
+  box-shadow: 0 10px 30px -10px rgba(139, 92, 246, 0.4);
+}
+
+.dl-tag-badge {
+  position: absolute;
+  top: -12px;
+  left: 24px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-light);
+  color: #cbd5e1;
+}
+
+.featured-badge {
+  background: linear-gradient(135deg, #8b5cf6, #3b82f6);
+  color: #fff;
+  border: none;
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+}
+
+.dl-icon-badge {
+  font-size: 2.2rem;
+  margin-bottom: 14px;
+}
+
+.dl-card-title {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: 4px;
+}
+
+.dl-filename {
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  color: var(--cyan-glow);
+  margin-bottom: 14px;
+  word-break: break-all;
+}
+
+.dl-card-desc {
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin-bottom: 20px;
+}
+
+.dl-card-meta {
+  display: flex;
+  gap: 14px;
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  margin-bottom: 12px;
+  border-top: 1px solid var(--border-light);
+  padding-top: 14px;
+}
+
+.dl-card-meta strong {
+  color: #cbd5e1;
+}
+
+.dl-hash-box {
+  background: rgba(0, 0, 0, 0.35);
+  padding: 6px 10px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+}
+
+.dl-hash-box code {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-dim);
+}
+
+.btn-block {
+  width: 100%;
+  margin-top: auto;
+}
+
+@media (max-width: 900px) {
+  .download-grid-trio {
+    grid-template-columns: 1fr;
+  }
+}

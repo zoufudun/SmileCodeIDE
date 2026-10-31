@@ -55,3 +55,15 @@
   3. [x] 编写正式 Release 说明文档 `RELEASE_NOTES_v2.3.1.md`，配置 `.github/workflows/release.yml`；
   4. [x] 编写 GitHub Pages 自动化部署工作流 `.github/workflows/deploy-pages.yml`；
   5. [x] 本地提交、推送至远程仓库 `origin/V10.0`，并建立 `gh-pages` 独立分支推送到 `origin/gh-pages` 实现多通道 Pages 部署。
+
+---
+
+### 阶段 7：免安装包、EXE 安装包与 MSI 安装包全格式打包与 GitHub 发布【已完成】
+- **归档文档**：[docs/SmileCodeIDE免安装包与EXE及MSI安装包打包与GitHub发布.md](file:///k:/TOPFIRE/SmileCodeIDEUpdate/docs/SmileCodeIDE免安装包与EXE及MSI安装包打包与GitHub发布.md)
+- **完成项**：
+  1. [x] 构建直接在任何电脑运行的免安装绿色包 `dist/SmileCodeIDE-v2.3.1-Windows-x64.zip` (55.82 MB)，集成 Qt6、MinGW 运行时、全部外设驱动与动态库；
+  2. [x] 基于 Qt Installer Framework 构建带图形向导、桌面快捷方式与卸载器的 `dist/SmileCodeIDE-v2.3.1-Setup.exe` (74.80 MB)；
+  3. [x] 基于 WiX Toolset 构建标准微软 Windows Installer `dist/SmileCodeIDE-v2.3.1-Setup.msi` (46.01 MB)，支持企业域批量与静默安装；
+  4. [x] 自动生成 SHA-256 和 MD5 校验和报告 `dist/checksums.txt`；
+  5. [x] 更新官网下载专区，提供全套三款安装包的下载卡片与校验和展示；
+  6. [x] 更新 GitHub Release 说明与自动化工作流，同步推送至 GitHub 远程仓库与 `gh-pages` 分支。

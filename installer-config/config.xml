@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Installer>
+    <Name>SmileCodeIDE</Name>
+    <Version>2.3.1</Version>
+    <Title>SmileCodeIDE 安装向导</Title>
+    <Publisher>SmileCodeIDE Team (zoufudun)</Publisher>
+    <ProductUrl>https://zoufudun.github.io/SmileCodeIDE/</ProductUrl>
+    <InstallerApplicationIcon>logo</InstallerApplicationIcon>
+    <InstallerWindowIcon>logo.ico</InstallerWindowIcon>
+    <Logo>logo.png</Logo>
+    <TargetDir>@ApplicationsDir@/SmileCodeIDE</TargetDir>
+    <AdminTargetDir>@ApplicationsDir@/SmileCodeIDE</AdminTargetDir>
+    <StartMenuDir>SmileCodeIDE</StartMenuDir>
+    <AllowNonAsciiCharacters>true</AllowNonAsciiCharacters>
+    <WizardStyle>Modern</WizardStyle>
+</Installer>
+

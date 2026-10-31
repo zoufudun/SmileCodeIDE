@@ -526,34 +526,79 @@
     <div class="container">
       <div class="section-header text-center">
         <h2 class="section-title">立即开启 <span class="gradient-text">高效单片机开发之旅</span></h2>
-        <p class="section-subtitle">支持 Windows 10/11 64-bit 系统，解压即用，无任何捆绑广告与体积限制。</p>
+        <p class="section-subtitle">支持 Windows 10/11 64-bit 系统，提供全套安装格式，按需选择，解压或安装即用。</p>
       </div>
 
-      <div class="download-card-wrapper">
-        <div class="download-card primary-download">
-          <div class="download-badge">官方推荐</div>
-          <div class="download-info">
-            <h3 class="dl-title">SmileCodeIDE 绿色便携版 (Windows x64)</h3>
-            <p class="dl-desc">解压到任意目录直接运行，配置与插件独立隔离，适合移动办公与多电脑开发。</p>
-            <div class="dl-meta">
-              <span>版本: <strong>v2.3.1 (最新稳定版)</strong></span>
-              <span>架构: <strong>x86_64</strong></span>
-              <span>系统: <strong>Windows 10 / 11</strong></span>
-              <span>大小: <strong>约 45 MB</strong></span>
-            </div>
+      <div class="download-grid-trio">
+        <!-- Card 1: Portable ZIP -->
+        <div class="dl-package-card">
+          <div class="dl-tag-badge">解压即用</div>
+          <div class="dl-icon-badge">📦</div>
+          <h3 class="dl-card-title">免安装便携版</h3>
+          <div class="dl-filename">SmileCodeIDE-v2.3.1-Windows-x64.zip</div>
+          <p class="dl-card-desc">自带完整 Qt6 与 MinGW 运行时，不写注册表，配置完全本地化，适合移动办公与 U 盘随身携带。</p>
+          <div class="dl-card-meta">
+            <span>大小: <strong>55.82 MB</strong></span>
+            <span>架构: <strong>x64</strong></span>
           </div>
-          <div class="download-actions">
-            <a href="https://github.com/zoufudun/SmileCodeIDE/releases/tag/v2.3.1" target="_blank" rel="noopener" class="btn btn-primary btn-lg glow-btn">
-              <svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-              </svg>
-              <span>前往 GitHub Release 下载</span>
-            </a>
-            <div class="release-quicklink">
-              <a href="https://github.com/zoufudun/SmileCodeIDE/releases" target="_blank" rel="noopener">查看所有历史版本发布 &rarr;</a>
-            </div>
+          <div class="dl-hash-box">
+            <code>SHA256: DBE25534A2749...95FB5</code>
           </div>
+          <a href="https://github.com/zoufudun/SmileCodeIDE/releases/download/v2.3.1/SmileCodeIDE-v2.3.1-Windows-x64.zip" target="_blank" rel="noopener" class="btn btn-primary btn-block glow-btn">
+            <svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+            </svg>
+            <span>下载绿色免安装包 (.zip)</span>
+          </a>
         </div>
+
+        <!-- Card 2: Setup EXE -->
+        <div class="dl-package-card featured">
+          <div class="dl-tag-badge featured-badge">官方推荐</div>
+          <div class="dl-icon-badge">🚀</div>
+          <h3 class="dl-card-title">EXE 安装向导版</h3>
+          <div class="dl-filename">SmileCodeIDE-v2.3.1-Setup.exe</div>
+          <p class="dl-card-desc">经典 Windows 安装向导，自动配置桌面与开始菜单快捷方式、文件关联并附带完整的卸载管理工具。</p>
+          <div class="dl-card-meta">
+            <span>大小: <strong>74.80 MB</strong></span>
+            <span>架构: <strong>x64</strong></span>
+          </div>
+          <div class="dl-hash-box">
+            <code>SHA256: F127DE33F5231...ED92B4</code>
+          </div>
+          <a href="https://github.com/zoufudun/SmileCodeIDE/releases/download/v2.3.1/SmileCodeIDE-v2.3.1-Setup.exe" target="_blank" rel="noopener" class="btn btn-primary btn-block glow-btn">
+            <svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+            </svg>
+            <span>下载安装向导 (.exe)</span>
+          </a>
+        </div>
+
+        <!-- Card 3: Setup MSI -->
+        <div class="dl-package-card">
+          <div class="dl-tag-badge">企业与批量部署</div>
+          <div class="dl-icon-badge">🏢</div>
+          <h3 class="dl-card-title">MSI 安装包</h3>
+          <div class="dl-filename">SmileCodeIDE-v2.3.1-Setup.msi</div>
+          <p class="dl-card-desc">基于微软官方 Windows Installer 架构，原生支持 <code>msiexec /qn</code> 静默安装与企业组策略 (GPO) 统一分发。</p>
+          <div class="dl-card-meta">
+            <span>大小: <strong>46.01 MB</strong></span>
+            <span>架构: <strong>x64</strong></span>
+          </div>
+          <div class="dl-hash-box">
+            <code>SHA256: AE28A1077CBDB...21563</code>
+          </div>
+          <a href="https://github.com/zoufudun/SmileCodeIDE/releases/download/v2.3.1/SmileCodeIDE-v2.3.1-Setup.msi" target="_blank" rel="noopener" class="btn btn-outline btn-block">
+            <svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+            </svg>
+            <span>下载企业安装包 (.msi)</span>
+          </a>
+        </div>
+      </div>
+
+      <div class="release-quicklink text-center" style="margin-top: 24px;">
+        <a href="https://github.com/zoufudun/SmileCodeIDE/releases" target="_blank" rel="noopener">在 GitHub 查看所有历史版本发布与 Release Notes &rarr;</a>
       </div>
 
       <!-- System Environment Guidance -->
