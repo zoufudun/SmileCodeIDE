@@ -1,23 +1,26 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>串口调试大师 Pro - SmileCode Studio</title>
-  <meta name="description" content="串口调试大师 Pro · 支持多标签页并发多串口通信、水平/垂直多窗口分屏、HEX/ASCII 高速收发、实时曲线绘制、Modbus 解析与自定义协议设计。">
+  <meta name="description" content="多标签页高速串口通信与分屏工作台，支持多会话独立管理、实时曲线绘制、Modbus 解析与自定义协议设计。">
   <link rel="icon" type="image/x-icon" href="../assets/favicon.ico">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet">
   <link rel="stylesheet" href="../style.css">
-  <link rel="stylesheet" href="../studio-simulator.css">
 </head>
+
 <body class="parchment-theme">
   <!-- Top Navigation Bar -->
   <header class="navbar" id="navbar">
     <div class="nav-container">
       <a href="../index.html" class="nav-brand">
-        <img src="../assets/favicon.ico" alt="SmileCode Studio" class="brand-icon">
+        <img src="../assets/smilecode-logo.svg" alt="SmileCode Studio" class="brand-icon">
         <span class="brand-title">SmileCode Studio</span>
       </a>
 
@@ -32,13 +35,15 @@
         <button class="capsule-btn theme-capsule-btn" id="themeToggleBtn" title="切换主题">
           <span id="themeToggleIcon">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
             </svg>
           </span>
         </button>
-        <a href="https://github.com/zoufudun/SmileCodeIDE" target="_blank" rel="noopener" class="capsule-btn github-capsule-btn" title="GitHub 源码仓库">
+        <a href="https://github.com/zoufudun/SmileCodeIDE" target="_blank" rel="noopener"
+          class="capsule-btn github-capsule-btn" title="GitHub 仓库">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+            <path
+              d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
           </svg>
         </a>
       </div>
@@ -48,9 +53,9 @@
   <!-- Hero Section -->
   <section class="plugin-hero-section">
     <div class="plugin-slogan-wrap">
-      <h1 class="plugin-hero-slogan">多标签分屏高速收发，串口交互行云流水。</h1>
+      <h1 class="plugin-hero-slogan">百万字节流式吞吐，多端口分屏工作台。</h1>
       <p class="plugin-hero-desc">
-        串口调试大师 Pro (v3.0.0) · 多标签页分屏监控 · 实时曲线 · Modbus 解析
+        串口调试大师 Pro (v3.0.0) · 多标签页高速串口通信、水平/垂直分屏与实时曲线绘制
       </p>
     </div>
 
@@ -74,72 +79,47 @@
           </div>
           <span class="window-tab-title">
             <span class="live-indicator"></span>
-            串口调试大师 Pro - [COM3: STM32H743 · 115200bps 8-N-1 · RX: 45.2 KB/s]
+            串口调试大师 Pro - [Tab 1: COM3 主控下位机 · Tab 2: COM7 传感器 · 实时分屏]
           </span>
-          <span style="font-size: 0.76rem; color: #10b981; font-weight: 700;">● 端口已打开</span>
+          <span style="font-size: 0.76rem; color: #10b981; font-weight: 700;">● 双端口已打开</span>
         </div>
-
-        <!-- Serial Tab Bar -->
-        <div style="background: rgba(125,125,125,0.08); border-bottom: 1px solid var(--border-color); padding: 4px 16px; display: flex; align-items: center; gap: 8px;">
-          <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-bottom: none; border-radius: 4px 4px 0 0; padding: 4px 12px; font-size: 0.76rem; font-weight: bold; color: #7c3aed;">
-            COM3: STM32 主控制器
-          </div>
-          <div style="background: rgba(125,125,125,0.04); border-radius: 4px; padding: 4px 10px; font-size: 0.76rem; color: var(--text-muted); cursor: pointer;">
-            COM7: GPS 传感器
-          </div>
-          <div style="font-size: 0.8rem; color: var(--text-muted); cursor: pointer; padding: 0 4px;">+</div>
-        </div>
-
         <div class="stage-body">
-          <!-- Parameter Sidebar -->
-          <div class="stage-sidebar" style="width: 200px;">
-            <div style="font-size: 0.72rem; font-weight: bold; color: var(--text-muted);">串口号:</div>
-            <select style="background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 4px; padding: 3px; font-size: 0.76rem; margin-bottom: 8px;">
-              <option>COM3 (USB-SERIAL CH340)</option>
-              <option>COM7 (Silicon Labs CP210x)</option>
-            </select>
-
-            <div style="font-size: 0.72rem; font-weight: bold; color: var(--text-muted);">波特率:</div>
-            <select style="background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 4px; padding: 3px; font-size: 0.76rem; margin-bottom: 8px;">
-              <option>115200</option>
-              <option>9600</option>
-              <option>921600 (高速)</option>
-            </select>
-
-            <label style="font-size: 0.72rem; display: flex; align-items: center; gap: 4px; margin-bottom: 6px;">
-              <input type="checkbox" id="chkHexRecv"> HEX 接收显示
-            </label>
-            <label style="font-size: 0.72rem; display: flex; align-items: center; gap: 4px; margin-bottom: 12px;">
-              <input type="checkbox" checked> 自动添加时间戳
-            </label>
-
+          <div class="stage-sidebar">
+            <div style="font-size: 0.74rem; font-weight: 700; color: var(--text-muted); margin-bottom: 6px;">会话标签</div>
+            <div style="font-size: 0.8rem; font-weight: 700; color: #7c3aed;">📑 会话 1: COM3 (115200)</div>
+            <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px;">📑 会话 2: COM7 (921600)</div>
+            <div
+              style="font-size: 0.74rem; font-weight: 700; color: var(--text-muted); margin-top: 14px; margin-bottom: 6px;">
+              工作视图</div>
+            <div style="font-size: 0.8rem; color: #10b981;">● 水平分屏监视</div>
+            <div style="font-size: 0.8rem; color: var(--text-muted);">● 实时数据曲线</div>
             <div style="margin-top: auto; border-top: 1px solid var(--border-color); padding-top: 8px;">
-              <div style="font-size: 0.72rem; color: var(--text-muted);">RX 计数: <strong>84,210 B</strong></div>
-              <div style="font-size: 0.72rem; color: var(--text-muted);">TX 计数: <strong>1,420 B</strong></div>
+              <div style="font-size: 0.74rem; color: var(--text-muted);">Rx: 890,210 字节</div>
+              <div style="font-size: 0.74rem; color: var(--text-muted);">Tx: 14,800 字节</div>
             </div>
           </div>
 
-          <!-- Main Terminal & Send -->
-          <div class="stage-main-area" style="display: flex; flex-direction: column; justify-content: space-between;">
-            <div id="serialTerminal" style="height: 240px; background: #070a12; color: #cbd5e1; padding: 10px; border-radius: 6px; font-family: var(--font-mono); font-size: 0.76rem; line-height: 1.6; overflow-y: auto;">
-              <div style="color: #10b981;">[10:15:00.120] RX &lt;- [STM32H743 Bootloader Ready]</div>
-              <div style="color: #10b981;">[10:15:00.150] RX &lt;- SystemCoreClock = 400 MHz, Tick = 1000</div>
-              <div style="color: #60a5fa;">[10:15:01.000] TX -&gt; AT+STATUS\r\n</div>
-              <div style="color: #10b981;">[10:15:01.012] RX &lt;- +STATUS: OK, Sensors=[TEMP: 26.5 C, HUMI: 54%]</div>
+          <div class="stage-main-area">
+            <div
+              style="display: flex; gap: 8px; margin-bottom: 10px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
+              <span class="capsule-btn"
+                style="height: 26px; font-size: 0.72rem; background: var(--btn-primary-bg); color: #fff;">HEX
+                混合显示</span>
+              <span class="capsule-btn" style="height: 26px; font-size: 0.72rem;">Modbus RTU 解析</span>
+              <span class="capsule-btn" style="height: 26px; font-size: 0.72rem;">自动计算 CRC16</span>
+              <span class="capsule-btn" style="height: 26px; font-size: 0.72rem;">生成折线图</span>
             </div>
 
-            <!-- Quick Sender -->
-            <div style="margin-top: 10px; border-top: 1px solid var(--border-color); padding-top: 8px;">
-              <div style="display: flex; gap: 6px; margin-bottom: 6px;">
-                <button class="quick-cmd-btn" style="background: rgba(125,125,125,0.1); border: 1px solid var(--border-color); border-radius: 4px; padding: 2px 8px; font-size: 0.7rem; cursor: pointer;">AT+RST</button>
-                <button class="quick-cmd-btn" style="background: rgba(125,125,125,0.1); border: 1px solid var(--border-color); border-radius: 4px; padding: 2px 8px; font-size: 0.7rem; cursor: pointer;">AT+GMR</button>
-                <button class="quick-cmd-btn" style="background: rgba(125,125,125,0.1); border: 1px solid var(--border-color); border-radius: 4px; padding: 2px 8px; font-size: 0.7rem; cursor: pointer;">01 03 00 00 00 02 C4 0B</button>
-              </div>
-              <div style="display: flex; gap: 8px;">
-                <input type="text" id="serialInputText" value="AT+PING" style="flex: 1; background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 4px; padding: 4px 8px; font-family: var(--font-mono); font-size: 0.76rem;">
-                <button id="btnSerialSend" style="background: #7c3aed; color: white; border: none; border-radius: 4px; padding: 4px 16px; font-weight: bold; font-size: 0.78rem; cursor: pointer;">
-                  发送 (Send)
-                </button>
+            <div class="stream-log-container">
+              <div class="stream-log-inner">
+                <div style="color: #64748b;">[15:30:01.002] [COM3] Rx &lt;- 01 03 00 00 00 02 C4 0B (读保持寄存器)</div>
+                <div style="color: #10b981;">[15:30:01.015] [COM3] Tx -&gt; 01 03 04 09 C4 00 18 F2 3E (温度=25.0°C,
+                  湿度=24%)</div>
+                <div style="color: #2563eb;">[15:30:01.500] [COM7] Rx &lt;- High-speed IMU Frame: Roll=+0.42,
+                  Pitch=-1.85, Yaw=+94.20</div>
+                <div style="color: #64748b;">[15:30:02.002] [COM3] Rx &lt;- 01 03 00 00 00 02 C4 0B (读保持寄存器)</div>
+                <div style="color: #10b981;">[15:30:02.015] [COM3] Tx -&gt; 01 03 04 09 C8 00 19 B3 7F (温度=25.2°C,
+                  湿度=25%)</div>
               </div>
             </div>
           </div>
@@ -152,119 +132,41 @@
   <section class="section" style="background: rgba(125,125,125,0.02);">
     <div class="container">
       <div class="section-header text-center">
-        <h2 class="section-title">串口大师企业级核心技术</h2>
-        <p class="section-subtitle">满足工业自动化、物联网模组与复杂嵌入式系统调试的强大功能。</p>
+        <h2 class="section-title">高吞吐工业串口全功能</h2>
+        <p class="section-subtitle">告别单窗口单端口的落后体验，支持多端口并发联调。</p>
       </div>
 
       <div class="plugins-grid">
         <div class="plugin-card">
           <div class="plugin-icon">🔌</div>
-          <h3 class="plugin-card-title">多标签多串口并发</h3>
-          <p class="plugin-card-desc">支持开启数十个独立串口标签页并发通信，独创垂直与水平分屏视图。</p>
+          <h3 class="plugin-card-title">多标签与多屏分屏</h3>
+          <p class="plugin-card-desc">支持多个串口会话独立存在，自由水平、垂直分屏，告别开几十个程序的混乱。</p>
         </div>
         <div class="plugin-card">
-          <div class="plugin-icon">📊</div>
-          <h3 class="plugin-card-title">实时曲线绘制与抓取</h3>
-          <p class="plugin-card-desc">自动解析串口数据帧中浮点数值并生成连续动态趋势图，支持放大缩小。</p>
+          <div class="plugin-card-title">📈 实时数据动态曲线</div>
+          <p class="plugin-card-desc">自动提取串口流中的数字生成实时折线波形图，PID 参数与传感器校准立竿见影。</p>
         </div>
         <div class="plugin-card">
-          <div class="plugin-icon">⚙️</div>
-          <h3 class="plugin-card-title">Modbus RTU / 自定义协议</h3>
-          <p class="plugin-card-desc">内置 Modbus 01/02/03/05/06/10 功能码自动打包与 CRC16 自动校验。</p>
+          <div class="plugin-card-title">🧮 工业级 Modbus 自动解析</div>
+          <p class="plugin-card-desc">内置 Modbus RTU/ASCII 自动封包与应答生成器，支持十几种 CRC 校验算法计算。</p>
         </div>
       </div>
     </div>
   </section>
 
   <!-- Footer -->
-    <!-- Modern 3-Column Footer (Figure 4 HengJi Style) -->
   <footer class="footer">
-    <div class="container footer-grid-container">
-      <!-- Col 1: Brand & Purpose -->
-      <div class="footer-col-brand">
-        <div class="footer-brand-title">
-          <img src="../assets/favicon.ico" alt="SmileCode Studio" class="footer-logo">
-          <span>SmileCode Studio · 微笑代码工作站</span>
-        </div>
-        <p class="footer-brand-desc">
-          为嵌入式开发者量身打造的一整套全生命周期开发工具集。将代码编写、增量编译、在线硬件调试、芯片烧录，与串口通信、网络通信、CAN/CAN-FD、Bootloader、数字示波器等仪器深度集成于统一的应用市场容器中。
-        </p>
-        <div class="footer-team-info">
-          开发团队：TOPFIRE 研发团队 · 联系邮箱：<a href="mailto:phudoncou@outlook.com">phudoncou@outlook.com</a>
-        </div>
-      </div>
-
-      <!-- Col 2: Quick Links -->
-      <div class="footer-col-links">
-        <h4 class="footer-col-heading">快速入口</h4>
-        <ul class="footer-link-list">
-          <li><a href="../index.html#studioChassis">在线体验嵌入式应用工作台</a></li>
-          <li><a href="../index.html#plugins-hub">9 大核心插件矩阵</a></li>
-          <li><a href="../index.html#optimization">编译器优化等级可视化配置</a></li>
-          <li><a href="../index.html#download">客户端全格式下载矩阵</a></li>
-          <li><a href="../docs.html">官方技术文档与架构白皮书</a></li>
-        </ul>
-      </div>
-
-      <!-- Col 3: Open Source & Resources -->
-      <div class="footer-col-links">
-        <h4 class="footer-col-heading">开源与资源</h4>
-        <ul class="footer-link-list">
-          <li><a href="https://github.com/zoufudun/SmileCodeIDE" target="_blank" rel="noopener">GitHub 源码仓库</a></li>
-          <li><a href="https://github.com/zoufudun/SmileCodeIDE/releases" target="_blank" rel="noopener">Releases 历史安装包 (v2.3.1)</a></li>
-          <li><a href="../RELEASE_NOTES_v2.3.1.md" target="_blank" rel="noopener">版本更新日志 (v2.3.1)</a></li>
-          <li><a href="../docs.html#custom-plugin-sdk">开发者扩展插件 SDK</a></li>
-          <li><a href="https://github.com/zoufudun/SmileCodeIDE/issues" target="_blank" rel="noopener">问题反馈与 Bug 提交</a></li>
-        </ul>
-      </div>
-    </div>
-
-    <!-- Bottom Copyright Line -->
-    <div class="footer-bottom-line">
-      <div class="container footer-bottom-inner">
-        <span>Copyright © 2026 SmileCode Team & zoufudun. 保留所有权利。</span>
-        <div class="footer-bottom-links">
-          <a href="../docs.html">技术文档</a>
-          <span>·</span>
-          <a href="https://github.com/zoufudun/SmileCodeIDE" target="_blank" rel="noopener">GitHub</a>
-          <span>·</span>
-          <a href="#navbar">回到顶部 ↑</a>
-        </div>
+    <div class="container text-center">
+      <h3 style="font-size: 1.6rem; font-weight: 800; margin-bottom: 12px;">立即体验 SmileCode Studio</h3>
+      <p style="color: var(--text-secondary); margin-bottom: 24px;">完全免费开源，已集成在 SmileCode Studio 应用市场容器中。</p>
+      <div style="display: flex; justify-content: center; gap: 14px;">
+        <a href="../index.html#download" class="btn-primary">前往下载客户端</a>
+        <a href="../index.html" class="btn-secondary">返回官方主页</a>
       </div>
     </div>
   </footer>
+
   <script src="../app.js"></script>
-
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      const btnSend = document.getElementById('btnSerialSend');
-      const input = document.getElementById('serialInputText');
-      const term = document.getElementById('serialTerminal');
-      const quickBtns = document.querySelectorAll('.quick-cmd-btn');
-
-      function sendCmd(val) {
-        if (!term || !val) return;
-        term.innerHTML += '<div style="color: #60a5fa;">[10:15:' + Math.floor(Math.random()*60) + '] TX -&gt; ' + val + '</div>';
-        setTimeout(() => {
-          term.innerHTML += '<div style="color: #10b981;">[10:15:' + Math.floor(Math.random()*60) + '] RX &lt;- OK (Response for ' + val + ')</div>';
-          term.scrollTop = term.scrollHeight;
-        }, 150);
-        term.scrollTop = term.scrollHeight;
-      }
-
-      if (btnSend && input) {
-        btnSend.addEventListener('click', () => {
-          sendCmd(input.value);
-        });
-      }
-
-      quickBtns.forEach(b => {
-        b.addEventListener('click', () => {
-          if (input) input.value = b.textContent;
-          sendCmd(b.textContent);
-        });
-      });
-    });
-  </script>
 </body>
+
 </html>

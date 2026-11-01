@@ -1610,3 +1610,200 @@ body {
     height: auto;
   }
 }
+
+/* ==========================================================================
+   Hero Trio Action Buttons (Figure 4 Exact Style)
+   ========================================================================== */
+.hero-cta-group-trio {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 26px;
+  margin-bottom: 22px;
+  flex-wrap: wrap;
+}
+
+.btn-hero-download {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 24px;
+  border-radius: 8px;
+  background: var(--accent-primary);
+  color: #ffffff !important;
+  font-size: 0.94rem;
+  font-weight: 700;
+  text-decoration: none;
+  border: 1px solid transparent;
+  box-shadow: 0 4px 14px rgba(234, 88, 12, 0.28);
+  transition: all var(--transition-fast);
+}
+
+.btn-hero-download:hover {
+  background: #c2410c;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(234, 88, 12, 0.38);
+}
+
+[data-theme="parchment"] .btn-hero-download {
+  background: #c2410c;
+  box-shadow: 0 4px 14px rgba(194, 65, 12, 0.22);
+}
+
+[data-theme="parchment"] .btn-hero-download:hover {
+  background: #9a3412;
+}
+
+.btn-hero-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 44px;
+  padding: 0 22px;
+  border-radius: 8px;
+  background: var(--bg-card);
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-color);
+  font-size: 0.94rem;
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-fast);
+}
+
+.btn-hero-outline:hover {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary) !important;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+[data-theme="parchment"] .btn-hero-outline {
+  background: #ffffff;
+  border: 1px solid #dfd6c5;
+  color: #2b2520 !important;
+}
+
+[data-theme="parchment"] .btn-hero-outline:hover {
+  border-color: #c2410c;
+  color: #c2410c !important;
+  background: #faf5ec;
+}
+
+/* Global Logo & Image Color Consistency (Prevent Theme Inversion / Color Clash) */
+.brand-icon, .nav-logo, .footer-logo {
+  width: 32px !important;
+  height: 32px !important;
+  max-width: 32px !important;
+  max-height: 32px !important;
+  object-fit: contain !important;
+  flex-shrink: 0;
+}
+
+.hero-brand-logo {
+  width: 44px !important;
+  height: 44px !important;
+  max-width: 44px !important;
+  max-height: 44px !important;
+  object-fit: contain !important;
+  flex-shrink: 0;
+}
+
+/* Docs Page Layout & Isolation */
+.docs-page-layout {
+  padding-top: 96px !important;
+}
+
+[data-theme="parchment"] .docs-page-body {
+  background: #f7f3e8 !important;
+  color: #2b2520 !important;
+}
+
+[data-theme="parchment"] .docs-left-sidebar {
+  background: transparent;
+}
+
+[data-theme="parchment"] .docs-search-input {
+  background: #ffffff;
+  border-color: #dfd6c5;
+  color: #2b2520;
+}
+
+[data-theme="parchment"] .docs-menu-group {
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+  padding-bottom: 12px;
+}
+
+[data-theme="parchment"] .docs-group-header {
+  color: #201b17;
+}
+
+[data-theme="parchment"] .docs-nav-item a {
+  color: #5c534a;
+}
+
+[data-theme="parchment"] .docs-nav-item a:hover {
+  background: #ede5d7;
+  color: #1e1915;
+}
+
+[data-theme="parchment"] .docs-nav-item.active a {
+  background: #f8ede3 !important;
+  color: #c2410c !important;
+  font-weight: 700;
+}
+
+[data-theme="parchment"] .docs-article-title {
+  color: #1f1a16;
+}
+
+[data-theme="parchment"] .markdown-body {
+  color: #2b2520;
+}
+
+[data-theme="parchment"] .markdown-body h2,
+[data-theme="parchment"] .markdown-body h3 {
+  color: #1f1a16;
+  border-bottom-color: #dfd6c5;
+}
+
+[data-theme="parchment"] .markdown-body p,
+[data-theme="parchment"] .markdown-body li {
+  color: #4a423a;
+}
+
+[data-theme="parchment"] .markdown-table th {
+  background: #ede5d7;
+  color: #1f1a16;
+  border-bottom-color: #dfd6c5;
+}
+
+[data-theme="parchment"] .markdown-table td {
+  border-bottom-color: #e5dccf;
+  color: #4a423a;
+}
+
+[data-theme="parchment"] .docs-right-toc {
+  border-left-color: #dfd6c5;
+}
+
+[data-theme="parchment"] .toc-heading {
+  color: #1f1a16;
+}
+
+[data-theme="parchment"] .toc-link {
+  color: #796f64;
+}
+
+[data-theme="parchment"] .toc-link:hover {
+  color: #1f1a16;
+}
+
+[data-theme="parchment"] .toc-link.active {
+  color: #c2410c !important;
+  border-left-color: #c2410c !important;
+  font-weight: 700;
+}

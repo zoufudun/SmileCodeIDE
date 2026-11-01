@@ -5,34 +5,40 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>官方技术文档与白皮书 - SmileCode Studio 微笑代码工作站</title>
   <meta name="description" content="SmileCode Studio 官方技术白皮书与开发文档。系统定位、全景架构、编译构建、GDB在线调试、编译器优化等级与全套插件开发指南。">
-  <link rel="icon" type="image/x-icon" href="assets/favicon.ico">
+  <link rel="icon" type="image/svg+xml" href="assets/smilecode-logo.svg">
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="studio-simulator.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@400;500;600;700;800&family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <!-- Immediate Theme Initializer to prevent flashing -->
+  <script>
+    (function() {
+      var savedTheme = localStorage.getItem('smilecode-theme') || 'dark';
+      if (savedTheme === 'parchment') {
+        document.documentElement.setAttribute('data-theme', 'parchment');
+      }
+    })();
+  </script>
   <!-- Mermaid.js for Rendering Diagrams -->
   <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
 </head>
 <body class="docs-page-body">
 
-  <!-- Header Navigation -->
+  <!-- Header / Navigation Bar (100% Matching index.html layout) -->
   <header class="navbar" id="navbar">
-    <div class="container nav-content">
+    <div class="nav-container">
       <!-- Left Brand -->
       <a href="index.html" class="nav-brand">
-        <img src="assets/favicon.ico" alt="SmileCode Studio" class="nav-logo">
-        <div class="nav-title-group">
-          <span class="nav-title">SmileCode Studio</span>
-          <span class="nav-version-tag">v2.3.1</span>
-        </div>
+        <img src="assets/smilecode-logo.svg" alt="SmileCode Studio Logo" class="brand-icon">
+        <span class="brand-title">SmileCode Studio</span>
       </a>
 
       <!-- Center Navigation Links -->
       <nav class="nav-links">
         <a href="index.html" class="nav-link">首页</a>
         
-        <!-- Products Mega Menu Dropdown -->
+        <!-- Products Dropdown -->
         <div class="nav-item dropdown">
           <a href="index.html#plugins-hub" class="nav-link">
             <span>产品</span>
@@ -641,7 +647,7 @@ flowchart TD
       <!-- Col 1: Brand & Purpose -->
       <div class="footer-col-brand">
         <div class="footer-brand-title">
-          <img src="assets/favicon.ico" alt="SmileCode Studio" class="footer-logo">
+          <img src="assets/smilecode-logo.svg" alt="SmileCode Studio" class="footer-logo">
           <span>SmileCode Studio · 微笑代码工作站</span>
         </div>
         <p class="footer-brand-desc">
@@ -725,6 +731,7 @@ flowchart TD
     const currentTheme = localStorage.getItem('smilecode-theme') || 'dark';
     if (currentTheme === 'parchment') {
       document.body.setAttribute('data-theme', 'parchment');
+      document.documentElement.setAttribute('data-theme', 'parchment');
       const moon = document.querySelector('.theme-icon-moon');
       const sun = document.querySelector('.theme-icon-sun');
       if (moon && sun) { moon.style.display = 'none'; sun.style.display = 'block'; }
@@ -738,10 +745,12 @@ flowchart TD
         const newTheme = isParchment ? 'dark' : 'parchment';
         if (newTheme === 'parchment') {
           document.body.setAttribute('data-theme', 'parchment');
+          document.documentElement.setAttribute('data-theme', 'parchment');
           document.querySelector('.theme-icon-moon').style.display = 'none';
           document.querySelector('.theme-icon-sun').style.display = 'block';
         } else {
           document.body.removeAttribute('data-theme');
+          document.documentElement.removeAttribute('data-theme');
           document.querySelector('.theme-icon-moon').style.display = 'block';
           document.querySelector('.theme-icon-sun').style.display = 'none';
         }
