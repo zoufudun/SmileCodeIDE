@@ -2289,3 +2289,232 @@ body.parchment-theme .markdown-body {
   font-weight: 700 !important;
   border-left: 3px solid #c2410c !important;
 }
+/* ==========================================================================
+   Mermaid Toolbar & Full-Screen Zoom Lightbox Modal Styles
+   ========================================================================== */
+.mermaid-diagram-card {
+  position: relative !important;
+  cursor: zoom-in;
+}
+
+.mermaid-card-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="dark"] .mermaid-card-toolbar,
+.dark-theme .mermaid-card-toolbar {
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+.mermaid-toolbar-tag {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.btn-zoom-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 6px;
+  background: rgba(234, 88, 12, 0.1);
+  color: #c2410c;
+  border: 1px solid rgba(234, 88, 12, 0.25);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-zoom-card:hover {
+  background: #ea580c;
+  color: #ffffff;
+  border-color: #ea580c;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(234, 88, 12, 0.3);
+}
+
+[data-theme="dark"] .btn-zoom-card,
+.dark-theme .btn-zoom-card {
+  background: rgba(56, 189, 248, 0.1);
+  color: #38bdf8;
+  border-color: rgba(56, 189, 248, 0.25);
+}
+
+[data-theme="dark"] .btn-zoom-card:hover,
+.dark-theme .btn-zoom-card:hover {
+  background: #0284c7;
+  color: #ffffff;
+  border-color: #0284c7;
+}
+
+/* Lightbox Modal */
+.mermaid-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 99999;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.mermaid-modal.active {
+  display: flex !important;
+}
+
+.mermaid-modal-backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(15, 12, 9, 0.75);
+  backdrop-filter: blur(8px);
+}
+
+.mermaid-modal-dialog {
+  position: relative;
+  z-index: 2;
+  width: 94vw;
+  max-width: 1400px;
+  height: 88vh;
+  background: #fdfbf7;
+  border: 1px solid #dfd6c5;
+  border-radius: 16px;
+  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+[data-theme="dark"] .mermaid-modal-dialog,
+.dark-theme .mermaid-modal-dialog {
+  background: #111622;
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.8);
+}
+
+.mermaid-modal-header {
+  height: 56px;
+  padding: 0 24px;
+  background: #f4ede1;
+  border-bottom: 1px solid #e2d8c7;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  user-select: none;
+}
+
+[data-theme="dark"] .mermaid-modal-header,
+.dark-theme .mermaid-modal-header {
+  background: #161c28;
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+.mermaid-modal-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1e1814;
+}
+
+[data-theme="dark"] .mermaid-modal-title,
+.dark-theme .mermaid-modal-title {
+  color: #f1f5f9;
+}
+
+.mermaid-modal-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.modal-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: #ffffff;
+  border: 1px solid #ded5c4;
+  color: #4a3e35;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.modal-btn:hover {
+  background: #ede4d5;
+  color: #111111;
+  transform: translateY(-1px);
+}
+
+.modal-btn.close-btn:hover {
+  background: #ef4444;
+  border-color: #ef4444;
+  color: #ffffff;
+}
+
+[data-theme="dark"] .modal-btn,
+.dark-theme .modal-btn {
+  background: #1e2533;
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #cbd5e1;
+}
+
+[data-theme="dark"] .modal-btn:hover,
+.dark-theme .modal-btn:hover {
+  background: #2a3447;
+  color: #ffffff;
+}
+
+.mermaid-modal-body {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background: #faf6ee;
+  cursor: grab;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+[data-theme="dark"] .mermaid-modal-body,
+.dark-theme .mermaid-modal-body {
+  background: #0d111a;
+}
+
+.mermaid-modal-stage {
+  transform-origin: center center;
+  transition: transform 0.08s ease-out;
+  display: inline-block;
+  user-select: none;
+  padding: 40px;
+}
+
+.mermaid-modal-footer {
+  height: 40px;
+  background: #f4ede1;
+  border-top: 1px solid #e2d8c7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.78rem;
+  color: #796e63;
+  user-select: none;
+}
+
+[data-theme="dark"] .mermaid-modal-footer,
+.dark-theme .mermaid-modal-footer {
+  background: #161c28;
+  border-top-color: rgba(255, 255, 255, 0.1);
+  color: #94a3b8;
+}

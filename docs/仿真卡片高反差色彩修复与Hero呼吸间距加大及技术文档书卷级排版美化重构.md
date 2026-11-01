@@ -128,3 +128,4 @@ body.parchment-theme .studio-tag-chip {
 - **版本号升级**：根据小修正规范，版本号由 `v2.3.2` 升级至 **`v2.3.3`**；
 - **Git 提交信息**：`refactor(website): 仿真卡片高反差色彩修复、Hero间距加大、Mermaid图表修复重构与docs文档书卷级排版美化 (v2.3.3)`；
 - **远程分支与 Pages 部署**：已推送到 `origin/main`、`origin/V10.0`、标签 `v2.3.3` 以及 `origin/gh-pages`。
+

@@ -349,61 +349,68 @@
           </table>
         </div>
 
-        <!-- Section 2: Mermaid Diagram 1 (Fixed to 3x3 Matrix, readable & beautiful) -->
+        <!-- Section 2: Mermaid Diagram 1 (Optimized Compact & Clear Layout) -->
         <h2 id="section-2"><span class="chapter-num">02</span> 系统架构与技术全景图 (Mermaid 矢量全景)</h2>
         <p>
-          SmileCode Studio 采用先进的分层解耦插件化微内核架构。如下图所示，系统自上而下由<strong>宿主容器层</strong>、<strong>核心通信总线层</strong>、<strong>3 × 3 应用套件矩阵</strong>以及<strong>底层物理驱动抽象层</strong>严密组成：
+          SmileCode Studio 采用先进的分层解耦插件化微内核架构。如下图所示，系统由<strong>宿主容器层</strong>、<strong>核心通信总线层</strong>、<strong>三大专业工具套件群</strong>以及<strong>底层物理驱动抽象层</strong>严密组成：
         </p>
 
-        <div class="mermaid-diagram-card">
+        <div class="mermaid-diagram-card" data-title="图 1：SmileCode Studio 分层解耦系统架构全景">
+          <div class="mermaid-card-toolbar">
+            <span class="mermaid-toolbar-tag">📊 架构全景 · 矢量图</span>
+            <button class="btn-zoom-card" title="全屏放大查看高清图表 (支持滚轮缩放与拖拽)">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+              <span>放大查看</span>
+            </button>
+          </div>
           <pre class="mermaid">
 flowchart TD
     subgraph Host ["🖥️ 宿主层：SmileCode Studio 容器市场 (Host Shell)"]
-        Nav["🧭 统一分类侧边栏<br/>模糊检索 Ctrl+F"]
-        Theme["🎨 双主题感知引擎<br/>极客钛金 / 暖羊皮纸"]
-        Update["🔄 关于与更新中心<br/>平滑滚动热更新"]
+        H1["🧭 统一分类侧边栏 · 关键字模糊检索 (Ctrl+F)"]
+        H2["🎨 双主题感知引擎 (极客钛金 / 暖羊皮纸)"]
+        H3["🔄 关于与软件更新中心 (平滑滚动热更新)"]
     end
 
     subgraph Bus ["⚡ 核心总线层：生命周期与会话中枢 (Hub Bus)"]
-        EventBus["📢 跨插件广播事件总线 (Event Dispatcher)"]
-        SessionMgr["💾 最近工程与工作区持久化 (QSettings Store)"]
+        B1["📢 跨插件广播事件总线 (Event Dispatcher)"]
+        B2["💾 最近工程与工作区持久化 (QSettings Store)"]
     end
 
-    subgraph SuiteMatrix ["📦 9 大专业工具套件矩阵 (3 × 3 垂直结构)"]
-        direction TB
-        subgraph Col1 ["💻 嵌入式开发专项"]
-            direction TB
-            IDE["SmileCode IDE<br/>C/C++ 编辑与调试"]
-            P_STM32["STM32 编译构建<br/>GCC/Make + OpenOCD"]
-            IAP["STM32 IAP 升级<br/>串口/网络双通道"]
-        end
-        subgraph Col2 ["🚗 总线通信调试专项"]
-            direction TB
-            CAN["CAN 总线工作台 Pro<br/>CANFD / CANOpen"]
-            Serial["串口调试大师<br/>多标签分屏 + Modbus"]
-            Net["网络通信调试助手<br/>TCP / UDP 三模通信"]
-        end
-        subgraph Col3 ["📈 测量分析与扩展"]
-            direction TB
-            Scope["多接口数字示波器<br/>多通道波形采集 + FFT"]
-            P_SigGen["高频信号发生器<br/>函数波形实时仿真"]
-            P_Custom["自定义扩展插件<br/>标准 Qt DLL 规范"]
-        end
+    subgraph DevSuite ["💻 1. 嵌入式开发专项套件"]
+        IDE["SmileCode IDE (C/C++ 编辑与在线单步调试)"]
+        STM32["STM32 编译构建插件 (GCC / Make / OpenOCD)"]
+        IAP["STM32 IAP 固件升级 (串口 / 网络双通道 Bootloader)"]
     end
 
-    subgraph Drivers ["🔌 硬件抽象与物理通信驱动层 (HAL & Kernel Drivers)"]
-        D_CAN["周立功 / 创芯 CANFD 驱动"]
-        D_UART["Win32 RS232 / TTL / 虚拟串口"]
-        D_SWD["ST-Link / J-Link / CMSIS-DAP"]
-        D_Net["原生 TCP/UDP Socket 网络栈"]
+    subgraph BusSuite ["🚗 2. 工业总线与通信调试套件"]
+        CAN["CAN 总线工作台 Pro (周立功 / 创芯 CANFD / CANOpen)"]
+        Serial["串口调试大师 (多标签分屏 + 实时曲线 + Modbus)"]
+        Net["网络通信调试助手 (TCP Client/Server + UDP 广播)"]
+    end
+
+    subgraph MeasureSuite ["📈 3. 测量分析与扩展套件"]
+        Scope["多接口数字示波器 (多通道波形采集 + FFT 频谱)"]
+        SigGen["高频信号发生器 (正弦/方波/三角波/噪声实时仿真)"]
+        Custom["自定义扩展插件范例 (标准 Qt DLL 规范)"]
+    end
+
+    subgraph Drivers ["🔌 底层硬件抽象与通信驱动 (HAL & Kernel Drivers)"]
+        D1["周立功 USB-CAN / 创芯 ControlCAN 硬件接口"]
+        D2["Win32 RS232 / TTL / USB 虚拟串口 (VCP)"]
+        D3["ST-Link / J-Link / CMSIS-DAP (OpenOCD SWD 桥接)"]
+        D4["原生 WinSock TCP / UDP 异步网络套接字"]
     end
 
     Host ==> Bus
-    Bus ==> SuiteMatrix
-    SuiteMatrix ==> Drivers
+    Bus ==> DevSuite
+    Bus ==> BusSuite
+    Bus ==> MeasureSuite
+    DevSuite -.-> Drivers
+    BusSuite -.-> Drivers
+    MeasureSuite -.-> Drivers
           </pre>
           <div class="mermaid-card-caption">
-            <span>图 1：SmileCode Studio 分层解耦系统架构全景 (Mermaid 3×3 矩阵式高精渲染)</span>
+            <span>图 1：SmileCode Studio 分层解耦系统架构全景 (Mermaid 清晰流向 · 点击放大按钮可全屏高清缩放)</span>
           </div>
         </div>
 
@@ -414,6 +421,13 @@ flowchart TD
         </p>
 
         <div class="mermaid-diagram-card">
+          <div class="mermaid-card-toolbar">
+            <span class="mermaid-toolbar-tag">📊 高清矢量图表</span>
+            <button class="btn-zoom-card" title="全屏放大查看高清图表 (支持滚轮缩放与拖拽)">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+              <span>放大查看</span>
+            </button>
+          </div>
           <pre class="mermaid">
 sequenceDiagram
     autonumber
@@ -447,6 +461,13 @@ sequenceDiagram
         </p>
 
         <div class="mermaid-diagram-card">
+          <div class="mermaid-card-toolbar">
+            <span class="mermaid-toolbar-tag">📊 高清矢量图表</span>
+            <button class="btn-zoom-card" title="全屏放大查看高清图表 (支持滚轮缩放与拖拽)">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+              <span>放大查看</span>
+            </button>
+          </div>
           <pre class="mermaid">
 flowchart TB
     Code["💻 传统单片机软件空循环延时代码<br/>for(int i=0; i&lt;1000; i++);"]
@@ -487,6 +508,13 @@ flowchart TB
         </p>
 
         <div class="mermaid-diagram-card">
+          <div class="mermaid-card-toolbar">
+            <span class="mermaid-toolbar-tag">📊 高清矢量图表</span>
+            <button class="btn-zoom-card" title="全屏放大查看高清图表 (支持滚轮缩放与拖拽)">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+              <span>放大查看</span>
+            </button>
+          </div>
           <pre class="mermaid">
 stateDiagram-v2
     [*] --> 上电启动
@@ -523,6 +551,13 @@ stateDiagram-v2
         </p>
 
         <div class="mermaid-diagram-card">
+          <div class="mermaid-card-toolbar">
+            <span class="mermaid-toolbar-tag">📊 高清矢量图表</span>
+            <button class="btn-zoom-card" title="全屏放大查看高清图表 (支持滚轮缩放与拖拽)">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+              <span>放大查看</span>
+            </button>
+          </div>
           <pre class="mermaid">
 flowchart TB
     subgraph HostInit ["🖥️ 宿主容器初始化流程"]
@@ -560,6 +595,13 @@ flowchart TB
         </p>
 
         <div class="mermaid-diagram-card">
+          <div class="mermaid-card-toolbar">
+            <span class="mermaid-toolbar-tag">📊 高清矢量图表</span>
+            <button class="btn-zoom-card" title="全屏放大查看高清图表 (支持滚轮缩放与拖拽)">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+              <span>放大查看</span>
+            </button>
+          </div>
           <pre class="mermaid">
 flowchart LR
     subgraph Inputs ["📡 物理层硬件设备数据输入"]
@@ -806,6 +848,144 @@ flowchart LR
       });
     }
 
+    
+    // 6. Mermaid Diagram Zoom & Pan Lightbox Engine
+    const modal = document.getElementById('mermaidModal');
+    const modalTitle = document.getElementById('mermaidModalTitle');
+    const modalStage = document.getElementById('mermaidModalStage');
+    const modalBody = document.getElementById('mermaidModalBody');
+    const closeBtn = document.getElementById('modalCloseBtn');
+    const backdrop = document.getElementById('mermaidModalBackdrop');
+    const zoomInBtn = document.getElementById('modalZoomInBtn');
+    const zoomOutBtn = document.getElementById('modalZoomOutBtn');
+    const resetBtn = document.getElementById('modalResetBtn');
+
+    let currentScale = 1;
+    let translateX = 0;
+    let translateY = 0;
+    let isDragging = false;
+    let startX = 0;
+    let startY = 0;
+
+    function updateTransform() {
+      if (modalStage) {
+        modalStage.style.transform = `translate(${translateX}px, ${translateY}px) scale(${currentScale})`;
+      }
+    }
+
+    function resetModalView() {
+      currentScale = 1.35; // Default enlarged scale for crystal-clear readability
+      translateX = 0;
+      translateY = 0;
+      updateTransform();
+    }
+
+    function openDiagramModal(card) {
+      const svg = card.querySelector('svg');
+      if (!svg || !modal || !modalStage) return;
+
+      const title = card.getAttribute('data-title') || card.querySelector('.mermaid-card-caption')?.textContent || '高清矢量图表放大查看';
+      if (modalTitle) modalTitle.textContent = title;
+
+      // Clone SVG cleanly
+      modalStage.innerHTML = '';
+      const clone = svg.cloneNode(true);
+      clone.removeAttribute('height');
+      clone.style.width = '100%';
+      clone.style.maxWidth = 'none';
+      clone.style.height = 'auto';
+      modalStage.appendChild(clone);
+
+      modal.classList.add('active');
+      modal.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+
+      resetModalView();
+    }
+
+    function closeDiagramModal() {
+      if (!modal) return;
+      modal.classList.remove('active');
+      modal.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+      if (modalStage) modalStage.innerHTML = '';
+    }
+
+    // Attach click listeners to all diagram cards and zoom buttons
+    document.querySelectorAll('.mermaid-diagram-card').forEach(card => {
+      const zoomBtn = card.querySelector('.btn-zoom-card');
+      if (zoomBtn) {
+        zoomBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          openDiagramModal(card);
+        });
+      }
+      card.addEventListener('dblclick', () => {
+        openDiagramModal(card);
+      });
+    });
+
+    if (closeBtn) closeBtn.addEventListener('click', closeDiagramModal);
+    if (backdrop) backdrop.addEventListener('click', closeDiagramModal);
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && modal && modal.classList.contains('active')) {
+        closeDiagramModal();
+      }
+    });
+
+    // Zoom Controls
+    if (zoomInBtn) {
+      zoomInBtn.addEventListener('click', () => {
+        currentScale = Math.min(currentScale + 0.3, 4);
+        updateTransform();
+      });
+    }
+
+    if (zoomOutBtn) {
+      zoomOutBtn.addEventListener('click', () => {
+        currentScale = Math.max(currentScale - 0.3, 0.5);
+        updateTransform();
+      });
+    }
+
+    if (resetBtn) {
+      resetBtn.addEventListener('click', resetModalView);
+    }
+
+    // Wheel Zoom inside modal
+    if (modalBody) {
+      modalBody.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const delta = e.deltaY < 0 ? 0.15 : -0.15;
+        currentScale = Math.min(Math.max(0.5, currentScale + delta), 4);
+        updateTransform();
+      }, { passive: false });
+
+      // Drag / Pan inside modal
+      modalBody.addEventListener('mousedown', (e) => {
+        if (e.target.closest('.modal-btn')) return;
+        isDragging = true;
+        startX = e.clientX - translateX;
+        startY = e.clientY - translateY;
+        modalBody.style.cursor = 'grabbing';
+      });
+
+      window.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        translateX = e.clientX - startX;
+        translateY = e.clientY - startY;
+        updateTransform();
+      });
+
+      window.addEventListener('mouseup', () => {
+        if (isDragging) {
+          isDragging = false;
+          if (modalBody) modalBody.style.cursor = 'grab';
+        }
+      });
+    }
+
     // 5. Accordion Toggle
     document.querySelectorAll('.docs-group-header').forEach(header => {
       header.addEventListener('click', () => {
@@ -817,5 +997,40 @@ flowchart LR
       });
     });
   </script>
+
+  <!-- =========================================================================
+       Mermaid Diagram Zoom Lightbox Modal (Full-Screen Pan & Zoom Engine)
+       ========================================================================= -->
+  <div class="mermaid-modal" id="mermaidModal" aria-hidden="true">
+    <div class="mermaid-modal-backdrop" id="mermaidModalBackdrop"></div>
+    <div class="mermaid-modal-dialog">
+      <div class="mermaid-modal-header">
+        <div class="mermaid-modal-title" id="mermaidModalTitle">高清矢量架构图放大查看</div>
+        <div class="mermaid-modal-actions">
+          <button class="modal-btn" id="modalZoomInBtn" title="放大 (+)">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+          </button>
+          <button class="modal-btn" id="modalZoomOutBtn" title="缩小 (-)">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+          </button>
+          <button class="modal-btn" id="modalResetBtn" title="重置比例 (1:1)">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+          </button>
+          <button class="modal-btn close-btn" id="modalCloseBtn" title="关闭 (ESC)">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="mermaid-modal-body" id="mermaidModalBody">
+        <div class="mermaid-modal-stage" id="mermaidModalStage">
+          <!-- Injected SVG Container -->
+        </div>
+      </div>
+      <div class="mermaid-modal-footer">
+        <span>💡 支持鼠标滚轮无级缩放，按住鼠标左键可任意拖拽平移 · 按 ESC 退出</span>
+      </div>
+    </div>
+  </div>
+
 </body>
 </html>
