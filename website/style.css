@@ -1807,3 +1807,157 @@ body {
   border-left-color: #c2410c !important;
   font-weight: 700;
 }
+
+/* ==========================================================================
+   Hero Left-Bottom Alignment & Right Expansion (Figure 1 & Figure 3 Authentic Alignment)
+   ========================================================================== */
+.hero-grid {
+  display: flex !important;
+  align-items: stretch !important;
+  gap: 48px !important;
+  max-width: 1580px !important;
+  margin: 0 auto !important;
+}
+
+.hero-left {
+  flex: 1 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
+  min-height: 100% !important;
+  padding-top: 16px !important;
+  padding-bottom: 6px !important;
+}
+
+.hero-left-top {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  text-align: left !important;
+}
+
+.hero-left-bottom {
+  margin-top: auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  text-align: left !important;
+  padding-bottom: 4px !important;
+}
+
+.hero-right {
+  flex: 1.65 !important;
+  min-width: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.studio-real-chassis {
+  flex: 1 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  min-height: 590px !important;
+}
+
+/* ==========================================================================
+   Document Center Warm Parchment Paper Aesthetic (Eliminate Harsh White Blocks)
+   ========================================================================== */
+[data-theme="parchment"] .docs-page-body,
+.parchment-theme .docs-page-body,
+body.parchment-theme.docs-page-body {
+  background: #f7f4ee !important;
+  color: #2b241e !important;
+}
+
+[data-theme="parchment"] .docs-center-content,
+.parchment-theme .docs-center-content,
+body.parchment-theme .docs-center-content {
+  background: #fdfbf7 !important;
+  border: 1px solid #e5ddd0 !important;
+  border-radius: 12px !important;
+  padding: 36px 42px !important;
+  box-shadow: 0 4px 20px rgba(100, 75, 45, 0.04) !important;
+}
+
+[data-theme="parchment"] .markdown-body,
+.parchment-theme .markdown-body,
+body.parchment-theme .markdown-body {
+  color: #383028 !important;
+  line-height: 1.85 !important;
+}
+
+[data-theme="parchment"] .markdown-body h1,
+[data-theme="parchment"] .markdown-body h2,
+[data-theme="parchment"] .markdown-body h3,
+.parchment-theme .markdown-body h1,
+.parchment-theme .markdown-body h2,
+.parchment-theme .markdown-body h3 {
+  color: #1e1814 !important;
+  font-weight: 800 !important;
+  border-bottom-color: #e5ddd0 !important;
+}
+
+[data-theme="parchment"] .markdown-body p,
+[data-theme="parchment"] .markdown-body li,
+.parchment-theme .markdown-body p,
+.parchment-theme .markdown-body li {
+  color: #443c33 !important;
+}
+
+[data-theme="parchment"] .markdown-callout,
+.parchment-theme .markdown-callout {
+  background: #fbf7ef !important;
+  border: 1px solid #e8e0d2 !important;
+  border-left: 4px solid #ea580c !important;
+  border-radius: 8px !important;
+  color: #332b24 !important;
+}
+
+[data-theme="parchment"] .markdown-table-wrapper,
+.parchment-theme .markdown-table-wrapper {
+  background: #ffffff !important;
+  border: 1px solid #e5ddd0 !important;
+  border-radius: 8px !important;
+}
+
+[data-theme="parchment"] .markdown-table th,
+.parchment-theme .markdown-table th {
+  background: #f2ebe0 !important;
+  color: #1e1814 !important;
+  font-weight: 700 !important;
+  border-bottom: 1px solid #e5ddd0 !important;
+}
+
+[data-theme="parchment"] .markdown-table td,
+.parchment-theme .markdown-table td {
+  border-bottom: 1px solid #ede5d8 !important;
+  color: #443c33 !important;
+}
+
+[data-theme="parchment"] .mermaid-diagram-card,
+.parchment-theme .mermaid-diagram-card {
+  background: #faf6ee !important;
+  border: 1px solid #dfd6c5 !important;
+  border-radius: 12px !important;
+  box-shadow: 0 4px 16px rgba(100, 75, 45, 0.05) !important;
+  padding: 24px !important;
+}
+
+[data-theme="parchment"] .mermaid-card-caption,
+.parchment-theme .mermaid-card-caption {
+  color: #796f64 !important;
+}
+
+@media (max-width: 1024px) {
+  .hero-grid {
+    flex-direction: column !important;
+    gap: 32px !important;
+  }
+  .hero-left {
+    min-height: auto !important;
+    text-align: center !important;
+  }
+  .hero-left-top, .hero-left-bottom {
+    align-items: center !important;
+  }
+}

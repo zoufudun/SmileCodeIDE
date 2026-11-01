@@ -19,6 +19,13 @@
   <!-- CSS Stylesheets -->
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="studio-simulator.css">
+  <!-- Immediate Theme Engine -->
+  <script id="immediateThemeScript">
+    (function() {
+      var saved = localStorage.getItem('smilecode_theme') || localStorage.getItem('smilecode-theme') || 'parchment';
+      document.documentElement.setAttribute('data-theme', saved);
+    })();
+  </script>
 </head>
 <body class="parchment-theme">
   <!-- Top Navigation Bar (Figure 4 & Figure 2 Style) -->
@@ -191,47 +198,48 @@
 
   <!-- Hero Section: Left Text + Right Authentic SmileCode Studio Simulator (Figure 1 & Figure 2) -->
   <section class="hero-section">
-    <div class="container hero-grid" style="align-items: flex-start; gap: 40px; max-width: 1480px;">
+    <div class="container hero-grid" style="align-items: stretch; gap: 48px; max-width: 1580px;">
       <!-- Left Hero Text Column -->
-      <div class="hero-left" style="padding-top: 24px;">
-        <div class="hero-badge-pill">
-          <span>🎉</span>
-          <span>SmileCode Studio v2.3.1 正式发布</span>
+      <div class="hero-left">
+        <div class="hero-left-top">
+          <div class="hero-badge-pill">
+            <span>🎉</span>
+            <span>SmileCode Studio v2.3.2 正式发布</span>
+          </div>
+
+          <div class="hero-brand-row">
+            <img src="assets/smilecode-logo.svg" alt="SmileCode Studio" class="hero-brand-logo">
+            <h1 class="hero-main-title">SmileCode Studio</h1>
+          </div>
+
+          <h2 class="hero-slogan">统一管理你的嵌入式全栈开发与仪器工作流</h2>
         </div>
 
-        <div class="hero-brand-row">
-          <img src="assets/smilecode-logo.svg" alt="SmileCode Studio" class="hero-brand-logo">
-          <h1 class="hero-main-title">SmileCode Studio</h1>
-        </div>
+        <div class="hero-left-bottom">
+          <!-- Trio Action Buttons (Download, Product ->, Docs ->) -->
+          <div class="hero-cta-group-trio">
+            <a href="#download" class="btn-hero-download">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+              </svg>
+              <span>免费下载</span>
+            </a>
+            <a href="#plugins-hub" class="btn-hero-outline">
+              <span>产品 &rarr;</span>
+            </a>
+            <a href="docs.html" class="btn-hero-outline">
+              <span>查看文档 &rarr;</span>
+            </a>
+          </div>
 
-        <h2 class="hero-slogan">统一管理你的嵌入式全栈开发与仪器工作流</h2>
-
-        <!-- Trio Action Buttons (Figure 4 Exact Style: Download, Product, Docs) -->
-        <div class="hero-cta-group-trio">
-          <a href="#download" class="btn-hero-download">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-            </svg>
-            <span>免费下载</span>
-          </a>
-          <a href="#plugins-hub" class="btn-hero-outline">
-            <svg viewBox="0 0 20 20" width="14" height="14" fill="currentColor">
-              <path d="M6.3 2.841A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"/>
-            </svg>
-            <span>产品</span>
-          </a>
-          <a href="docs.html" class="btn-hero-outline">
-            <span>查看文档 &rarr;</span>
-          </a>
-        </div>
-
-        <div class="hero-platform-info">
-          ✓ 支持 Windows 10 / 11 64位 &nbsp;·&nbsp; 免安装绿色版 / 标准安装向导 / 企业MSI
+          <div class="hero-platform-info">
+            ✓ 支持 Windows 10 / 11 64位 &nbsp;·&nbsp; 免安装绿色版 / 标准安装向导 / 企业MSI
+          </div>
         </div>
       </div>
 
       <!-- Right Column: Authentic SmileCode Studio Window (Figure 2 Exact Replica) -->
-      <div class="hero-right" style="flex: 1.5; min-width: 0;">
+      <div class="hero-right" style="flex: 1.65; min-width: 0;">
         <div class="studio-real-chassis" id="studioChassis">
           <!-- Window Titlebar -->
           <div class="studio-titlebar">
@@ -271,10 +279,8 @@
                 <span>扩展中心</span>
               </button>
               <select class="studio-theme-select" id="studioThemeSelect" title="切换模拟工作台配色">
-                <option value="titanium">⚡ 极客钛金 (Titanium Dark)</option>
-                <option value="cyberneon">🌌 赛博霓虹 (Cyber Neon)</option>
-                <option value="light">☀️ 纯白曜石 (Crystal Light)</option>
-                <option value="parchment">📜 暖阳羊皮 (Solarized Light)</option>
+                <option value="parchment">📜 暖羊皮纸 (Warm Parchment)</option>
+                <option value="dark">⚡ 极客钛金 (Titanium Dark)</option>
               </select>
               <button class="studio-btn-about" id="studioBtnAbout" title="打开关于与软件更新中心">
                 <span>ℹ</span>

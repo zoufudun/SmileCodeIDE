@@ -9,38 +9,63 @@
  */
 
 document.addEventListener('DOMContentLoaded', () => {
-  // =========================================================================
-  // 1. Dual Theme Engine for Website
+    // =========================================================================
+  // 1. Dual Theme Engine for Website & Simulator (Warm Parchment / Titanium Dark)
   // =========================================================================
   const themeBtn = document.getElementById('themeToggleBtn');
   const themeIcon = document.getElementById('themeToggleIcon');
-  const body = document.body;
+  const studioThemeSelect = document.getElementById('studioThemeSelect');
+  const studioChassis = document.getElementById('studioChassis');
 
-  const savedTheme = localStorage.getItem('smilecode_theme') || 'parchment';
+  const savedTheme = localStorage.getItem('smilecode_theme') || localStorage.getItem('smilecode-theme') || 'parchment';
   applyWebsiteTheme(savedTheme);
 
   if (themeBtn) {
     themeBtn.addEventListener('click', () => {
-      const current = body.classList.contains('parchment-theme') ? 'parchment' : 'dark';
+      const current = document.documentElement.getAttribute('data-theme') || (document.body.classList.contains('parchment-theme') ? 'parchment' : 'dark');
       const nextTheme = current === 'parchment' ? 'dark' : 'parchment';
       applyWebsiteTheme(nextTheme);
-      localStorage.setItem('smilecode_theme', nextTheme);
+    });
+  }
+
+  // Bi-directional binding with Studio Simulator Theme Select Dropdown
+  if (studioThemeSelect) {
+    studioThemeSelect.addEventListener('change', (e) => {
+      const selected = e.target.value === 'dark' || e.target.value === 'titanium' ? 'dark' : 'parchment';
+      applyWebsiteTheme(selected);
     });
   }
 
   function applyWebsiteTheme(theme) {
+    localStorage.setItem('smilecode_theme', theme);
+    localStorage.setItem('smilecode-theme', theme);
+    
+    document.documentElement.setAttribute('data-theme', theme);
+    document.body.setAttribute('data-theme', theme);
+
     if (theme === 'dark') {
-      body.classList.remove('parchment-theme');
-      body.classList.add('dark-theme');
+      document.body.classList.remove('parchment-theme');
+      document.body.classList.add('dark-theme');
       if (themeIcon) {
         themeIcon.innerHTML = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>`;
       }
+      if (studioThemeSelect) {
+        studioThemeSelect.value = 'dark';
+      }
     } else {
-      body.classList.remove('dark-theme');
-      body.classList.add('parchment-theme');
+      document.body.classList.remove('dark-theme');
+      document.body.classList.add('parchment-theme');
       if (themeIcon) {
         themeIcon.innerHTML = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`;
       }
+      if (studioThemeSelect) {
+        studioThemeSelect.value = 'parchment';
+      }
+    }
+
+    // Clear any conflicting inline styles on simulator chassis to allow CSS theme to shine
+    if (studioChassis) {
+      studioChassis.removeAttribute('style');
     }
   }
 
@@ -149,40 +174,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Studio Internal Theme Selector
-  if (studioThemeSelect && studioChassis) {
-    studioThemeSelect.addEventListener('change', (e) => {
-      const mode = e.target.value;
-      if (mode === 'light') {
-        studioChassis.style.background = '#f8fafc';
-        studioChassis.style.color = '#0f172a';
-        studioChassis.querySelectorAll('.studio-app-card').forEach(c => {
-          c.style.background = '#ffffff';
-          c.style.borderColor = '#e2e8f0';
-        });
-        studioChassis.querySelectorAll('.studio-app-title').forEach(t => t.style.color = '#0f172a');
-        studioChassis.querySelectorAll('.studio-app-subhead').forEach(s => s.style.color = '#334155');
-      } else if (mode === 'parchment') {
-        studioChassis.style.background = '#fcf9f2';
-        studioChassis.style.color = '#1c1917';
-        studioChassis.querySelectorAll('.studio-app-card').forEach(c => {
-          c.style.background = '#ffffff';
-          c.style.borderColor = '#e7ded0';
-        });
-        studioChassis.querySelectorAll('.studio-app-title').forEach(t => t.style.color = '#1c1917');
-        studioChassis.querySelectorAll('.studio-app-subhead').forEach(s => s.style.color = '#57534e');
-      } else {
-        studioChassis.style.background = '#11141c';
-        studioChassis.style.color = '#f1f5f9';
-        studioChassis.querySelectorAll('.studio-app-card').forEach(c => {
-          c.style.background = '#181c26';
-          c.style.borderColor = 'rgba(255, 255, 255, 0.07)';
-        });
-        studioChassis.querySelectorAll('.studio-app-title').forEach(t => t.style.color = '#ffffff');
-        studioChassis.querySelectorAll('.studio-app-subhead').forEach(s => s.style.color = '#cbd5e1');
-      }
-    });
-  }
+  // Studio Internal Theme Selector handled via bi-directional binding in applyWebsiteTheme
 
   // =========================================================================
   // 3. About & Software Update Center Modal (Figure 1 & Figure 3)

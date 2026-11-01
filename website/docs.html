@@ -3,27 +3,32 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>官方技术文档与白皮书 - SmileCode Studio 微笑代码工作站</title>
+  <title>官方技术文档与架构白皮书 - SmileCode Studio 微笑代码工作站</title>
   <meta name="description" content="SmileCode Studio 官方技术白皮书与开发文档。系统定位、全景架构、编译构建、GDB在线调试、编译器优化等级与全套插件开发指南。">
   <link rel="icon" type="image/svg+xml" href="assets/smilecode-logo.svg">
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="studio-simulator.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@400;500;600;700;800&family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
-  <!-- Immediate Theme Initializer to prevent flashing -->
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Immediate Theme Engine: Synchronized 100% with index.html -->
   <script>
     (function() {
-      var savedTheme = localStorage.getItem('smilecode-theme') || 'dark';
-      if (savedTheme === 'parchment') {
-        document.documentElement.setAttribute('data-theme', 'parchment');
+      var saved = localStorage.getItem('smilecode_theme') || localStorage.getItem('smilecode-theme') || 'parchment';
+      document.documentElement.setAttribute('data-theme', saved);
+      if (saved === 'parchment') {
+        document.documentElement.classList.add('parchment-theme');
+      } else {
+        document.documentElement.classList.add('dark-theme');
       }
     })();
   </script>
-  <!-- Mermaid.js for Rendering Diagrams -->
+  
+  <!-- Mermaid.js for Rendering High-Definition Vector Diagrams -->
   <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
 </head>
-<body class="docs-page-body">
+<body class="docs-page-body parchment-theme">
 
   <!-- Header / Navigation Bar (100% Matching index.html layout) -->
   <header class="navbar" id="navbar">
@@ -38,7 +43,7 @@
       <nav class="nav-links">
         <a href="index.html" class="nav-link">首页</a>
         
-        <!-- Products Dropdown -->
+        <!-- Products Dropdown (Figure 4 Style) -->
         <div class="nav-item dropdown">
           <a href="index.html#plugins-hub" class="nav-link">
             <span>产品</span>
@@ -55,7 +60,7 @@
                 <div class="item-content">
                   <div class="item-title-row">
                     <span class="item-title">SmileCode IDE</span>
-                    <span class="badge-tag badge-new">v2.3.1</span>
+                    <span class="badge-tag badge-new">v2.3.2</span>
                   </div>
                   <span class="item-sub">C/C++ 代码编辑器与 GDB</span>
                 </div>
@@ -161,22 +166,22 @@
         <a href="index.html#download" class="nav-link">软件下载</a>
       </nav>
 
-      <!-- Right Action Capsules -->
+      <!-- Right Action Capsules (Figure 2 Style) -->
       <div class="nav-actions">
         <!-- Language Capsule -->
-        <button class="capsule-btn" title="语言切换 (当前: 简体中文)">
+        <button class="capsule-btn" title="语言: 简体中文">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
             <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
           </svg>
           <span>CN</span>
         </button>
 
-        <!-- Theme Toggle Capsule (Dark <-> Parchment) -->
-        <button class="capsule-btn" id="themeToggleBtn" title="切换主题 (极客暗黑 / 暖羊皮纸)">
-          <svg class="theme-icon-moon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+        <!-- Theme Toggle Capsule (Figure 2) -->
+        <button class="capsule-btn theme-capsule-btn" id="themeToggleBtn" title="切换主题 (暖羊皮纸 / 极客暗黑)">
+          <svg class="theme-icon-moon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
           </svg>
-          <svg class="theme-icon-sun" style="display: none;" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+          <svg class="theme-icon-sun" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" style="display: none;">
             <circle cx="12" cy="12" r="5"></circle>
             <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"></path>
           </svg>
@@ -197,7 +202,7 @@
     </div>
   </header>
 
-  <!-- Docs 3-Column Page Layout (Figure 5 Alignment) -->
+  <!-- Docs 3-Column Page Layout -->
   <div class="docs-page-layout">
     
     <!-- LEFT SIDEBAR: Document Tree Navigation -->
@@ -207,7 +212,7 @@
         <svg class="docs-search-icon" viewBox="0 0 20 20" width="15" height="15" fill="currentColor">
           <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
         </svg>
-        <input type="text" class="docs-search-input" id="docsSearchInput" placeholder="搜索文档..." autocomplete="off">
+        <input type="text" class="docs-search-input" id="docsSearchInput" placeholder="搜索文档 (Ctrl+K)..." autocomplete="off">
         <span class="docs-search-kbd">Ctrl+K</span>
       </div>
 
@@ -221,39 +226,10 @@
           <span class="group-toggle-icon">▼</span>
         </div>
         <ul class="docs-nav-sublist">
-          <li class="docs-nav-item active"><a href="#sys-overview">系统定位与设计初衷</a></li>
-          <li class="docs-nav-item"><a href="#quick-start">一键构建与在线调试指南</a></li>
-          <li class="docs-nav-item"><a href="#compiler-opt">编译器优化等级深度指南</a></li>
-          <li class="docs-nav-item"><a href="#app-hub-arch">容器市场多插件联动架构</a></li>
-        </ul>
-      </div>
-
-      <div class="docs-menu-group">
-        <div class="docs-group-header">
-          <div class="group-title-left">
-            <span>🚗</span>
-            <span>总线与通信调试专项</span>
-          </div>
-          <span class="group-toggle-icon">▼</span>
-        </div>
-        <ul class="docs-nav-sublist">
-          <li class="docs-nav-item"><a href="#can-workbench-guide">CAN 总线工作台 Pro 深度实战</a></li>
-          <li class="docs-nav-item"><a href="#serial-master-guide">串口调试大师多标签分屏手册</a></li>
-          <li class="docs-nav-item"><a href="#network-debugger-guide">网络通信助手 TCP/UDP 三模调试</a></li>
-        </ul>
-      </div>
-
-      <div class="docs-menu-group">
-        <div class="docs-group-header">
-          <div class="group-title-left">
-            <span>📈</span>
-            <span>测量分析与虚拟仪器</span>
-          </div>
-          <span class="group-toggle-icon">▼</span>
-        </div>
-        <ul class="docs-nav-sublist">
-          <li class="docs-nav-item"><a href="#oscilloscope-guide">多接口高频数字示波器实测</a></li>
-          <li class="docs-nav-item"><a href="#signal-generator-guide">高频函数信号发生与采样导出</a></li>
+          <li class="docs-nav-item active"><a href="#section-1">系统定位与痛点对比</a></li>
+          <li class="docs-nav-item"><a href="#section-2">系统架构与技术全景 (Mermaid)</a></li>
+          <li class="docs-nav-item"><a href="#section-3">增量构建与GDB单步调试 (Mermaid)</a></li>
+          <li class="docs-nav-item"><a href="#section-4">编译器优化等级与延时机理 (Mermaid)</a></li>
         </ul>
       </div>
 
@@ -261,13 +237,15 @@
         <div class="docs-group-header">
           <div class="group-title-left">
             <span>🚀</span>
-            <span>固件升级与烧录调试</span>
+            <span>核心技术深度专题</span>
           </div>
           <span class="group-toggle-icon">▼</span>
         </div>
         <ul class="docs-nav-sublist">
-          <li class="docs-nav-item"><a href="#stm32-iap-guide">STM32 双通道 IAP 升级规范</a></li>
-          <li class="docs-nav-item"><a href="#stm32-gdb-guide">STM32 硬件 GDB 在线断点单步</a></li>
+          <li class="docs-nav-item"><a href="#section-5">双通道 IAP 固件升级状态机 (Mermaid)</a></li>
+          <li class="docs-nav-item"><a href="#section-6">Qt 动态插件生命周期管理 (Mermaid)</a></li>
+          <li class="docs-nav-item"><a href="#section-7">工业总线与虚拟仪器数据管道 (Mermaid)</a></li>
+          <li class="docs-nav-item"><a href="#section-8">跨平台部署与企业分发规范</a></li>
         </ul>
       </div>
 
@@ -275,29 +253,14 @@
         <div class="docs-group-header">
           <div class="group-title-left">
             <span>⚙️</span>
-            <span>底层攻坚与技术白皮书</span>
+            <span>底层技术攻坚白皮书</span>
           </div>
           <span class="group-toggle-icon">▼</span>
         </div>
         <ul class="docs-nav-sublist">
-          <li class="docs-nav-item"><a href="#delay-deadlock-whitepaper">STM32 硬件延时死锁与 GCC 排查</a></li>
-          <li class="docs-nav-item"><a href="#gcc14-whitepaper">GCC 14 编译报错根因与兼容修复</a></li>
-          <li class="docs-nav-item"><a href="#qt-theme-whitepaper">Qt 样式表暗色异色消除与控件重构</a></li>
-          <li class="docs-nav-item"><a href="#recent-dir-whitepaper">工程项目打开记忆最近目录实现</a></li>
-        </ul>
-      </div>
-
-      <div class="docs-menu-group">
-        <div class="docs-group-header">
-          <div class="group-title-left">
-            <span>📦</span>
-            <span>跨平台打包与插件扩展</span>
-          </div>
-          <span class="group-toggle-icon">▼</span>
-        </div>
-        <ul class="docs-nav-sublist">
-          <li class="docs-nav-item"><a href="#packaging-guide">ZIP / EXE / MSI 全量打包规范</a></li>
-          <li class="docs-nav-item"><a href="#custom-plugin-sdk">Qt 动态插件生命周期与开发 SDK</a></li>
+          <li class="docs-nav-item"><a href="#section-delay-deadlock">STM32 硬件延时死锁与 GCC 排查</a></li>
+          <li class="docs-nav-item"><a href="#section-gcc14">GCC 14 编译报错根因与兼容修复</a></li>
+          <li class="docs-nav-item"><a href="#section-recent-dir">主界面工程历史目录记忆实现</a></li>
         </ul>
       </div>
     </aside>
@@ -308,19 +271,19 @@
       <div class="docs-breadcrumb-bar">
         <span>文档中心</span>
         <span>/</span>
-        <span>SmileCode 平台与上手</span>
+        <span>SmileCode 平台与架构</span>
         <span>/</span>
-        <span style="color: var(--text-primary); font-weight: 600;">系统定位与设计初衷</span>
+        <span style="color: var(--text-primary); font-weight: 600;">官方技术架构白皮书</span>
       </div>
 
       <!-- Article Header -->
       <header class="docs-article-header">
-        <h1 class="docs-article-title">系统定位与设计初衷</h1>
+        <h1 class="docs-article-title">SmileCode Studio 官方技术架构与实战白皮书</h1>
         <div class="docs-article-meta">
-          <span class="docs-badge-series">SmileCode 官方技术白皮书</span>
+          <span class="docs-badge-series">官方白皮书</span>
           <span>📅 发布日期: 2026-11-01</span>
           <span>✍️ 作者: TOPFIRE 研发团队</span>
-          <span>⚡ 适用版本: v2.3.1+</span>
+          <span>⚡ 适用版本: v2.3.2+</span>
         </div>
       </header>
 
@@ -328,18 +291,19 @@
       <article class="markdown-body">
         
         <p>
-          在现代嵌入式软件与智能硬件研发场景中，开发人员通常需要跨越代码编写、交叉编译、硬件在线仿真单步、固件下载烧录、串口命令交互、CAN/CANFD 总线监控、网络通信排查以及波形捕获等<strong>长链条工序</strong>。传统工作流高度碎片化，各工具之间数据互不通、环境割裂、切换成本极高。
+          在现代嵌入式系统与智能物联网设备研发中，工程师通常需要跨越<strong>代码编写、跨平台交叉编译、硬件在线仿真单步、固件下载烧录、串口命令交互、CAN/CANFD 工业总线监控、网络通信排查以及高频波形捕获</strong>等多道工序。传统工作流高度碎片化，各工具独立运行、窗口杂乱、数据无法打通，切换与协作成本极高。
         </p>
 
         <p>
           <strong>SmileCode Studio (微笑代码工作站)</strong> 的诞生，正是为了终结这一割裂现状：通过打造面向嵌入式全栈开发的<strong>“应用市场容器”</strong>，将 IDE 核心引擎与 9 大专业级仪器与总线工具融为一体，开箱即用，独立平滑热升级。
         </p>
 
-        <!-- GitHub Style Callout Note -->
+        <!-- Callout Alert Note -->
         <div class="markdown-callout callout-note">
-          <strong>💡 核心使命：</strong> 一套工作台统一管理代码编写、增量构建、GDB 单步断点、双通道 IAP 升级、工业级 CAN/CANOpen 总线调试、多接口数字示波器与多标签串口分屏，彻底告别桌面杂乱的各类专用上位机。
+          <strong>💡 核心使命：</strong> 一套工作台统一管理代码编写、增量构建、GDB 单步断点、双通道 IAP 升级、工业级 CAN/CANOpen 总线调试、多接口数字示波器与多标签串口分屏，彻底告别桌面杂乱的各类散装专用上位机。
         </div>
 
+        <!-- Section 1 -->
         <h2 id="section-1">一、为什么需要 SmileCode Studio？（痛点对比）</h2>
         <p>
           长期以来，国内单片机与嵌入式工程师深受以 Keil MDK 为代表的传统工具掣肘，二者核心痛点如下对比所示：
@@ -384,65 +348,75 @@
           </table>
         </div>
 
-        <h2 id="section-2">二、系统架构与技术全景图 (Mermaid)</h2>
+        <!-- Section 2: Mermaid Diagram 1 -->
+        <h2 id="section-2">二、系统架构与技术全景图 (Mermaid 矢量全景)</h2>
         <p>
-          SmileCode Studio 采用先进的分层容器化解耦架构，核心由<strong>容器宿主总线 (Host Hub Bus)</strong>、<strong>内置原生工具引擎 (Built-in Engines)</strong>、<strong>动态可插拔插件系统 (Qt Plugin Core)</strong> 以及<strong>硬件与协议驱动抽象层 (HAL & Driver Abstraction)</strong> 组成：
+          SmileCode Studio 采用分层解耦的插件化微内核架构，自上而下由<strong>容器市场宿主 (Host Shell)</strong>、<strong>事件调度总线 (Hub Bus)</strong>、<strong>核心原生应用套件 (Built-in Suites)</strong>、<strong>Qt 动态热插拔插件层 (Plugin DLLs)</strong> 以及<strong>硬件与协议驱动抽象层 (HAL & Driver Abstraction)</strong> 组成：
         </p>
 
-        <!-- Mermaid Diagram 1: System Architecture -->
         <div class="mermaid-diagram-card">
           <pre class="mermaid">
 flowchart TD
-    subgraph UI_Shell ["🖥️ SmileCode Studio 容器市场宿主 (Host Shell)"]
-        Nav["统一分类导航 & 模糊检索 (Ctrl+F)"]
-        Theme["主题管理引擎 (极客暗黑 / 暖羊皮纸)"]
-        Update["关于与更新中心 (QScrollArea 滚动热更)"]
+    subgraph Layer_Host ["🖥️ 宿主层：SmileCode Studio 容器市场 (Host Shell)"]
+        Nav["🧭 统一分类侧边栏 & 模糊检索 (Ctrl+F)"]
+        Theme["🎨 双主题感知引擎 (极客钛金 / 暖羊皮纸)"]
+        Update["🔄 关于与软件更新中心 (QScrollArea 平滑热更)"]
     end
 
-    subgraph Core_Bus ["⚡ 应用生命周期与通信总线 (Hub Bus)"]
-        EventBus["广播事件总线 (Event Dispatcher)"]
-        SettingsMgr["工程上下文记忆 (QSettings Store)"]
+    subgraph Layer_Bus ["⚡ 核心总线层：应用生命周期与会话总线 (Hub Bus)"]
+        EventBus["📢 跨插件广播事件总线 (Event Dispatcher)"]
+        SessionMgr["💾 最近工程与工作区持久化 (QSettings Store)"]
     end
 
-    subgraph Builtin_Apps ["📦 核心内置应用层 (Built-in Suites)"]
-        IDE["SmileCode IDE (QScintilla + GCC)"]
-        CAN["CAN 总线工作台 Pro (CANFD/CANOpen)"]
-        IAP["STM32 IAP 固件升级 (串口/网络双通道)"]
-        Serial["串口调试大师 (多标签分屏 + Modbus)"]
-        Net["网络通信调试助手 (TCP/UDP 三模)"]
-        Scope["多接口数字示波器 (Canvas 60FPS 虚拟示波)"]
+    subgraph Layer_Native ["📦 核心内置套件层 (Core Built-in Apps)"]
+        IDE["💻 SmileCode IDE (QScintilla + 语法高亮)"]
+        CAN["🚗 CAN 总线工作台 Pro (CANFD/CANOpen)"]
+        IAP["🚀 STM32 IAP 固件升级 (串口/网络双通道)"]
+        Serial["🔌 串口调试大师 (多标签分屏 + Modbus)"]
+        Net["🌐 网络通信调试助手 (TCP/UDP 三模调试)"]
+        Scope["📈 多接口数字示波器 (Canvas 60FPS 虚拟示波)"]
     end
 
-    subgraph Dynamic_Plugins ["🧩 Qt 动态热插拔插件层 (Qt Plugin DLLs)"]
-        P_STM32["STM32 编译构建与 GDB 调试插件"]
-        P_SigGen["高频信号发生与分析插件"]
-        P_Custom["自定义扩展插件范例 (SDK)"]
+    subgraph Layer_Plugins ["🧩 动态扩展层：Qt 热插拔插件 (Qt Plugin DLLs)"]
+        P_STM32["⚙️ STM32 编译构建与 GDB 调试插件"]
+        P_SigGen["⚡ 高频信号发生与实时采样仿真插件"]
+        P_Custom["🔌 自定义扩展插件模板与 SDK 接口"]
     end
 
-    subgraph Hardware_HAL ["🔌 硬件抽象与物理驱动层 (HAL & Kernel Drivers)"]
-        CAN_Driver["周立功 USB-CAN / 创芯 ControlCAN"]
-        Serial_Port["Win32 RS232 / TTL / 虚拟 VCP"]
-        Net_Socket["Socket TCP / UDP 网卡接口"]
-        JTAG_SWD["ST-Link / J-Link / CMSIS-DAP (OpenOCD)"]
+    subgraph Layer_HAL ["🔌 硬件抽象层：物理设备与通信驱动 (HAL & Kernel Drivers)"]
+        D_CAN["周立功 USB-CAN / 创芯 ControlCAN 驱动"]
+        D_UART["Win32 RS232 / TTL / USB 虚拟串口 (VCP)"]
+        D_Socket["原生 WinSock TCP / UDP 异步网络套接字"]
+        D_SWD["ST-Link / J-Link / CMSIS-DAP (OpenOCD 桥接)"]
     end
 
-    UI_Shell --> Core_Bus
-    Core_Bus --> Builtin_Apps
-    Core_Bus --> Dynamic_Plugins
-    Builtin_Apps --> Hardware_HAL
-    Dynamic_Plugins --> Hardware_HAL
+    Layer_Host ==> Layer_Bus
+    Layer_Bus ==> Layer_Native
+    Layer_Bus ==> Layer_Plugins
+    Layer_Native -.-> Layer_HAL
+    Layer_Plugins -.-> Layer_HAL
+
+    classDef hostStyle fill:#fef7ee,stroke:#ea580c,stroke-width:2px,color:#201b17;
+    classDef busStyle fill:#f3ebe0,stroke:#d97706,stroke-width:2px,color:#201b17;
+    classDef appStyle fill:#ffffff,stroke:#8a6e4e,stroke-width:1.5px,color:#201b17;
+    classDef halStyle fill:#f8f4ec,stroke:#5c5249,stroke-width:1px,color:#201b17;
+
+    class Nav,Theme,Update hostStyle;
+    class EventBus,SessionMgr busStyle;
+    class IDE,CAN,IAP,Serial,Net,Scope,P_STM32,P_SigGen,P_Custom appStyle;
+    class D_CAN,D_UART,D_Socket,D_SWD halStyle;
           </pre>
           <div class="mermaid-card-caption">
-            <span>图 1：SmileCode Studio 分层解耦系统架构全景 (Mermaid 矢量渲染)</span>
+            <span>图 1：SmileCode Studio 分层解耦系统架构全景 (Mermaid 高清矢量渲染)</span>
           </div>
         </div>
 
-        <h2 id="section-3">三、全流程在线开发与硬件单步调试闭环 (Mermaid)</h2>
+        <!-- Section 3: Mermaid Diagram 2 -->
+        <h2 id="section-3">三、全流程在线增量构建与硬件单步调试闭环 (Mermaid)</h2>
         <p>
-          在单片机真实项目中，工程师从点击【编译】到固件自动烧写入芯片 Flash，再到 GDB 挂接单步调试的完整闭环流程如下时序图所示：
+          在真实嵌入式单片机项目中，工程师从点击【编译】到固件自动烧写入芯片 Flash，再到 GDB 挂接在线单步调试的完整闭环时序如下：
         </p>
 
-        <!-- Mermaid Diagram 2: Sequence Diagram -->
         <div class="mermaid-diagram-card">
           <pre class="mermaid">
 sequenceDiagram
@@ -450,7 +424,7 @@ sequenceDiagram
     actor Dev as 嵌入式开发者
     participant Studio as SmileCode Studio / IDE
     participant GCC as arm-none-eabi-gcc 编译链
-    participant OpenOCD as OpenOCD 驱动服务
+    participant OpenOCD as OpenOCD 驱动守护服务
     participant Link as ST-Link / J-Link 调试器
     participant Target as STM32 硬件目标板
 
@@ -460,306 +434,350 @@ sequenceDiagram
     Dev->>Studio: 4. 点击【硬件在线调试 (GDB)】
     Studio->>OpenOCD: 5. 启动 OpenOCD 守护进程 (绑定 3333 端口)
     OpenOCD->>Link: 6. 建立 SWD 高速硬件握手协议
-    Link->>Target: 7. 芯片擦除 Flash 并写入固件 (自动校验)
+    Link->>Target: 7. 芯片擦除 Flash 并写入固件 (自动 CRC 校验)
     Studio->>OpenOCD: 8. arm-none-eabi-gdb 连接 target remote :3333
     OpenOCD->>Target: 9. 复位并暂停在 main() 函数第一行
-    Target-->>Studio: 10. 回传 CPU 寄存器与调用栈，UI 点亮黄色单步箭头！
+    Target-->>Studio: 10. 回传 CPU 核心寄存器与调用栈，UI 点亮黄色单步指针！
           </pre>
           <div class="mermaid-card-caption">
-            <span>图 2：STM32 增量编译、自动化烧录与 GDB 在线调试闭环时序 (Mermaid 矢量渲染)</span>
+            <span>图 2：增量编译、自动化烧录与 GDB 在线调试闭环时序 (Mermaid 矢量渲染)</span>
           </div>
         </div>
 
+        <!-- Section 4: Mermaid Diagram 3 -->
         <h2 id="section-4">四、编译器优化等级与底层硬件延时机理 (Mermaid)</h2>
         <p>
           许多开发者在由 Keil 迁移至 GCC 时，常遇到<strong>“烧写成功但板卡黑屏假死不运行”</strong>的经典难题。其根因在于：Keil 的底层编译器对未加 <code>volatile</code> 修饰的空循环默认保留，而现代 GCC 在开启 <code>-O2</code> / <code>-O3</code> 时判定其无副作用，直接将延时循环全部消除为 0 周期，导致硬件 I2C/SPI 外设时序彻底崩溃！
         </p>
 
-        <!-- Mermaid Diagram 3: Optimization Flow -->
         <div class="mermaid-diagram-card">
           <pre class="mermaid">
 flowchart LR
-    subgraph UserCode ["开发者传统 C 代码"]
-        DelayLoop["for(int i=0; i<1000; i++); // 传统软件空循环"]
+    subgraph CodeArea ["💻 开发者传统 C 代码"]
+        DelayLoop["for(int i=0; i<1000; i++);
+// 传统单片机软件空循环延时"]
     end
 
-    subgraph CompileLevel ["编译器优化策略 (CFLAGS)"]
-        O0["-O0 (无优化 - 代码膨胀)"]
-        O1["-O1 (官方推荐基准优化)"]
-        O2["-O2 / -O3 (极致算力优化)"]
+    subgraph Flags ["⚙️ 编译器优化等级 (CFLAGS)"]
+        O0["-O0 级别
+(无优化 - 调试代码膨胀)"]
+        O1["-O1 级别 ★推荐
+(官方推荐基准优化)"]
+        O2["-O2 / -O3 级别
+(极致算力优化)"]
+        Os["-Os 级别
+(Flash 空间极致压缩)"]
     end
 
-    subgraph GCC_Result ["GCC 优化后端行为"]
-        Keep["保留循环指令但执行周期长"]
-        Safe["适度折叠，保留 volatile 时序"]
-        Dead["⚠️ 判定无副作用：直接整段消除为 0 周期！"]
+    subgraph GCCBehavior ["🔍 GCC 编译后端执行行为"]
+        SlowExec["保留空循环指令，400MHz Cortex-M7 下放大十倍执行耗时"]
+        Optimal["适度重组指令流水线，保留关键符号与安全延时时序"]
+        DeadElim["⚠️ 判定空循环无副作用：整段汇编直接消除为 0 周期！"]
+        SizeCompress["重用函数公共尾部，合并指令块"]
     end
 
-    subgraph HardwareState ["STM32 物理板卡执行表现"]
-        HW_Slow["延时过长：GT9xx/I2C 握手超时"]
-        HW_Ok["✅ 运行稳定：屏幕亮起，外设正常工作"]
-        HW_Dead["❌ 外设时钟未就绪：程序死锁黑屏！"]
+    subgraph TargetState ["📟 STM32 硬件板卡最终表现"]
+        HW_Timeout["❌ 延时严重放大：GT9xx 触摸屏或 I2C 外设握手超时死锁"]
+        HW_Success["✅ 运行稳定：屏幕正常亮起，外设通信完全正常"]
+        HW_Dead["❌ 外设时序不足 1ns：初始化全部失败，系统卡死"]
+        HW_Save["✅ Flash 占用显著下降，满足小容量单片机限制"]
     end
 
-    DelayLoop --> O0
-    DelayLoop --> O1
-    DelayLoop --> O2
+    DelayLoop --> O0 & O1 & O2 & Os
+    O0 --> SlowExec --> HW_Timeout
+    O1 --> Optimal --> HW_Success
+    O2 --> DeadElim --> HW_Dead
+    Os --> SizeCompress --> HW_Save
 
-    O0 --> Keep --> HW_Slow
-    O1 --> Safe --> HW_Ok
-    O2 --> Dead --> HW_Dead
+    classDef danger fill:#fee2e2,stroke:#ef4444,stroke-width:2px,color:#991b1b;
+    classDef success fill:#ecfdf5,stroke:#10b981,stroke-width:2px,color:#065f46;
+    classDef warn fill:#fef3c7,stroke:#f59e0b,stroke-width:1.5px,color:#92400e;
+
+    class HW_Timeout,HW_Dead,DeadElim danger;
+    class HW_Success,Optimal,HW_Save success;
+    class O1,SlowExec warn;
           </pre>
           <div class="mermaid-card-caption">
-            <span>图 3：GCC 编译器优化等级对软件延时与硬件外设状态的影响机理 (Mermaid 矢量渲染)</span>
+            <span>图 3：GCC 编译优化行为对底层硬件时序影响原理 (Mermaid 矢量分析)</span>
           </div>
         </div>
 
-        <div class="markdown-callout callout-tip">
-          <strong>🛠️ 官方规约解法：</strong>
-          1. 在项目设置中使用 SmileCode 可视化控制台默认选择 <code>-O1</code>（兼顾执行速度与单步断点精度）；<br>
-          2. 对所有软件延时计数变量强制增加 <code>volatile</code> 关键字修饰；<br>
-          3. 强烈推荐升级为 Cortex-M 内核的硬件级 SysTick 或 DWT 周期计数延时，不受编译器优化级别干扰。
-        </div>
-
-        <h2 id="section-5">五、双通道 IAP 固件升级握手状态机 (Mermaid)</h2>
+        <!-- Section 5: Mermaid Diagram 4 -->
+        <h2 id="section-5">五、双通道 IAP 固件升级完整状态机 (Mermaid)</h2>
         <p>
-          对于需要远程固件迭代的工业现场，SmileCode Studio 的 <strong>STM32 IAP 插件</strong> 支持通过串口（RS232/TTL Ymodem）与网络（TCP Socket）双通道进行 Bootloader 通信与校验：
+          STM32 IAP (In-Application Programming) 固件升级工具支持<strong>串口 Ymodem / 自定义协议</strong>与<strong>网络 TCP 双通道</strong>在线固件灌装。其底层状态转移保证了掉电不毁片、坏包自动重传的高可靠性：
         </p>
 
-        <!-- Mermaid Diagram 4: State Diagram -->
         <div class="mermaid-diagram-card">
           <pre class="mermaid">
 stateDiagram-v2
-    [*] --> Idle: 等待上位机连接 (串口/网络)
-    Idle --> Handshake: 收到升级引导握手帧 0xAA 0x55
-    Handshake --> SectorErase: 身份验证通过，进入扇区擦除
-    SectorErase --> Transferring: 擦除成功，开始分包传输 (每包 1024 字节)
-    Transferring --> CRC_Verify: 全包传输完毕，请求固件 CRC32
-    CRC_Verify --> Transferring: 校验失败，触发重发机制
-    CRC_Verify --> WriteDone: 校验通过，写入 Flash 标记位
-    WriteDone --> JumpApp: 跳转复位向量表至 User Application (0x08010000)
-    JumpApp --> [*]: 固件升级成功，用户代码全速运转！
+    [*] --> Idle: 上电启动，进入 Bootloader
+    
+    Idle --> Handshake: 收到升级命令 (握手报文)
+    Handshake --> FlashErase: 握手应答通过，核对 ChipID 与 App 大小
+    Handshake --> Idle: 握手超时无响应，直接跳转现有 App
+    
+    FlashErase --> DataTransfer: Flash 指定扇区擦除完成 (Sector Erase)
+    FlashErase --> ErrorHalt: 擦除错误 / Flash 扇区写保护锁死
+    
+    DataTransfer --> PacketVerify: 接收 1KB/4KB 固件数据块
+    PacketVerify --> DataTransfer: CRC16/32 校验通过，写入 Flash 并 ACK
+    PacketVerify --> Retransmit: 校验失败，发送 NAK 请求重传本包
+    Retransmit --> DataTransfer: 重传尝试 <= 3 次
+    Retransmit --> ErrorHalt: 重传超限失败
+    
+    DataTransfer --> GlobalVerify: 所有分包接收完成 (收到 EOT)
+    GlobalVerify --> RemapAndBoot: 全镜像 SHA256 / 完整性校验成功
+    GlobalVerify --> ErrorHalt: 完整性错误，禁止启动
+    
+    RemapAndBoot --> [*]: 重映射向量表 SCB->VTOR，跳转执行 App
+    ErrorHalt --> Idle: 状态复位，等待上位机重试
           </pre>
           <div class="mermaid-card-caption">
-            <span>图 4：STM32 IAP 固件升级协议双向握手状态机 (Mermaid 矢量渲染)</span>
+            <span>图 4：双通道 IAP 固件升级高可靠状态转移图 (Mermaid 严谨状态机)</span>
           </div>
         </div>
 
-        <h2 id="section-6">六、Qt 动态插件生命周期与宿主通信机制 (Mermaid)</h2>
+        <!-- Section 6: Mermaid Diagram 5 -->
+        <h2 id="section-6">六、Qt 动态插件生命周期与宿主通信总线 (Mermaid)</h2>
         <p>
-          SmileCode Studio 采用开放式的插件开发范式。任何第三方开发者只需基于官方提供的 C++ 头文件 <code>IPluginInterface.h</code>，即可编译独立的动态库文件 (<code>.dll</code>)，放入 <code>plugins/</code> 目录即可热插拔加载：
+          SmileCode Studio 应用市场容器采用基于 <code>QPluginLoader</code> 的动态热插拔体系，各插件与宿主工作台的生命周期与通信流向如下：
         </p>
 
-        <!-- Mermaid Diagram 5: Plugin Lifecycle -->
         <div class="mermaid-diagram-card">
           <pre class="mermaid">
-flowchart TD
-    A["宿主程序启动 (SmileCode Studio Launch)"] --> B["扫描 plugins/ 目录加载 .dll 动态库"]
-    B --> C{"是否继承 IPluginInterface 接口？"}
-    C -- 否 --> D["忽略无效文件并记录审计日志"]
-    C -- 是 --> E["调用 initialize(IPluginContext*) 传入宿主上下文"]
-    E --> F["触发 onAppLaunch() 声明元数据 (图标/名称/版本)"]
-    F --> G["宿主主工作台动态生成应用卡片并挂载"]
-    G --> H["用户点击【打开应用】 -> 触发 createWidget() 渲染 UI"]
-    H --> I["广播机制：宿主切换主题 -> 触发 onThemeChanged(theme)"]
-    H --> J["广播机制：打开新工程 -> 触发 onProjectOpened(path)"]
+flowchart TB
+    subgraph HostCycle ["🖥️ 宿主容器初始化流程"]
+        Scan["1. 扫描 plugins/ 目录下的 *.dll / *.so 文件"]
+        MetaCheck["2. 解析插件 IID 与依赖元数据 (QPluginLoader)"]
+        Instantiate["3. 动态实例化插件对象，转换为主接口指针"]
+        InjectContext["4. 宿主注入 PluginContext 上下文与主题引擎句柄"]
+    end
+
+    subgraph EventStream ["⚡ 运行时双向事件总线"]
+        Signals["插件发射信号：数据到达 / 错误事件 / 状态更新"]
+        HostDispatcher["宿主广播调度器：过滤、路由与日志审计"]
+        PeerSlots["协同插件响应槽函数：示波器绘图 / 报文解析 / 状态栏指示"]
+    end
+
+    subgraph UnloadCycle ["🔌 插件停用与安全卸载"]
+        SaveState["5. 持久化插件当前配置至 QSettings"]
+        ReleaseHW["6. 强制释放绑定的串口/CAN/网卡硬件资源"]
+        Destroy["7. 销毁插件 UI 部件，安全释放 DLL 内存句柄"]
+    end
+
+    Scan --> MetaCheck --> Instantiate --> InjectContext
+    InjectContext ==> EventStream
+    Signals --> HostDispatcher --> PeerSlots
+    EventStream ==> SaveState --> ReleaseHW --> Destroy
+
+    classDef hostFlow fill:#fef7ee,stroke:#ea580c,stroke-width:1.5px,color:#201b17;
+    classDef eventFlow fill:#ecfdf5,stroke:#059669,stroke-width:2px,color:#065f46;
+    classDef unloadFlow fill:#fef2f2,stroke:#dc2626,stroke-width:1.5px,color:#991b1b;
+
+    class Scan,MetaCheck,Instantiate,InjectContext hostFlow;
+    class Signals,HostDispatcher,PeerSlots eventFlow;
+    class SaveState,ReleaseHW,Destroy unloadFlow;
           </pre>
           <div class="mermaid-card-caption">
-            <span>图 5：标准 Qt Plugin 生命周期、事件驱动与宿主交互架构 (Mermaid 矢量渲染)</span>
+            <span>图 5：Qt 动态插件生命周期管理与事件总线管道 (Mermaid 架构流程)</span>
           </div>
         </div>
 
-        <h2 id="section-7">七、系统安装与运行环境要求</h2>
-        <div class="markdown-table-wrapper">
-          <table class="markdown-table">
-            <thead>
-              <tr>
-                <th>配置项</th>
-                <th>最低推荐要求</th>
-                <th>官方说明</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td><b>操作系统</b></td>
-                <td>Windows 10 / Windows 11 (64-bit)</td>
-                <td>全系原生适配高 DPI 4K 屏幕缩放</td>
-              </tr>
-              <tr>
-                <td><b>处理器与内存</b></td>
-                <td>Intel Core i3 或 AMD Ryzen 3 以上，4GB 内存</td>
-                <td>极轻量 C++ 编写，运行时内存占用仅约 60MB</td>
-              </tr>
-              <tr>
-                <td><b>安装方式</b></td>
-                <td>免安装绿色版 ZIP / 安装向导 EXE / 企业静默 MSI</td>
-                <td>解压即可运行，无注册表残留与管理员提权强制要求</td>
-              </tr>
-              <tr>
-                <td><b>交叉编译链</b></td>
-                <td>arm-none-eabi-gcc (v10.3 ~ v14.2)</td>
-                <td>可在【工具链配置】中可视化一键绑定路径</td>
-              </tr>
-              <tr>
-                <td><b>硬件调试器</b></td>
-                <td>ST-Link V2/V3, J-Link, CMSIS-DAP</td>
-                <td>ST-Link 建议通过 Zadig 替换为 WinUSB 驱动</td>
-              </tr>
-            </tbody>
-          </table>
+        <!-- Section 7: Mermaid Diagram 6 -->
+        <h2 id="section-7">七、工业总线与多接口虚拟仪器高吞吐数据流管道 (Mermaid)</h2>
+        <p>
+          针对工业现场总线（CAN/CAN-FD、Modbus、TCP/UDP）与高频虚拟仪器的严苛通信需求，SmileCode Studio 建立了无锁环形队列与分流引擎，确保高波特率下<strong>零丢帧、实时渲染与高并发录波</strong>：
+        </p>
+
+        <div class="mermaid-diagram-card">
+          <pre class="mermaid">
+flowchart LR
+    subgraph Hardware_Inputs ["📡 物理层硬件设备输入"]
+        CAN_In["周立功 USB-CAN / 创芯 CANFD
+(1Mbps ~ 5Mbps 极速报文)"]
+        Serial_In["TTL / RS485 工业串口
+(高达 921600bps 高速数据流)"]
+        Net_In["以太网 TCP/UDP 报文
+(广播/组播数据包)"]
+    end
+
+    subgraph RingBuffer ["⚡ 核心通信引擎：无锁环形缓冲区"]
+        Queue["FIFO 极速内存收发队列 (Lock-Free RingBuffer)"]
+        Parser["多协议解包器：Modbus / CANOpen / Ymodem / 自定义帧"]
+    end
+
+    subgraph Consumer_Hub ["📊 统一应用分发消费层"]
+        Scope_Render["📈 数字示波器：HTML5 Canvas 60FPS 平滑波形绘制"]
+        Table_Log["📋 串口/总线分屏：报文毫秒级时间戳表格实时滚动"]
+        File_Export["💾 工业录波：CSV / BIN / PCAP 格式后台秒级落盘"]
+    end
+
+    CAN_In & Serial_In & Net_In ==> Queue
+    Queue --> Parser
+    Parser --> Scope_Render
+    Parser --> Table_Log
+    Parser --> File_Export
+
+    classDef inStyle fill:#fef3c7,stroke:#d97706,stroke-width:1.5px,color:#92400e;
+    classDef bufStyle fill:#eff6ff,stroke:#2563eb,stroke-width:2px,color:#1e40af;
+    classDef outStyle fill:#f0fdf4,stroke:#16a34a,stroke-width:1.5px,color:#166534;
+
+    class CAN_In,Serial_In,Net_In inStyle;
+    class Queue,Parser bufStyle;
+    class Scope_Render,Table_Log,File_Export outStyle;
+          </pre>
+          <div class="mermaid-card-caption">
+            <span>图 6：工业总线与仪器高吞吐数据流管道架构 (Mermaid 矢量数据流)</span>
+          </div>
         </div>
 
-        <h2 id="section-8">八、常见问题 FAQ 与开发者支持</h2>
-        <div class="markdown-callout callout-warning">
-          <strong>Q：为什么使用 ST-Link 烧录时提示无法找到设备？</strong><br>
-          A：由于 Windows 默认会加载 STMicro 专有驱动，OpenOCD 无法直接通信。请下载开源驱动替换工具 <code>Zadig</code>，将 ST-Link 的 USB 接口驱动切换为 <code>WinUSB</code> 或 <code>libusb-1.0</code> 即可秒级识别。
-        </div>
-
-        <div class="markdown-callout callout-note">
-          <strong>Q：企业内部批量机房部署是否有静默安装方案？</strong><br>
-          A：有！本版本官方发布了微软标准 MSI 安装包，网络管理员可通过一行命令实现全域域控静默推送：<br>
-          <code>msiexec /i SmileCodeIDE-v2.3.1-Setup.msi /qn</code>
-        </div>
+        <!-- Section 8 -->
+        <h2 id="section-8">八、跨平台部署与企业分发规范</h2>
+        <p>
+          SmileCode Studio 致力于打造开箱即用的工业软件工程标杆，提供完善的跨环境部署形态：
+        </p>
+        <ul>
+          <li><strong>免安装绿色版 (ZIP，约 45.7MB)</strong>：解压即用，不修改注册表，完美适合工程师随身 U 盘及隔离局域网；</li>
+          <li><strong>标准安装向导 (EXE，约 48.2MB)</strong>：自动配置桌面快捷方式、文件关联（.smileproj）与系统 PATH 环境变量；</li>
+          <li><strong>企业级 Windows Installer (MSI，约 51.0MB)</strong>：支持企业域通过 Active Directory (AD) 或 SCCM 进行静默网络分发 (Silent Install)。</li>
+        </ul>
 
       </article>
     </main>
 
     <!-- RIGHT SIDEBAR: On This Page (TOC) -->
     <aside class="docs-right-toc" id="docsRightToc">
-      <div class="toc-heading">本页内容</div>
-      <nav class="toc-list" id="tocList">
+      <div class="toc-heading">本页核心章节</div>
+      <nav class="toc-list">
         <a href="#section-1" class="toc-link active">一、痛点对比与系统定位</a>
-        <a href="#section-2" class="toc-link">二、系统架构与技术全景 (Mermaid)</a>
-        <a href="#section-3" class="toc-link">三、全流程在线调试闭环 (Mermaid)</a>
-        <a href="#section-4" class="toc-link">四、编译器优化等级与延时机理 (Mermaid)</a>
+        <a href="#section-2" class="toc-link">二、系统架构全景 (Mermaid)</a>
+        <a href="#section-3" class="toc-link">三、增量构建与GDB单步 (Mermaid)</a>
+        <a href="#section-4" class="toc-link">四、编译器优化与硬件延时 (Mermaid)</a>
         <a href="#section-5" class="toc-link">五、双通道 IAP 升级状态机 (Mermaid)</a>
         <a href="#section-6" class="toc-link">六、Qt 动态插件生命周期 (Mermaid)</a>
-        <a href="#section-7" class="toc-link">七、系统要求与环境规范</a>
-        <a href="#section-8" class="toc-link">八、常见问题 FAQ 与支持</a>
+        <a href="#section-7" class="toc-link">七、总线与仪器数据管道 (Mermaid)</a>
+        <a href="#section-8" class="toc-link">八、跨平台分发与部署规范</a>
       </nav>
     </aside>
 
   </div>
 
-  <!-- Modern 3-Column Footer (Figure 4 HengJi Style) -->
+  <!-- Footer (100% Matching index.html HengJi Style) -->
   <footer class="footer">
-    <div class="container footer-grid-container">
-      <!-- Col 1: Brand & Purpose -->
-      <div class="footer-col-brand">
-        <div class="footer-brand-title">
-          <img src="assets/smilecode-logo.svg" alt="SmileCode Studio" class="footer-logo">
-          <span>SmileCode Studio · 微笑代码工作站</span>
+    <div class="footer-container">
+      <div class="footer-brand">
+        <div class="footer-logo-row">
+          <img src="assets/smilecode-logo.svg" alt="SmileCode Studio Logo" class="footer-logo">
+          <span class="footer-title">SmileCode Studio</span>
         </div>
-        <p class="footer-brand-desc">
-          为嵌入式开发者量身打造的一整套全生命周期开发工具集。将代码编写、增量编译、在线硬件调试、芯片烧录，与串口通信、网络通信、CAN/CAN-FD、Bootloader、数字示波器等仪器深度集成于统一的应用市场容器中。
+        <p class="footer-desc">
+          微笑代码工作站：为嵌入式全生命周期开发打造的专业级工作台。统一管理代码编写、增量构建、在线单步调试、双通道固件烧录、工业级总线与虚拟仪器工作流。
         </p>
-        <div class="footer-team-info">
-          开发团队：TOPFIRE 研发团队 · 联系邮箱：<a href="mailto:phudoncou@outlook.com">phudoncou@outlook.com</a>
-        </div>
       </div>
 
-      <!-- Col 2: Quick Links -->
-      <div class="footer-col-links">
-        <h4 class="footer-col-heading">快速入口</h4>
-        <ul class="footer-link-list">
-          <li><a href="index.html#studioChassis">在线体验嵌入式应用工作台</a></li>
-          <li><a href="index.html#plugins-hub">9 大核心插件矩阵</a></li>
-          <li><a href="index.html#optimization">编译器优化等级可视化配置</a></li>
-          <li><a href="index.html#download">客户端全格式下载矩阵</a></li>
-          <li><a href="docs.html">官方技术文档与架构白皮书</a></li>
+      <div class="footer-col">
+        <h4>产品套件</h4>
+        <ul class="footer-links">
+          <li><a href="plugins/smilecode-ide.html">SmileCode IDE</a></li>
+          <li><a href="plugins/stm32-build-debug.html">STM32 编译与调试</a></li>
+          <li><a href="plugins/can-workbench.html">CAN 总线工作台 Pro</a></li>
+          <li><a href="plugins/serial-master.html">串口调试大师</a></li>
+          <li><a href="plugins/digital-oscilloscope.html">多接口数字示波器</a></li>
         </ul>
       </div>
 
-      <!-- Col 3: Open Source & Resources -->
-      <div class="footer-col-links">
-        <h4 class="footer-col-heading">开源与资源</h4>
-        <ul class="footer-link-list">
-          <li><a href="https://github.com/zoufudun/SmileCodeIDE" target="_blank" rel="noopener">GitHub 源码仓库</a></li>
-          <li><a href="https://github.com/zoufudun/SmileCodeIDE/releases" target="_blank" rel="noopener">Releases 历史安装包 (v2.3.1)</a></li>
-          <li><a href="RELEASE_NOTES_v2.3.1.md" target="_blank" rel="noopener">版本更新日志 (v2.3.1)</a></li>
-          <li><a href="#custom-plugin-sdk">开发者扩展插件 SDK</a></li>
-          <li><a href="https://github.com/zoufudun/SmileCodeIDE/issues" target="_blank" rel="noopener">问题反馈与 Bug 提交</a></li>
+      <div class="footer-col">
+        <h4>开发与资源</h4>
+        <ul class="footer-links">
+          <li><a href="docs.html">技术架构文档</a></li>
+          <li><a href="index.html#optimization">编译器优化等级</a></li>
+          <li><a href="index.html#download">安装包下载矩阵</a></li>
+          <li><a href="https://github.com/zoufudun/SmileCodeIDE" target="_blank" rel="noopener">GitHub 仓库源码</a></li>
         </ul>
       </div>
     </div>
 
-    <!-- Bottom Copyright Line -->
-    <div class="footer-bottom-line">
-      <div class="container footer-bottom-inner">
-        <span>Copyright © 2026 SmileCode Team & zoufudun. 保留所有权利。</span>
-        <div class="footer-bottom-links">
-          <a href="docs.html">技术文档</a>
-          <span>·</span>
-          <a href="https://github.com/zoufudun/SmileCodeIDE" target="_blank" rel="noopener">GitHub</a>
-          <span>·</span>
-          <a href="#navbar">回到顶部 ↑</a>
-        </div>
+    <div class="footer-bottom">
+      <div class="footer-bottom-inner">
+        <span>&copy; 2026 SmileCode Team &amp; zoufudun. 保留所有权利。</span>
+        <span>基于 ARM GCC &amp; Qt 架构 · 遵循开源自由友好协议</span>
       </div>
     </div>
   </footer>
 
-  <!-- Documentation Interactive Scripts -->
+  <!-- Scripts: Theme, Mermaid, ScrollSpy, Search -->
   <script>
-    // 1. Initialize Mermaid Diagrams with Current Theme
-    function initMermaid(theme) {
-      if (typeof mermaid === 'undefined') return;
-      const mermaidTheme = (theme === 'parchment') ? 'neutral' : 'dark';
-      mermaid.initialize({
-        startOnLoad: true,
-        theme: mermaidTheme,
-        flowchart: { useMaxWidth: true, curve: 'basis' },
-        sequence: { useMaxWidth: true },
-        themeVariables: theme === 'parchment' ? {
-          primaryColor: '#ffffff',
-          primaryTextColor: '#1f1b17',
-          primaryBorderColor: '#ea580c',
-          lineColor: '#c2410c',
-          secondaryColor: '#f7f1e6',
-          tertiaryColor: '#ede5d7'
-        } : {
-          primaryColor: '#1e2535',
-          primaryTextColor: '#f8fafc',
-          primaryBorderColor: '#6366f1',
-          lineColor: '#ff7849',
-          secondaryColor: '#141822',
-          tertiaryColor: '#252d40'
-        }
-      });
+    // 1. Dual Theme Engine for Documentation
+    function applyDocsTheme(theme) {
+      localStorage.setItem('smilecode_theme', theme);
+      localStorage.setItem('smilecode-theme', theme);
+
+      document.documentElement.setAttribute('data-theme', theme);
+      document.body.setAttribute('data-theme', theme);
+
+      const moonIcon = document.querySelector('.theme-icon-moon');
+      const sunIcon = document.querySelector('.theme-icon-sun');
+
+      if (theme === 'dark') {
+        document.body.classList.remove('parchment-theme');
+        document.body.classList.add('dark-theme');
+        if (moonIcon) moonIcon.style.display = 'none';
+        if (sunIcon) sunIcon.style.display = 'block';
+
+        // Configure Mermaid for Dark Mode
+        mermaid.initialize({
+          startOnLoad: true,
+          theme: 'base',
+          themeVariables: {
+            primaryColor: '#1e293b',
+            primaryBorderColor: '#38bdf8',
+            primaryTextColor: '#f8fafc',
+            lineColor: '#94a3b8',
+            secondaryColor: '#0f172a',
+            tertiaryColor: '#334155',
+            fontSize: '13px',
+            fontFamily: 'JetBrains Mono, Noto Sans SC, sans-serif'
+          }
+        });
+      } else {
+        document.body.classList.remove('dark-theme');
+        document.body.classList.add('parchment-theme');
+        if (moonIcon) moonIcon.style.display = 'block';
+        if (sunIcon) sunIcon.style.display = 'none';
+
+        // Configure Mermaid for Warm Parchment Mode
+        mermaid.initialize({
+          startOnLoad: true,
+          theme: 'base',
+          themeVariables: {
+            primaryColor: '#fbf5ea',
+            primaryBorderColor: '#ea580c',
+            primaryTextColor: '#201b17',
+            lineColor: '#8a6e4e',
+            secondaryColor: '#f5ebe0',
+            tertiaryColor: '#ffffff',
+            fontSize: '13px',
+            fontFamily: 'JetBrains Mono, Noto Sans SC, sans-serif'
+          }
+        });
+      }
     }
 
-    // 2. Global Theme Management for Docs
-    const currentTheme = localStorage.getItem('smilecode-theme') || 'dark';
-    if (currentTheme === 'parchment') {
-      document.body.setAttribute('data-theme', 'parchment');
-      document.documentElement.setAttribute('data-theme', 'parchment');
-      const moon = document.querySelector('.theme-icon-moon');
-      const sun = document.querySelector('.theme-icon-sun');
-      if (moon && sun) { moon.style.display = 'none'; sun.style.display = 'block'; }
-    }
-    initMermaid(currentTheme);
+    const currentTheme = localStorage.getItem('smilecode_theme') || localStorage.getItem('smilecode-theme') || 'parchment';
+    applyDocsTheme(currentTheme);
 
     const themeToggleBtn = document.getElementById('themeToggleBtn');
     if (themeToggleBtn) {
       themeToggleBtn.addEventListener('click', () => {
-        const isParchment = document.body.getAttribute('data-theme') === 'parchment';
-        const newTheme = isParchment ? 'dark' : 'parchment';
-        if (newTheme === 'parchment') {
-          document.body.setAttribute('data-theme', 'parchment');
-          document.documentElement.setAttribute('data-theme', 'parchment');
-          document.querySelector('.theme-icon-moon').style.display = 'none';
-          document.querySelector('.theme-icon-sun').style.display = 'block';
-        } else {
-          document.body.removeAttribute('data-theme');
-          document.documentElement.removeAttribute('data-theme');
-          document.querySelector('.theme-icon-moon').style.display = 'block';
-          document.querySelector('.theme-icon-sun').style.display = 'none';
-        }
-        localStorage.setItem('smilecode-theme', newTheme);
-        location.reload(); // Reload to re-render SVG Mermaid diagrams with clean theme
+        const activeTheme = document.documentElement.getAttribute('data-theme') || (document.body.classList.contains('parchment-theme') ? 'parchment' : 'dark');
+        const next = activeTheme === 'parchment' ? 'dark' : 'parchment';
+        applyDocsTheme(next);
+        location.reload(); // Re-render vector SVG diagrams with clean theme colors
       });
     }
 
-    // 3. ScrollSpy for Right TOC
+    // 2. ScrollSpy for Right TOC
     const tocLinks = document.querySelectorAll('.toc-link');
     const sections = Array.from(tocLinks).map(link => {
       const id = link.getAttribute('href').replace('#', '');
@@ -785,11 +803,11 @@ flowchart TD
       }
     });
 
-    // 4. Smooth Anchor Navigation
+    // 3. Smooth Anchor Navigation
     document.querySelectorAll('.toc-link, .docs-nav-item a').forEach(anchor => {
       anchor.addEventListener('click', function(e) {
         const targetId = this.getAttribute('href');
-        if (targetId.startsWith('#')) {
+        if (targetId && targetId.startsWith('#')) {
           const el = document.querySelector(targetId);
           if (el) {
             e.preventDefault();
@@ -800,7 +818,7 @@ flowchart TD
       });
     });
 
-    // 5. Left Sidebar Search Filter
+    // 4. Left Sidebar Search Filter
     const searchInput = document.getElementById('docsSearchInput');
     if (searchInput) {
       searchInput.addEventListener('input', (e) => {
@@ -824,7 +842,7 @@ flowchart TD
       });
     }
 
-    // 6. Accordion Toggle
+    // 5. Accordion Toggle
     document.querySelectorAll('.docs-group-header').forEach(header => {
       header.addEventListener('click', () => {
         header.classList.toggle('collapsed');
