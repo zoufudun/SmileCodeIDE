@@ -97,9 +97,9 @@ QWidget* AboutUpdateDialog::createContainerCard()
 
     QVBoxLayout *nameLayout = new QVBoxLayout();
     nameLayout->setSpacing(3);
-    QLabel *nameLabel = new QLabel(QStringLiteral("SmileCode Studio（应用市场容器）"), card);
+    QLabel *nameLabel = new QLabel(QStringLiteral("SmileCode Studio · 微笑代码工作站"), card);
     nameLabel->setObjectName("containerNameLabel");
-    m_containerVerLabel = new QLabel(QStringLiteral("版本 v2.3.1 (最新正式版)"), card);
+    m_containerVerLabel = new QLabel(QStringLiteral("应用市场容器核心 v2.3.1 (最新正式版)"), card);
     m_containerVerLabel->setObjectName("containerVerLabel");
     nameLayout->addWidget(nameLabel);
     nameLayout->addWidget(m_containerVerLabel);
@@ -213,20 +213,25 @@ QWidget* AboutUpdateDialog::createPluginsCard()
 
     cardLayout->addLayout(titleRow);
 
-    // 插件列表
+    // 插件列表（严格对齐 SmileCode Studio 容器市场实际包含的 9 个插件）
     struct PluginInfo {
         QString id;
         QString name;
         QString desc;
         QString version;
+        QString type;
     };
 
     QList<PluginInfo> plugins = {
-        {"stm32_workbench", QStringLiteral("STM32 全功能开发工作台"), QStringLiteral("GCC 14 编译链 · OpenOCD/GDB 调试 · 可视化优化设置"), QStringLiteral("v1.1.1")},
-        {"oscilloscope",    QStringLiteral("工业级多通道虚拟示波器"), QStringLiteral("多协议高速波形采样 · 实时时域测量 · 波形回放分析"),   QStringLiteral("v2.0.0")},
-        {"cantool",         QStringLiteral("CAN / CAN-FD 通信分析仪"), QStringLiteral("支持周立功 USBCAN/CANFD · 实时报文监视 · DBC 解析"), QStringLiteral("v2.1.0")},
-        {"uds_diagnostic",  QStringLiteral("CANOpen 与 UDS 汽车诊断套件"), QStringLiteral("ISO 14229 UDS 诊断 · ECU 固件 IAP 升级"),       QStringLiteral("v1.0.5")},
-        {"serial_tool",     QStringLiteral("串口与多通信协议调试助手"), QStringLiteral("多标签页分屏监视 · 十六进制协议分析 · 自动化测试"), QStringLiteral("v2.0.2")}
+        {"can_tool",          QStringLiteral("CAN 总线工作台 Pro"),        QStringLiteral("ZLG/CXCAN 工业级 CAN/CANFD 与 CANOpen 调试 · 负载率统计"), QStringLiteral("v2.2.0"), QStringLiteral("内置应用")},
+        {"iap_tool",          QStringLiteral("STM32 IAP 固件升级"),        QStringLiteral("串口与网络双通道 Bootloader 固件升级 · Ymodem/TCP 下载校验"), QStringLiteral("v1.8.0"), QStringLiteral("内置应用")},
+        {"network_tool",      QStringLiteral("网络通信调试助手"),          QStringLiteral("TCP Client/Server 与 UDP 单播/广播/多播调试 · 循环定时发送"), QStringLiteral("v2.0.0"), QStringLiteral("内置应用")},
+        {"oscilloscope",      QStringLiteral("多接口数字示波器"),          QStringLiteral("串口/TCP/UDP/WebSocket 实时多通道波形采集 · FFT 频谱与标尺"), QStringLiteral("v2.0.0"), QStringLiteral("内置应用")},
+        {"serial_plot",       QStringLiteral("串口调试大师 Pro"),          QStringLiteral("多标签页高速串口通信与分屏工作台 · 实时曲线 · Modbus 解析"), QStringLiteral("v3.0.0"), QStringLiteral("内置应用")},
+        {"signal_gen",        QStringLiteral("高频信号发生器"),            QStringLiteral("正弦波/方波/三角波/锯齿波/白噪声实时高频仿真与数据生成"),     QStringLiteral("v1.0.0"), QStringLiteral("Qt 动态插件")},
+        {"smilecode_ide",     QStringLiteral("SmileCode IDE"),             QStringLiteral("嵌入式 C/C++ 代码编辑器与 GDB 调试器 · GCC/Make 构建"),     QStringLiteral("v2.3.1"), QStringLiteral("核心工作台")},
+        {"stm32_build_debug", QStringLiteral("STM32 编译构建与 GDB 调试"), QStringLiteral("GCC/Make 一键编译构建、固件烧录与硬件 GDB 在线断点单步调试"), QStringLiteral("v1.0.0"), QStringLiteral("Qt 动态插件")},
+        {"custom_plugin",     QStringLiteral("自定义扩展插件"),            QStringLiteral("开箱即用的 Qt 动态插件开发范例与接口演示 · 动态加载与主题联动"), QStringLiteral("v1.0.0"), QStringLiteral("Qt 动态插件")}
     };
 
     for (const auto &p : plugins) {
@@ -237,11 +242,19 @@ QWidget* AboutUpdateDialog::createPluginsCard()
 
         QVBoxLayout *infoLayout = new QVBoxLayout();
         infoLayout->setSpacing(2);
+        
+        QHBoxLayout *nameLine = new QHBoxLayout();
         QLabel *pName = new QLabel(p.name, rowFrame);
         pName->setObjectName("pluginItemName");
+        QLabel *pType = new QLabel(QStringLiteral("[%1]").arg(p.type), rowFrame);
+        pType->setStyleSheet("font-size: 11px; color: #10b981; font-weight: bold;");
+        nameLine->addWidget(pName);
+        nameLine->addWidget(pType);
+        nameLine->addStretch();
+        infoLayout->addLayout(nameLine);
+
         QLabel *pDesc = new QLabel(p.desc, rowFrame);
         pDesc->setObjectName("pluginItemDesc");
-        infoLayout->addWidget(pName);
         infoLayout->addWidget(pDesc);
         rowLayout->addLayout(infoLayout, 3);
 

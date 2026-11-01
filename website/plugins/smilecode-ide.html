@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SmileCode IDE - 嵌入式 C/C++ 代码编辑器与 GDB 调试器</title>
+  <meta name="description" content="基于 QScintilla 的嵌入式 C/C++ IDE，集成 GCC/Make 编译构建、GDB 断点与单步调试、ST-Link / J-Link / CMSIS-DAP 固件烧录及任务取消。">
+  <link rel="icon" type="image/x-icon" href="../assets/favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body class="parchment-theme">
+  <!-- Top Navigation Bar -->
+  <header class="navbar" id="navbar">
+    <div class="nav-container">
+      <a href="../index.html" class="nav-brand">
+        <img src="../assets/favicon.ico" alt="SmileCode Studio" class="brand-icon">
+        <span class="brand-title">SmileCode Studio</span>
+      </a>
+
+      <nav class="nav-links">
+        <a href="../index.html" class="nav-link">← 返回工作站主页</a>
+        <a href="../index.html#plugins-hub" class="nav-link">应用市场 (9大插件)</a>
+        <a href="../index.html#download" class="nav-link">下载客户端</a>
+      </nav>
+
+      <div class="nav-actions">
+        <button class="capsule-btn" title="语言切换"><span>CN</span></button>
+        <button class="capsule-btn theme-capsule-btn" id="themeToggleBtn" title="切换主题">
+          <span id="themeToggleIcon">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+          </span>
+        </button>
+        <a href="https://github.com/zoufudun/SmileCodeIDE" target="_blank" rel="noopener" class="capsule-btn github-capsule-btn" title="GitHub 仓库">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+          </svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="plugin-hero-section">
+    <div class="plugin-slogan-wrap">
+      <h1 class="plugin-hero-slogan">轻巧优雅的嵌入式代码开发与调试核心。</h1>
+      <p class="plugin-hero-desc">
+        SmileCode IDE (v2.3.1 · 核心工作台) · 基于 QScintilla 的嵌入式 C/C++ 代码编辑器与 GDB 调试器
+      </p>
+    </div>
+
+    <div class="plugin-hero-actions">
+      <a href="../index.html#download" class="btn-pill-primary">
+        <span>立即下载 SmileCode Studio</span>
+      </a>
+      <a href="../index.html#download" class="btn-pill-secondary">
+        <span>所有下载 &rarr;</span>
+      </a>
+    </div>
+
+    <!-- Live Stage Mockup -->
+    <div class="plugin-stage-wrapper">
+      <div class="stage-window">
+        <div class="stage-titlebar">
+          <div class="window-dots">
+            <span class="dot red"></span>
+            <span class="dot yellow"></span>
+            <span class="dot green"></span>
+          </div>
+          <span class="window-tab-title">
+            <span class="live-indicator"></span>
+            SmileCode IDE v2.3.1 - [main.c] - GCC 14.2.Rel1 · GDB 在线调试
+          </span>
+          <span style="font-size: 0.76rem; color: #10b981; font-weight: 700;">● 就绪</span>
+        </div>
+        <div class="stage-body">
+          <div class="stage-sidebar">
+            <div style="font-size: 0.74rem; font-weight: 700; color: var(--text-muted); margin-bottom: 6px;">项目工程</div>
+            <div style="font-size: 0.8rem; font-weight: 700; color: #6c5ce7;">📁 STM32H750_Project</div>
+            <div style="font-size: 0.78rem; color: var(--accent-primary); font-weight: 700; padding: 2px 4px;">📄 main.c (编辑中)</div>
+            <div style="font-size: 0.78rem; color: var(--text-secondary); padding: 2px 4px;">📄 stm32h7xx_it.c</div>
+            <div style="font-size: 0.78rem; color: var(--text-secondary); padding: 2px 4px;">📄 bsp_led.c</div>
+            <div style="margin-top: auto; border-top: 1px solid var(--border-color); padding-top: 8px;">
+              <div style="font-size: 0.74rem; color: var(--text-muted);">内核: QScintilla C++</div>
+              <div style="font-size: 0.74rem; color: #10b981;">烧录器: ST-Link / DAP</div>
+            </div>
+          </div>
+
+          <div class="stage-main-area">
+            <pre style="background: rgba(125,125,125,0.03); padding: 16px; border-radius: 8px; font-family: var(--font-mono); font-size: 0.82rem; line-height: 1.7; color: var(--text-primary); border: 1px solid var(--border-color);"><span style="color: #64748b;">// SmileCode IDE - 嵌入式单片机主入口</span>
+<span style="color: #ea580c; font-weight: 700;">int</span> <span style="color: #2563eb; font-weight: 700;">main</span>(<span style="color: #ea580c;">void</span>) {
+    HAL_Init();
+    SystemClock_Config();
+    LED_GPIO_Config();
+
+    <span style="color: #7c3aed; font-weight: 700;">while</span> (<span style="color: #10b981;">1</span>) {
+        LED1_TOGGLE();
+        HAL_Delay(<span style="color: #10b981;">500</span>); <span style="color: #64748b;">// 硬件延时防锁死机制护航</span>
+    }
+}</pre>
+            <div style="margin-top: 12px; background: rgba(0,0,0,0.03); border-radius: 6px; padding: 8px 12px; font-family: var(--font-mono); font-size: 0.76rem; border: 1px solid var(--border-color);">
+              <span style="color: #10b981; font-weight: 700;">[Build Finished]</span> 0 Errors, 0 Warnings. Build time: 0.68s.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Grid -->
+  <section class="section" style="background: rgba(125,125,125,0.02);">
+    <div class="container">
+      <div class="section-header text-center">
+        <h2 class="section-title">专为嵌入式设计的核心 IDE</h2>
+        <p class="section-subtitle">极速冷启动、智能符号跳转与优雅多主题体验。</p>
+      </div>
+
+      <div class="plugins-grid">
+        <div class="plugin-card">
+          <div class="plugin-icon">💻</div>
+          <h3 class="plugin-card-title">QScintilla 工业级代码高亮</h3>
+          <p class="plugin-card-desc">针对 C/C++ 关键字、预编译宏、结构体指针与汇编指令提供毫秒级语法着色与自动缩进。</p>
+        </div>
+        <div class="plugin-card">
+          <div class="plugin-card-title">🐛 硬件级 GDB 在线断点调试</div>
+          <p class="plugin-card-desc">支持 ST-Link、J-Link、CMSIS-DAP 一键连接，单步步过/步入与实时变量监视。</p>
+        </div>
+        <div class="plugin-card">
+          <div class="plugin-card-title">⚡ 秒级极速构建与取消</div>
+          <p class="plugin-card-desc">多线程增量并行编译，随时一键取消构建任务，拒绝任何界面假死锁死。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container text-center">
+      <h3 style="font-size: 1.6rem; font-weight: 800; margin-bottom: 12px;">立即体验 SmileCode Studio</h3>
+      <p style="color: var(--text-secondary); margin-bottom: 24px;">完全免费开源，已集成在 SmileCode Studio 应用市场容器中。</p>
+      <div style="display: flex; justify-content: center; gap: 14px;">
+        <a href="../index.html#download" class="btn-primary">前往下载客户端</a>
+        <a href="../index.html" class="btn-secondary">返回官方主页</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="../app.js"></script>
+</body>
+</html>
+

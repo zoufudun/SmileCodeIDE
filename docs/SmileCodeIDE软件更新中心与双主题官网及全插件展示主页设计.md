@@ -116,13 +116,19 @@ flowchart TD
    - 左侧为版本药丸 `v2.3.1`、主标题、标语、赤陶橙下载按钮与文档入口；
    - 右侧直观呈现外层应用市场容器的管理界面，展示关于更新卡片、Star 引导与各插件的实时运行卡片。
 
-### 3.4 全插件独立介绍主页矩阵（图 5 风格）
-在 `website/plugins/` 目录下完成 5 个专业独立主页开发：
-- [website/plugins/stm32-workbench.html](file:///k:/TOPFIRE/SmileCodeIDEUpdate/website/plugins/stm32-workbench.html)：呈现断点命中脉动与 GCC 14 编译控制台；
-- [website/plugins/oscilloscope.html](file:///k:/TOPFIRE/SmileCodeIDEUpdate/website/plugins/oscilloscope.html)：呈现流动双通道正弦波与 PWM 动画，展示 60 FPS 采样与 FFT；
-- [website/plugins/can-analyzer.html](file:///k:/TOPFIRE/SmileCodeIDEUpdate/website/plugins/can-analyzer.html)：呈现动态滚动的 CAN 报文流水、DBC 信号解析与负载统计；
-- [website/plugins/uds-diagnostic.html](file:///k:/TOPFIRE/SmileCodeIDEUpdate/website/plugins/uds-diagnostic.html)：呈现 ISO 14229 诊断服务树、安全密钥解锁与 Bootloader 刷写进度；
-- [website/plugins/serial-assistant.html](file:///k:/TOPFIRE/SmileCodeIDEUpdate/website/plugins/serial-assistant.html)：呈现双视窗高吞吐流式收发与 Modbus 自动应答。
+### 3.4 全插件独立介绍主页矩阵与容器市场 9 大插件对齐
+严格按照实际软件界面（图 1 真实界面）对齐 **SmileCode Studio（微笑代码工作站）** 容器应用市场所包含的真实 9 大核心套件：
+1. **CAN 总线工作台 Pro** (`v2.2.0`)：ZLG / CXCAN 工业级 CAN/CANFD 与 CANOpen 调试；
+2. **STM32 IAP 固件升级** (`v1.8.0`)：串口与网络双通道 Bootloader 固件升级与校验；
+3. **网络通信调试助手** (`v2.0.0`)：TCP Client/Server 与 UDP 单播/广播/多播高并发调试；
+4. **多接口数字示波器** (`v2.0.0`)：串口/TCP/UDP/WebSocket 实时多通道波形采集与 FFT 频谱；
+5. **串口调试大师 Pro** (`v3.0.0`)：多标签页高速串口通信、多窗口分屏、实时曲线与 Modbus；
+6. **高频信号发生器** (`v1.0.0` · Qt 动态插件)：正弦波/方波/三角波/锯齿波/白噪声实时高频仿真；
+7. **SmileCode IDE** (`v2.3.1` · 核心工作台)：嵌入式 C/C++ 代码编辑器与 GDB 调试器；
+8. **STM32 编译构建与 GDB 调试** (`v1.0.0` · Qt 动态插件)：GCC/Make 一键构建、固件烧录与硬件在线断点调试；
+9. **自定义扩展插件** (`v1.0.0` · Qt 动态插件)：开箱即用的 Qt 动态插件开发范例与接口演示。
+
+并在 `website/plugins/` 目录下全部建立 9 个独立专属介绍主页（如 [can-workbench.html](file:///k:/TOPFIRE/SmileCodeIDEUpdate/website/plugins/can-workbench.html)、[digital-oscilloscope.html](file:///k:/TOPFIRE/SmileCodeIDEUpdate/website/plugins/digital-oscilloscope.html)、[serial-master.html](file:///k:/TOPFIRE/SmileCodeIDEUpdate/website/plugins/serial-master.html) 等），支持双主题无缝切换与动态仿真视窗。
 
 ---
 
