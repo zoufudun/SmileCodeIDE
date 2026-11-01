@@ -1,0 +1,1393 @@
+/* ==========================================================================
+   SmileCode Studio Real Simulator & Interactive Plugin Workbenches (v2.3.1)
+   Faithfully matching real desktop software interface (Figure 2)
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Real Studio Application Hub Window (Figure 2 Replica)
+   -------------------------------------------------------------------------- */
+.studio-real-chassis {
+  background: #11141c;
+  color: #f1f5f9;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  font-family: var(--font-sans);
+  text-align: left;
+  transition: all var(--transition-normal);
+}
+
+/* Window Titlebar */
+.studio-titlebar {
+  height: 36px;
+  background: #1a1f2c;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 14px;
+  user-select: none;
+}
+
+.studio-title-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #cbd5e1;
+}
+
+.studio-title-icon {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+}
+
+.studio-window-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.82rem;
+  color: #94a3b8;
+}
+
+.studio-control-btn {
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: all 0.15s;
+}
+
+.studio-control-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.studio-control-btn.close:hover {
+  background: #ef4444;
+  color: #ffffff;
+}
+
+/* Header Bar */
+.studio-header {
+  height: 60px;
+  background: #161a24;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 18px;
+  gap: 16px;
+}
+
+.studio-brand-block {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.studio-brand-logo {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.studio-brand-logo img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+
+.studio-brand-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.studio-brand-name {
+  font-size: 0.96rem;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.2;
+}
+
+.studio-brand-sub {
+  font-size: 0.68rem;
+  color: #94a3b8;
+  line-height: 1.2;
+}
+
+/* Search Box */
+.studio-search-wrap {
+  flex: 1;
+  max-width: 380px;
+  position: relative;
+}
+
+.studio-search-input {
+  width: 100%;
+  height: 34px;
+  background: #0d1017;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  padding: 0 12px 0 34px;
+  color: #f1f5f9;
+  font-size: 0.8rem;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.studio-search-input:focus {
+  border-color: #6366f1;
+  background: #131722;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+}
+
+.studio-search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #64748b;
+  pointer-events: none;
+}
+
+/* Header Action Buttons */
+.studio-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.studio-btn-ext {
+  background: linear-gradient(135deg, #6c5ce7 0%, #4834d4 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: opacity 0.2s;
+}
+
+.studio-btn-ext:hover {
+  opacity: 0.9;
+}
+
+.studio-theme-select {
+  background: #1f2533;
+  color: #e2e8f0;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 0.78rem;
+  outline: none;
+  cursor: pointer;
+}
+
+.studio-btn-about {
+  background: #1f2533;
+  color: #e2e8f0;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 0.78rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s;
+}
+
+.studio-btn-about:hover {
+  background: #2a3346;
+  color: #ffffff;
+}
+
+/* Body: Sidebar + Main Content */
+.studio-workspace {
+  display: flex;
+  min-height: 480px;
+  max-height: 540px;
+}
+
+.studio-sidebar {
+  width: 190px;
+  background: #141720;
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 12px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.studio-cat-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 12px;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: all 0.15s;
+  user-select: none;
+}
+
+.studio-cat-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #f1f5f9;
+}
+
+.studio-cat-item.active {
+  background: #4f46e5;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.studio-cat-count {
+  font-size: 0.7rem;
+  background: rgba(0, 0, 0, 0.25);
+  padding: 1px 6px;
+  border-radius: 10px;
+}
+
+.studio-cat-item.active .studio-cat-count {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* Main Area */
+.studio-content-area {
+  flex: 1;
+  background: #11141c;
+  padding: 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Custom Scrollbar for Studio Content */
+.studio-content-area::-webkit-scrollbar {
+  width: 6px;
+}
+.studio-content-area::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+}
+
+/* Hero Banner Card */
+.studio-hero-banner {
+  background: linear-gradient(135deg, #1f2535 0%, #171b26 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.studio-hero-text h3 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 4px;
+}
+
+.studio-hero-text p {
+  font-size: 0.74rem;
+  color: #cbd5e1;
+  line-height: 1.4;
+}
+
+.studio-hero-launch-btn {
+  background: #ffffff;
+  color: #1e293b;
+  font-size: 0.76rem;
+  font-weight: 700;
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: transform 0.15s;
+}
+
+.studio-hero-launch-btn:hover {
+  transform: translateY(-1px);
+  background: #f8fafc;
+}
+
+/* App Cards Container */
+.studio-cards-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* App Card (100% Figure 2 Replica) */
+.studio-app-card {
+  background: #181c26;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 8px;
+  padding: 12px 14px;
+  display: flex;
+  gap: 14px;
+  transition: all 0.2s;
+}
+
+.studio-app-card:hover {
+  border-color: rgba(99, 102, 241, 0.4);
+  background: #1d222f;
+  transform: translateY(-1px);
+}
+
+.studio-app-icon-wrap {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.studio-app-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.studio-app-header-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.studio-app-title {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.studio-app-ver {
+  font-size: 0.7rem;
+  color: #94a3b8;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+}
+
+.studio-app-cat-tag {
+  font-size: 0.7rem;
+  color: #64748b;
+}
+
+.studio-app-star {
+  color: #64748b;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: color 0.15s;
+  margin-left: auto;
+}
+
+.studio-app-star:hover,
+.studio-app-star.starred {
+  color: #f59e0b;
+}
+
+.studio-app-subhead {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #cbd5e1;
+}
+
+.studio-app-desc {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  line-height: 1.45;
+}
+
+.studio-app-tags-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.studio-tag-chip {
+  font-size: 0.66rem;
+  background: rgba(255, 255, 255, 0.04);
+  color: #94a3b8;
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.studio-tag-chip.chip-dll {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+  border-color: rgba(16, 185, 129, 0.25);
+  font-weight: 600;
+}
+
+.studio-app-bottom-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.studio-status-indicator {
+  font-size: 0.72rem;
+  color: #10b981;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.studio-btn-open {
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 12px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: opacity 0.15s;
+}
+
+.studio-btn-open:hover {
+  opacity: 0.9;
+}
+
+/* Empty Search State */
+.studio-empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: #64748b;
+  font-size: 0.85rem;
+  display: none;
+}
+
+/* Status Bar */
+.studio-statusbar {
+  height: 28px;
+  background: #0e1117;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  font-size: 0.72rem;
+  color: #94a3b8;
+  user-select: none;
+}
+
+.studio-status-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* --------------------------------------------------------------------------
+   About & Software Update Dialog Modal (Figure 1 & Figure 3 Replica - Fixed)
+   -------------------------------------------------------------------------- */
+.studio-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  z-index: 9999;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.studio-modal-overlay.open {
+  display: flex;
+}
+
+.studio-about-modal {
+  width: 780px;
+  max-width: 95vw;
+  max-height: 85vh;
+  background: #f8fafc;
+  color: #0f172a;
+  border-radius: 12px;
+  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: modalPop 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalPop {
+  0% { transform: scale(0.95); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.studio-modal-header {
+  padding: 14px 20px;
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.studio-modal-header h3 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.studio-modal-close-icon {
+  background: none;
+  border: none;
+  font-size: 1.25rem;
+  cursor: pointer;
+  color: #64748b;
+  line-height: 1;
+}
+
+.studio-modal-close-icon:hover {
+  color: #0f172a;
+}
+
+.studio-modal-tabs {
+  display: flex;
+  background: #ffffff;
+  padding: 0 20px;
+  border-bottom: 1px solid #e2e8f0;
+  gap: 16px;
+}
+
+.studio-modal-tab-btn {
+  padding: 10px 4px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #64748b;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.studio-modal-tab-btn.active {
+  color: #2563eb;
+  border-bottom-color: #2563eb;
+}
+
+.studio-modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Modal Cards */
+.modal-container-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.modal-card-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modal-brand-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.modal-brand-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+}
+
+.modal-brand-titles h4 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.modal-brand-titles p {
+  font-size: 0.74rem;
+  color: #64748b;
+}
+
+.modal-check-btn {
+  background: #2563eb;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  padding: 7px 16px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.modal-check-btn:hover {
+  background: #1d4ed8;
+}
+
+.modal-card-bottom-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.75rem;
+}
+
+.modal-status-text {
+  color: #059669;
+}
+
+.modal-card-links {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.modal-link-btn {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  border-radius: 5px;
+  padding: 4px 10px;
+  font-size: 0.72rem;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.modal-link-btn:hover {
+  background: #e2e8f0;
+}
+
+/* Star Banner in Modal */
+.modal-star-banner {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.modal-star-banner p {
+  color: #b45309;
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.modal-star-btn {
+  background: #f59e0b;
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  padding: 5px 12px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* Plugins List Card in Modal (Fixed with non-squashing rows) */
+.modal-plugins-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.modal-plugins-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modal-plugins-header h4 {
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.modal-batch-check-btn {
+  background: #2563eb;
+  color: #ffffff;
+  border: none;
+  border-radius: 5px;
+  padding: 5px 12px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.modal-plugins-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 280px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.modal-plugin-item {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 8px 12px;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.modal-item-info {
+  flex: 1;
+}
+
+.modal-item-name-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.modal-item-desc {
+  font-size: 0.7rem;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.modal-item-ver {
+  font-size: 0.74rem;
+  font-family: var(--font-mono);
+  color: #475569;
+}
+
+.modal-item-status {
+  font-size: 0.72rem;
+  color: #059669;
+  font-weight: 600;
+}
+
+.modal-item-check-btn {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 0.7rem;
+  cursor: pointer;
+}
+
+.modal-item-check-btn:hover {
+  background: #f1f5f9;
+}
+
+.studio-modal-footer {
+  padding: 12px 20px;
+  background: #f1f5f9;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.studio-modal-copyright {
+  font-size: 0.72rem;
+  color: #94a3b8;
+}
+
+.studio-modal-close-btn {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  border-radius: 6px;
+  padding: 6px 18px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.studio-modal-close-btn:hover {
+  background: #e2e8f0;
+}
+
+
+/* ==========================================================================
+   Warm Parchment Theme Adaptation for Studio Simulator (Figure 1 Real Alignment)
+   ========================================================================== */
+[data-theme="parchment"] .studio-real-chassis {
+  background: #fdfaf2;
+  color: #2c2520;
+  border: 1px solid #dfd6c5;
+  box-shadow: 0 24px 60px -12px rgba(95, 75, 45, 0.18), 0 0 0 1px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="parchment"] .studio-titlebar {
+  background: #eee6d8;
+  border-bottom: 1px solid #dfd6c5;
+}
+
+[data-theme="parchment"] .studio-title-left {
+  color: #3d3630;
+}
+
+[data-theme="parchment"] .studio-window-controls {
+  color: #7a7065;
+}
+
+[data-theme="parchment"] .studio-control-btn:hover {
+  background: rgba(0, 0, 0, 0.08);
+  color: #111111;
+}
+
+[data-theme="parchment"] .studio-header {
+  background: #f5efe3;
+  border-bottom: 1px solid #e3d9c8;
+}
+
+[data-theme="parchment"] .studio-brand-logo {
+  background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="parchment"] .studio-brand-name {
+  color: #201b17;
+}
+
+[data-theme="parchment"] .studio-brand-sub {
+  color: #796f64;
+}
+
+[data-theme="parchment"] .studio-search-input {
+  background: #ffffff;
+  border: 1px solid #dcd1bf;
+  color: #2b2621;
+}
+
+[data-theme="parchment"] .studio-search-input:focus {
+  border-color: #d97706;
+  background: #ffffff;
+  box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.2);
+}
+
+[data-theme="parchment"] .studio-search-icon {
+  color: #8c8175;
+}
+
+[data-theme="parchment"] .studio-btn-ext {
+  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+  color: #ffffff;
+}
+
+[data-theme="parchment"] .studio-theme-select {
+  background: #ffffff;
+  color: #2b2621;
+  border: 1px solid #dcd1bf;
+}
+
+[data-theme="parchment"] .studio-btn-about {
+  background: #ffffff;
+  color: #2b2621;
+  border: 1px solid #dcd1bf;
+}
+
+[data-theme="parchment"] .studio-btn-about:hover {
+  background: #ede5d7;
+  color: #111111;
+}
+
+[data-theme="parchment"] .studio-sidebar {
+  background: #f3ece0;
+  border-right: 1px solid #e3d9c8;
+}
+
+[data-theme="parchment"] .studio-cat-item {
+  color: #5c534a;
+}
+
+[data-theme="parchment"] .studio-cat-item:hover {
+  background: #eae1d2;
+  color: #1e1915;
+}
+
+[data-theme="parchment"] .studio-cat-item.active {
+  background: #c2410c;
+  color: #ffffff;
+}
+
+[data-theme="parchment"] .studio-cat-count {
+  background: rgba(0, 0, 0, 0.08);
+  color: #443c34;
+}
+
+[data-theme="parchment"] .studio-cat-item.active .studio-cat-count {
+  background: rgba(255, 255, 255, 0.3);
+  color: #ffffff;
+}
+
+[data-theme="parchment"] .studio-content-area {
+  background: #fdfaf2;
+}
+
+[data-theme="parchment"] .studio-content-area::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+}
+
+[data-theme="parchment"] .studio-hero-banner {
+  background: linear-gradient(135deg, #ffffff 0%, #f7f1e6 100%);
+  border: 1px solid #e5dcce;
+}
+
+[data-theme="parchment"] .studio-hero-text h3 {
+  color: #201a16;
+}
+
+[data-theme="parchment"] .studio-hero-text p {
+  color: #6a6157;
+}
+
+[data-theme="parchment"] .studio-hero-launch-btn {
+  background: #c2410c;
+  color: #ffffff;
+  border: none;
+}
+
+[data-theme="parchment"] .studio-hero-launch-btn:hover {
+  background: #9a3412;
+  color: #ffffff;
+}
+
+[data-theme="parchment"] .studio-app-card {
+  background: #ffffff;
+  border: 1px solid #e6ddd0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+}
+
+[data-theme="parchment"] .studio-app-card:hover {
+  border-color: #d97706;
+  background: #ffffff;
+  box-shadow: 0 8px 24px -4px rgba(180, 83, 9, 0.12);
+}
+
+[data-theme="parchment"] .studio-app-title,
+[data-theme="parchment"] .studio-app-title h4,
+.parchment-theme .studio-app-title,
+body.parchment-theme .studio-app-title {
+  color: #221c18;
+}
+
+[data-theme="parchment"] .studio-app-ver {
+  background: #f5eee2;
+  color: #5c5249;
+  border: 1px solid #e5dcce;
+}
+
+[data-theme="parchment"] .studio-app-category {
+  color: #8c8072;
+}
+
+[data-theme="parchment"] .studio-app-desc {
+  color: #635a51;
+}
+
+[data-theme="parchment"] .studio-app-tags span {
+  background: #f5eee2;
+  color: #5c5249;
+  border: 1px solid #e8dfd2;
+}
+
+[data-theme="parchment"] .studio-status-line {
+  color: #635a51;
+}
+
+[data-theme="parchment"] .studio-statusbar {
+  background: #eee6d8;
+  border-top: 1px solid #dfd6c5;
+  color: #635a51;
+}
+
+/* ==========================================================================
+   Warm Parchment Theme Adaptation for Studio Simulator (Figure 3 Authentic Alignment)
+   Sampling Figure 3: Warm beige paper texture, ivory white cards, terracotta orange highlights
+   ========================================================================== */
+[data-theme="parchment"] .studio-real-chassis,
+.parchment-theme .studio-real-chassis,
+body.parchment-theme .studio-real-chassis {
+  background: #faf6ee !important;
+  color: #2c241e !important;
+  border: 1px solid #dfd6c5 !important;
+  border-radius: 14px !important;
+  box-shadow: 0 20px 50px -10px rgba(110, 80, 40, 0.14), 0 0 0 1px rgba(0, 0, 0, 0.04) !important;
+}
+
+[data-theme="parchment"] .studio-titlebar,
+.parchment-theme .studio-titlebar,
+body.parchment-theme .studio-titlebar {
+  background: #eee7da !important;
+  border-bottom: 1px solid #dfd5c4 !important;
+  height: 38px !important;
+}
+
+[data-theme="parchment"] .studio-title-left,
+.parchment-theme .studio-title-left,
+body.parchment-theme .studio-title-left {
+  color: #382f28 !important;
+  font-weight: 700 !important;
+}
+
+[data-theme="parchment"] .studio-window-controls,
+.parchment-theme .studio-window-controls,
+body.parchment-theme .studio-window-controls {
+  color: #7a7065 !important;
+}
+
+[data-theme="parchment"] .studio-control-btn:hover,
+.parchment-theme .studio-control-btn:hover,
+body.parchment-theme .studio-control-btn:hover {
+  background: rgba(0, 0, 0, 0.08) !important;
+  color: #111111 !important;
+}
+
+[data-theme="parchment"] .studio-header,
+.parchment-theme .studio-header,
+body.parchment-theme .studio-header {
+  background: #f4ede1 !important;
+  border-bottom: 1px solid #e3d9c7 !important;
+  height: 64px !important;
+}
+
+[data-theme="parchment"] .studio-brand-logo,
+.parchment-theme .studio-brand-logo,
+body.parchment-theme .studio-brand-logo {
+  background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%) !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+}
+
+[data-theme="parchment"] .studio-brand-name,
+.parchment-theme .studio-brand-name,
+body.parchment-theme .studio-brand-name {
+  color: #201b17 !important;
+}
+
+[data-theme="parchment"] .studio-brand-sub,
+.parchment-theme .studio-brand-sub,
+body.parchment-theme .studio-brand-sub {
+  color: #796f64 !important;
+}
+
+[data-theme="parchment"] .studio-search-input,
+.parchment-theme .studio-search-input,
+body.parchment-theme .studio-search-input {
+  background: #ffffff !important;
+  border: 1px solid #dcd1bf !important;
+  color: #2b2621 !important;
+}
+
+[data-theme="parchment"] .studio-search-input:focus,
+.parchment-theme .studio-search-input:focus,
+body.parchment-theme .studio-search-input:focus {
+  border-color: #ea580c !important;
+  box-shadow: 0 0 0 2px rgba(234, 88, 12, 0.2) !important;
+}
+
+[data-theme="parchment"] .studio-search-icon,
+.parchment-theme .studio-search-icon,
+body.parchment-theme .studio-search-icon {
+  color: #8c8175 !important;
+}
+
+[data-theme="parchment"] .studio-btn-ext,
+.parchment-theme .studio-btn-ext,
+body.parchment-theme .studio-btn-ext {
+  background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%) !important;
+  color: #ffffff !important;
+  border: none !important;
+}
+
+[data-theme="parchment"] .studio-theme-select,
+.parchment-theme .studio-theme-select,
+body.parchment-theme .studio-theme-select {
+  background: #ffffff !important;
+  color: #2b2621 !important;
+  border: 1px solid #dcd1bf !important;
+  font-weight: 600 !important;
+}
+
+[data-theme="parchment"] .studio-btn-about,
+.parchment-theme .studio-btn-about,
+body.parchment-theme .studio-btn-about {
+  background: #ffffff !important;
+  color: #2b2621 !important;
+  border: 1px solid #dcd1bf !important;
+}
+
+[data-theme="parchment"] .studio-btn-about:hover,
+.parchment-theme .studio-btn-about:hover,
+body.parchment-theme .studio-btn-about:hover {
+  background: #ede5d7 !important;
+  color: #111111 !important;
+}
+
+[data-theme="parchment"] .studio-sidebar,
+.parchment-theme .studio-sidebar,
+body.parchment-theme .studio-sidebar {
+  background: #f4ede1 !important;
+  border-right: 1px solid #e3d9c7 !important;
+  width: 200px !important;
+}
+
+[data-theme="parchment"] .studio-cat-item,
+.parchment-theme .studio-cat-item,
+body.parchment-theme .studio-cat-item {
+  color: #4a3e35 !important;
+  font-weight: 500 !important;
+}
+
+[data-theme="parchment"] .studio-cat-item:hover,
+.parchment-theme .studio-cat-item:hover,
+body.parchment-theme .studio-cat-item:hover {
+  background: #eae0d0 !important;
+  color: #1e1915 !important;
+}
+
+[data-theme="parchment"] .studio-cat-item.active,
+.parchment-theme .studio-cat-item.active,
+body.parchment-theme .studio-cat-item.active {
+  background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%) !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  box-shadow: 0 4px 12px rgba(234, 88, 12, 0.25) !important;
+}
+
+[data-theme="parchment"] .studio-cat-count,
+.parchment-theme .studio-cat-count,
+body.parchment-theme .studio-cat-count {
+  background: rgba(0, 0, 0, 0.08) !important;
+  color: #443c34 !important;
+}
+
+[data-theme="parchment"] .studio-cat-item.active .studio-cat-count,
+.parchment-theme .studio-cat-item.active .studio-cat-count,
+body.parchment-theme .studio-cat-item.active .studio-cat-count {
+  background: rgba(255, 255, 255, 0.3) !important;
+  color: #ffffff !important;
+}
+
+[data-theme="parchment"] .studio-content-area,
+.parchment-theme .studio-content-area,
+body.parchment-theme .studio-content-area {
+  background: #faf6ee !important;
+}
+
+[data-theme="parchment"] .studio-content-area::-webkit-scrollbar-thumb,
+.parchment-theme .studio-content-area::-webkit-scrollbar-thumb,
+body.parchment-theme .studio-content-area::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15) !important;
+}
+
+[data-theme="parchment"] .studio-hero-banner,
+.parchment-theme .studio-hero-banner,
+body.parchment-theme .studio-hero-banner {
+  background: linear-gradient(135deg, #ffffff 0%, #f6f0e4 100%) !important;
+  border: 1px solid #e5dcce !important;
+  box-shadow: 0 4px 12px rgba(100, 75, 45, 0.04) !important;
+}
+
+[data-theme="parchment"] .studio-hero-text h3,
+.parchment-theme .studio-hero-text h3,
+body.parchment-theme .studio-hero-text h3 {
+  color: #201a16 !important;
+  font-weight: 800 !important;
+}
+
+[data-theme="parchment"] .studio-hero-text p,
+.parchment-theme .studio-hero-text p,
+body.parchment-theme .studio-hero-text p {
+  color: #6a6157 !important;
+}
+
+[data-theme="parchment"] .studio-hero-launch-btn,
+.parchment-theme .studio-hero-launch-btn,
+body.parchment-theme .studio-hero-launch-btn {
+  background: #c2410c !important;
+  color: #ffffff !important;
+  border: none !important;
+}
+
+[data-theme="parchment"] .studio-hero-launch-btn:hover,
+.parchment-theme .studio-hero-launch-btn:hover,
+body.parchment-theme .studio-hero-launch-btn:hover {
+  background: #9a3412 !important;
+  color: #ffffff !important;
+}
+
+[data-theme="parchment"] .studio-app-card,
+.parchment-theme .studio-app-card,
+body.parchment-theme .studio-app-card {
+  background: #ffffff !important;
+  border: 1px solid #e6ddd0 !important;
+  box-shadow: 0 2px 6px rgba(100, 75, 45, 0.04) !important;
+}
+
+[data-theme="parchment"] .studio-app-card:hover,
+.parchment-theme .studio-app-card:hover,
+body.parchment-theme .studio-app-card:hover {
+  border-color: #ea580c !important;
+  background: #ffffff !important;
+  box-shadow: 0 8px 24px -4px rgba(234, 88, 12, 0.16) !important;
+  transform: translateY(-2px);
+}
+
+[data-theme="parchment"] .studio-app-title,
+[data-theme="parchment"] .studio-app-title h4,
+.parchment-theme .studio-app-title,
+body.parchment-theme .studio-app-title,
+.parchment-theme .studio-app-title h4,
+body.parchment-theme .studio-app-title h4 {
+  color: #1e1814 !important;
+  font-weight: 700 !important;
+}
+
+[data-theme="parchment"] .studio-app-ver,
+.parchment-theme .studio-app-ver,
+body.parchment-theme .studio-app-ver {
+  background: #f5eee2 !important;
+  color: #5c5249 !important;
+  border: 1px solid #e5dcce !important;
+}
+
+[data-theme="parchment"] .studio-app-category,
+.parchment-theme .studio-app-category,
+body.parchment-theme .studio-app-category {
+  color: #8c8072 !important;
+}
+
+[data-theme="parchment"] .studio-app-desc,
+.parchment-theme .studio-app-desc,
+body.parchment-theme .studio-app-desc {
+  color: #5c5247 !important;
+}
+
+[data-theme="parchment"] .studio-app-tags span,
+.parchment-theme .studio-app-tags span,
+body.parchment-theme .studio-app-tags span {
+  background: #f5eee2 !important;
+  color: #5c5249 !important;
+  border: 1px solid #e8dfd2 !important;
+}
+
+[data-theme="parchment"] .studio-status-line,
+.parchment-theme .studio-status-line,
+body.parchment-theme .studio-status-line {
+  color: #635a51 !important;
+}
+
+[data-theme="parchment"] .studio-statusbar,
+.parchment-theme .studio-statusbar,
+body.parchment-theme .studio-statusbar {
+  background: #eee7da !important;
+  border-top: 1px solid #dfd5c4 !important;
+  color: #6b6054 !important;
+}
+/* ==========================================================================
+   Crucial Fix for Figure 1: Studio Card Title & Subhead Text Visibility
+   ========================================================================== */
+[data-theme="parchment"] .studio-app-title,
+.parchment-theme .studio-app-title,
+body.parchment-theme .studio-app-title {
+  color: #1a1511 !important;
+  font-weight: 700 !important;
+  font-size: 0.94rem !important;
+}
+
+[data-theme="parchment"] .studio-app-subhead,
+.parchment-theme .studio-app-subhead,
+body.parchment-theme .studio-app-subhead {
+  color: #5c4e43 !important;
+  font-weight: 600 !important;
+  font-size: 0.8rem !important;
+}
+
+[data-theme="parchment"] .studio-app-desc,
+.parchment-theme .studio-app-desc,
+body.parchment-theme .studio-app-desc {
+  color: #3e342c !important;
+  font-size: 0.77rem !important;
+  line-height: 1.5 !important;
+}
+
+[data-theme="parchment"] .studio-app-cat-tag,
+.parchment-theme .studio-app-cat-tag,
+body.parchment-theme .studio-app-cat-tag {
+  color: #7a6e63 !important;
+  font-size: 0.75rem !important;
+}
+
+[data-theme="parchment"] .studio-tag-chip,
+.parchment-theme .studio-tag-chip,
+body.parchment-theme .studio-tag-chip {
+  background: #f4ecdf !important;
+  color: #55483d !important;
+  border: 1px solid #e5dbcd !important;
+}

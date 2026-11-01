@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>多协议串口通信调试助手 - SmileCode IDE</title>
+  <meta name="description" content="高性能多协议串口调试助手，支持超高波特率流式透传、实时波形曲线与 Modbus 自动化协议解析。">
+  
+  <link rel="icon" type="image/x-icon" href="../assets/favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../style.css?v=2.3.8">
+    <!-- Immediate Theme Engine: 100% Unified Across All Pages (v2.3.8) -->
+  <script id="immediateThemeScript">
+    (function() {
+      var MOON_SVG = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
+      var SUN_SVG = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>';
+
+      window.applyGlobalTheme = function(theme) {
+        var t = (theme === 'dark') ? 'dark' : 'parchment';
+        try {
+          localStorage.setItem('smilecode_theme', t);
+          localStorage.setItem('smilecode-theme', t);
+        } catch(e) {}
+
+        document.documentElement.setAttribute('data-theme', t);
+        document.documentElement.classList.remove('parchment-theme', 'dark-theme');
+        document.documentElement.classList.add(t === 'dark' ? 'dark-theme' : 'parchment-theme');
+
+        if (document.body) {
+          document.body.setAttribute('data-theme', t);
+          document.body.classList.remove('parchment-theme', 'dark-theme');
+          document.body.classList.add(t === 'dark' ? 'dark-theme' : 'parchment-theme');
+        }
+
+        var icon = document.getElementById('themeToggleIcon');
+        if (icon) {
+          icon.innerHTML = (t === 'dark') ? SUN_SVG : MOON_SVG;
+        }
+
+        var sel = document.getElementById('studioThemeSelect');
+        if (sel) {
+          sel.value = t;
+        }
+
+        var chassis = document.getElementById('studioChassis');
+        if (chassis) {
+          chassis.removeAttribute('style');
+        }
+      };
+
+      window.applyWebsiteTheme = window.applyGlobalTheme;
+
+      var saved = 'parchment';
+      try {
+        saved = localStorage.getItem('smilecode_theme') || localStorage.getItem('smilecode-theme') || 'parchment';
+      } catch(e) {}
+      window.applyGlobalTheme(saved);
+
+      document.addEventListener('DOMContentLoaded', function() {
+        var currentSaved = 'parchment';
+        try {
+          currentSaved = localStorage.getItem('smilecode_theme') || localStorage.getItem('smilecode-theme') || 'parchment';
+        } catch(e) {}
+        window.applyGlobalTheme(currentSaved);
+      });
+
+      window._lastThemeToggleTime = 0;
+      window.toggleGlobalTheme = function(e) {
+        if (e && e.preventDefault) e.preventDefault();
+        var now = Date.now();
+        if (now - window._lastThemeToggleTime < 200) return;
+        window._lastThemeToggleTime = now;
+
+        var current = document.documentElement.getAttribute('data-theme') || (document.body && document.body.classList.contains('dark-theme') ? 'dark' : 'parchment');
+        var next = (current === 'dark') ? 'parchment' : 'dark';
+        window.applyGlobalTheme(next);
+        
+      };
+    })();
+  </script>
+</head>
+<body class="parchment-theme">
+  <script>if(window.applyGlobalTheme)window.applyGlobalTheme(localStorage.getItem('smilecode_theme')||localStorage.getItem('smilecode-theme')||'parchment');</script>
+  <!-- Top Navigation Bar -->
+      <header class="navbar" id="navbar">
+    <div class="nav-container">
+      <a href="../index.html" class="nav-brand">
+        <img src="../assets/smilecode-logo.svg" alt="SmileCode Studio Logo" class="brand-icon">
+        <span class="brand-title">SmileCode Studio</span>
+      </a>
+
+      <!-- Center Navigation Links (Unified: 首页 | 产品 | 容器市场 | 技术文档 | 软件下载) -->
+      <nav class="nav-links">
+        <a href="../index.html" class="nav-link">首页</a>
+
+        <!-- Products Mega Menu -->
+        <div class="nav-item dropdown">
+          <a href="../index.html#plugins-hub" class="nav-link dropdown-toggle">
+            <span>产品</span>
+            <svg viewBox="0 0 20 20" width="16" height="16" fill="currentColor">
+              <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
+            </svg>
+          </a>
+          <div class="dropdown-menu" style="width: 720px; grid-template-columns: 1fr 1fr 1fr;">
+            <!-- Column 1: Embedded Development -->
+            <div class="dropdown-col">
+              <div class="dropdown-col-title">嵌入式开发</div>
+              <a href="smilecode-ide.html" class="dropdown-item-card">
+                <div class="item-icon">💻</div>
+                <div class="item-content">
+                  <div class="item-title-row">
+                    <span class="item-title">SmileCode IDE</span>
+                    <span class="badge-tag badge-new">v2.3.6</span>
+                  </div>
+                  <span class="item-sub">C/C++ 代码编辑器与 GDB</span>
+                </div>
+              </a>
+              <a href="stm32-build-debug.html" class="dropdown-item-card">
+                <div class="item-icon">⚙️</div>
+                <div class="item-content">
+                  <div class="item-title-row">
+                    <span class="item-title">STM32 编译与调试</span>
+                    <span class="badge-tag badge-hot">插件</span>
+                  </div>
+                  <span class="item-sub">GCC/Make 构建与 OpenOCD 单步调试</span>
+                </div>
+              </a>
+              <a href="stm32-iap.html" class="dropdown-item-card">
+                <div class="item-icon">🚀</div>
+                <div class="item-content">
+                  <div class="item-title-row">
+                    <span class="item-title">STM32 IAP 升级</span>
+                    <span class="badge-tag">v1.8.0</span>
+                  </div>
+                  <span class="item-sub">串口/网络双通道 Bootloader</span>
+                </div>
+              </a>
+            </div>
+
+            <!-- Column 2: Bus & Communication -->
+            <div class="dropdown-col">
+              <div class="dropdown-col-title">总线与通信</div>
+              <a href="can-workbench.html" class="dropdown-item-card">
+                <div class="item-icon">🚗</div>
+                <div class="item-content">
+                  <div class="item-title-row">
+                    <span class="item-title">CAN 总线工作台</span>
+                    <span class="badge-tag badge-hot">Pro</span>
+                  </div>
+                  <span class="item-sub">ZLG/CXCAN 工业级 CANFD/CANOpen</span>
+                </div>
+              </a>
+              <a href="serial-master.html" class="dropdown-item-card">
+                <div class="item-icon">🔌</div>
+                <div class="item-content">
+                  <div class="item-title-row">
+                    <span class="item-title">串口调试大师</span>
+                    <span class="badge-tag">Pro</span>
+                  </div>
+                  <span class="item-sub">多标签分屏、实时曲线与 Modbus</span>
+                </div>
+              </a>
+              <a href="network-debugger.html" class="dropdown-item-card">
+                <div class="item-icon">🌐</div>
+                <div class="item-content">
+                  <div class="item-title-row">
+                    <span class="item-title">网络通信调试助手</span>
+                    <span class="badge-tag">v2.0.0</span>
+                  </div>
+                  <span class="item-sub">TCP Client/Server 与 UDP 广播</span>
+                </div>
+              </a>
+            </div>
+
+            <!-- Column 3: Measurement & Expansion -->
+            <div class="dropdown-col">
+              <div class="dropdown-col-title">测量与扩展</div>
+              <a href="digital-oscilloscope.html" class="dropdown-item-card">
+                <div class="item-icon">📈</div>
+                <div class="item-content">
+                  <div class="item-title-row">
+                    <span class="item-title">多接口数字示波器</span>
+                    <span class="badge-tag badge-new">FFT</span>
+                  </div>
+                  <span class="item-sub">多通道高速波形采集与频谱分析</span>
+                </div>
+              </a>
+              <a href="signal-generator.html" class="dropdown-item-card">
+                <div class="item-icon">〰️</div>
+                <div class="item-content">
+                  <div class="item-title-row">
+                    <span class="item-title">高频信号发生器</span>
+                    <span class="badge-tag">插件</span>
+                  </div>
+                  <span class="item-sub">正弦/方波/三角波/噪声实时仿真</span>
+                </div>
+              </a>
+              <a href="custom-plugin.html" class="dropdown-item-card">
+                <div class="item-icon">🧩</div>
+                <div class="item-content">
+                  <div class="item-title-row">
+                    <span class="item-title">自定义扩展插件</span>
+                    <span class="badge-tag">Qt DLL</span>
+                  </div>
+                  <span class="item-sub">标准 Qt Plugin 动态加载工程范例</span>
+                </div>
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <a href="../index.html#plugins-hub" class="nav-link">容器市场</a>
+        <a href="../docs.html" class="nav-link">技术文档</a>
+        <a href="../download.html" class="nav-link nav-link-download">软件下载</a>
+      </nav>
+
+      <!-- Right Action Capsules -->
+      <div class="nav-actions">
+        <button class="capsule-btn" title="语言切换 (当前: 简体中文)">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+          </svg>
+          <span>CN</span>
+        </button>
+
+        <button class="capsule-btn theme-capsule-btn" id="themeToggleBtn" onclick="window.toggleGlobalTheme && window.toggleGlobalTheme(event)" title="切换主题 (极客暗黑 / 暖羊皮纸)">
+          <span id="themeToggleIcon">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+          </span>
+        </button>
+
+        <a href="https://github.com/zoufudun/SmileCodeIDE" target="_blank" rel="noopener" class="capsule-btn github-capsule-btn" title="GitHub 源码仓库与 Release 下载">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+          </svg>
+        </a>
+      </div>
+
+      <!-- Mobile Hamburger Toggle -->
+      <button class="mobile-toggle" id="mobileToggle" aria-label="切换菜单">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="plugin-hero-section">
+    <div class="plugin-slogan-wrap">
+      <h1 class="plugin-hero-slogan">百万数据吞吐，毫秒级响应不卡顿。</h1>
+      <p class="plugin-hero-desc">
+        多协议串口助手 · 支持最高 12 Mbps 波特率、双视窗 HEX/ASCII 混合排版、实时曲线与 Modbus CRC 校验
+      </p>
+    </div>
+
+    <div class="plugin-hero-actions">
+      <a href="../download.html" class="btn-pill-primary">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+        </svg>
+        <span>立即下载</span>
+      </a>
+      <a href="../download.html" class="btn-pill-secondary">
+        <span>所有下载 &rarr;</span>
+      </a>
+    </div>
+
+    <!-- Live Stage Mockup -->
+    <div class="plugin-stage-wrapper">
+      <div class="stage-window">
+        <div class="stage-titlebar">
+          <div class="window-dots">
+            <span class="dot red"></span>
+            <span class="dot yellow"></span>
+            <span class="dot green"></span>
+          </div>
+          <span class="window-tab-title">
+            <span class="live-indicator"></span>
+            Serial Assistant - [COM3: USB Serial · 115200 8-N-1 · Buffer: 0 / 1024 KB]
+          </span>
+          <span style="font-size: 0.76rem; color: #10b981; font-weight: 700;">● 端口已打开</span>
+        </div>
+        <div class="stage-body">
+          <!-- Sidebar -->
+          <div class="stage-sidebar">
+            <div style="font-size: 0.74rem; font-weight: 700; color: var(--text-muted); margin-bottom: 6px;">串口参数</div>
+            <div style="font-size: 0.82rem; font-weight: 600;">端口: COM3 (CH340)</div>
+            <div style="font-size: 0.82rem; font-weight: 600;">波特率: 115200</div>
+            <div style="font-size: 0.82rem; color: var(--text-muted);">数据位: 8 | 停止位: 1</div>
+            <div style="font-size: 0.82rem; color: var(--text-muted);">校验位: None (无校验)</div>
+            <div style="margin-top: auto; border-top: 1px solid var(--border-color); padding-top: 8px;">
+              <div style="font-size: 0.74rem; color: var(--text-muted);">Rx: 324,812 字节</div>
+              <div style="font-size: 0.74rem; color: var(--text-muted);">Tx: 12,400 字节</div>
+            </div>
+          </div>
+
+          <!-- Main Stream Area -->
+          <div class="stage-main-area">
+            <div style="display: flex; gap: 8px; margin-bottom: 10px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
+              <span class="capsule-btn" style="height: 26px; font-size: 0.72rem; background: var(--btn-primary-bg); color: #fff;">十六进制接收 (HEX)</span>
+              <span class="capsule-btn" style="height: 26px; font-size: 0.72rem;">时间戳标记</span>
+              <span class="capsule-btn" style="height: 26px; font-size: 0.72rem;">自动滚屏</span>
+              <span class="capsule-btn" style="height: 26px; font-size: 0.72rem;">清空接收</span>
+            </div>
+
+            <div class="stream-log-container">
+              <div class="stream-log-inner">
+                <div style="color: #64748b;">[12:00:01.002] Rx &lt;- [01 03 00 00 00 02 C4 0B] (Modbus Read Holding Registers)</div>
+                <div style="color: #10b981;">[12:00:01.015] Tx -&gt; [01 03 04 09 C4 00 18 F2 3E] (Response: Temp=25.0°C, Humidity=24%)</div>
+                <div style="color: #64748b;">[12:00:02.002] Rx &lt;- [01 03 00 00 00 02 C4 0B] (Modbus Poll)</div>
+                <div style="color: #10b981;">[12:00:02.015] Tx -&gt; [01 03 04 09 C8 00 19 B3 7F] (Response: Temp=25.2°C, Humidity=25%)</div>
+                <div style="color: #2563eb;">[12:00:02.500] Rx &lt;- System Status: Normal, Free Heap: 48290 bytes, CPU: 4.2%</div>
+                <div style="color: #64748b;">[12:00:03.002] Rx &lt;- [01 06 00 01 00 01 19 CA] (Modbus Write Single Register)</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Grid -->
+  <section class="section" style="background: rgba(125,125,125,0.02);">
+    <div class="container">
+      <div class="section-header text-center">
+        <h2 class="section-title">高可靠性串口通信底座</h2>
+        <p class="section-subtitle">专为高负载工业物联网与自动化设备量身定制。</p>
+      </div>
+
+      <div class="plugins-grid">
+        <div class="plugin-card">
+          <div class="plugin-icon">⚡</div>
+          <h3 class="plugin-card-title">零丢包流式环形缓冲</h3>
+          <p class="plugin-card-desc">独立后台线程处理底层 I/O，即便在千万级字符暴风骤雨般涌入时，UI 仍旧如丝般顺滑。</p>
+        </div>
+        <div class="plugin-card">
+          <div class="plugin-card-title">📐 实时波形曲线绘制</div>
+          <p class="plugin-card-desc">自动解析串口上传的数据帧并实时生成动态平滑折线图，传感器调试一目了然。</p>
+        </div>
+        <div class="plugin-card">
+          <div class="plugin-card-title">🧮 自动 CRC16 / 校验和计算</div>
+          <p class="plugin-card-desc">内置 Modbus-RTU、XOR、CheckSum 等数十种校验算法，告别手算与错误拼包。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+    <!-- Modern 3-Column Footer (Figure 4 HengJi Style) -->
+  <footer class="footer">
+    <div class="container footer-grid-container">
+      <!-- Col 1: Brand & Purpose -->
+      <div class="footer-col-brand">
+        <div class="footer-brand-title">
+          <img src="../assets/smilecode-logo.svg" alt="SmileCode Studio" class="footer-logo">
+          <span>SmileCode Studio · 微笑代码工作站</span>
+        </div>
+        <p class="footer-brand-desc">
+          为嵌入式开发者量身打造的一整套全生命周期开发工具集。将代码编写、增量编译、在线硬件调试、芯片烧录，与串口通信、网络通信、CAN/CAN-FD、Bootloader、数字示波器等仪器深度集成于统一的应用市场容器中。
+        </p>
+        <div class="footer-team-info">
+          开发团队：TOPFIRE 研发团队 · 联系邮箱：<a href="mailto:phudoncou@outlook.com">phudoncou@outlook.com</a>
+        </div>
+      </div>
+
+      <!-- Col 2: Quick Links -->
+      <div class="footer-col-links">
+        <h4 class="footer-col-heading">快速入口</h4>
+        <ul class="footer-link-list">
+          <li><a href="../index.html#studioChassis">在线体验嵌入式应用工作台</a></li>
+          <li><a href="../index.html#plugins-hub">插件生态矩阵</a></li>
+          <li><a href="../index.html#optimization">编译器优化等级可视化配置</a></li>
+          <li><a href="../download.html">客户端全格式下载矩阵</a></li>
+          <li><a href="../docs.html">官方技术文档与架构白皮书</a></li>
+        </ul>
+      </div>
+
+      <!-- Col 3: Open Source & Resources -->
+      <div class="footer-col-links">
+        <h4 class="footer-col-heading">开源与资源</h4>
+        <ul class="footer-link-list">
+          <li><a href="https://github.com/zoufudun/SmileCodeIDE" target="_blank" rel="noopener">GitHub 源码仓库</a></li>
+          <li><a href="https://github.com/zoufudun/SmileCodeIDE/releases" target="_blank" rel="noopener">Releases 历史安装包 (v2.3.1)</a></li>
+          <li><a href="../RELEASE_NOTES_v2.3.1.md" target="_blank" rel="noopener">版本更新日志 (v2.3.1)</a></li>
+          <li><a href="../docs.html#custom-plugin-sdk">开发者扩展插件 SDK</a></li>
+          <li><a href="https://github.com/zoufudun/SmileCodeIDE/issues" target="_blank" rel="noopener">问题反馈与 Bug 提交</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Bottom Copyright Line -->
+    <div class="footer-bottom-line">
+      <div class="container footer-bottom-inner">
+        <span>Copyright © 2026 SmileCode Team & zoufudun. 保留所有权利。</span>
+        <div class="footer-bottom-links">
+          <a href="../docs.html">技术文档</a>
+          <span>·</span>
+          <a href="https://github.com/zoufudun/SmileCodeIDE" target="_blank" rel="noopener">GitHub</a>
+          <span>·</span>
+          <a href="#navbar">回到顶部 ↑</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="../app.js?v=2.3.8"></script>
+<script>
+    // Synchronize theme icon on load
+    const savedPluginTheme = localStorage.getItem('smilecode_theme') || 'parchment';
+    const pluginThemeIcon = document.getElementById('themeToggleIcon');
+    if (pluginThemeIcon) {
+      if (savedPluginTheme === 'dark') {
+        pluginThemeIcon.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>';
+      } else {
+        pluginThemeIcon.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
+      }
+    }
+</script>
+</body>
+</html>
+

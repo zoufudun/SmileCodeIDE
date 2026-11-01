@@ -1,0 +1,1126 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SmileCode Studio 官方技术架构与实战白皮书 - 微笑代码工作站</title>
+  <meta name="description" content="SmileCode Studio 官方技术白皮书与开发文档。系统定位、全景架构、增量编译构建、GDB在线调试、编译器优化等级与全套插件开发指南。">
+  <link rel="icon" type="image/svg+xml" href="assets/smilecode-logo.svg">
+  <link rel="stylesheet" href="style.css?v=2.3.8">
+  <link rel="stylesheet" href="studio-simulator.css?v=2.3.8">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+    <!-- Immediate Theme Engine: 100% Unified Across All Pages (v2.3.8) -->
+  <script id="immediateThemeScript">
+    (function() {
+      var MOON_SVG = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
+      var SUN_SVG = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>';
+
+      window.applyGlobalTheme = function(theme) {
+        var t = (theme === 'dark') ? 'dark' : 'parchment';
+        try {
+          localStorage.setItem('smilecode_theme', t);
+          localStorage.setItem('smilecode-theme', t);
+        } catch(e) {}
+
+        document.documentElement.setAttribute('data-theme', t);
+        document.documentElement.classList.remove('parchment-theme', 'dark-theme');
+        document.documentElement.classList.add(t === 'dark' ? 'dark-theme' : 'parchment-theme');
+
+        if (document.body) {
+          document.body.setAttribute('data-theme', t);
+          document.body.classList.remove('parchment-theme', 'dark-theme');
+          document.body.classList.add(t === 'dark' ? 'dark-theme' : 'parchment-theme');
+        }
+
+        var icon = document.getElementById('themeToggleIcon');
+        if (icon) {
+          icon.innerHTML = (t === 'dark') ? SUN_SVG : MOON_SVG;
+        }
+
+        var sel = document.getElementById('studioThemeSelect');
+        if (sel) {
+          sel.value = t;
+        }
+
+        var chassis = document.getElementById('studioChassis');
+        if (chassis) {
+          chassis.removeAttribute('style');
+        }
+      };
+
+      window.applyWebsiteTheme = window.applyGlobalTheme;
+
+      var saved = 'parchment';
+      try {
+        saved = localStorage.getItem('smilecode_theme') || localStorage.getItem('smilecode-theme') || 'parchment';
+      } catch(e) {}
+      window.applyGlobalTheme(saved);
+
+      document.addEventListener('DOMContentLoaded', function() {
+        var currentSaved = 'parchment';
+        try {
+          currentSaved = localStorage.getItem('smilecode_theme') || localStorage.getItem('smilecode-theme') || 'parchment';
+        } catch(e) {}
+        window.applyGlobalTheme(currentSaved);
+      });
+
+      window._lastThemeToggleTime = 0;
+      window.toggleGlobalTheme = function(e) {
+        if (e && e.preventDefault) e.preventDefault();
+        var now = Date.now();
+        if (now - window._lastThemeToggleTime < 200) return;
+        window._lastThemeToggleTime = now;
+
+        var current = document.documentElement.getAttribute('data-theme') || (document.body && document.body.classList.contains('dark-theme') ? 'dark' : 'parchment');
+        var next = (current === 'dark') ? 'parchment' : 'dark';
+        window.applyGlobalTheme(next);
+        // In docs.html, reload immediately so Mermaid vector SVGs re-render with target theme colors
+        location.reload();
+      };
+    })();
+  </script>
+  
+  <!-- Mermaid.js for Rendering High-Definition Vector Diagrams -->
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+</head>
+<body class="docs-page-body parchment-theme">
+  <script>if(window.applyGlobalTheme)window.applyGlobalTheme(localStorage.getItem('smilecode_theme')||localStorage.getItem('smilecode-theme')||'parchment');</script>
+
+  <!-- Header / Navigation Bar (100% Matching index.html layout) -->
+    <header class="navbar" id="navbar">
+    <div class="nav-container">
+      <a href="index.html" class="nav-brand">
+        <img src="assets/smilecode-logo.svg" alt="SmileCode Studio Logo" class="brand-icon">
+        <span class="brand-title">SmileCode Studio</span>
+      </a>
+
+      <!-- Center Navigation Links (Unified: 首页 | 产品 | 容器市场 | 技术文档 | 软件下载) -->
+      <nav class="nav-links">
+        <a href="index.html" class="nav-link">首页</a>
+
+        <!-- Products Mega Menu -->
+        <div class="nav-item dropdown">
+          <a href="index.html#plugins-hub" class="nav-link dropdown-toggle">
+            <span>产品</span>
+            <svg viewBox="0 0 20 20" width="16" height="16" fill="currentColor">
+              <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
+            </svg>
+          </a>
+          <div class="dropdown-menu" style="width: 720px; grid-template-columns: 1fr 1fr 1fr;">
+            <!-- Column 1: Embedded Development -->
+            <div class="dropdown-col">
+              <div class="dropdown-col-title">嵌入式开发</div>
+              <a href="plugins/smilecode-ide.html" class="dropdown-item-card">
+                <div class="item-icon">💻</div>
+                <div class="item-content">
+                  <div class="item-title-row">
+                    <span class="item-title">SmileCode IDE</span>
+                    <span class="badge-tag badge-new">v2.3.6</span>
+                  </div>
+                  <span class="item-sub">C/C++ 代码编辑器与 GDB</span>
+                </div>
+              </a>
+              <a href="plugins/stm32-build-debug.html" class="dropdown-item-card">
+                <div class="item-icon">⚙️</div>
+                <div class="item-content">
+                  <div class="item-title-row">
+                    <span class="item-title">STM32 编译与调试</span>
+                    <span class="badge-tag badge-hot">插件</span>
+                  </div>
+                  <span class="item-sub">GCC/Make 构建与 OpenOCD 单步调试</span>
+                </div>
+              </a>
+              <a href="plugins/stm32-iap.html" class="dropdown-item-card">
+                <div class="item-icon">🚀</div>
+                <div class="item-content">
+                  <div class="item-title-row">
+                    <span class="item-title">STM32 IAP 升级</span>
+                    <span class="badge-tag">v1.8.0</span>
+                  </div>
+                  <span class="item-sub">串口/网络双通道 Bootloader</span>
+                </div>
+              </a>
+            </div>
+
+            <!-- Column 2: Bus & Communication -->
+            <div class="dropdown-col">
+              <div class="dropdown-col-title">总线与通信</div>
+              <a href="plugins/can-workbench.html" class="dropdown-item-card">
+                <div class="item-icon">🚗</div>
+                <div class="item-content">
+                  <div class="item-title-row">
+                    <span class="item-title">CAN 总线工作台</span>
+                    <span class="badge-tag badge-hot">Pro</span>
+                  </div>
+                  <span class="item-sub">ZLG/CXCAN 工业级 CANFD/CANOpen</span>
+                </div>
+              </a>
+              <a href="plugins/serial-master.html" class="dropdown-item-card">
+                <div class="item-icon">🔌</div>
+                <div class="item-content">
+                  <div class="item-title-row">
+                    <span class="item-title">串口调试大师</span>
+                    <span class="badge-tag">Pro</span>
+                  </div>
+                  <span class="item-sub">多标签分屏、实时曲线与 Modbus</span>
+                </div>
+              </a>
+              <a href="plugins/network-debugger.html" class="dropdown-item-card">
+                <div class="item-icon">🌐</div>
+                <div class="item-content">
+                  <div class="item-title-row">
+                    <span class="item-title">网络通信调试助手</span>
+                    <span class="badge-tag">v2.0.0</span>
+                  </div>
+                  <span class="item-sub">TCP Client/Server 与 UDP 广播</span>
+                </div>
+              </a>
+            </div>
+
+            <!-- Column 3: Measurement & Expansion -->
+            <div class="dropdown-col">
+              <div class="dropdown-col-title">测量与扩展</div>
+              <a href="plugins/digital-oscilloscope.html" class="dropdown-item-card">
+                <div class="item-icon">📈</div>
+                <div class="item-content">
+                  <div class="item-title-row">
+                    <span class="item-title">多接口数字示波器</span>
+                    <span class="badge-tag badge-new">FFT</span>
+                  </div>
+                  <span class="item-sub">多通道高速波形采集与频谱分析</span>
+                </div>
+              </a>
+              <a href="plugins/signal-generator.html" class="dropdown-item-card">
+                <div class="item-icon">〰️</div>
+                <div class="item-content">
+                  <div class="item-title-row">
+                    <span class="item-title">高频信号发生器</span>
+                    <span class="badge-tag">插件</span>
+                  </div>
+                  <span class="item-sub">正弦/方波/三角波/噪声实时仿真</span>
+                </div>
+              </a>
+              <a href="plugins/custom-plugin.html" class="dropdown-item-card">
+                <div class="item-icon">🧩</div>
+                <div class="item-content">
+                  <div class="item-title-row">
+                    <span class="item-title">自定义扩展插件</span>
+                    <span class="badge-tag">Qt DLL</span>
+                  </div>
+                  <span class="item-sub">标准 Qt Plugin 动态加载工程范例</span>
+                </div>
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <a href="index.html#plugins-hub" class="nav-link">容器市场</a>
+        <a href="docs.html" class="nav-link active">技术文档</a>
+        <a href="download.html" class="nav-link nav-link-download">软件下载</a>
+      </nav>
+
+      <!-- Right Action Capsules -->
+      <div class="nav-actions">
+        <button class="capsule-btn" title="语言切换 (当前: 简体中文)">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+          </svg>
+          <span>CN</span>
+        </button>
+
+        <button class="capsule-btn theme-capsule-btn" id="themeToggleBtn" onclick="window.toggleGlobalTheme && window.toggleGlobalTheme(event)" title="切换主题 (极客暗黑 / 暖羊皮纸)">
+          <span id="themeToggleIcon">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+          </span>
+        </button>
+
+        <a href="https://github.com/zoufudun/SmileCodeIDE" target="_blank" rel="noopener" class="capsule-btn github-capsule-btn" title="GitHub 源码仓库与 Release 下载">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+          </svg>
+        </a>
+      </div>
+
+      <!-- Mobile Hamburger Toggle -->
+      <button class="mobile-toggle" id="mobileToggle" aria-label="切换菜单">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Docs 3-Column Page Layout -->
+  <div class="docs-page-layout">
+    
+    <!-- LEFT SIDEBAR: Document Tree Navigation -->
+    <aside class="docs-left-sidebar" id="docsLeftSidebar">
+      <!-- Search Docs Box -->
+      <div class="docs-search-box">
+        <svg class="docs-search-icon" viewBox="0 0 20 20" width="15" height="15" fill="currentColor">
+          <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
+        </svg>
+        <input type="text" class="docs-search-input" id="docsSearchInput" placeholder="检索书籍章节 (Ctrl+K)..." autocomplete="off">
+        <span class="docs-search-kbd">Ctrl+K</span>
+      </div>
+
+      <!-- Document Groups (Accordion Menus) -->
+      <div class="docs-menu-group">
+        <div class="docs-group-header">
+          <div class="group-title-left">
+            <span>📖</span>
+            <span>第一卷：平台理念与架构全景</span>
+          </div>
+          <span class="group-toggle-icon">▼</span>
+        </div>
+        <ul class="docs-nav-sublist">
+          <li class="docs-nav-item active"><a href="#section-1">第 1 章：系统定位与痛点对比</a></li>
+          <li class="docs-nav-item"><a href="#section-2">第 2 章：分层解耦系统架构全景</a></li>
+        </ul>
+      </div>
+
+      <div class="docs-menu-group">
+        <div class="docs-group-header">
+          <div class="group-title-left">
+            <span>⚡</span>
+            <span>第二卷：编译调试与运行时机理</span>
+          </div>
+          <span class="group-toggle-icon">▼</span>
+        </div>
+        <ul class="docs-nav-sublist">
+          <li class="docs-nav-item"><a href="#section-3">第 3 章：增量构建与 GDB 单步闭环</a></li>
+          <li class="docs-nav-item"><a href="#section-4">第 4 章：编译器优化与硬件延时机理</a></li>
+        </ul>
+      </div>
+
+      <div class="docs-menu-group">
+        <div class="docs-group-header">
+          <div class="group-title-left">
+            <span>🚀</span>
+            <span>第三卷：工业总线与系统升级</span>
+          </div>
+          <span class="group-toggle-icon">▼</span>
+        </div>
+        <ul class="docs-nav-sublist">
+          <li class="docs-nav-item"><a href="#section-5">第 5 章：双通道 IAP 固件升级状态机</a></li>
+          <li class="docs-nav-item"><a href="#section-6">第 6 章：Qt 动态插件生命周期管理</a></li>
+          <li class="docs-nav-item"><a href="#section-7">第 7 章：总线与仪器高吞吐数据流管道</a></li>
+          <li class="docs-nav-item"><a href="#section-8">第 8 章：跨平台部署与企业分发标准</a></li>
+        </ul>
+      </div>
+    </aside>
+
+    <!-- CENTER COLUMN: Book-Grade Markdown Content Area -->
+    <main class="docs-center-content">
+      <!-- Breadcrumb Bar -->
+      <div class="docs-breadcrumb-bar">
+        <span>文档书库</span>
+        <span>/</span>
+        <span>技术白皮书</span>
+        <span>/</span>
+        <span style="color: var(--text-primary); font-weight: 600;">SmileCode Studio 官方技术架构全景</span>
+      </div>
+
+      <!-- Article Book Header -->
+      <header class="docs-article-header">
+        <div class="docs-book-meta-top">
+          <span class="docs-badge-series">工业级白皮书 · 权威出版物标杆</span>
+          <span>适用版本: v2.3.2+ 正式版</span>
+        </div>
+        <h1 class="docs-article-title">SmileCode Studio 官方技术架构与实战白皮书</h1>
+        <p class="docs-book-subtitle">统一管理嵌入式全栈开发与仪器工作流的核心设计哲学与工程实现</p>
+        <div class="docs-article-meta">
+          <span>📅 发布日期: 2026-11-01</span>
+          <span>✍️ 编撰: TOPFIRE 研发团队</span>
+          <span>⏱️ 阅读时间: 约 18 分钟</span>
+        </div>
+      </header>
+
+      <!-- Markdown Article Body -->
+      <article class="markdown-body">
+        
+        <p class="book-lead">
+          在现代嵌入式系统与智能硬件研发场景中，开发人员通常需要跨越<strong>代码编写、跨平台交叉编译、硬件在线单步仿真、固件下载烧录、串口命令交互、CAN/CANFD 工业总线监控、网络通信排查以及高频波形捕获</strong>等多道工序。传统工作流高度碎片化，各工具独立运行、窗口杂乱、数据无法打通，环境切换与协作成本极高。
+        </p>
+
+        <p>
+          <strong>SmileCode Studio (微笑代码工作站)</strong> 的诞生，正是为了终结这一割裂现状：通过打造面向嵌入式全栈开发的<strong>“应用市场容器”</strong>，将 IDE 核心引擎与 全套专业级仪器与总线工具融为一体，开箱即用，独立平滑热升级。
+        </p>
+
+        <!-- Book-Style Callout Note -->
+        <div class="markdown-callout callout-note">
+          <strong>💡 核心工程使命：</strong> 一套工作台统一管理代码编写、增量构建、GDB 单步断点、双通道 IAP 升级、工业级 CAN/CANOpen 总线调试、多接口数字示波器与多标签串口分屏，彻底告别桌面杂乱的各类散装专用上位机。
+        </div>
+
+        <!-- Section 1 -->
+        <h2 id="section-1"><span class="chapter-num">01</span> 为什么需要 SmileCode Studio？（痛点对比）</h2>
+        <p>
+          长期以来，国内单片机与嵌入式工程师深受以 Keil MDK 为代表的传统工具掣肘，二者核心痛点如下对比所示：
+        </p>
+
+        <div class="markdown-table-wrapper">
+          <table class="markdown-table">
+            <thead>
+              <tr>
+                <th style="width: 22%;">评估维度</th>
+                <th style="width: 39%;">传统 Keil MDK + 散装上位机</th>
+                <th style="width: 39%;">SmileCode Studio 一体化工作台</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><b>版权与商业合规</b></td>
+                <td>商业授权单席位动辄数万元，中小企业与个人面临版权合规风险</td>
+                <td><b>开源免费</b>，基于 ARM GCC + Qt6 架构，原生商业友好</td>
+              </tr>
+              <tr>
+                <td><b>工具割裂度</b></td>
+                <td>写代码开 VS Code，调串口开串口助手，调 CAN 开周立功，测波形开示波器软件</td>
+                <td><b>一站式容器市场</b>，插件无缝集成，界面主题与会话上下文全打通</td>
+              </tr>
+              <tr>
+                <td><b>现代化编译器</b></td>
+                <td>Arm Compiler 5/6 封闭语法，老旧宏定义隐患难以排查</td>
+                <td><b>GCC 10 ~ 14 现代编译工具链</b>，原生支持 C11/C++20，编译报错精准高亮</td>
+              </tr>
+              <tr>
+                <td><b>优化与延时安全</b></td>
+                <td>优化等级缺乏细粒度可视化说明，盲目开 -O2 导致软件空循环延时被强行优化死锁</td>
+                <td><b>可视化 6 档优化控制台</b>，智能解析 CFLAGS，自带防死锁工程选项与安全延时规约</td>
+              </tr>
+              <tr>
+                <td><b>跨平台与分发</b></td>
+                <td>仅限 Windows 传统安装，多机房部署繁琐</td>
+                <td>提供<b>免安装绿色 ZIP (45.7MB)</b>、EXE 向导与企业标准静默 MSI，随身即用</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Section 2: Mermaid Diagram 1 (Optimized Compact & Clear Layout) -->
+        <h2 id="section-2"><span class="chapter-num">02</span> 系统架构与技术全景图 (Mermaid 矢量全景)</h2>
+        <p>
+          SmileCode Studio 采用先进的分层解耦插件化微内核架构。如下图所示，系统由<strong>宿主容器层</strong>、<strong>核心通信总线层</strong>、<strong>三大专业工具套件群</strong>以及<strong>底层物理驱动抽象层</strong>严密组成：
+        </p>
+
+        <div class="mermaid-diagram-card" data-title="图 1：SmileCode Studio 分层解耦系统架构全景">
+          <div class="mermaid-card-toolbar">
+            <span class="mermaid-toolbar-tag">📊 架构全景 · 矢量图</span>
+            <button class="btn-zoom-card" onclick="window.openDiagramModal && window.openDiagramModal(this.closest('.mermaid-diagram-card'))" title="全屏放大查看高清图表 (支持滚轮缩放与拖拽)">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+              <span>放大查看</span>
+            </button>
+          </div>
+          <pre class="mermaid">
+flowchart TD
+    subgraph Host ["🖥️ 宿主层：SmileCode Studio 容器市场 (Host Shell)"]
+        H1["🧭 统一分类侧边栏 · 关键字模糊检索 (Ctrl+F)"]
+        H2["🎨 双主题感知引擎 (极客钛金 / 暖羊皮纸)"]
+        H3["🔄 关于与软件更新中心 (平滑滚动热更新)"]
+    end
+
+    subgraph Bus ["⚡ 核心总线层：生命周期与会话中枢 (Hub Bus)"]
+        B1["📢 跨插件广播事件总线 (Event Dispatcher)"]
+        B2["💾 最近工程与工作区持久化 (QSettings Store)"]
+    end
+
+    subgraph DevSuite ["💻 1. 嵌入式开发专项套件"]
+        IDE["SmileCode IDE (C/C++ 编辑与在线单步调试)"]
+        STM32["STM32 编译构建插件 (GCC / Make / OpenOCD)"]
+        IAP["STM32 IAP 固件升级 (串口 / 网络双通道 Bootloader)"]
+    end
+
+    subgraph BusSuite ["🚗 2. 工业总线与通信调试套件"]
+        CAN["CAN 总线工作台 Pro (周立功 / 创芯 CANFD / CANOpen)"]
+        Serial["串口调试大师 (多标签分屏 + 实时曲线 + Modbus)"]
+        Net["网络通信调试助手 (TCP Client/Server + UDP 广播)"]
+    end
+
+    subgraph MeasureSuite ["📈 3. 测量分析与扩展套件"]
+        Scope["多接口数字示波器 (多通道波形采集 + FFT 频谱)"]
+        SigGen["高频信号发生器 (正弦/方波/三角波/噪声实时仿真)"]
+        Custom["自定义扩展插件范例 (标准 Qt DLL 规范)"]
+    end
+
+    subgraph Drivers ["🔌 底层硬件抽象与通信驱动 (HAL & Kernel Drivers)"]
+        D1["周立功 USB-CAN / 创芯 ControlCAN 硬件接口"]
+        D2["Win32 RS232 / TTL / USB 虚拟串口 (VCP)"]
+        D3["ST-Link / J-Link / CMSIS-DAP (OpenOCD SWD 桥接)"]
+        D4["原生 WinSock TCP / UDP 异步网络套接字"]
+    end
+
+    Host ==> Bus
+    Bus ==> DevSuite
+    DevSuite ==> BusSuite
+    BusSuite ==> MeasureSuite
+    MeasureSuite ==> Drivers
+          </pre>
+          <div class="mermaid-card-caption">
+            <span>图 1：SmileCode Studio 分层解耦系统架构全景 (Mermaid 清晰流向 · 点击放大按钮可全屏高清缩放)</span>
+          </div>
+        </div>
+
+        <!-- Section 3: Mermaid Diagram 2 (Fixed syntax error) -->
+        <h2 id="section-3"><span class="chapter-num">03</span> 全流程增量构建与硬件单步调试闭环 (Mermaid)</h2>
+        <p>
+          在真实嵌入式单片机项目中，工程师从点击【编译】到固件自动烧写入芯片 Flash，再到 GDB 挂接在线单步调试的完整闭环时序如下：
+        </p>
+
+        <div class="mermaid-diagram-card">
+          <div class="mermaid-card-toolbar">
+            <span class="mermaid-toolbar-tag">📊 高清矢量图表</span>
+            <button class="btn-zoom-card" onclick="window.openDiagramModal && window.openDiagramModal(this.closest('.mermaid-diagram-card'))" title="全屏放大查看高清图表 (支持滚轮缩放与拖拽)">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+              <span>放大查看</span>
+            </button>
+          </div>
+          <pre class="mermaid">
+sequenceDiagram
+    autonumber
+    actor Dev as 嵌入式开发者
+    participant Studio as SmileCode Studio / IDE
+    participant GCC as ARM GCC 编译链
+    participant OpenOCD as OpenOCD 服务
+    participant Probe as ST-Link / J-Link
+    participant Target as STM32 硬件芯片
+
+    Dev->>Studio: 编写 C 源码并点击一键编译
+    Studio->>GCC: 执行增量编译 (注入 -O1 与 -gdwarf-2)
+    GCC-->>Studio: 输出完整目标固件 (ELF / HEX / BIN)
+    Dev->>Studio: 点击硬件在线调试
+    Studio->>OpenOCD: 启动后台调试服务 (绑定本地 3333 端口)
+    OpenOCD->>Probe: 建立高速 SWD 硬件握手通信
+    Probe->>Target: 擦除 Flash 扇区并写入固件 (自动 CRC 校验)
+    Studio->>OpenOCD: GDB 挂接调试端口 (target remote 3333)
+    OpenOCD->>Target: 复位芯片并挂起在 main 入口函数
+    Target-->>Studio: 回传核心寄存器与调用栈，UI 点亮单步指针
+          </pre>
+          <div class="mermaid-card-caption">
+            <span>图 2：增量编译、自动化烧录与 GDB 在线调试闭环时序 (Mermaid 严格无误时序)</span>
+          </div>
+        </div>
+
+        <!-- Section 4: Mermaid Diagram 3 -->
+        <h2 id="section-4"><span class="chapter-num">04</span> 编译器优化等级与底层硬件延时机理 (Mermaid)</h2>
+        <p>
+          许多开发者在由 Keil 迁移至 GCC 时，常遇到<strong>“烧写成功但板卡黑屏假死不运行”</strong>的经典难题。其根因在于：Keil 的底层编译器对未加 <code>volatile</code> 修饰的空循环默认保留，而现代 GCC 在开启 <code>-O2</code> / <code>-O3</code> 时判定其无副作用，直接将延时循环全部消除为 0 周期，导致硬件 I2C/SPI 外设时序彻底崩溃！
+        </p>
+
+        <div class="mermaid-diagram-card">
+          <div class="mermaid-card-toolbar">
+            <span class="mermaid-toolbar-tag">📊 高清矢量图表</span>
+            <button class="btn-zoom-card" onclick="window.openDiagramModal && window.openDiagramModal(this.closest('.mermaid-diagram-card'))" title="全屏放大查看高清图表 (支持滚轮缩放与拖拽)">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+              <span>放大查看</span>
+            </button>
+          </div>
+          <pre class="mermaid">
+flowchart TD
+    Code["💻 传统单片机软件空循环延时代码：for(int i=0; i&lt;1000; i++);"]
+
+    subgraph O0 ["❌ -O0 级别 (无优化)"]
+        ActO0["保留空循环汇编指令 · 400MHz Cortex-M7 下耗时放大十倍，I2C/触摸屏握手超时死锁"]
+    end
+
+    subgraph O1 ["✅ -O1 级别 ★官方工程推荐"]
+        ActO1["适度流水线重组，保留安全时序 · 兼顾硬件执行效率与在线单步断点跟踪精准度"]
+    end
+
+    subgraph O2 ["❌ -O2 / -O3 级别 (激进优化)"]
+        ActO2["编译器判定无副作用并整段消除 · 延时变为 0 周期，外设建立时间不足，初始化失败"]
+    end
+
+    subgraph Os ["✅ -Os 级别 (空间优化)"]
+        ActOs["公用代码块折叠，指令紧缩 · Flash 体积缩减 35% 以上，适合受限单片机量产发布"]
+    end
+
+    Code ==> O0
+    O0 ==> O1
+    O1 ==> O2
+    O2 ==> Os
+          </pre>
+          <div class="mermaid-card-caption">
+            <span>图 3：GCC 编译优化行为对底层硬件时序影响对比矩阵 (Mermaid 矢量深度分析)</span>
+          </div>
+        </div>
+
+        <!-- Section 5: Mermaid Diagram 4 -->
+        <h2 id="section-5"><span class="chapter-num">05</span> 双通道 IAP 固件升级完整状态机 (Mermaid)</h2>
+        <p>
+          STM32 IAP (In-Application Programming) 固件升级工具支持<strong>串口 Ymodem / 自定义协议</strong>与<strong>网络 TCP 双通道</strong>在线固件灌装。其底层状态转移保证了掉电不毁片、坏包自动重传的高可靠性：
+        </p>
+
+        <div class="mermaid-diagram-card">
+          <div class="mermaid-card-toolbar">
+            <span class="mermaid-toolbar-tag">📊 高清矢量图表</span>
+            <button class="btn-zoom-card" onclick="window.openDiagramModal && window.openDiagramModal(this.closest('.mermaid-diagram-card'))" title="全屏放大查看高清图表 (支持滚轮缩放与拖拽)">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+              <span>放大查看</span>
+            </button>
+          </div>
+          <pre class="mermaid">
+stateDiagram-v2
+    [*] --> 上电启动
+    
+    上电启动 --> 协议握手: 收到上位机升级请求报文
+    协议握手 --> Flash擦除: 握手通过，确认 ChipID 与固件大小
+    协议握手 --> 启动App: 握手超时无应答，直接运行已有 App
+    
+    Flash擦除 --> 分包传输: 目标 Flash 扇区擦除完成 (Sector Erase)
+    Flash擦除 --> 错误停机: 擦除失败或扇区写保护锁死
+    
+    分包传输 --> 校验数据块: 接收 1KB 或 4KB 固件数据包
+    校验数据块 --> 分包传输: CRC16/32 校验成功，写入 Flash 并回传 ACK
+    校验数据块 --> 请求重传: 校验失败，发送 NAK 请求重发本包
+    请求重传 --> 分包传输: 重传次数未超限 (<= 3 次)
+    请求重传 --> 错误停机: 连续重传超限失败
+    
+    分包传输 --> 全局校验: 所有分包接收完成 (收到 EOT 结束帧)
+    全局校验 --> 向量表重映射: 固件镜像完整性校验通过 (SHA256)
+    全局校验 --> 错误停机: 镜像校验不符，拒绝执行
+    
+    向量表重映射 --> [*]: 重新配置 VTOR 寄存器，跳转执行全新 App
+    错误停机 --> 上电启动: 状态复位，等待再次重试
+          </pre>
+          <div class="mermaid-card-caption">
+            <span>图 4：双通道 IAP 固件升级高可靠状态转移图 (Mermaid 工业级严谨状态机)</span>
+          </div>
+        </div>
+
+        <!-- Section 6: Mermaid Diagram 5 -->
+        <h2 id="section-6"><span class="chapter-num">06</span> Qt 动态插件生命周期与宿主通信总线 (Mermaid)</h2>
+        <p>
+          SmileCode Studio 应用市场容器采用基于 <code>QPluginLoader</code> 的动态热插拔体系，各插件与宿主工作台的生命周期与通信流向如下：
+        </p>
+
+        <div class="mermaid-diagram-card">
+          <div class="mermaid-card-toolbar">
+            <span class="mermaid-toolbar-tag">📊 高清矢量图表</span>
+            <button class="btn-zoom-card" onclick="window.openDiagramModal && window.openDiagramModal(this.closest('.mermaid-diagram-card'))" title="全屏放大查看高清图表 (支持滚轮缩放与拖拽)">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+              <span>放大查看</span>
+            </button>
+          </div>
+          <pre class="mermaid">
+flowchart TB
+    subgraph HostInit ["🖥️ 宿主容器初始化流程"]
+        Step1["1. 动态扫描 plugins/ 目录下的 *.dll 动态库"]
+        Step2["2. 解析插件 IID 接口与元数据依赖清单"]
+        Step3["3. 实例化插件对象，转换为 IPlugin 抽象接口指针"]
+        Step4["4. 宿主注入 PluginContext 上下文与调色板句柄"]
+    end
+
+    subgraph RuntimeEvents ["⚡ 运行时双向事件总线 (Event Dispatcher)"]
+        Sig["插件主动发射业务信号：数据帧到达 / 错误事件 / 状态变更"]
+        BusCore["宿主核心总线：事件路由、优先级调度与日志记录"]
+        Slot["协同插件响应槽函数：示波器波形重绘 / 报文解析 / 状态栏指示"]
+    end
+
+    subgraph Cleanup ["🔌 插件停用与安全卸载"]
+        Save["5. 持久化当前插件工作状态至 QSettings"]
+        FreeHW["6. 强制释放绑定的串口 / CAN / 网卡物理句柄"]
+        Unload["7. 销毁插件 UI 部件，安全释放 DLL 内存句柄"]
+    end
+
+    HostInit ==> RuntimeEvents
+    Sig --> BusCore --> Slot
+    RuntimeEvents ==> Cleanup
+          </pre>
+          <div class="mermaid-card-caption">
+            <span>图 5：Qt 动态插件生命周期管理与事件总线管道 (Mermaid 架构闭环流程)</span>
+          </div>
+        </div>
+
+        <!-- Section 7: Mermaid Diagram 6 -->
+        <h2 id="section-7"><span class="chapter-num">07</span> 工业总线与虚拟仪器高吞吐数据流管道 (Mermaid)</h2>
+        <p>
+          针对工业现场总线（CAN/CAN-FD、Modbus、TCP/UDP）与高频虚拟仪器的严苛通信需求，SmileCode Studio 建立了无锁环形队列与分流引擎，确保高波特率下<strong>零丢帧、实时渲染与高并发录波</strong>：
+        </p>
+
+        <div class="mermaid-diagram-card">
+          <div class="mermaid-card-toolbar">
+            <span class="mermaid-toolbar-tag">📊 高清矢量图表</span>
+            <button class="btn-zoom-card" onclick="window.openDiagramModal && window.openDiagramModal(this.closest('.mermaid-diagram-card'))" title="全屏放大查看高清图表 (支持滚轮缩放与拖拽)">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+              <span>放大查看</span>
+            </button>
+          </div>
+          <pre class="mermaid">
+flowchart TD
+    subgraph Inputs ["📡 物理层硬件设备数据输入"]
+        IN_CAN["周立功 / 创芯 CANFD (高达 5Mbps 极速报文)"]
+        IN_UART["TTL / RS485 工业串口 (高达 921600bps 数据流)"]
+        IN_NET["以太网 TCP/UDP 报文 (广播 / 组播数据包)"]
+    end
+
+    subgraph RingBuffer ["⚡ 通信引擎：无锁环形缓冲区 (Lock-Free RingBuffer)"]
+        Queue["FIFO 极速内存收发队列 · 纳秒级零拷贝入队"]
+        Parser["多协议解包器：Modbus / CANOpen / Ymodem 实时解析"]
+    end
+
+    subgraph Consumers ["📊 统一应用分发消费层"]
+        Out_Scope["📈 数字示波器：HTML5 Canvas 60FPS 实时绘制"]
+        Out_Log["📋 串口/总线分屏：报文毫秒级时间戳表格滚动"]
+        Out_File["💾 工业录波：CSV / BIN / PCAP 格式后台秒级落盘"]
+    end
+
+    Inputs ==> RingBuffer
+    Queue --> Parser
+    RingBuffer ==> Consumers
+          </pre>
+          <div class="mermaid-card-caption">
+            <span>图 6：工业总线与仪器高吞吐数据流管道架构 (Mermaid 矢量数据流管道)</span>
+          </div>
+        </div>
+
+        <!-- Section 8 -->
+        <h2 id="section-8"><span class="chapter-num">08</span> 跨平台部署与企业分发标准</h2>
+        <p>
+          SmileCode Studio 致力于打造开箱即用的工业级嵌入式软件工程标杆，提供全场景跨平台部署形态：
+        </p>
+        <ul>
+          <li><strong>免安装绿色版 (ZIP，约 45.7MB)</strong>：解压即用，不写注册表，完美适合工程师随身 U 盘及隔离局域网快速作业；</li>
+          <li><strong>标准安装向导 (EXE，约 48.2MB)</strong>：自动配置桌面快捷方式、文件关联（.smileproj）与系统 PATH 环境变量；</li>
+          <li><strong>企业级 Windows Installer (MSI，约 51.0MB)</strong>：支持企业 IT 域通过 Active Directory (AD) 或 SCCM 进行静默网络分发 (Silent Install)。</li>
+        </ul>
+
+      </article>
+    </main>
+
+    <!-- RIGHT SIDEBAR: On This Page (TOC) -->
+    <aside class="docs-right-toc" id="docsRightToc">
+      <div class="toc-heading">📖 本卷阅读索引</div>
+      <nav class="toc-list">
+        <a href="#section-1" class="toc-link active">01. 痛点对比与系统定位</a>
+        <a href="#section-2" class="toc-link">02. 系统架构全景 (Mermaid)</a>
+        <a href="#section-3" class="toc-link">03. 增量构建与GDB单步 (Mermaid)</a>
+        <a href="#section-4" class="toc-link">04. 编译器优化等级 (Mermaid)</a>
+        <a href="#section-5" class="toc-link">05. 双通道 IAP 状态机 (Mermaid)</a>
+        <a href="#section-6" class="toc-link">06. Qt 动态插件生命周期 (Mermaid)</a>
+        <a href="#section-7" class="toc-link">07. 工业总线与数据管道 (Mermaid)</a>
+        <a href="#section-8" class="toc-link">08. 跨平台分发与部署规范</a>
+      </nav>
+    </aside>
+
+  </div>
+
+  <!-- Footer (100% Matching index.html HengJi Style) -->
+  
+<!-- =========================================================================
+       Mermaid Diagram Zoom Lightbox Modal (Full-Screen Pan & Zoom Engine)
+       ========================================================================= -->
+    <!-- =========================================================================
+       Mermaid Diagram Zoom Lightbox Modal (Full-Screen Pan & Zoom Engine)
+       ========================================================================= -->
+  <div class="mermaid-modal" id="mermaidModal" style="display: none !important;" aria-hidden="true">
+    <div class="mermaid-modal-backdrop" id="mermaidModalBackdrop" onclick="window.closeDiagramModal && window.closeDiagramModal()"></div>
+    <div class="mermaid-modal-dialog">
+      <div class="mermaid-modal-header">
+        <div class="mermaid-modal-title" id="mermaidModalTitle">高清矢量架构图放大查看</div>
+        <div class="mermaid-modal-actions">
+          <button class="modal-btn" id="modalZoomInBtn" title="放大">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+            <span>放大</span>
+          </button>
+          <button class="modal-btn" id="modalZoomOutBtn" title="缩小">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+            <span>缩小</span>
+          </button>
+          <button class="modal-btn" id="modalResetBtn" title="重置比例 (1:1)">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            <span>1:1</span>
+          </button>
+          <button class="modal-btn close-btn" id="modalCloseBtn" onclick="window.closeDiagramModal && window.closeDiagramModal()" title="关闭 (ESC)">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            <span>关闭</span>
+          </button>
+        </div>
+      </div>
+      <div class="mermaid-modal-body" id="mermaidModalBody">
+        <div class="mermaid-modal-stage" id="mermaidModalStage">
+          <!-- Injected SVG Container -->
+        </div>
+      </div>
+      <div class="mermaid-modal-footer">
+        <span>💡 支持鼠标滚轮无级缩放，按住鼠标左键可任意拖拽平移 · 按 ESC 退出</span>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div class="container footer-grid-container">
+      <div class="footer-col-brand">
+        <div class="footer-brand-title">
+          <img src="assets/smilecode-logo.svg" alt="SmileCode Studio Logo" class="footer-logo">
+          <span>SmileCode Studio</span>
+        </div>
+        <p class="footer-brand-desc">
+          微笑代码工作站：为嵌入式全生命周期开发打造的专业级工作台。统一管理代码编写、增量构建、在线单步调试、双通道固件烧录、工业级总线与虚拟仪器工作流。
+        </p>
+        <div class="footer-team-info">
+          <span>打造下一代嵌入式全流程开发生态</span>
+        </div>
+      </div>
+
+      <div class="footer-col-links">
+        <h4 class="footer-col-heading">插件中心</h4>
+        <ul class="footer-link-list">
+          <li><a href="plugins/smilecode-ide.html">SmileCode IDE</a></li>
+          <li><a href="plugins/stm32-build-debug.html">STM32 编译与调试</a></li>
+          <li><a href="plugins/can-workbench.html">CAN 总线工作台 Pro</a></li>
+          <li><a href="plugins/serial-master.html">串口调试大师</a></li>
+          <li><a href="plugins/digital-oscilloscope.html">多接口数字示波器</a></li>
+          <li><a href="index.html#plugins-hub">浏览全部扩展插件 &rarr;</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col-links">
+        <h4 class="footer-col-heading">开源与资源</h4>
+        <ul class="footer-link-list">
+          <li><a href="docs.html">技术架构文档</a></li>
+          <li><a href="index.html#optimization">编译器优化等级</a></li>
+          <li><a href="index.html#download">安装包下载矩阵</a></li>
+          <li><a href="https://github.com/zoufudun/SmileCodeIDE" target="_blank" rel="noopener">GitHub 仓库源码</a></li>
+          <li><a href="https://github.com/zoufudun/SmileCodeIDE/releases" target="_blank" rel="noopener">Releases 历史版本</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer-bottom-line">
+      <div class="container footer-bottom-inner">
+        <span>Copyright © 2026 SmileCode Team &amp; zoufudun. 保留所有权利。</span>
+        <div class="footer-bottom-links">
+          <a href="index.html">返回首页</a>
+          <span>·</span>
+          <a href="docs.html">技术文档</a>
+          <span>·</span>
+          <a href="https://github.com/zoufudun/SmileCodeIDE" target="_blank" rel="noopener">GitHub</a>
+          <span>·</span>
+          <a href="#navbar">回到顶部 &uarr;</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Scripts: Theme, Mermaid, ScrollSpy, Search -->
+  <script>
+    // 1. Dual Theme Engine for Documentation
+    function applyDocsTheme(theme) {
+      localStorage.setItem('smilecode_theme', theme);
+      localStorage.setItem('smilecode-theme', theme);
+
+      document.documentElement.setAttribute('data-theme', theme);
+      document.body.setAttribute('data-theme', theme);
+
+      const moonIcon = document.querySelector('.theme-icon-moon');
+      const sunIcon = document.querySelector('.theme-icon-sun');
+
+      if (theme === 'dark') {
+        document.body.classList.remove('parchment-theme');
+        document.body.classList.add('dark-theme');
+        if (moonIcon) moonIcon.style.display = 'none';
+        if (sunIcon) sunIcon.style.display = 'block';
+
+        // Configure Mermaid for Dark Mode
+        mermaid.initialize({
+          startOnLoad: true,
+          theme: 'base',
+          securityLevel: 'loose',
+          themeVariables: {
+            primaryColor: '#1e293b',
+            primaryBorderColor: '#38bdf8',
+            primaryTextColor: '#f8fafc',
+            lineColor: '#94a3b8',
+            secondaryColor: '#0f172a',
+            tertiaryColor: '#334155',
+            noteBkgColor: '#1e293b',
+            noteTextColor: '#f8fafc',
+            noteBorderColor: '#38bdf8',
+            fontSize: '14px',
+            fontFamily: 'JetBrains Mono, Noto Sans SC, sans-serif'
+          }
+        });
+      } else {
+        document.body.classList.remove('dark-theme');
+        document.body.classList.add('parchment-theme');
+        if (moonIcon) moonIcon.style.display = 'block';
+        if (sunIcon) sunIcon.style.display = 'none';
+
+        // Configure Mermaid for Warm Parchment Mode
+        mermaid.initialize({
+          startOnLoad: true,
+          theme: 'base',
+          securityLevel: 'loose',
+          themeVariables: {
+            primaryColor: '#fbf5ea',
+            primaryBorderColor: '#ea580c',
+            primaryTextColor: '#201b17',
+            lineColor: '#8a6e4e',
+            secondaryColor: '#f5ebe0',
+            tertiaryColor: '#ffffff',
+            noteBkgColor: '#fbf7ef',
+            noteTextColor: '#201b17',
+            noteBorderColor: '#ea580c',
+            fontSize: '14px',
+            fontFamily: 'JetBrains Mono, Noto Sans SC, sans-serif'
+          }
+        });
+      }
+    }
+
+    const currentTheme = localStorage.getItem('smilecode_theme') || localStorage.getItem('smilecode-theme') || 'parchment';
+    applyDocsTheme(currentTheme);
+
+    // Synchronize icon on load
+    const themeIcon = document.getElementById('themeToggleIcon');
+    if (themeIcon) {
+      if (currentTheme === 'dark') {
+        themeIcon.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>';
+      } else {
+        themeIcon.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
+      }
+    }
+
+    // 2. ScrollSpy for Right TOC
+    const tocLinks = document.querySelectorAll('.toc-link');
+    const sections = Array.from(tocLinks).map(link => {
+      const id = link.getAttribute('href').replace('#', '');
+      return document.getElementById(id);
+    }).filter(Boolean);
+
+    window.addEventListener('scroll', () => {
+      const scrollPos = window.scrollY + 140;
+      let currentSectionId = '';
+      for (const section of sections) {
+        if (section.offsetTop <= scrollPos) {
+          currentSectionId = section.getAttribute('id');
+        }
+      }
+      if (currentSectionId) {
+        tocLinks.forEach(link => {
+          if (link.getAttribute('href') === '#' + currentSectionId) {
+            link.classList.add('active');
+          } else {
+            link.classList.remove('active');
+          }
+        });
+      }
+    });
+
+    // 3. Smooth Anchor Navigation
+    document.querySelectorAll('.toc-link, .docs-nav-item a').forEach(anchor => {
+      anchor.addEventListener('click', function(e) {
+        const targetId = this.getAttribute('href');
+        if (targetId && targetId.startsWith('#')) {
+          const el = document.querySelector(targetId);
+          if (el) {
+            e.preventDefault();
+            el.scrollIntoView({ behavior: 'smooth' });
+            history.pushState(null, null, targetId);
+          }
+        }
+      });
+    });
+
+    // 4. Left Sidebar Search Filter
+    const searchInput = document.getElementById('docsSearchInput');
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        const val = e.target.value.toLowerCase().trim();
+        document.querySelectorAll('.docs-nav-item').forEach(item => {
+          const text = item.textContent.toLowerCase();
+          if (!val || text.includes(val)) {
+            item.style.display = 'block';
+          } else {
+            item.style.display = 'none';
+          }
+        });
+      });
+
+      // Shortcut: Ctrl+K or Cmd+K
+      window.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+          e.preventDefault();
+          searchInput.focus();
+        }
+      });
+    }
+
+    
+    // 6. Mermaid Diagram Zoom & Pan Lightbox Engine (100% Robust)
+    let currentScale = 1.35;
+    let translateX = 0;
+    let translateY = 0;
+    let isDragging = false;
+    let startX = 0;
+    let startY = 0;
+
+    function updateTransform() {
+      const stage = document.getElementById('mermaidModalStage');
+      if (stage) {
+        stage.style.transform = 'translate(' + translateX + 'px, ' + translateY + 'px) scale(' + currentScale + ')';
+      }
+    }
+
+    function resetModalView() {
+      currentScale = 1.35;
+      translateX = 0;
+      translateY = 0;
+      updateTransform();
+    }
+
+    window.openDiagramModal = function(card) {
+      if (!card) return;
+      const modal = document.getElementById('mermaidModal');
+      const modalTitle = document.getElementById('mermaidModalTitle');
+      const modalStage = document.getElementById('mermaidModalStage');
+      if (!modal || !modalStage) {
+        console.error('Modal container not found in DOM');
+        return;
+      }
+
+      // Find Mermaid Diagram SVG, excluding any 14px toolbar icon
+      let svg = null;
+      const allSvgs = card.querySelectorAll('svg');
+      for (const s of allSvgs) {
+        if (!s.closest('.btn-zoom-card')) {
+          svg = s;
+          break;
+        }
+      }
+      if (!svg) {
+        svg = card.querySelector('.mermaid svg, pre.mermaid svg, svg[id^="mermaid"]');
+      }
+
+      if (!svg) {
+        alert('图表正在渲染中，请稍候 1 秒再试...');
+        return;
+      }
+
+      const captionEl = card.querySelector('.mermaid-card-caption span') || card.querySelector('.mermaid-card-caption');
+      const title = card.getAttribute('data-title') || (captionEl ? captionEl.textContent.trim() : '高清架构图矢量放大查看');
+      if (modalTitle) modalTitle.textContent = title;
+
+      // Clone cleanly
+      modalStage.innerHTML = '';
+      const clone = svg.cloneNode(true);
+      clone.removeAttribute('height');
+      clone.style.width = '100%';
+      clone.style.minWidth = '900px';
+      clone.style.maxWidth = 'none';
+      clone.style.height = 'auto';
+      clone.style.display = 'block';
+      modalStage.appendChild(clone);
+
+      modal.style.setProperty('display', 'flex', 'important');
+      modal.classList.add('active');
+      modal.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+
+      resetModalView();
+    };
+
+    window.closeDiagramModal = function() {
+      const modal = document.getElementById('mermaidModal');
+      const modalStage = document.getElementById('mermaidModalStage');
+      if (!modal) return;
+      modal.style.setProperty('display', 'none', 'important');
+      modal.classList.remove('active');
+      modal.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+      if (modalStage) modalStage.innerHTML = '';
+    };
+
+    // Attach click listeners to all diagram cards and zoom buttons
+    document.querySelectorAll('.mermaid-diagram-card').forEach(card => {
+      const zoomBtn = card.querySelector('.btn-zoom-card');
+      if (zoomBtn) {
+        zoomBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          openDiagramModal(card);
+        });
+      }
+      card.addEventListener('dblclick', () => {
+        openDiagramModal(card);
+      });
+    });
+
+    if (closeBtn) closeBtn.addEventListener('click', closeDiagramModal);
+    if (backdrop) backdrop.addEventListener('click', closeDiagramModal);
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && modal && modal.classList.contains('active')) {
+        closeDiagramModal();
+      }
+    });
+
+    // Zoom Controls
+    if (zoomInBtn) {
+      zoomInBtn.addEventListener('click', () => {
+        currentScale = Math.min(currentScale + 0.3, 4);
+        updateTransform();
+      });
+    }
+
+    if (zoomOutBtn) {
+      zoomOutBtn.addEventListener('click', () => {
+        currentScale = Math.max(currentScale - 0.3, 0.5);
+        updateTransform();
+      });
+    }
+
+    if (resetBtn) {
+      resetBtn.addEventListener('click', resetModalView);
+    }
+
+    // Wheel Zoom inside modal
+    if (modalBody) {
+      modalBody.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const delta = e.deltaY < 0 ? 0.15 : -0.15;
+        currentScale = Math.min(Math.max(0.5, currentScale + delta), 4);
+        updateTransform();
+      }, { passive: false });
+
+      // Drag / Pan inside modal
+      modalBody.addEventListener('mousedown', (e) => {
+        if (e.target.closest('.modal-btn')) return;
+        isDragging = true;
+        startX = e.clientX - translateX;
+        startY = e.clientY - translateY;
+        modalBody.style.cursor = 'grabbing';
+      });
+
+      window.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        translateX = e.clientX - startX;
+        translateY = e.clientY - startY;
+        updateTransform();
+      });
+
+      window.addEventListener('mouseup', () => {
+        if (isDragging) {
+          isDragging = false;
+          if (modalBody) modalBody.style.cursor = 'grab';
+        }
+      });
+    }
+
+    // 5. Accordion Toggle
+    document.querySelectorAll('.docs-group-header').forEach(header => {
+      header.addEventListener('click', () => {
+        header.classList.toggle('collapsed');
+        const sublist = header.nextElementSibling;
+        if (sublist) {
+          sublist.style.display = header.classList.contains('collapsed') ? 'none' : 'flex';
+        }
+      });
+    });
+  </script>
+
+  
+      </body>
+</html>

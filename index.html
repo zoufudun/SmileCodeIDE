@@ -1,0 +1,1299 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SmileCode Studio (微笑代码工作站) - 统一管理你的嵌入式全栈开发与仪器工作流</title>
+  <meta name="description" content="SmileCode Studio (微笑代码工作站) 是一款为嵌入式软件开发量身打造的一站式应用市场容器与工作台。从代码编写、编译、链接、GDB调试、固件烧录，到串口通信、网络通信、CAN/CAN-FD总线、Bootloader、数字示波器等全链路集成，支持灵活插件扩展与独立更新。">
+  <meta name="keywords" content="SmileCode Studio, 微笑代码工作站, 嵌入式IDE, STM32, ARM GCC, OpenOCD, GDB调试, CAN总线工作台, 串口调试大师, 网络通信助手, 数字示波器, 固件升级, Keil替代">
+  <meta name="author" content="zoufudun">
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/x-icon" href="assets/favicon.ico">
+  
+  <!-- Fonts & Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  
+  <!-- CSS Stylesheets -->
+  <link rel="stylesheet" href="style.css?v=2.3.8">
+  <link rel="stylesheet" href="studio-simulator.css?v=2.3.8">
+    <!-- Immediate Theme Engine: 100% Unified Across All Pages (v2.3.8) -->
+  <script id="immediateThemeScript">
+    (function() {
+      var MOON_SVG = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
+      var SUN_SVG = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>';
+
+      window.applyGlobalTheme = function(theme) {
+        var t = (theme === 'dark') ? 'dark' : 'parchment';
+        try {
+          localStorage.setItem('smilecode_theme', t);
+          localStorage.setItem('smilecode-theme', t);
+        } catch(e) {}
+
+        document.documentElement.setAttribute('data-theme', t);
+        document.documentElement.classList.remove('parchment-theme', 'dark-theme');
+        document.documentElement.classList.add(t === 'dark' ? 'dark-theme' : 'parchment-theme');
+
+        if (document.body) {
+          document.body.setAttribute('data-theme', t);
+          document.body.classList.remove('parchment-theme', 'dark-theme');
+          document.body.classList.add(t === 'dark' ? 'dark-theme' : 'parchment-theme');
+        }
+
+        var icon = document.getElementById('themeToggleIcon');
+        if (icon) {
+          icon.innerHTML = (t === 'dark') ? SUN_SVG : MOON_SVG;
+        }
+
+        var sel = document.getElementById('studioThemeSelect');
+        if (sel) {
+          sel.value = t;
+        }
+
+        var chassis = document.getElementById('studioChassis');
+        if (chassis) {
+          chassis.removeAttribute('style');
+        }
+      };
+
+      window.applyWebsiteTheme = window.applyGlobalTheme;
+
+      var saved = 'parchment';
+      try {
+        saved = localStorage.getItem('smilecode_theme') || localStorage.getItem('smilecode-theme') || 'parchment';
+      } catch(e) {}
+      window.applyGlobalTheme(saved);
+
+      document.addEventListener('DOMContentLoaded', function() {
+        var currentSaved = 'parchment';
+        try {
+          currentSaved = localStorage.getItem('smilecode_theme') || localStorage.getItem('smilecode-theme') || 'parchment';
+        } catch(e) {}
+        window.applyGlobalTheme(currentSaved);
+      });
+
+      window._lastThemeToggleTime = 0;
+      window.toggleGlobalTheme = function(e) {
+        if (e && e.preventDefault) e.preventDefault();
+        var now = Date.now();
+        if (now - window._lastThemeToggleTime < 200) return;
+        window._lastThemeToggleTime = now;
+
+        var current = document.documentElement.getAttribute('data-theme') || (document.body && document.body.classList.contains('dark-theme') ? 'dark' : 'parchment');
+        var next = (current === 'dark') ? 'parchment' : 'dark';
+        window.applyGlobalTheme(next);
+        
+      };
+    })();
+  </script>
+</head>
+<body class="parchment-theme">
+  <script>if(window.applyGlobalTheme)window.applyGlobalTheme(localStorage.getItem('smilecode_theme')||localStorage.getItem('smilecode-theme')||'parchment');</script>
+  <!-- Top Navigation Bar (Figure 4 & Figure 2 Style) -->
+    <header class="navbar" id="navbar">
+    <div class="nav-container">
+      <a href="index.html" class="nav-brand">
+        <img src="assets/smilecode-logo.svg" alt="SmileCode Studio Logo" class="brand-icon">
+        <span class="brand-title">SmileCode Studio</span>
+      </a>
+
+      <!-- Center Navigation Links (Unified: 首页 | 产品 | 容器市场 | 技术文档 | 软件下载) -->
+      <nav class="nav-links">
+        <a href="index.html" class="nav-link active">首页</a>
+
+        <!-- Products Mega Menu -->
+        <div class="nav-item dropdown">
+          <a href="#plugins-hub" class="nav-link dropdown-toggle">
+            <span>产品</span>
+            <svg viewBox="0 0 20 20" width="16" height="16" fill="currentColor">
+              <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
+            </svg>
+          </a>
+          <div class="dropdown-menu" style="width: 720px; grid-template-columns: 1fr 1fr 1fr;">
+            <!-- Column 1: Embedded Development -->
+            <div class="dropdown-col">
+              <div class="dropdown-col-title">嵌入式开发</div>
+              <a href="plugins/smilecode-ide.html" class="dropdown-item-card">
+                <div class="item-icon">💻</div>
+                <div class="item-content">
+                  <div class="item-title-row">
+                    <span class="item-title">SmileCode IDE</span>
+                    <span class="badge-tag badge-new">v2.3.6</span>
+                  </div>
+                  <span class="item-sub">C/C++ 代码编辑器与 GDB</span>
+                </div>
+              </a>
+              <a href="plugins/stm32-build-debug.html" class="dropdown-item-card">
+                <div class="item-icon">⚙️</div>
+                <div class="item-content">
+                  <div class="item-title-row">
+                    <span class="item-title">STM32 编译与调试</span>
+                    <span class="badge-tag badge-hot">插件</span>
+                  </div>
+                  <span class="item-sub">GCC/Make 构建与 OpenOCD 单步调试</span>
+                </div>
+              </a>
+              <a href="plugins/stm32-iap.html" class="dropdown-item-card">
+                <div class="item-icon">🚀</div>
+                <div class="item-content">
+                  <div class="item-title-row">
+                    <span class="item-title">STM32 IAP 升级</span>
+                    <span class="badge-tag">v1.8.0</span>
+                  </div>
+                  <span class="item-sub">串口/网络双通道 Bootloader</span>
+                </div>
+              </a>
+            </div>
+
+            <!-- Column 2: Bus & Communication -->
+            <div class="dropdown-col">
+              <div class="dropdown-col-title">总线与通信</div>
+              <a href="plugins/can-workbench.html" class="dropdown-item-card">
+                <div class="item-icon">🚗</div>
+                <div class="item-content">
+                  <div class="item-title-row">
+                    <span class="item-title">CAN 总线工作台</span>
+                    <span class="badge-tag badge-hot">Pro</span>
+                  </div>
+                  <span class="item-sub">ZLG/CXCAN 工业级 CANFD/CANOpen</span>
+                </div>
+              </a>
+              <a href="plugins/serial-master.html" class="dropdown-item-card">
+                <div class="item-icon">🔌</div>
+                <div class="item-content">
+                  <div class="item-title-row">
+                    <span class="item-title">串口调试大师</span>
+                    <span class="badge-tag">Pro</span>
+                  </div>
+                  <span class="item-sub">多标签分屏、实时曲线与 Modbus</span>
+                </div>
+              </a>
+              <a href="plugins/network-debugger.html" class="dropdown-item-card">
+                <div class="item-icon">🌐</div>
+                <div class="item-content">
+                  <div class="item-title-row">
+                    <span class="item-title">网络通信调试助手</span>
+                    <span class="badge-tag">v2.0.0</span>
+                  </div>
+                  <span class="item-sub">TCP Client/Server 与 UDP 广播</span>
+                </div>
+              </a>
+            </div>
+
+            <!-- Column 3: Measurement & Expansion -->
+            <div class="dropdown-col">
+              <div class="dropdown-col-title">测量与扩展</div>
+              <a href="plugins/digital-oscilloscope.html" class="dropdown-item-card">
+                <div class="item-icon">📈</div>
+                <div class="item-content">
+                  <div class="item-title-row">
+                    <span class="item-title">多接口数字示波器</span>
+                    <span class="badge-tag badge-new">FFT</span>
+                  </div>
+                  <span class="item-sub">多通道高速波形采集与频谱分析</span>
+                </div>
+              </a>
+              <a href="plugins/signal-generator.html" class="dropdown-item-card">
+                <div class="item-icon">〰️</div>
+                <div class="item-content">
+                  <div class="item-title-row">
+                    <span class="item-title">高频信号发生器</span>
+                    <span class="badge-tag">插件</span>
+                  </div>
+                  <span class="item-sub">正弦/方波/三角波/噪声实时仿真</span>
+                </div>
+              </a>
+              <a href="plugins/custom-plugin.html" class="dropdown-item-card">
+                <div class="item-icon">🧩</div>
+                <div class="item-content">
+                  <div class="item-title-row">
+                    <span class="item-title">自定义扩展插件</span>
+                    <span class="badge-tag">Qt DLL</span>
+                  </div>
+                  <span class="item-sub">标准 Qt Plugin 动态加载工程范例</span>
+                </div>
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <a href="#plugins-hub" class="nav-link">容器市场</a>
+        <a href="docs.html" class="nav-link">技术文档</a>
+        <a href="download.html" class="nav-link nav-link-download">软件下载</a>
+      </nav>
+
+      <!-- Right Action Capsules -->
+      <div class="nav-actions">
+        <button class="capsule-btn" title="语言切换 (当前: 简体中文)">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+          </svg>
+          <span>CN</span>
+        </button>
+
+        <button class="capsule-btn theme-capsule-btn" id="themeToggleBtn" onclick="window.toggleGlobalTheme && window.toggleGlobalTheme(event)" title="切换主题 (极客暗黑 / 暖羊皮纸)">
+          <span id="themeToggleIcon">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+          </span>
+        </button>
+
+        <a href="https://github.com/zoufudun/SmileCodeIDE" target="_blank" rel="noopener" class="capsule-btn github-capsule-btn" title="GitHub 源码仓库与 Release 下载">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+          </svg>
+        </a>
+      </div>
+
+      <!-- Mobile Hamburger Toggle -->
+      <button class="mobile-toggle" id="mobileToggle" aria-label="切换菜单">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Hero Section: Left Text + Right Authentic SmileCode Studio Simulator (Figure 1 & Figure 2) -->
+  <section class="hero-section">
+    <div class="container hero-grid" style="align-items: stretch; gap: 48px; max-width: 1580px;">
+      <!-- Left Hero Text Column -->
+      <div class="hero-left">
+        <div class="hero-left-top">
+          <div class="hero-badge-pill">
+            <span>🎉</span>
+            <span>SmileCode Studio v2.3.6 正式发布</span>
+          </div>
+
+          <div class="hero-brand-row">
+            <img src="assets/smilecode-logo.svg" alt="SmileCode Studio" class="hero-brand-logo">
+            <h1 class="hero-main-title">SmileCode Studio</h1>
+          </div>
+
+          <h2 class="hero-slogan">统一管理你的嵌入式全栈开发与仪器工作流</h2>
+        </div>
+
+        <div class="hero-left-bottom">
+          <!-- Trio Action Buttons (Download, Product ->, Docs ->) -->
+          <div class="hero-cta-group-trio">
+            <a href="download.html" class="btn-hero-download">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+              </svg>
+              <span>免费下载</span>
+            </a>
+            <a href="#plugins-hub" class="btn-hero-outline">
+              <span>产品 &rarr;</span>
+            </a>
+            <a href="docs.html" class="btn-hero-outline">
+              <span>查看文档 &rarr;</span>
+            </a>
+          </div>
+
+          <div class="hero-platform-info">
+            ✓ 支持 Windows 10 / 11 64位 &nbsp;·&nbsp; 免安装绿色版 / 标准安装向导 / 企业MSI
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Authentic SmileCode Studio Window (Figure 2 Exact Replica) -->
+      <div class="hero-right" style="flex: 1.65; min-width: 0;">
+        <div class="studio-real-chassis" id="studioChassis">
+          <!-- Window Titlebar -->
+          <div class="studio-titlebar">
+            <div class="studio-title-left">
+              <img src="assets/smilecode-logo.svg" class="studio-title-icon" alt="icon">
+              <span>SmileCode Studio - 嵌入式开发与调试工具应用工作台</span>
+            </div>
+            <div class="studio-window-controls">
+              <span class="studio-control-btn" title="最小化">－</span>
+              <span class="studio-control-btn" title="最大化">▢</span>
+              <span class="studio-control-btn close" title="关闭">✕</span>
+            </div>
+          </div>
+
+          <!-- Studio Header Bar -->
+          <div class="studio-header">
+            <div class="studio-brand-block">
+              <div class="studio-brand-logo">
+                <img src="assets/smilecode-logo.svg" alt="SmileCode Studio">
+              </div>
+              <div class="studio-brand-text">
+                <span class="studio-brand-name">SmileCode Studio</span>
+                <span class="studio-brand-sub">嵌入式开发与调试工具应用市场容器</span>
+              </div>
+            </div>
+
+            <!-- Global Search Box -->
+            <div class="studio-search-wrap">
+              <span class="studio-search-icon">🔍</span>
+              <input type="text" class="studio-search-input" id="studioSearchInput" placeholder="搜索应用、工具、通信协议关键字 (Ctrl+F)..." autocomplete="off">
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="studio-header-actions">
+              <button class="studio-btn-ext" id="studioBtnExt" title="打开插件中心">
+                <span>🌸</span>
+                <span>扩展中心</span>
+              </button>
+              <select class="studio-theme-select" id="studioThemeSelect" title="切换模拟工作台配色">
+                <option value="parchment">📜 暖羊皮纸 (Warm Parchment)</option>
+                <option value="dark">⚡ 极客钛金 (Titanium Dark)</option>
+              </select>
+              <button class="studio-btn-about" id="studioBtnAbout" title="打开关于与软件更新中心">
+                <span>ℹ</span>
+                <span>关于</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Studio Body: Sidebar + Main Content -->
+          <div class="studio-workspace">
+            <!-- Left Sidebar Navigation -->
+            <div class="studio-sidebar" id="studioSidebar">
+              <div class="studio-cat-item active" data-cat="all">
+                <span>🏠 全部应用</span>
+                <span class="studio-cat-count" id="catCountAll">9</span>
+              </div>
+              <div class="studio-cat-item" data-cat="favorites">
+                <span>⭐ 常用推荐</span>
+                <span class="studio-cat-count" id="catCountFav">4</span>
+              </div>
+              <div class="studio-cat-item" data-cat="dev">
+                <span>💻 嵌入式开发</span>
+                <span class="studio-cat-count">2</span>
+              </div>
+              <div class="studio-cat-item" data-cat="bus">
+                <span>📶 总线与通信</span>
+                <span class="studio-cat-count">4</span>
+              </div>
+              <div class="studio-cat-item" data-cat="measure">
+                <span>📊 测量与分析</span>
+                <span class="studio-cat-count">2</span>
+              </div>
+              <div class="studio-cat-item" data-cat="flash">
+                <span>🚀 固件与烧录</span>
+                <span class="studio-cat-count">2</span>
+              </div>
+              <div class="studio-cat-item" data-cat="plugins">
+                <span>🧩 插件与扩展</span>
+                <span class="studio-cat-count">3</span>
+              </div>
+            </div>
+
+            <!-- Right Main Cards Content -->
+            <div class="studio-content-area" id="studioContentArea">
+              <!-- Top Hero Banner Card (Figure 2) -->
+              <div class="studio-hero-banner">
+                <div class="studio-hero-text">
+                  <h3>✨ SmileCode 一站式嵌入式开发工作台</h3>
+                  <p>集合代码编辑、总线调试、实时波形测量与固件烧录，支持模块化插件扩展。</p>
+                </div>
+                <a href="plugins/smilecode-ide.html" class="studio-hero-launch-btn">
+                  <span>⚡</span>
+                  <span>启动代码编辑器</span>
+                </a>
+              </div>
+
+              <!-- 9 App Cards (Exact Match to Figure 2) -->
+              <div class="studio-cards-list" id="studioCardsList">
+                <!-- 1. CAN 总线工作台 Pro -->
+                <div class="studio-app-card" data-id="can_tool" data-cat="bus" data-tags="USBCANFD CXCAN CANOpen 负载率统计" data-star="true">
+                  <div class="studio-app-icon-wrap" style="background: rgba(234, 88, 12, 0.15); color: #ea580c;">C</div>
+                  <div class="studio-app-info">
+                    <div class="studio-app-header-row">
+                      <span class="studio-app-title">CAN 总线工作台 Pro</span>
+                      <span class="studio-app-ver">v2.2.0</span>
+                      <span class="studio-app-cat-tag">总线与通信</span>
+                      <span class="studio-app-star starred" title="切换收藏">★</span>
+                    </div>
+                    <div class="studio-app-subhead">ZLG / CXCAN 工业级 CAN/CANFD 与 CANOpen 调试</div>
+                    <div class="studio-app-desc">支持周立功 USBCANFD、创芯 ControlCAN 硬件接口，集成 CANOpen Master 主站管理、总线负载率统计与多包周期发送。</div>
+                    <div class="studio-app-tags-row">
+                      <span class="studio-tag-chip">USBCANFD</span>
+                      <span class="studio-tag-chip">CXCAN</span>
+                      <span class="studio-tag-chip">CANOpen</span>
+                      <span class="studio-tag-chip">负载率统计</span>
+                    </div>
+                    <div class="studio-app-bottom-row">
+                      <span class="studio-status-indicator">● 就绪</span>
+                      <a href="plugins/can-workbench.html" class="studio-btn-open" style="background: #ea580c;">打开应用</a>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 2. STM32 IAP 固件升级 -->
+                <div class="studio-app-card" data-id="iap_tool" data-cat="flash" data-tags="STM32 Bootloader 固件烧录 TCP升级" data-star="true">
+                  <div class="studio-app-icon-wrap" style="background: rgba(16, 185, 129, 0.15); color: #10b981;">📥</div>
+                  <div class="studio-app-info">
+                    <div class="studio-app-header-row">
+                      <span class="studio-app-title">STM32 IAP 固件升级</span>
+                      <span class="studio-app-ver">v1.8.0</span>
+                      <span class="studio-app-cat-tag">固件与烧录</span>
+                      <span class="studio-app-star starred" title="切换收藏">★</span>
+                    </div>
+                    <div class="studio-app-subhead">串口与网络双通道 Bootloader 固件升级工具</div>
+                    <div class="studio-app-desc">专为 STM32 系列微控制器设计的 Bootloader 升级工具，支持串口 Ymodem/自定义协议及网络 TCP 双通道固件下载与校验。</div>
+                    <div class="studio-app-tags-row">
+                      <span class="studio-tag-chip">STM32 Bootloader</span>
+                      <span class="studio-tag-chip">固件烧录</span>
+                      <span class="studio-tag-chip">TCP 升级</span>
+                    </div>
+                    <div class="studio-app-bottom-row">
+                      <span class="studio-status-indicator">● 就绪</span>
+                      <a href="plugins/stm32-iap.html" class="studio-btn-open" style="background: #10b981;">打开应用</a>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 3. 网络通信调试助手 -->
+                <div class="studio-app-card" data-id="network_tool" data-cat="bus" data-tags="TCP客户端 TCP服务端 UDP广播 HEX收发" data-star="false">
+                  <div class="studio-app-icon-wrap" style="background: rgba(37, 99, 235, 0.15); color: #2563eb;">🌐</div>
+                  <div class="studio-app-info">
+                    <div class="studio-app-header-row">
+                      <span class="studio-app-title">网络通信调试助手</span>
+                      <span class="studio-app-ver">v2.0.0</span>
+                      <span class="studio-app-cat-tag">总线与通信</span>
+                      <span class="studio-app-star" title="切换收藏">☆</span>
+                    </div>
+                    <div class="studio-app-subhead">TCP Client/Server 与 UDP 单播/广播/多播调试</div>
+                    <div class="studio-app-desc">支持 TCP 客户端自动重连、TCP 服务器多客户端在线列表管理与广播/单发、UDP 广播调试，支持定时循环发送与日志导出。</div>
+                    <div class="studio-app-tags-row">
+                      <span class="studio-tag-chip">TCP 客户端</span>
+                      <span class="studio-tag-chip">TCP 服务端</span>
+                      <span class="studio-tag-chip">UDP 广播</span>
+                      <span class="studio-tag-chip">HEX 收发</span>
+                    </div>
+                    <div class="studio-app-bottom-row">
+                      <span class="studio-status-indicator">● 就绪</span>
+                      <a href="plugins/network-debugger.html" class="studio-btn-open" style="background: #2563eb;">打开应用</a>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 4. 多接口数字示波器 -->
+                <div class="studio-app-card" data-id="oscilloscope" data-cat="measure" data-tags="多通道波形 FFT频谱 TCP/UDP 测量标尺" data-star="true">
+                  <div class="studio-app-icon-wrap" style="background: rgba(6, 182, 212, 0.15); color: #06b6d4;">📈</div>
+                  <div class="studio-app-info">
+                    <div class="studio-app-header-row">
+                      <span class="studio-app-title">多接口数字示波器</span>
+                      <span class="studio-app-ver">v2.0.0</span>
+                      <span class="studio-app-cat-tag">测量与分析</span>
+                      <span class="studio-app-star starred" title="切换收藏">★</span>
+                    </div>
+                    <div class="studio-app-subhead">串口/TCP/UDP/WebSocket 实时波形采集与频谱分析</div>
+                    <div class="studio-app-desc">支持串口、TCP/UDP、WebSocket 与 CAN 多通道高频数据采集，提供实时波形绘制、FFT 频谱分析与极值标尺。</div>
+                    <div class="studio-app-tags-row">
+                      <span class="studio-tag-chip">多通道波形</span>
+                      <span class="studio-tag-chip">FFT 频谱</span>
+                      <span class="studio-tag-chip">TCP/UDP</span>
+                      <span class="studio-tag-chip">测量标尺</span>
+                    </div>
+                    <div class="studio-app-bottom-row">
+                      <span class="studio-status-indicator">● 就绪</span>
+                      <a href="plugins/digital-oscilloscope.html" class="studio-btn-open" style="background: #06b6d4;">打开应用</a>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 5. 串口调试大师 Pro -->
+                <div class="studio-app-card" data-id="serial_plot" data-cat="bus" data-tags="多标签页 分屏监控 曲线绘制 Modbus" data-star="true">
+                  <div class="studio-app-icon-wrap" style="background: rgba(139, 92, 246, 0.15); color: #8b5cf6;">🔌</div>
+                  <div class="studio-app-info">
+                    <div class="studio-app-header-row">
+                      <span class="studio-app-title">串口调试大师 Pro</span>
+                      <span class="studio-app-ver">v3.0.0</span>
+                      <span class="studio-app-cat-tag">总线与通信</span>
+                      <span class="studio-app-star starred" title="切换收藏">★</span>
+                    </div>
+                    <div class="studio-app-subhead">多标签页高速串口通信与分屏工作台</div>
+                    <div class="studio-app-desc">支持多标签页并发多串口通信、水平/垂直多窗口分屏、HEX/ASCII 高速收发、实时曲线绘制、Modbus 解析与自定义协议设计。</div>
+                    <div class="studio-app-tags-row">
+                      <span class="studio-tag-chip">多标签页</span>
+                      <span class="studio-tag-chip">分屏监控</span>
+                      <span class="studio-tag-chip">曲线绘制</span>
+                      <span class="studio-tag-chip">Modbus</span>
+                    </div>
+                    <div class="studio-app-bottom-row">
+                      <span class="studio-status-indicator">● 就绪</span>
+                      <a href="plugins/serial-master.html" class="studio-btn-open" style="background: #8b5cf6;">打开应用</a>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 6. 高频信号发生器 (Qt DLL) -->
+                <div class="studio-app-card" data-id="signal_gen" data-cat="measure" data-tags="Qt动态插件 信号发生 波形仿真 DAC模拟 实时渲染" data-star="false">
+                  <div class="studio-app-icon-wrap" style="background: rgba(5, 150, 105, 0.15); color: #059669;">⚡</div>
+                  <div class="studio-app-info">
+                    <div class="studio-app-header-row">
+                      <span class="studio-app-title">高频信号发生器</span>
+                      <span class="studio-app-ver">v1.0.0</span>
+                      <span class="studio-app-cat-tag">测量与分析</span>
+                      <span class="studio-app-star" title="切换收藏">☆</span>
+                    </div>
+                    <div class="studio-app-subhead">正弦波/方波/三角波/锯齿波/白噪声实时高频仿真与数据生成</div>
+                    <div class="studio-app-desc">基于 QPainter 实时动态绘制多波形高频信号发生器，支持频率、幅值、相位、偏置与噪声实时调节，支持单通道/多通道导出与数据点导出。</div>
+                    <div class="studio-app-tags-row">
+                      <span class="studio-tag-chip chip-dll">Qt 动态插件 (.dll)</span>
+                      <span class="studio-tag-chip">信号发生</span>
+                      <span class="studio-tag-chip">波形仿真</span>
+                      <span class="studio-tag-chip">DAC 模拟</span>
+                      <span class="studio-tag-chip">实时渲染</span>
+                    </div>
+                    <div class="studio-app-bottom-row">
+                      <span class="studio-status-indicator">● 就绪</span>
+                      <a href="plugins/signal-generator.html" class="studio-btn-open" style="background: #059669;">打开应用</a>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 7. SmileCode IDE -->
+                <div class="studio-app-card" data-id="smilecode_ide" data-cat="dev" data-tags="C/C++ GCC/Make GDB调试 STM32" data-star="true">
+                  <div class="studio-app-icon-wrap" style="background: rgba(79, 70, 229, 0.15); color: #4f46e5;">💻</div>
+                  <div class="studio-app-info">
+                    <div class="studio-app-header-row">
+                      <span class="studio-app-title">SmileCode IDE</span>
+                      <span class="studio-app-ver">v2.3.6</span>
+                      <span class="studio-app-cat-tag">嵌入式开发</span>
+                      <span class="studio-app-star starred" title="切换收藏">★</span>
+                    </div>
+                    <div class="studio-app-subhead">嵌入式 C/C++ 代码编辑器与 GDB 调试器</div>
+                    <div class="studio-app-desc">基于 QScintilla 的嵌入式 C/C++ IDE，集成 GCC/Make 编译构建、GDB 断点与单步调试、ST-Link / J-Link / CMSIS-DAP 固件烧录及任务管理。</div>
+                    <div class="studio-app-tags-row">
+                      <span class="studio-tag-chip">C/C++</span>
+                      <span class="studio-tag-chip">GCC/Make</span>
+                      <span class="studio-tag-chip">GDB 调试</span>
+                      <span class="studio-tag-chip">STM32</span>
+                    </div>
+                    <div class="studio-app-bottom-row">
+                      <span class="studio-status-indicator">● 就绪</span>
+                      <a href="plugins/smilecode-ide.html" class="studio-btn-open" style="background: #4f46e5;">打开应用</a>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 8. STM32 编译构建与 GDB 调试 (Qt DLL) -->
+                <div class="studio-app-card" data-id="stm32_build_debug" data-cat="dev" data-tags="Qt动态插件 STM32 GCC Make GDB调试 固件烧录 OpenOCD" data-star="false">
+                  <div class="studio-app-icon-wrap" style="background: rgba(2, 132, 199, 0.15); color: #0284c7;">⚙️</div>
+                  <div class="studio-app-info">
+                    <div class="studio-app-header-row">
+                      <span class="studio-app-title">STM32 编译构建与 GDB 调试</span>
+                      <span class="studio-app-ver">v1.0.0</span>
+                      <span class="studio-app-cat-tag">嵌入式开发</span>
+                      <span class="studio-app-star" title="切换收藏">☆</span>
+                    </div>
+                    <div class="studio-app-subhead">GCC/Make 一键编译构建、固件烧录与硬件 GDB 在线断点单步调试</div>
+                    <div class="studio-app-desc">专为 STM32 嵌入式硬件打造的一体化工作台：支持 Cortex-M0/M3/M4/M7 全系列，自动化 Makefile 依赖编译构建、多线程并行编译、Flash/RAM 资源消耗评估，OpenOCD/J-Link/ST-Link 一键烧录与原生 GDB/MI 异步断点。</div>
+                    <div class="studio-app-tags-row">
+                      <span class="studio-tag-chip chip-dll">Qt 动态插件 (.dll)</span>
+                      <span class="studio-tag-chip">STM32</span>
+                      <span class="studio-tag-chip">GCC</span>
+                      <span class="studio-tag-chip">Make</span>
+                      <span class="studio-tag-chip">GDB 调试</span>
+                      <span class="studio-tag-chip">固件烧录</span>
+                      <span class="studio-tag-chip">OpenOCD</span>
+                    </div>
+                    <div class="studio-app-bottom-row">
+                      <span class="studio-status-indicator">● 就绪</span>
+                      <a href="plugins/stm32-build-debug.html" class="studio-btn-open" style="background: #0284c7;">打开应用</a>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 9. 自定义扩展插件 (Qt DLL) -->
+                <div class="studio-app-card" data-id="custom_plugin" data-cat="plugins" data-tags="Qt动态插件 开发模板 业务 扩展模块" data-star="false">
+                  <div class="studio-app-icon-wrap" style="background: rgba(124, 58, 237, 0.15); color: #7c3aed;">🧩</div>
+                  <div class="studio-app-info">
+                    <div class="studio-app-header-row">
+                      <span class="studio-app-title">自定义扩展插件</span>
+                      <span class="studio-app-ver">v1.0.0</span>
+                      <span class="studio-app-cat-tag">插件与扩展</span>
+                      <span class="studio-app-star" title="切换收藏">☆</span>
+                    </div>
+                    <div class="studio-app-subhead">开箱即用的 Qt 动态插件开发范例与接口演示</div>
+                    <div class="studio-app-desc">本插件为标准 Qt Plugin 动态便携模板，展示了元数据注册、界面实例化、宿主上下文服务交互与主题联动机制。</div>
+                    <div class="studio-app-tags-row">
+                      <span class="studio-tag-chip chip-dll">Qt 动态插件 (.dll)</span>
+                      <span class="studio-tag-chip">开发模板</span>
+                      <span class="studio-tag-chip">业务 扩展模块</span>
+                    </div>
+                    <div class="studio-app-bottom-row">
+                      <span class="studio-status-indicator">● 就绪</span>
+                      <a href="plugins/custom-plugin.html" class="studio-btn-open" style="background: #7c3aed;">打开应用</a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Empty Search Result -->
+              <div class="studio-empty-state" id="studioEmptyState">
+                <div style="font-size: 2rem; margin-bottom: 8px;">🔍</div>
+                <div>未找到匹配的应用，请检查搜索关键字或尝试在“扩展中心”安装插件</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom Status Bar -->
+          <div class="studio-statusbar">
+            <div class="studio-status-left">
+              <span>● 运行中应用: <strong id="studioRunCount" style="color: #10b981;">0</strong> 个</span>
+              <span>● 已集成应用: <strong id="studioTotCount" style="color: #f59e0b;">9</strong> 个</span>
+            </div>
+            <div>SmileCode Studio v2.3.6</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section: Container Mission & Architecture -->
+  <section class="section" id="about-studio" style="background: rgba(125,125,125,0.02);">
+    <div class="container">
+      <div class="section-header text-center">
+        <h2 class="section-title">SmileCode Studio 容器市场架构与使命</h2>
+        <p class="section-subtitle">
+          打破传统单片机开发工具互不相通、频繁切换窗口的藩篱。SmileCode Studio 作为最外层的统一应用市场容器，将单片机全生命周期工具链深度整合。
+        </p>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px;">
+        <div class="plugin-card" style="cursor: default;">
+          <div class="plugin-icon">📝</div>
+          <h4 style="font-weight: 700; margin-bottom: 6px;">全链路闭环开发</h4>
+          <p style="font-size: 0.84rem; color: var(--text-muted);">代码编辑、增量编译、符号链接、芯片烧录与硬件在线调试，一键流水线作业。</p>
+        </div>
+        <div class="plugin-card" style="cursor: default;">
+          <div class="plugin-icon">🚗</div>
+          <h4 style="font-weight: 700; margin-bottom: 6px;">多协议通信集成</h4>
+          <p style="font-size: 0.84rem; color: var(--text-muted);">同时集成 CAN/CAN-FD 总线、串口多标签分屏、TCP/UDP 网络以及 Bootloader 升级。</p>
+        </div>
+        <div class="plugin-card" style="cursor: default;">
+          <div class="plugin-icon">📊</div>
+          <h4 style="font-weight: 700; margin-bottom: 6px;">专业测试仪器内置</h4>
+          <p style="font-size: 0.84rem; color: var(--text-muted);">内置多接口数字示波器与高频信号发生器，实时 FFT 频谱与多波形仿真免外置硬件。</p>
+        </div>
+        <div class="plugin-card" style="cursor: default;">
+          <div class="plugin-icon">🧩</div>
+          <h4 style="font-weight: 700; margin-bottom: 6px;">动态插件独立更新</h4>
+          <p style="font-size: 0.84rem; color: var(--text-muted);">采用 Qt 动态链接库与元数据规范，各插件按需热插拔、独立升级，生态自由扩展。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section: Real 9 Plugins Full Matrix Grid (Figure 1 Real Alignment) -->
+  <section class="section" id="plugins-hub">
+    <div class="container">
+      <div class="section-header text-center">
+        <h2 class="section-title">应用市场 插件生态矩阵</h2>
+        <p class="section-subtitle">严格对照实际软件界面，包含 6 款内置核心工作台应用与 3 款官方标准 Qt 动态插件，点击任意插件可查看专属介绍主页。</p>
+      </div>
+
+      <div class="plugins-grid">
+        <!-- 1. CAN 总线工作台 Pro -->
+        <a href="plugins/can-workbench.html" class="plugin-card">
+          <div class="plugin-card-top">
+            <span class="plugin-icon" style="color: #ea580c;">🚗</span>
+            <span class="plugin-ver-badge">v2.2.0 · 总线与通信</span>
+          </div>
+          <h3 class="plugin-card-title">CAN 总线工作台 Pro</h3>
+          <p class="plugin-card-desc"><strong>ZLG / CXCAN 工业级 CAN/CANFD 与 CANOpen 调试</strong><br>支持周立功 USBCANFD、创芯 ControlCAN 硬件接口，集成 CANOpen Master 主站管理、负载率曲线统计与多设备报文转发。</p>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px;">
+            <span class="badge-tag">USBCANFD</span>
+            <span class="badge-tag">CXCAN</span>
+            <span class="badge-tag">CANOpen</span>
+            <span class="badge-tag">负载率统计</span>
+          </div>
+          <div class="plugin-card-footer">
+            <span>进入插件专属主页</span>
+            <span>&rarr;</span>
+          </div>
+        </a>
+
+        <!-- 2. STM32 IAP 固件升级 -->
+        <a href="plugins/stm32-iap.html" class="plugin-card">
+          <div class="plugin-card-top">
+            <span class="plugin-icon" style="color: #10b981;">🚀</span>
+            <span class="plugin-ver-badge">v1.8.0 · 固件与烧录</span>
+          </div>
+          <h3 class="plugin-card-title">STM32 IAP 固件升级</h3>
+          <p class="plugin-card-desc"><strong>串口与网络双通道 Bootloader 固件升级工具</strong><br>专为 STM32 系列微控制器设计的 Bootloader 升级工具，支持串口 Ymodem/自定义协议及网络 TCP 双通道固件下载与校验。</p>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px;">
+            <span class="badge-tag">STM32</span>
+            <span class="badge-tag">Bootloader</span>
+            <span class="badge-tag">固件烧录</span>
+            <span class="badge-tag">TCP 升级</span>
+          </div>
+          <div class="plugin-card-footer">
+            <span>进入插件专属主页</span>
+            <span>&rarr;</span>
+          </div>
+        </a>
+
+        <!-- 3. 网络通信调试助手 -->
+        <a href="plugins/network-debugger.html" class="plugin-card">
+          <div class="plugin-card-top">
+            <span class="plugin-icon" style="color: #2563eb;">🌐</span>
+            <span class="plugin-ver-badge">v2.0.0 · 总线与通信</span>
+          </div>
+          <h3 class="plugin-card-title">网络通信调试助手</h3>
+          <p class="plugin-card-desc"><strong>TCP Client/Server 与 UDP 单播/广播/多播调试</strong><br>支持 TCP 客户端自动重连、TCP 服务端多客户端在线列表管理与广播/单发、UDP 广播调试，支持定时循环发送与日志导出。</p>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px;">
+            <span class="badge-tag">TCP 客户端</span>
+            <span class="badge-tag">TCP 服务端</span>
+            <span class="badge-tag">UDP 通信</span>
+            <span class="badge-tag">HEX 收发</span>
+          </div>
+          <div class="plugin-card-footer">
+            <span>进入插件专属主页</span>
+            <span>&rarr;</span>
+          </div>
+        </a>
+
+        <!-- 4. 多接口数字示波器 -->
+        <a href="plugins/digital-oscilloscope.html" class="plugin-card">
+          <div class="plugin-card-top">
+            <span class="plugin-icon" style="color: #0284c7;">📈</span>
+            <span class="plugin-ver-badge">v2.0.0 · 测量与分析</span>
+          </div>
+          <h3 class="plugin-card-title">多接口数字示波器</h3>
+          <p class="plugin-card-desc"><strong>串口/TCP/UDP/WebSocket 实时波形采集与频谱分析</strong><br>支持串口、TCP/UDP、WebSocket 与 CAN 多通道数据高速采集，提供实时波形绘制、FFT 频谱分析与测量标尺。</p>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px;">
+            <span class="badge-tag">多通道波形</span>
+            <span class="badge-tag">FFT 频谱</span>
+            <span class="badge-tag">TCP/UDP</span>
+            <span class="badge-tag">测量标尺</span>
+          </div>
+          <div class="plugin-card-footer">
+            <span>进入插件专属主页</span>
+            <span>&rarr;</span>
+          </div>
+        </a>
+
+        <!-- 5. 串口调试大师 Pro -->
+        <a href="plugins/serial-master.html" class="plugin-card">
+          <div class="plugin-card-top">
+            <span class="plugin-icon" style="color: #7c3aed;">🔌</span>
+            <span class="plugin-ver-badge">v3.0.0 · 总线与通信</span>
+          </div>
+          <h3 class="plugin-card-title">串口调试大师 Pro</h3>
+          <p class="plugin-card-desc"><strong>多标签页高速串口通信与分屏工作台</strong><br>支持多标签页独立会话、水平/垂直多窗口分屏、HEX/ASCII 高速收发、实时曲线绘制、Modbus 解析与自定义协议设计。</p>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px;">
+            <span class="badge-tag">多标签页</span>
+            <span class="badge-tag">分屏监控</span>
+            <span class="badge-tag">曲线绘制</span>
+            <span class="badge-tag">Modbus</span>
+          </div>
+          <div class="plugin-card-footer">
+            <span>进入插件专属主页</span>
+            <span>&rarr;</span>
+          </div>
+        </a>
+
+        <!-- 6. 高频信号发生器 (Qt DLL) -->
+        <a href="plugins/signal-generator.html" class="plugin-card">
+          <div class="plugin-card-top">
+            <span class="plugin-icon" style="color: #059669;">⚡</span>
+            <span class="plugin-ver-badge">v1.0.0 · Qt 动态插件</span>
+          </div>
+          <h3 class="plugin-card-title">高频信号发生器</h3>
+          <p class="plugin-card-desc"><strong>正弦波/方波/三角波/锯齿波/白噪声实时高频仿真与数据生成</strong><br>基于 QPainter 实时动态绘制多波形高频信号发生器，支持频率、幅值、相位、偏置调节与采样点导出。</p>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px;">
+            <span class="badge-tag badge-new">Qt 动态插件 (.dll)</span>
+            <span class="badge-tag">信号发生</span>
+            <span class="badge-tag">波形仿真</span>
+            <span class="badge-tag">DAC模拟</span>
+          </div>
+          <div class="plugin-card-footer">
+            <span>进入插件专属主页</span>
+            <span>&rarr;</span>
+          </div>
+        </a>
+
+        <!-- 7. SmileCode IDE -->
+        <a href="plugins/smilecode-ide.html" class="plugin-card">
+          <div class="plugin-card-top">
+            <span class="plugin-icon" style="color: #6c5ce7;">💻</span>
+            <span class="plugin-ver-badge">v2.3.6 · 核心工作台</span>
+          </div>
+          <h3 class="plugin-card-title">SmileCode IDE</h3>
+          <p class="plugin-card-desc"><strong>嵌入式 C/C++ 代码编辑器与 GDB 调试器</strong><br>基于 QScintilla 的嵌入式 C/C++ IDE，集成 GCC/Make 编译构建、GDB 断点与单步调试、ST-Link / J-Link / CMSIS-DAP 固件烧录及任务取消。</p>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px;">
+            <span class="badge-tag">C/C++</span>
+            <span class="badge-tag">GCC/Make</span>
+            <span class="badge-tag">GDB 调试</span>
+            <span class="badge-tag">STM32</span>
+          </div>
+          <div class="plugin-card-footer">
+            <span>进入插件专属主页</span>
+            <span>&rarr;</span>
+          </div>
+        </a>
+
+        <!-- 8. STM32 编译构建与 GDB 调试 (Qt DLL) -->
+        <a href="plugins/stm32-build-debug.html" class="plugin-card">
+          <div class="plugin-card-top">
+            <span class="plugin-icon" style="color: #1e40af;">⚙️</span>
+            <span class="plugin-ver-badge">v1.0.0 · Qt 动态插件</span>
+          </div>
+          <h3 class="plugin-card-title">STM32 编译构建与 GDB 调试</h3>
+          <p class="plugin-card-desc"><strong>GCC/Make 一键编译构建、固件烧录与硬件 GDB 在线断点单步调试</strong><br>专为 STM32 打造：支持 Cortex-M0/M3/M4/M7 全系列、自动化依赖追踪、多线程并行编译、Flash/RAM 监控与 OpenOCD/J-Link 一键烧录。</p>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px;">
+            <span class="badge-tag badge-new">Qt 动态插件 (.dll)</span>
+            <span class="badge-tag">STM32</span>
+            <span class="badge-tag">GCC Make</span>
+            <span class="badge-tag">OpenOCD</span>
+          </div>
+          <div class="plugin-card-footer">
+            <span>进入插件专属主页</span>
+            <span>&rarr;</span>
+          </div>
+        </a>
+
+        <!-- 9. 自定义扩展插件 (Qt DLL) -->
+        <a href="plugins/custom-plugin.html" class="plugin-card">
+          <div class="plugin-card-top">
+            <span class="plugin-icon" style="color: #9333ea;">🧩</span>
+            <span class="plugin-ver-badge">v1.0.0 · Qt 动态插件</span>
+          </div>
+          <h3 class="plugin-card-title">自定义扩展插件</h3>
+          <p class="plugin-card-desc"><strong>开箱即用的 Qt 动态插件开发范例与接口演示</strong><br>本插件为标准 Qt Plugin 动态便携模式工程，展示了元数据注册解析、界面无缝嵌入、宿主上下文服务交互与主题联动机制。</p>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px;">
+            <span class="badge-tag badge-new">Qt 动态插件 (.dll)</span>
+            <span class="badge-tag">开发模板</span>
+            <span class="badge-tag">动态加载</span>
+          </div>
+          <div class="plugin-card-footer">
+            <span>进入插件专属主页</span>
+            <span>&rarr;</span>
+          </div>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section: Pain Points & Comparison (vs Keil MDK / CubeIDE) -->
+  <section class="section comparison-section" id="comparison" style="background: rgba(125,125,125,0.02);">
+    <div class="container">
+      <div class="section-header text-center">
+        <h2 class="section-title">告别传统嵌入式 IDE 的核心痛点</h2>
+        <p class="section-subtitle">为什么越来越多工程团队与极客开发者从 Keil MDK 与传统工具链迁移到 SmileCode Studio？</p>
+      </div>
+
+      <div class="comparison-table-wrapper" style="overflow-x: auto;">
+        <table class="comparison-table" style="width: 100%; border-collapse: collapse; background: var(--bg-card); border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--border-color);">
+          <thead>
+            <tr style="background: rgba(125,125,125,0.06); text-align: left;">
+              <th style="padding: 16px 20px;">对比维度</th>
+              <th style="padding: 16px 20px;">传统 Keil MDK / 闭源工具</th>
+              <th style="padding: 16px 20px;">STM32CubeIDE / Eclipse系</th>
+              <th style="padding: 16px 20px; color: var(--accent-primary); font-weight: 800;">SmileCode Studio (v2.3.6)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-top: 1px solid var(--border-color);">
+              <td style="padding: 16px 20px;"><strong>延时防锁死机制</strong><br><span style="font-size: 0.78rem; color: var(--text-muted);">高优化等级下的稳定性</span></td>
+              <td style="padding: 16px 20px; color: #ef4444;">✕ -O2/-O3 易优化掉空循环延时导致假死</td>
+              <td style="padding: 16px 20px; color: #f59e0b;">△ 需手动写 volatile 或嵌入汇编</td>
+              <td style="padding: 16px 20px; font-weight: 700; color: #10b981;">✓ 原生防锁死机制，毫秒纳秒精准维持</td>
+            </tr>
+            <tr style="border-top: 1px solid var(--border-color);">
+              <td style="padding: 16px 20px;"><strong>现代工具链与兼容性</strong><br><span style="font-size: 0.78rem; color: var(--text-muted);">GCC 14 / C23 标准</span></td>
+              <td style="padding: 16px 20px; color: #ef4444;">✕ ArmCC 语法古老，迁移新 GCC 易报错</td>
+              <td style="padding: 16px 20px; color: #f59e0b;">△ 升级慢，深度参数定制繁琐</td>
+              <td style="padding: 16px 20px; font-weight: 700; color: #10b981;">✓ 原生搭载 GCC 14，独家宽松兼容容错</td>
+            </tr>
+            <tr style="border-top: 1px solid var(--border-color);">
+              <td style="padding: 16px 20px;"><strong>界面美学与双主题</strong><br><span style="font-size: 0.78rem; color: var(--text-muted);">长时间编码用眼舒适度</span></td>
+              <td style="padding: 16px 20px; color: #ef4444;">✕ 90年代灰白界面，无真正暗色模式</td>
+              <td style="padding: 16px 20px; color: #f59e0b;">△ 弹窗白边割裂，字体渲染生硬</td>
+              <td style="padding: 16px 20px; font-weight: 700; color: #10b981;">✓ 极客暗黑 + 暖羊皮纸双引擎，全局统一</td>
+            </tr>
+            <tr style="border-top: 1px solid var(--border-color);">
+              <td style="padding: 16px 20px;"><strong>内置辅助测量仪器</strong><br><span style="font-size: 0.78rem; color: var(--text-muted);">CAN、示波器、信号发生器、串口</span></td>
+              <td style="padding: 16px 20px; color: #ef4444;">✕ 无内置仪器，需打开多个第三方程序</td>
+              <td style="padding: 16px 20px; color: #ef4444;">✕ 无内置示波器与多通信协议分析套件</td>
+              <td style="padding: 16px 20px; font-weight: 700; color: #10b981;">✓ 容器应用市场一站式集成所有仪器</td>
+            </tr>
+            <tr style="border-top: 1px solid var(--border-color);">
+              <td style="padding: 16px 20px;"><strong>授权费用与限制</strong><br><span style="font-size: 0.78rem; color: var(--text-muted);">企业商业合规门槛</span></td>
+              <td style="padding: 16px 20px; color: #ef4444;">✕ 授权费用极高，免费版强限 32KB</td>
+              <td style="padding: 16px 20px; color: #10b981;">✓ 免费，但内存占用高达数 G</td>
+              <td style="padding: 16px 20px; font-weight: 700; color: #10b981;">✓ 100% 自由开源，秒级瞬时冷启动</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section: Compiler Optimizer -->
+  <section class="section" id="optimization">
+    <div class="container">
+      <div class="section-header text-center">
+        <h2 class="section-title">可视化编译器优化与硬件防锁死技术</h2>
+        <p class="section-subtitle">深入解决在传统单片机开发中“低优化编译能跑、高优化下烧录假死”的顽疾，让性能与稳定性兼得。</p>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px; align-items: center;">
+        <div>
+          <h3 style="font-size: 1.4rem; font-weight: 800; margin-bottom: 14px;">六档优化级别与安全策略联动</h3>
+          <p style="color: var(--text-secondary); line-height: 1.7; margin-bottom: 16px;">
+            传统嵌入式 IDE 往往粗暴设置全局编译优化，极易触发编译器将纯软件计数延时循环（如 <code>while(delay--)</code>）当成无副作用死代码全部删除，导致液晶屏幕、I2C/SPI 驱动因时序缺失而无法响应。
+          </p>
+          <ul style="list-style: none; display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;">
+            <li style="display: flex; align-items: center; gap: 10px;">
+              <span style="color: #10b981;">✓</span>
+              <span><strong>可视化配置窗口</strong>：支持 -O0、-O1 (推荐)、-O2、-O3、-Os、-Og 动态调控</span>
+            </li>
+            <li style="display: flex; align-items: center; gap: 10px;">
+              <span style="color: #10b981;">✓</span>
+              <span><strong>硬件延迟保护</strong>：核心通信驱动采用内嵌汇编或强制时钟计数保护</span>
+            </li>
+            <li style="display: flex; align-items: center; gap: 10px;">
+              <span style="color: #10b981;">✓</span>
+              <span><strong>调试符号无缝注入</strong>：自动配置 DWARF2 符号集，断点调试与优化兼备</span>
+            </li>
+          </ul>
+        </div>
+        <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 24px; box-shadow: var(--shadow-card);">
+          <div style="font-weight: 700; margin-bottom: 12px; display: flex; justify-content: space-between;">
+            <span>实时生效的构建指令预览</span>
+            <span class="badge-tag badge-new">Makefile 联动</span>
+          </div>
+          <pre style="background: rgba(0,0,0,0.25); color: #a5b4fc; padding: 14px; border-radius: 8px; font-family: var(--font-mono); font-size: 0.8rem; overflow-x: auto; line-height: 1.6;"><code># 针对 STM32H743/F429/F103 的最优工程编译参数
+OPT = -O1 -g -gdwarf-2
+CFLAGS = $(MCU) $(C_DEFS) $(C_INCLUDES) $(OPT) \
+         -Wall -fdata-sections -ffunction-sections \
+         -fcommon -Wno-implicit-function-declaration
+
+# 编译结果: 0 个错误，0 个警告，板卡实时上电即跑</code></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section: Download All Formats -->
+  <section class="section" id="download" style="background: rgba(125,125,125,0.02);">
+    <div class="container text-center">
+      <div class="section-header">
+        <h2 class="section-title">全格式免提权一键安装</h2>
+        <p class="section-subtitle">满足个人极客、团队快速开发与企业 IT 集中批量部署，全部经过 SHA-256 完整性哈希校验。</p>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; max-width: 1040px; margin: 0 auto; text-align: left;">
+        <!-- ZIP Portable -->
+        <div class="plugin-card" style="display: flex; flex-direction: column; justify-content: space-between;">
+          <div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+              <span style="font-size: 1.8rem;">📦</span>
+              <span class="badge-tag">免安装绿色版</span>
+            </div>
+            <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 8px;">ZIP 便携压缩包</h3>
+            <p style="font-size: 0.84rem; color: var(--text-muted); margin-bottom: 14px;">解压即用，支持存放于 U 盘随身携带，不污染 Windows 注册表，包含全套 插件与示例工程。</p>
+            <div style="font-size: 0.76rem; font-family: var(--font-mono); color: var(--text-muted); background: rgba(0,0,0,0.05); padding: 8px; border-radius: 6px; margin-bottom: 16px;">
+              文件: SmileCodeIDE-v2.3.6-Windows-x64.zip<br>
+              体积: 45.75 MB
+            </div>
+          </div>
+          <a href="https://github.com/zoufudun/SmileCodeIDE/releases/download/v2.3.6/SmileCodeIDE-v2.3.6-Windows-x64.zip" class="btn-primary" style="text-align: center; justify-content: center;">
+            <span>下载 ZIP 绿色包</span>
+          </a>
+        </div>
+
+        <!-- Setup EXE -->
+        <div class="plugin-card" style="display: flex; flex-direction: column; justify-content: space-between; border-color: var(--accent-primary); box-shadow: var(--shadow-glow);">
+          <div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+              <span style="font-size: 1.8rem;">🚀</span>
+              <span class="badge-tag badge-hot">桌面用户推荐</span>
+            </div>
+            <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 8px;">EXE 安装向导 (免提权)</h3>
+            <p style="font-size: 0.84rem; color: var(--text-muted); margin-bottom: 14px;">解决传统安装程序 UAC 权限拒绝报错，默认安装于用户空间，自动生成桌面图标与开始菜单，完成即可立即启动。</p>
+            <div style="font-size: 0.76rem; font-family: var(--font-mono); color: var(--text-muted); background: rgba(0,0,0,0.05); padding: 8px; border-radius: 6px; margin-bottom: 16px;">
+              文件: SmileCodeIDE-v2.3.6-Setup.exe<br>
+              体积: 69.40 MB
+            </div>
+          </div>
+          <a href="https://github.com/zoufudun/SmileCodeIDE/releases/download/v2.3.6/SmileCodeIDE-v2.3.6-Setup.exe" class="btn-primary" style="text-align: center; justify-content: center;">
+            <span>下载 EXE 安装包</span>
+          </a>
+        </div>
+
+        <!-- MSI Installer -->
+        <div class="plugin-card" style="display: flex; flex-direction: column; justify-content: space-between;">
+          <div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+              <span style="font-size: 1.8rem;">🏢</span>
+              <span class="badge-tag">企业批量分发</span>
+            </div>
+            <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 8px;">MSI 企业部署包</h3>
+            <p style="font-size: 0.84rem; color: var(--text-muted); margin-bottom: 14px;">微软官方标准 Windows Installer 安装包，支持 Active Directory 组策略 (GPO)、Intune 与静默推送安装。</p>
+            <div style="font-size: 0.76rem; font-family: var(--font-mono); color: var(--text-muted); background: rgba(0,0,0,0.05); padding: 8px; border-radius: 6px; margin-bottom: 16px;">
+              文件: SmileCodeIDE-v2.3.6-Setup.msi<br>
+              体积: 46.02 MB
+            </div>
+          </div>
+          <a href="https://github.com/zoufudun/SmileCodeIDE/releases/download/v2.3.6/SmileCodeIDE-v2.3.6-Setup.msi" class="btn-primary" style="text-align: center; justify-content: center;">
+            <span>下载 MSI 安装包</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Interactive Modal: About & Update Center (Fixed Figure 1 Replica) -->
+  <div class="studio-modal-overlay" id="studioAboutModal">
+    <div class="studio-about-modal">
+      <div class="studio-modal-header">
+        <h3>
+          <span>ⓘ</span>
+          <span>关于与更新中心 - SmileCode Studio</span>
+        </h3>
+        <button class="studio-modal-close-icon" id="studioModalCloseBtn">&times;</button>
+      </div>
+
+      <div class="studio-modal-tabs">
+        <button class="studio-modal-tab-btn active" id="modalTabUpdates">🚀 软件与插件更新</button>
+        <button class="studio-modal-tab-btn" id="modalTabChangelog">📋 详细更新记录 (Changelog)</button>
+      </div>
+
+      <div class="studio-modal-body" id="modalBodyUpdates">
+        <!-- 1. Top Container Card -->
+        <div class="modal-container-card">
+          <div class="modal-card-top-row">
+            <div class="modal-brand-left">
+              <img src="assets/smilecode-logo.svg" class="modal-brand-icon" alt="logo">
+              <div class="modal-brand-titles">
+                <h4>SmileCode Studio · 微笑代码工作站</h4>
+                <p>应用市场容器核心 v2.3.6 (最新正式版)</p>
+              </div>
+            </div>
+            <button class="modal-check-btn" id="modalCheckContainerBtn">🔄 检查更新</button>
+          </div>
+          <div class="modal-card-bottom-row">
+            <span class="modal-status-text" id="modalContainerStatus">状态：已是最新稳定版本，支持 GCC 14 与 OpenOCD 全套生态。</span>
+            <div class="modal-card-links">
+              <a href="index.html" class="modal-link-btn">🌐 官方网站</a>
+              <a href="https://github.com/zoufudun/SmileCodeIDE" target="_blank" class="modal-link-btn">↗ 更新日志</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Star Banner -->
+        <div class="modal-star-banner" id="modalStarBanner">
+          <p>⭐ 如果 SmileCode Studio 帮到了你，请在 GitHub 点个 Star，这对我们意义重大</p>
+          <a href="https://github.com/zoufudun/SmileCodeIDE" target="_blank" class="modal-star-btn">点此去 Star ⭐</a>
+        </div>
+
+        <!-- 3. Plugins List Card (Scrollable, Non-Squashing) -->
+        <div class="modal-plugins-card">
+          <div class="modal-plugins-header">
+            <h4>🧩 各插件更新与运行状态 (Plugins Status)</h4>
+            <button class="modal-batch-check-btn" id="modalBatchCheckBtn">一键检查所有插件更新</button>
+          </div>
+          <div class="modal-plugins-list" id="modalPluginsList">
+            <!-- 1. CAN -->
+            <div class="modal-plugin-item">
+              <div class="modal-item-info">
+                <div class="modal-item-name-line">
+                  <span>CAN 总线工作台 Pro</span>
+                  <span style="font-size: 0.65rem; color: #10b981; font-weight: bold;">[内置应用]</span>
+                </div>
+                <div class="modal-item-desc">ZLG/CXCAN 工业级 CAN/CANFD 与 CANOpen 调试 · 负载率统计</div>
+              </div>
+              <div class="modal-item-ver">v2.2.0</div>
+              <div class="modal-item-status">🟢 已是最新</div>
+              <button class="modal-item-check-btn">检查更新</button>
+            </div>
+            <!-- 2. STM32 IAP -->
+            <div class="modal-plugin-item">
+              <div class="modal-item-info">
+                <div class="modal-item-name-line">
+                  <span>STM32 IAP 固件升级</span>
+                  <span style="font-size: 0.65rem; color: #10b981; font-weight: bold;">[内置应用]</span>
+                </div>
+                <div class="modal-item-desc">串口与网络双通道 Bootloader 固件升级 · Ymodem/TCP 下载校验</div>
+              </div>
+              <div class="modal-item-ver">v1.8.0</div>
+              <div class="modal-item-status">🟢 已是最新</div>
+              <button class="modal-item-check-btn">检查更新</button>
+            </div>
+            <!-- 3. Network Debugger -->
+            <div class="modal-plugin-item">
+              <div class="modal-item-info">
+                <div class="modal-item-name-line">
+                  <span>网络通信调试助手</span>
+                  <span style="font-size: 0.65rem; color: #10b981; font-weight: bold;">[内置应用]</span>
+                </div>
+                <div class="modal-item-desc">TCP Client/Server 与 UDP 单播/广播/多播调试 · 循环定时发送</div>
+              </div>
+              <div class="modal-item-ver">v2.0.0</div>
+              <div class="modal-item-status">🟢 已是最新</div>
+              <button class="modal-item-check-btn">检查更新</button>
+            </div>
+            <!-- 4. Digital Oscilloscope -->
+            <div class="modal-plugin-item">
+              <div class="modal-item-info">
+                <div class="modal-item-name-line">
+                  <span>多接口数字示波器</span>
+                  <span style="font-size: 0.65rem; color: #10b981; font-weight: bold;">[内置应用]</span>
+                </div>
+                <div class="modal-item-desc">串口/TCP/UDP/WebSocket 实时多通道波形采集 · FFT 频谱与标尺</div>
+              </div>
+              <div class="modal-item-ver">v2.0.0</div>
+              <div class="modal-item-status">🟢 已是最新</div>
+              <button class="modal-item-check-btn">检查更新</button>
+            </div>
+            <!-- 5. Serial Master -->
+            <div class="modal-plugin-item">
+              <div class="modal-item-info">
+                <div class="modal-item-name-line">
+                  <span>串口调试大师 Pro</span>
+                  <span style="font-size: 0.65rem; color: #10b981; font-weight: bold;">[内置应用]</span>
+                </div>
+                <div class="modal-item-desc">多标签页高速串口通信与分屏工作台 · 实时曲线 · Modbus 解析</div>
+              </div>
+              <div class="modal-item-ver">v3.0.0</div>
+              <div class="modal-item-status">🟢 已是最新</div>
+              <button class="modal-item-check-btn">检查更新</button>
+            </div>
+            <!-- 6. Signal Generator -->
+            <div class="modal-plugin-item">
+              <div class="modal-item-info">
+                <div class="modal-item-name-line">
+                  <span>高频信号发生器</span>
+                  <span style="font-size: 0.65rem; color: #0284c7; font-weight: bold;">[Qt 动态插件]</span>
+                </div>
+                <div class="modal-item-desc">正弦波/方波/三角波/锯齿波/白噪声实时高频仿真与数据生成</div>
+              </div>
+              <div class="modal-item-ver">v1.0.0</div>
+              <div class="modal-item-status">🟢 已是最新</div>
+              <button class="modal-item-check-btn">检查更新</button>
+            </div>
+            <!-- 7. SmileCode IDE -->
+            <div class="modal-plugin-item">
+              <div class="modal-item-info">
+                <div class="modal-item-name-line">
+                  <span>SmileCode IDE</span>
+                  <span style="font-size: 0.65rem; color: #6366f1; font-weight: bold;">[核心工作台]</span>
+                </div>
+                <div class="modal-item-desc">嵌入式 C/C++ 代码编辑器与 GDB 调试器 · GCC/Make 构建</div>
+              </div>
+              <div class="modal-item-ver">v2.3.6</div>
+              <div class="modal-item-status">🟢 已是最新</div>
+              <button class="modal-item-check-btn">检查更新</button>
+            </div>
+            <!-- 8. STM32 Build & Debug -->
+            <div class="modal-plugin-item">
+              <div class="modal-item-info">
+                <div class="modal-item-name-line">
+                  <span>STM32 编译构建与 GDB 调试</span>
+                  <span style="font-size: 0.65rem; color: #0284c7; font-weight: bold;">[Qt 动态插件]</span>
+                </div>
+                <div class="modal-item-desc">GCC/Make 一键编译构建、固件烧录与硬件 GDB 在线断点单步调试</div>
+              </div>
+              <div class="modal-item-ver">v1.0.0</div>
+              <div class="modal-item-status">🟢 已是最新</div>
+              <button class="modal-item-check-btn">检查更新</button>
+            </div>
+            <!-- 9. Custom Plugin -->
+            <div class="modal-plugin-item">
+              <div class="modal-item-info">
+                <div class="modal-item-name-line">
+                  <span>自定义扩展插件</span>
+                  <span style="font-size: 0.65rem; color: #0284c7; font-weight: bold;">[Qt 动态插件]</span>
+                </div>
+                <div class="modal-item-desc">开箱即用的 Qt 动态插件开发范例与接口演示 · 动态加载与主题联动</div>
+              </div>
+              <div class="modal-item-ver">v1.0.0</div>
+              <div class="modal-item-status">🟢 已是最新</div>
+              <button class="modal-item-check-btn">检查更新</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Changelog Page -->
+      <div class="studio-modal-body" id="modalBodyChangelog" style="display: none;">
+        <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 18px; font-size: 0.82rem; line-height: 1.7;">
+          <h3 style="color: #2563eb; margin-bottom: 8px;">v2.3.6 (最新稳定版 - 2026-10-31)</h3>
+          <ul style="padding-left: 20px; margin-bottom: 16px;">
+            <li><b>实机界面 100% 对齐</b>：应用市场容器与 核心插件 (6 内置应用 + 3 Qt 动态插件) 全面同步。</li>
+            <li><b>关于窗口滚动区域自适应修复</b>：增加 QScrollArea 容器与最小高度约束，杜绝多插件情况下的窗口纵向挤压。</li>
+            <li><b>可视化编译器优化控制台</b>：新增 -O0 到 -O3、-Os、-Og 六大档位自主选择与 DWARF2 符号注入。</li>
+            <li><b>硬件延时防死锁根治</b>：彻底解决高等级 GCC 将空循环延时优化清空导致的板卡假死问题。</li>
+            <li><b>全套打包发布</b>：包含免安装绿色包、EXE 安装向导与企业 MSI 安装包。</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="studio-modal-footer">
+        <span class="studio-modal-copyright">Copyright © 2026 SmileCode Team & zoufudun. 保留所有权利。</span>
+        <button class="studio-modal-close-btn" id="studioModalCloseBtnBottom">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modern 3-Column Footer (Figure 4 HengJi Style) -->
+  <footer class="footer">
+    <div class="container footer-grid-container">
+      <!-- Col 1: Brand & Purpose -->
+      <div class="footer-col-brand">
+        <div class="footer-brand-title">
+          <img src="assets/smilecode-logo.svg" alt="SmileCode Studio" class="footer-logo">
+          <span>SmileCode Studio · 微笑代码工作站</span>
+        </div>
+        <p class="footer-brand-desc">
+          为嵌入式开发者量身打造的一整套全生命周期开发工具集。将代码编写、增量编译、在线硬件调试、芯片烧录，与串口通信、网络通信、CAN/CAN-FD、Bootloader、数字示波器等仪器深度集成于统一的应用市场容器中。
+        </p>
+        <div class="footer-team-info">
+          开发团队：TOPFIRE 研发团队 · 联系邮箱：<a href="mailto:phudoncou@outlook.com">phudoncou@outlook.com</a>
+        </div>
+      </div>
+
+      <!-- Col 2: Quick Links -->
+      <div class="footer-col-links">
+        <h4 class="footer-col-heading">快速入口</h4>
+        <ul class="footer-link-list">
+          <li><a href="#studioChassis">在线体验嵌入式应用工作台</a></li>
+          <li><a href="#plugins-hub">插件生态矩阵</a></li>
+          <li><a href="#optimization">编译器优化等级可视化配置</a></li>
+          <li><a href="download.html">客户端全格式下载矩阵</a></li>
+          <li><a href="docs.html">官方技术文档与架构白皮书</a></li>
+        </ul>
+      </div>
+
+      <!-- Col 3: Open Source & Resources -->
+      <div class="footer-col-links">
+        <h4 class="footer-col-heading">开源与资源</h4>
+        <ul class="footer-link-list">
+          <li><a href="https://github.com/zoufudun/SmileCodeIDE" target="_blank" rel="noopener">GitHub 源码仓库</a></li>
+          <li><a href="https://github.com/zoufudun/SmileCodeIDE/releases" target="_blank" rel="noopener">Releases 历史安装包 (v2.3.6)</a></li>
+          <li><a href="RELEASE_NOTES_v2.3.6.md" target="_blank" rel="noopener">版本更新日志 (v2.3.6)</a></li>
+          <li><a href="docs.html#custom-plugin-sdk">开发者扩展插件 SDK</a></li>
+          <li><a href="https://github.com/zoufudun/SmileCodeIDE/issues" target="_blank" rel="noopener">问题反馈与 Bug 提交</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Bottom Copyright Line -->
+    <div class="footer-bottom-line">
+      <div class="container footer-bottom-inner">
+        <span>Copyright © 2026 SmileCode Team & zoufudun. 保留所有权利。</span>
+        <div class="footer-bottom-links">
+          <a href="docs.html">技术文档</a>
+          <span>·</span>
+          <a href="https://github.com/zoufudun/SmileCodeIDE" target="_blank" rel="noopener">GitHub</a>
+          <span>·</span>
+          <a href="#navbar">回到顶部 ↑</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="app.js?v=2.3.8"></script>
+</body>
+</html>

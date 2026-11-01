@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" fill="none">
+  <defs>
+    <!-- Dark theme gradient -->
+    <linearGradient id="logoGradDark" x1="4" y1="4" x2="44" y2="44" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="50%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#ea580c"/>
+    </linearGradient>
+    <!-- Warm Parchment theme gradient -->
+    <linearGradient id="logoGradWarm" x1="4" y1="4" x2="44" y2="44" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#c2410c"/>
+      <stop offset="50%" stop-color="#ea580c"/>
+      <stop offset="100%" stop-color="#d97706"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Transparent rounded badge -->
+  <rect x="2" y="2" width="44" height="44" rx="10" class="logo-bg-rect" fill="currentColor" fill-opacity="0.08" stroke="currentColor" stroke-opacity="0.2" stroke-width="1.5"/>
+
+  <!-- Stylized Embedded Chip & Cross Tracks -->
+  <path d="M12 24h24M24 12v24" stroke="url(#logoGradWarm)" class="logo-cross" stroke-width="2.5" stroke-linecap="round"/>
+  
+  <!-- Diagnostic Pulse Wave -->
+  <path d="M10 24h6l3-6 4 12 3-8 3 4 2-2h7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="logo-wave"/>
+
+  <!-- Core Microcontroller Nodes -->
+  <circle cx="19" cy="18" r="2.5" fill="#ea580c"/>
+  <circle cx="29" cy="30" r="2.5" fill="#38bdf8" class="logo-node-cyan"/>
+  <circle cx="24" cy="24" r="3.2" fill="currentColor"/>
+</svg>
+
