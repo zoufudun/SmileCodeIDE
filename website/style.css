@@ -2636,3 +2636,424 @@ body.dark-theme,
 .theme-capsule-btn * {
   pointer-events: none !important;
 }
+
+/* ==========================================================================
+   Dedicated Download Center Page Styles (100% Matching Figure 2 HengJi Style)
+   ========================================================================== */
+.download-page-body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.download-page-main {
+  flex: 1;
+  padding: 60px 20px 100px;
+}
+
+.download-container {
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+/* Download Hero */
+.download-hero {
+  text-align: center;
+  margin-bottom: 56px;
+}
+
+.download-hero-title {
+  font-size: 2.8rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+}
+
+.download-hero-sub {
+  font-size: 1.05rem;
+  color: var(--text-muted);
+  max-width: 680px;
+  margin: 0 auto 18px;
+  line-height: 1.6;
+}
+
+.download-ver-tag {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  margin-bottom: 28px;
+}
+
+.download-main-btn-wrap {
+  margin-bottom: 24px;
+}
+
+.btn-download-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 36px;
+  background: #ea580c;
+  color: #ffffff;
+  border-radius: 12px;
+  font-size: 1.15rem;
+  font-weight: 700;
+  text-decoration: none;
+  box-shadow: 0 4px 18px rgba(234, 88, 12, 0.35);
+  transition: all var(--transition-fast);
+}
+
+.btn-download-primary:hover {
+  transform: translateY(-2px);
+  background: #c2410c;
+  box-shadow: 0 8px 26px rgba(234, 88, 12, 0.45);
+}
+
+.download-hero-tips {
+  font-size: 0.84rem;
+  color: var(--text-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  line-height: 1.5;
+}
+
+.inline-accent-link {
+  color: #ea580c;
+  text-decoration: none;
+  font-weight: 600;
+  transition: color var(--transition-fast);
+}
+
+.inline-accent-link:hover {
+  text-decoration: underline;
+  color: #c2410c;
+}
+
+/* Formats Section */
+.download-formats-section {
+  margin-bottom: 60px;
+}
+
+.section-subheading {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 18px;
+}
+
+/* Format Tabs */
+.format-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 12px;
+}
+
+.format-tab-btn {
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all var(--transition-fast);
+}
+
+.format-tab-btn.active {
+  background: #ffffff;
+  color: #1a1511;
+  border-color: #dfd6c5;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="dark"] .format-tab-btn.active,
+.dark-theme .format-tab-btn.active {
+  background: rgba(30, 41, 59, 0.85);
+  color: #f8fafc;
+  border-color: rgba(99, 102, 241, 0.35);
+  box-shadow: 0 0 15px rgba(99, 102, 241, 0.2);
+}
+
+/* Format Card Rows (Figure 2 Matching) */
+.format-cards-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.format-card-row {
+  background: #ffffff;
+  border: 1px solid #e5dcce;
+  border-radius: 12px;
+  padding: 22px 26px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+  transition: all 0.2s ease;
+}
+
+.format-card-row:hover {
+  border-color: #ea580c;
+  box-shadow: 0 6px 20px -4px rgba(234, 88, 12, 0.15);
+  transform: translateY(-2px);
+}
+
+.format-card-main {
+  flex: 1;
+}
+
+.format-card-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.format-card-name {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #1a1511;
+}
+
+.format-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.badge-recommend {
+  background: rgba(234, 88, 12, 0.12);
+  color: #c2410c;
+  border: 1px solid rgba(234, 88, 12, 0.25);
+}
+
+.badge-guide {
+  background: rgba(16, 185, 129, 0.12);
+  color: #047857;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.format-card-desc {
+  font-size: 0.85rem;
+  color: #55483d;
+  margin-bottom: 10px;
+  line-height: 1.5;
+}
+
+.format-card-file {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: #796e63;
+}
+
+.file-code {
+  font-family: var(--font-mono);
+  background: #f5eedf;
+  color: #3e342c;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid #e5dcce;
+  font-size: 0.76rem;
+}
+
+.btn-copy-code {
+  background: transparent;
+  border: 1px solid #dfd6c5;
+  color: #63574c;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s;
+}
+
+.btn-copy-code:hover {
+  background: #ea580c;
+  color: #ffffff;
+  border-color: #ea580c;
+}
+
+/* Actions Buttons */
+.format-card-actions {
+  display: flex;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.btn-action-dl {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 16px;
+  border-radius: 8px;
+  font-size: 0.86rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+
+.btn-dl-fast {
+  background: #fbf7ef;
+  border: 1px solid #dfd6c5;
+  color: #1a1511;
+}
+
+.btn-dl-fast:hover {
+  background: #ea580c;
+  border-color: #ea580c;
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.btn-dl-git {
+  background: transparent;
+  border: 1px solid #e0d7c7;
+  color: #5c4e43;
+}
+
+.btn-dl-git:hover {
+  border-color: #111111;
+  color: #111111;
+  transform: translateY(-1px);
+}
+
+/* Dark Mode Adaptation for Download Page */
+[data-theme="dark"] .format-card-row,
+.dark-theme .format-card-row {
+  background: rgba(15, 23, 42, 0.75);
+  border-color: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="dark"] .format-card-row:hover,
+.dark-theme .format-card-row:hover {
+  border-color: rgba(99, 102, 241, 0.5);
+  box-shadow: 0 8px 30px rgba(99, 102, 241, 0.25);
+}
+
+[data-theme="dark"] .format-card-name,
+.dark-theme .format-card-name {
+  color: #f8fafc;
+}
+
+[data-theme="dark"] .format-card-desc,
+.dark-theme .format-card-desc {
+  color: #cbd5e1;
+}
+
+[data-theme="dark"] .file-code,
+.dark-theme .file-code {
+  background: rgba(30, 41, 59, 0.8);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #93c5fd;
+}
+
+[data-theme="dark"] .btn-dl-fast,
+.dark-theme .btn-dl-fast {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(99, 102, 241, 0.25));
+  border-color: rgba(99, 102, 241, 0.4);
+  color: #f1f5f9;
+}
+
+[data-theme="dark"] .btn-dl-fast:hover,
+.dark-theme .btn-dl-fast:hover {
+  background: linear-gradient(135deg, #2563eb, #6366f1);
+  border-color: #818cf8;
+  color: #ffffff;
+}
+
+[data-theme="dark"] .btn-dl-git,
+.dark-theme .btn-dl-git {
+  border-color: rgba(255, 255, 255, 0.15);
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .btn-dl-git:hover,
+.dark-theme .btn-dl-git:hover {
+  border-color: #cbd5e1;
+  color: #ffffff;
+}
+
+/* Footnote & History */
+.download-footnote {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+  padding: 16px 20px;
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 8px;
+}
+
+[data-theme="dark"] .download-footnote,
+.dark-theme .download-footnote {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.download-history-section {
+  padding-top: 24px;
+  border-top: 1px solid var(--border-color);
+}
+
+.history-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+
+.history-desc {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+.history-link {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #ea580c;
+  text-decoration: none;
+}
+
+.history-link:hover {
+  text-decoration: underline;
+}
+
+/* Toast */
+.copy-toast {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%) translateY(40px);
+  background: #1e1814;
+  color: #ffffff;
+  padding: 10px 22px;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 9999999;
+}
+
+.copy-toast.show {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+}

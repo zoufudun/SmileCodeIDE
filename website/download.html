@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>下载 SmileCode Studio - 官方发布与全平台分发矩阵</title>
+  <meta name="description" content="SmileCode Studio 官方软件下载中心。提供 Windows Installer 标准安装版 (.msi)、图形向导版 (.exe)、便携解压版 (.zip) 及单文件版。">
+  <link rel="icon" type="image/svg+xml" href="assets/smilecode-logo.svg">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="studio-simulator.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <!-- Immediate Theme Engine -->
+  <script id="immediateThemeScript">
+    (function() {
+      var saved = localStorage.getItem('smilecode_theme') || localStorage.getItem('smilecode-theme') || 'parchment';
+      document.documentElement.setAttribute('data-theme', saved);
+      if (saved === 'dark') {
+        document.documentElement.classList.add('dark-theme');
+        document.documentElement.classList.remove('parchment-theme');
+      } else {
+        document.documentElement.classList.add('parchment-theme');
+        document.documentElement.classList.remove('dark-theme');
+      }
+
+      window.toggleGlobalTheme = function() {
+        var current = document.documentElement.getAttribute('data-theme') || 'parchment';
+        var next = (current === 'dark') ? 'parchment' : 'dark';
+        try {
+          localStorage.setItem('smilecode_theme', next);
+          localStorage.setItem('smilecode-theme', next);
+        } catch(e) {}
+        document.documentElement.setAttribute('data-theme', next);
+        if (document.body) {
+          document.body.setAttribute('data-theme', next);
+          if (next === 'dark') {
+            document.body.classList.remove('parchment-theme');
+            document.body.classList.add('dark-theme');
+          } else {
+            document.body.classList.remove('dark-theme');
+            document.body.classList.add('parchment-theme');
+          }
+        }
+        var icon = document.getElementById('themeToggleIcon');
+        if (icon) {
+          if (next === 'dark') {
+            icon.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>';
+          } else {
+            icon.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
+          }
+        }
+      };
+    })();
+  </script>
+</head>
+<body class="parchment-theme download-page-body">
+
+  <!-- Top Navigation Bar -->
+  <header class="navbar" id="navbar">
+    <div class="nav-container">
+      <a href="index.html" class="nav-brand">
+        <img src="assets/smilecode-logo.svg" alt="SmileCode Studio Logo" class="brand-icon">
+        <span class="brand-title">SmileCode Studio</span>
+      </a>
+
+      <!-- Center Nav Links -->
+      <nav class="nav-links">
+        <div class="nav-item dropdown">
+          <a href="index.html#plugins-hub" class="nav-link dropdown-toggle">
+            <span>产品</span>
+            <svg class="dropdown-chevron" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M6 9l6 6 6-6"/>
+            </svg>
+          </a>
+        </div>
+        <a href="index.html#plugins-hub" class="nav-link">容器市场</a>
+        <a href="docs.html" class="nav-link">技术文档</a>
+        <a href="download.html" class="nav-link nav-link-download active">软件下载</a>
+      </nav>
+
+      <!-- Right Action Capsules -->
+      <div class="nav-actions">
+        <button class="capsule-btn" title="语言切换 (当前: 简体中文)">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+          </svg>
+          <span>CN</span>
+        </button>
+
+        <button class="capsule-btn theme-capsule-btn" id="themeToggleBtn" onclick="window.toggleGlobalTheme && window.toggleGlobalTheme()" title="切换主题 (极客暗黑 / 暖羊皮纸)">
+          <span id="themeToggleIcon">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+          </span>
+        </button>
+
+        <a href="https://github.com/zoufudun/SmileCodeIDE" target="_blank" rel="noopener" class="capsule-btn github-capsule-btn" title="GitHub 源码仓库">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+          </svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Download Center Page Main (100% Matching Figure 2 HengJi Style) -->
+  <main class="download-page-main">
+    <div class="download-container">
+
+      <!-- Hero Header Section -->
+      <section class="download-hero">
+        <h1 class="download-hero-title">下载 SmileCode Studio</h1>
+        <p class="download-hero-sub">
+          为嵌入式全生命周期开发打造的专业级工作台。统一管理代码编写、增量构建、在线单步调试、双通道固件烧录、工业级总线与虚拟仪器工作流。
+        </p>
+        <div class="download-ver-tag">
+          最新版本 v2.3.6 · 发布于 2026-11-01
+        </div>
+
+        <!-- Big Primary Download Button -->
+        <div class="download-main-btn-wrap">
+          <a href="https://github.com/zoufudun/SmileCodeIDE/releases/download/v2.3.5/SmileCodeIDE-v2.3.5-Setup.exe" class="btn-download-primary">
+            <span>📥 下载 Windows 版 · 约 48 MB</span>
+          </a>
+        </div>
+
+        <div class="download-hero-tips">
+          <span>不确定选哪个？大多数电脑选 x64（默认引导安装至 D:\ 等非系统盘）。</span>
+          <span>想免安装直接在浏览器里试用？ <a href="index.html#studioChassis" class="inline-accent-link">点击立即进入在线体验工作台 ↗</a></span>
+        </div>
+      </section>
+
+      <!-- All Platforms and Distribution Formats (Figure 2 Replica) -->
+      <section class="download-formats-section">
+        <div class="section-subheading">全部平台与分发格式</div>
+
+        <!-- Format Tabs -->
+        <div class="format-tabs">
+          <button class="format-tab-btn active">Windows</button>
+          <a href="index.html#studioChassis" class="format-tab-btn">Web 在线体验版 (跨平台免安装)</a>
+        </div>
+
+        <!-- Formats Cards List -->
+        <div class="format-cards-list">
+
+          <!-- 1. MSI Package -->
+          <div class="format-card-row">
+            <div class="format-card-main">
+              <div class="format-card-title-row">
+                <span class="format-card-name">安装版 (.msi)</span>
+                <span class="format-badge badge-recommend">推荐</span>
+              </div>
+              <p class="format-card-desc">Windows Installer 标准安装程序（支持自定义非系统盘目录，全程无终端弹窗）</p>
+              <div class="format-card-file">
+                <span class="file-label">文件标识</span>
+                <code class="file-code">SmileCodeIDE-v2.3.5-Setup.msi</code>
+                <button class="btn-copy-code" onclick="copyFileText('SmileCodeIDE-v2.3.5-Setup.msi', this)" title="复制文件名">
+                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                  <span>复制</span>
+                </button>
+              </div>
+            </div>
+            <div class="format-card-actions">
+              <a href="https://github.com/zoufudun/SmileCodeIDE/releases/download/v2.3.5/SmileCodeIDE-v2.3.5-Setup.msi" class="btn-action-dl btn-dl-fast">
+                <span>📥 x64 高速镜像 .msi</span>
+              </a>
+              <a href="https://github.com/zoufudun/SmileCodeIDE/releases" target="_blank" rel="noopener" class="btn-action-dl btn-dl-git">
+                <span>🐙 GitHub 源站</span>
+              </a>
+            </div>
+          </div>
+
+          <!-- 2. EXE Setup Guide -->
+          <div class="format-card-row">
+            <div class="format-card-main">
+              <div class="format-card-title-row">
+                <span class="format-card-name">安装向导版 (.exe)</span>
+                <span class="format-badge badge-guide">向导</span>
+              </div>
+              <p class="format-card-desc">QtIFW / NSIS 标准图形安装向导（自动创建桌面快捷方式，支持平滑覆盖升级）</p>
+              <div class="format-card-file">
+                <span class="file-label">文件标识</span>
+                <code class="file-code">SmileCodeIDE-v2.3.5-Setup.exe</code>
+                <button class="btn-copy-code" onclick="copyFileText('SmileCodeIDE-v2.3.5-Setup.exe', this)" title="复制文件名">
+                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                  <span>复制</span>
+                </button>
+              </div>
+            </div>
+            <div class="format-card-actions">
+              <a href="https://github.com/zoufudun/SmileCodeIDE/releases/download/v2.3.5/SmileCodeIDE-v2.3.5-Setup.exe" class="btn-action-dl btn-dl-fast">
+                <span>📥 x64 高速镜像 .exe</span>
+              </a>
+              <a href="https://github.com/zoufudun/SmileCodeIDE/releases" target="_blank" rel="noopener" class="btn-action-dl btn-dl-git">
+                <span>🐙 GitHub 源站</span>
+              </a>
+            </div>
+          </div>
+
+          <!-- 3. ZIP Portable -->
+          <div class="format-card-row">
+            <div class="format-card-main">
+              <div class="format-card-title-row">
+                <span class="format-card-name">便携版 (.zip)</span>
+              </div>
+              <p class="format-card-desc">免安装，解压即用（适合内网受限终端或直接解压至 D:\ 盘运行）</p>
+              <div class="format-card-file">
+                <span class="file-label">文件标识</span>
+                <code class="file-code">SmileCodeIDE-v2.3.5-Windows-x64.zip</code>
+                <button class="btn-copy-code" onclick="copyFileText('SmileCodeIDE-v2.3.5-Windows-x64.zip', this)" title="复制文件名">
+                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                  <span>复制</span>
+                </button>
+              </div>
+            </div>
+            <div class="format-card-actions">
+              <a href="https://github.com/zoufudun/SmileCodeIDE/releases/download/v2.3.5/SmileCodeIDE-v2.3.5-Windows-x64.zip" class="btn-action-dl btn-dl-fast">
+                <span>📥 x64 高速镜像 .zip</span>
+              </a>
+              <a href="https://github.com/zoufudun/SmileCodeIDE/releases" target="_blank" rel="noopener" class="btn-action-dl btn-dl-git">
+                <span>🐙 GitHub 源站</span>
+              </a>
+            </div>
+          </div>
+
+          <!-- 4. Portable Single Executable -->
+          <div class="format-card-row">
+            <div class="format-card-main">
+              <div class="format-card-title-row">
+                <span class="format-card-name">便携单文件版 (Portable .exe)</span>
+              </div>
+              <p class="format-card-desc">绿色单可执行文件，不写注册表，可放入移动硬盘或加密 U 盘随身携带</p>
+              <div class="format-card-file">
+                <span class="file-label">文件标识</span>
+                <code class="file-code">SmileCodeStudio-Portable.exe</code>
+                <button class="btn-copy-code" onclick="copyFileText('SmileCodeStudio-Portable.exe', this)" title="复制文件名">
+                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                  <span>复制</span>
+                </button>
+              </div>
+            </div>
+            <div class="format-card-actions">
+              <a href="https://github.com/zoufudun/SmileCodeIDE/releases/download/v2.3.5/SmileCodeIDE-v2.3.5-Windows-x64.zip" class="btn-action-dl btn-dl-fast">
+                <span>📥 x64 高速镜像 · 单文件</span>
+              </a>
+              <a href="https://github.com/zoufudun/SmileCodeIDE/releases" target="_blank" rel="noopener" class="btn-action-dl btn-dl-git">
+                <span>🐙 GitHub 源站</span>
+              </a>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Verification Guidance Footnote (Figure 2 Matching) -->
+        <div class="download-footnote">
+          <p>不确定选哪个？大多数电脑选 <strong>安装版 (.msi)</strong> 或 <strong>安装向导版 (.exe)</strong>。</p>
+          <p>校验完整性：下载后可在终端执行 <code>certutil -hashfile &lt;file&gt; SHA256</code>，输出应与 GitHub Releases 页面显示的 SHA-256 一致。</p>
+        </div>
+      </section>
+
+      <!-- History Releases Section (Figure 2 Matching) -->
+      <section class="download-history-section">
+        <h3 class="history-title">历史版本</h3>
+        <p class="history-desc">需要旧版本？所有历史版本均可在 GitHub Releases 获取。</p>
+        <a href="https://github.com/zoufudun/SmileCodeIDE/releases" target="_blank" rel="noopener" class="history-link">
+          前往 GitHub Releases ↗
+        </a>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- Modern Grid Footer (HengJi Style) -->
+  <footer class="footer">
+    <div class="container footer-grid-container">
+      <div class="footer-col-brand">
+        <div class="footer-brand-title">
+          <img src="assets/smilecode-logo.svg" alt="SmileCode Studio Logo" class="footer-logo">
+          <span>SmileCode Studio</span>
+        </div>
+        <p class="footer-brand-desc">
+          微笑代码工作站：为嵌入式全生命周期开发打造的专业级工作台。统一管理代码编写、增量构建、在线单步调试、双通道固件烧录、工业级总线与虚拟仪器工作流。
+        </p>
+        <div class="footer-team-info">
+          <span>打造下一代嵌入式全流程开发生态</span>
+        </div>
+      </div>
+
+      <div class="footer-col-links">
+        <h4 class="footer-col-heading">插件中心</h4>
+        <ul class="footer-link-list">
+          <li><a href="plugins/smilecode-ide.html">SmileCode IDE</a></li>
+          <li><a href="plugins/stm32-build-debug.html">STM32 编译与调试</a></li>
+          <li><a href="plugins/can-workbench.html">CAN 总线工作台 Pro</a></li>
+          <li><a href="plugins/serial-master.html">串口调试大师</a></li>
+          <li><a href="plugins/digital-oscilloscope.html">多接口数字示波器</a></li>
+          <li><a href="index.html#plugins-hub">浏览全部扩展插件 &rarr;</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col-links">
+        <h4 class="footer-col-heading">开源与资源</h4>
+        <ul class="footer-link-list">
+          <li><a href="docs.html">技术架构文档</a></li>
+          <li><a href="index.html#optimization">编译器优化等级</a></li>
+          <li><a href="download.html">安装包下载矩阵</a></li>
+          <li><a href="https://github.com/zoufudun/SmileCodeIDE" target="_blank" rel="noopener">GitHub 仓库源码</a></li>
+          <li><a href="https://github.com/zoufudun/SmileCodeIDE/releases" target="_blank" rel="noopener">Releases 历史版本</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer-bottom-line">
+      <div class="container footer-bottom-inner">
+        <span>Copyright © 2026 SmileCode Team &amp; zoufudun. 保留所有权利。</span>
+        <div class="footer-bottom-links">
+          <a href="index.html">返回首页</a>
+          <span>·</span>
+          <a href="docs.html">技术文档</a>
+          <span>·</span>
+          <a href="https://github.com/zoufudun/SmileCodeIDE" target="_blank" rel="noopener">GitHub</a>
+          <span>·</span>
+          <a href="#navbar">回到顶部 &uarr;</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Toast Notification -->
+  <div id="copyToast" class="copy-toast">已复制到剪贴板</div>
+
+  <script>
+    function copyFileText(text, btn) {
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(text).then(() => {
+          showToast('已复制: ' + text);
+        });
+      } else {
+        const input = document.createElement('input');
+        input.value = text;
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand('copy');
+        document.body.removeChild(input);
+        showToast('已复制: ' + text);
+      }
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('copyToast');
+      if (toast) {
+        toast.textContent = msg;
+        toast.classList.add('show');
+        setTimeout(() => {
+          toast.classList.remove('show');
+        }, 2200);
+      }
+    }
+  </script>
+</body>
+</html>

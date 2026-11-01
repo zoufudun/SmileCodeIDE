@@ -9,12 +9,22 @@
  */
 
 document.addEventListener('DOMContentLoaded', () => {
-    // =========================================================================
-  // 1. Dual Theme Engine for Website & Simulator (Warm Parchment / Titanium Dark)
+  // =========================================================================
+  // 1. Unified DOM Elements Declaration (Strictly at top to eliminate TDZ)
   // =========================================================================
   const themeBtn = document.getElementById('themeToggleBtn');
   const themeIcon = document.getElementById('themeToggleIcon');
+  const studioThemeSelect = document.getElementById('studioThemeSelect');
+  const studioChassis = document.getElementById('studioChassis');
+  const studioSearchInput = document.getElementById('studioSearchInput');
+  const studioCardsList = document.getElementById('studioCardsList');
+  const studioEmptyState = document.getElementById('studioEmptyState');
+  const studioSidebar = document.getElementById('studioSidebar');
+  const studioTotCount = document.getElementById('studioTotCount');
 
+  // =========================================================================
+  // 2. Dual Theme Engine for Website & Simulator (Warm Parchment / Cyber Dark)
+  // =========================================================================
   const savedTheme = localStorage.getItem('smilecode_theme') || localStorage.getItem('smilecode-theme') || 'parchment';
   applyWebsiteTheme(savedTheme);
 
@@ -68,23 +78,17 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    // Clear any conflicting inline styles on simulator chassis to allow CSS theme to shine
     if (studioChassis) {
       studioChassis.removeAttribute('style');
     }
   }
 
-  // =========================================================================
-  // 2. Real Studio Simulator Interactivity (Figure 2 Matching)
-  // =========================================================================
-  const studioSearchInput = document.getElementById('studioSearchInput');
-  const studioCardsList = document.getElementById('studioCardsList');
-  const studioEmptyState = document.getElementById('studioEmptyState');
-  const studioSidebar = document.getElementById('studioSidebar');
-  const studioTotCount = document.getElementById('studioTotCount');
-  const studioThemeSelect = document.getElementById('studioThemeSelect');
-  const studioChassis = document.getElementById('studioChassis');
+  // Expose to window for inline onclick safety
+  window.applyWebsiteTheme = applyWebsiteTheme;
 
+  // =========================================================================
+  // 3. Real Studio Simulator Interactivity (Figure 2 Matching)
+  // =========================================================================
   let currentCategory = 'all';
   let searchQuery = '';
 
