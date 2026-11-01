@@ -197,16 +197,59 @@
   </section>
 
   <!-- Footer -->
+    <!-- Modern 3-Column Footer (Figure 4 HengJi Style) -->
   <footer class="footer">
-    <div class="container text-center">
-      <h3 style="font-size: 1.6rem; font-weight: 800; margin-bottom: 12px;">立即体验 SmileCode IDE 虚拟示波器</h3>
-      <p style="color: var(--text-secondary); margin-bottom: 24px;">完全免费开源，已集成在最外层应用容器中，开箱即用。</p>
-      <div style="display: flex; justify-content: center; gap: 14px;">
-        <a href="../index.html#download" class="btn-primary">前往下载客户端</a>
-        <a href="../index.html" class="btn-secondary">返回官方主页</a>
+    <div class="container footer-grid-container">
+      <!-- Col 1: Brand & Purpose -->
+      <div class="footer-col-brand">
+        <div class="footer-brand-title">
+          <img src="../assets/favicon.ico" alt="SmileCode Studio" class="footer-logo">
+          <span>SmileCode Studio · 微笑代码工作站</span>
+        </div>
+        <p class="footer-brand-desc">
+          为嵌入式开发者量身打造的一整套全生命周期开发工具集。将代码编写、增量编译、在线硬件调试、芯片烧录，与串口通信、网络通信、CAN/CAN-FD、Bootloader、数字示波器等仪器深度集成于统一的应用市场容器中。
+        </p>
+        <div class="footer-team-info">
+          开发团队：TOPFIRE 研发团队 · 联系邮箱：<a href="mailto:phudoncou@outlook.com">phudoncou@outlook.com</a>
+        </div>
       </div>
-      <div style="margin-top: 36px; font-size: 0.82rem; color: var(--text-muted);">
-        &copy; 2026 SmileCodeIDE Team. Released under MIT License.
+
+      <!-- Col 2: Quick Links -->
+      <div class="footer-col-links">
+        <h4 class="footer-col-heading">快速入口</h4>
+        <ul class="footer-link-list">
+          <li><a href="../index.html#studioChassis">在线体验嵌入式应用工作台</a></li>
+          <li><a href="../index.html#plugins-hub">9 大核心插件矩阵</a></li>
+          <li><a href="../index.html#optimization">编译器优化等级可视化配置</a></li>
+          <li><a href="../index.html#download">客户端全格式下载矩阵</a></li>
+          <li><a href="../docs.html">官方技术文档与架构白皮书</a></li>
+        </ul>
+      </div>
+
+      <!-- Col 3: Open Source & Resources -->
+      <div class="footer-col-links">
+        <h4 class="footer-col-heading">开源与资源</h4>
+        <ul class="footer-link-list">
+          <li><a href="https://github.com/zoufudun/SmileCodeIDE" target="_blank" rel="noopener">GitHub 源码仓库</a></li>
+          <li><a href="https://github.com/zoufudun/SmileCodeIDE/releases" target="_blank" rel="noopener">Releases 历史安装包 (v2.3.1)</a></li>
+          <li><a href="../RELEASE_NOTES_v2.3.1.md" target="_blank" rel="noopener">版本更新日志 (v2.3.1)</a></li>
+          <li><a href="../docs.html#custom-plugin-sdk">开发者扩展插件 SDK</a></li>
+          <li><a href="https://github.com/zoufudun/SmileCodeIDE/issues" target="_blank" rel="noopener">问题反馈与 Bug 提交</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Bottom Copyright Line -->
+    <div class="footer-bottom-line">
+      <div class="container footer-bottom-inner">
+        <span>Copyright © 2026 SmileCode Team & zoufudun. 保留所有权利。</span>
+        <div class="footer-bottom-links">
+          <a href="../docs.html">技术文档</a>
+          <span>·</span>
+          <a href="https://github.com/zoufudun/SmileCodeIDE" target="_blank" rel="noopener">GitHub</a>
+          <span>·</span>
+          <a href="#navbar">回到顶部 ↑</a>
+        </div>
       </div>
     </div>
   </footer>

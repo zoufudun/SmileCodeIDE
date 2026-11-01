@@ -34,7 +34,7 @@
         <!-- Products Mega Menu (Figure 4 - Exactly matching real 9 plugins) -->
         <div class="nav-item dropdown">
           <a href="#plugins-hub" class="nav-link">
-            <span>产品套件 (9大插件)</span>
+            <span>产品</span>
             <svg viewBox="0 0 20 20" width="16" height="16" fill="currentColor">
               <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
             </svg>
@@ -147,6 +147,7 @@
           </div>
         </div>
 
+        <a href="docs.html" class="nav-link">文档</a>
         <a href="#about-studio" class="nav-link">容器使命</a>
         <a href="#plugins-hub" class="nav-link">应用市场</a>
         <a href="#comparison" class="nav-link">痛点对比</a>
@@ -190,7 +191,7 @@
 
   <!-- Hero Section: Left Text + Right Authentic SmileCode Studio Simulator (Figure 1 & Figure 2) -->
   <section class="hero-section">
-    <div class="container hero-grid" style="align-items: flex-start; gap: 36px;">
+    <div class="container hero-grid" style="align-items: flex-start; gap: 40px; max-width: 1480px;">
       <!-- Left Hero Text Column -->
       <div class="hero-left" style="padding-top: 10px;">
         <div class="hero-badge-pill">
@@ -237,7 +238,7 @@
       </div>
 
       <!-- Right Column: Authentic SmileCode Studio Window (Figure 2 Exact Replica) -->
-      <div class="hero-right" style="flex: 1.25; min-width: 0;">
+      <div class="hero-right" style="flex: 1.5; min-width: 0;">
         <div class="studio-real-chassis" id="studioChassis">
           <!-- Window Titlebar -->
           <div class="studio-titlebar">
@@ -1177,17 +1178,59 @@ CFLAGS = $(MCU) $(C_DEFS) $(C_INCLUDES) $(OPT) \
     </div>
   </div>
 
-  <!-- Footer -->
+  <!-- Modern 3-Column Footer (Figure 4 HengJi Style) -->
   <footer class="footer">
-    <div class="container footer-content">
-      <div class="footer-left">
-        <img src="assets/favicon.ico" alt="SmileCode Studio" class="footer-logo">
-        <span class="footer-text">SmileCode Studio · 微笑代码工作站 - 统一管理你的嵌入式全栈开发与仪器工作流</span>
+    <div class="container footer-grid-container">
+      <!-- Col 1: Brand & Purpose -->
+      <div class="footer-col-brand">
+        <div class="footer-brand-title">
+          <img src="assets/favicon.ico" alt="SmileCode Studio" class="footer-logo">
+          <span>SmileCode Studio · 微笑代码工作站</span>
+        </div>
+        <p class="footer-brand-desc">
+          为嵌入式开发者量身打造的一整套全生命周期开发工具集。将代码编写、增量编译、在线硬件调试、芯片烧录，与串口通信、网络通信、CAN/CAN-FD、Bootloader、数字示波器等仪器深度集成于统一的应用市场容器中。
+        </p>
+        <div class="footer-team-info">
+          开发团队：TOPFIRE 研发团队 · 联系邮箱：<a href="mailto:phudoncou@outlook.com">phudoncou@outlook.com</a>
+        </div>
       </div>
-      <div class="footer-links">
-        <a href="https://github.com/zoufudun/SmileCodeIDE" target="_blank" rel="noopener">GitHub 仓库</a>
-        <a href="https://github.com/zoufudun/SmileCodeIDE/releases" target="_blank" rel="noopener">所有版本发布</a>
-        <a href="#navbar">回到顶部 ↑</a>
+
+      <!-- Col 2: Quick Links -->
+      <div class="footer-col-links">
+        <h4 class="footer-col-heading">快速入口</h4>
+        <ul class="footer-link-list">
+          <li><a href="#studioChassis">在线体验嵌入式应用工作台</a></li>
+          <li><a href="#plugins-hub">9 大核心插件矩阵</a></li>
+          <li><a href="#optimization">编译器优化等级可视化配置</a></li>
+          <li><a href="#download">客户端全格式下载矩阵</a></li>
+          <li><a href="docs.html">官方技术文档与架构白皮书</a></li>
+        </ul>
+      </div>
+
+      <!-- Col 3: Open Source & Resources -->
+      <div class="footer-col-links">
+        <h4 class="footer-col-heading">开源与资源</h4>
+        <ul class="footer-link-list">
+          <li><a href="https://github.com/zoufudun/SmileCodeIDE" target="_blank" rel="noopener">GitHub 源码仓库</a></li>
+          <li><a href="https://github.com/zoufudun/SmileCodeIDE/releases" target="_blank" rel="noopener">Releases 历史安装包 (v2.3.1)</a></li>
+          <li><a href="RELEASE_NOTES_v2.3.1.md" target="_blank" rel="noopener">版本更新日志 (v2.3.1)</a></li>
+          <li><a href="docs.html#custom-plugin-sdk">开发者扩展插件 SDK</a></li>
+          <li><a href="https://github.com/zoufudun/SmileCodeIDE/issues" target="_blank" rel="noopener">问题反馈与 Bug 提交</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Bottom Copyright Line -->
+    <div class="footer-bottom-line">
+      <div class="container footer-bottom-inner">
+        <span>Copyright © 2026 SmileCode Team & zoufudun. 保留所有权利。</span>
+        <div class="footer-bottom-links">
+          <a href="docs.html">技术文档</a>
+          <span>·</span>
+          <a href="https://github.com/zoufudun/SmileCodeIDE" target="_blank" rel="noopener">GitHub</a>
+          <span>·</span>
+          <a href="#navbar">回到顶部 ↑</a>
+        </div>
       </div>
     </div>
   </footer>

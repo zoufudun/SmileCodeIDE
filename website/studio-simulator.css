@@ -871,3 +871,195 @@
 .studio-modal-close-btn:hover {
   background: #e2e8f0;
 }
+
+
+/* ==========================================================================
+   Warm Parchment Theme Adaptation for Studio Simulator (Figure 1 Real Alignment)
+   ========================================================================== */
+[data-theme="parchment"] .studio-real-chassis {
+  background: #fdfaf2;
+  color: #2c2520;
+  border: 1px solid #dfd6c5;
+  box-shadow: 0 24px 60px -12px rgba(95, 75, 45, 0.18), 0 0 0 1px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="parchment"] .studio-titlebar {
+  background: #eee6d8;
+  border-bottom: 1px solid #dfd6c5;
+}
+
+[data-theme="parchment"] .studio-title-left {
+  color: #3d3630;
+}
+
+[data-theme="parchment"] .studio-window-controls {
+  color: #7a7065;
+}
+
+[data-theme="parchment"] .studio-control-btn:hover {
+  background: rgba(0, 0, 0, 0.08);
+  color: #111111;
+}
+
+[data-theme="parchment"] .studio-header {
+  background: #f5efe3;
+  border-bottom: 1px solid #e3d9c8;
+}
+
+[data-theme="parchment"] .studio-brand-logo {
+  background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="parchment"] .studio-brand-name {
+  color: #201b17;
+}
+
+[data-theme="parchment"] .studio-brand-sub {
+  color: #796f64;
+}
+
+[data-theme="parchment"] .studio-search-input {
+  background: #ffffff;
+  border: 1px solid #dcd1bf;
+  color: #2b2621;
+}
+
+[data-theme="parchment"] .studio-search-input:focus {
+  border-color: #d97706;
+  background: #ffffff;
+  box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.2);
+}
+
+[data-theme="parchment"] .studio-search-icon {
+  color: #8c8175;
+}
+
+[data-theme="parchment"] .studio-btn-ext {
+  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+  color: #ffffff;
+}
+
+[data-theme="parchment"] .studio-theme-select {
+  background: #ffffff;
+  color: #2b2621;
+  border: 1px solid #dcd1bf;
+}
+
+[data-theme="parchment"] .studio-btn-about {
+  background: #ffffff;
+  color: #2b2621;
+  border: 1px solid #dcd1bf;
+}
+
+[data-theme="parchment"] .studio-btn-about:hover {
+  background: #ede5d7;
+  color: #111111;
+}
+
+[data-theme="parchment"] .studio-sidebar {
+  background: #f3ece0;
+  border-right: 1px solid #e3d9c8;
+}
+
+[data-theme="parchment"] .studio-cat-item {
+  color: #5c534a;
+}
+
+[data-theme="parchment"] .studio-cat-item:hover {
+  background: #eae1d2;
+  color: #1e1915;
+}
+
+[data-theme="parchment"] .studio-cat-item.active {
+  background: #c2410c;
+  color: #ffffff;
+}
+
+[data-theme="parchment"] .studio-cat-count {
+  background: rgba(0, 0, 0, 0.08);
+  color: #443c34;
+}
+
+[data-theme="parchment"] .studio-cat-item.active .studio-cat-count {
+  background: rgba(255, 255, 255, 0.3);
+  color: #ffffff;
+}
+
+[data-theme="parchment"] .studio-content-area {
+  background: #fdfaf2;
+}
+
+[data-theme="parchment"] .studio-content-area::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+}
+
+[data-theme="parchment"] .studio-hero-banner {
+  background: linear-gradient(135deg, #ffffff 0%, #f7f1e6 100%);
+  border: 1px solid #e5dcce;
+}
+
+[data-theme="parchment"] .studio-hero-text h3 {
+  color: #201a16;
+}
+
+[data-theme="parchment"] .studio-hero-text p {
+  color: #6a6157;
+}
+
+[data-theme="parchment"] .studio-hero-launch-btn {
+  background: #c2410c;
+  color: #ffffff;
+  border: none;
+}
+
+[data-theme="parchment"] .studio-hero-launch-btn:hover {
+  background: #9a3412;
+  color: #ffffff;
+}
+
+[data-theme="parchment"] .studio-app-card {
+  background: #ffffff;
+  border: 1px solid #e6ddd0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+}
+
+[data-theme="parchment"] .studio-app-card:hover {
+  border-color: #d97706;
+  background: #ffffff;
+  box-shadow: 0 8px 24px -4px rgba(180, 83, 9, 0.12);
+}
+
+[data-theme="parchment"] .studio-app-title h4 {
+  color: #221c18;
+}
+
+[data-theme="parchment"] .studio-app-ver {
+  background: #f5eee2;
+  color: #5c5249;
+  border: 1px solid #e5dcce;
+}
+
+[data-theme="parchment"] .studio-app-category {
+  color: #8c8072;
+}
+
+[data-theme="parchment"] .studio-app-desc {
+  color: #635a51;
+}
+
+[data-theme="parchment"] .studio-app-tags span {
+  background: #f5eee2;
+  color: #5c5249;
+  border: 1px solid #e8dfd2;
+}
+
+[data-theme="parchment"] .studio-status-line {
+  color: #635a51;
+}
+
+[data-theme="parchment"] .studio-statusbar {
+  background: #eee6d8;
+  border-top: 1px solid #dfd6c5;
+  color: #635a51;
+}
