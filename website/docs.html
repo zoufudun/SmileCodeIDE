@@ -296,7 +296,7 @@
         </p>
 
         <p>
-          <strong>SmileCode Studio (微笑代码工作站)</strong> 的诞生，正是为了终结这一割裂现状：通过打造面向嵌入式全栈开发的<strong>“应用市场容器”</strong>，将 IDE 核心引擎与 9 大专业级仪器与总线工具融为一体，开箱即用，独立平滑热升级。
+          <strong>SmileCode Studio (微笑代码工作站)</strong> 的诞生，正是为了终结这一割裂现状：通过打造面向嵌入式全栈开发的<strong>“应用市场容器”</strong>，将 IDE 核心引擎与 全套专业级仪器与总线工具融为一体，开箱即用，独立平滑热升级。
         </p>
 
         <!-- Book-Style Callout Note -->
@@ -328,7 +328,7 @@
               <tr>
                 <td><b>工具割裂度</b></td>
                 <td>写代码开 VS Code，调串口开串口助手，调 CAN 开周立功，测波形开示波器软件</td>
-                <td><b>一站式容器市场</b>，9 大插件无缝集成，界面主题与会话上下文全打通</td>
+                <td><b>一站式容器市场</b>，插件无缝集成，界面主题与会话上下文全打通</td>
               </tr>
               <tr>
                 <td><b>现代化编译器</b></td>
@@ -658,43 +658,56 @@ flowchart TD
 
   <!-- Footer (100% Matching index.html HengJi Style) -->
   <footer class="footer">
-    <div class="footer-container">
-      <div class="footer-brand">
-        <div class="footer-logo-row">
+    <div class="container footer-grid-container">
+      <div class="footer-col-brand">
+        <div class="footer-brand-title">
           <img src="assets/smilecode-logo.svg" alt="SmileCode Studio Logo" class="footer-logo">
-          <span class="footer-title">SmileCode Studio</span>
+          <span>SmileCode Studio</span>
         </div>
-        <p class="footer-desc">
+        <p class="footer-brand-desc">
           微笑代码工作站：为嵌入式全生命周期开发打造的专业级工作台。统一管理代码编写、增量构建、在线单步调试、双通道固件烧录、工业级总线与虚拟仪器工作流。
         </p>
+        <div class="footer-team-info">
+          <span>打造下一代嵌入式全流程开发生态</span>
+        </div>
       </div>
 
-      <div class="footer-col">
-        <h4>产品套件</h4>
-        <ul class="footer-links">
+      <div class="footer-col-links">
+        <h4 class="footer-col-heading">插件中心</h4>
+        <ul class="footer-link-list">
           <li><a href="plugins/smilecode-ide.html">SmileCode IDE</a></li>
           <li><a href="plugins/stm32-build-debug.html">STM32 编译与调试</a></li>
           <li><a href="plugins/can-workbench.html">CAN 总线工作台 Pro</a></li>
           <li><a href="plugins/serial-master.html">串口调试大师</a></li>
           <li><a href="plugins/digital-oscilloscope.html">多接口数字示波器</a></li>
+          <li><a href="index.html#plugins-hub">浏览全部扩展插件 &rarr;</a></li>
         </ul>
       </div>
 
-      <div class="footer-col">
-        <h4>开发与资源</h4>
-        <ul class="footer-links">
+      <div class="footer-col-links">
+        <h4 class="footer-col-heading">开源与资源</h4>
+        <ul class="footer-link-list">
           <li><a href="docs.html">技术架构文档</a></li>
           <li><a href="index.html#optimization">编译器优化等级</a></li>
           <li><a href="index.html#download">安装包下载矩阵</a></li>
           <li><a href="https://github.com/zoufudun/SmileCodeIDE" target="_blank" rel="noopener">GitHub 仓库源码</a></li>
+          <li><a href="https://github.com/zoufudun/SmileCodeIDE/releases" target="_blank" rel="noopener">Releases 历史版本</a></li>
         </ul>
       </div>
     </div>
 
-    <div class="footer-bottom">
-      <div class="footer-bottom-inner">
-        <span>&copy; 2026 SmileCode Team &amp; zoufudun. 保留所有权利。</span>
-        <span>基于 ARM GCC &amp; Qt 架构 · 遵循开源自由友好协议</span>
+    <div class="footer-bottom-line">
+      <div class="container footer-bottom-inner">
+        <span>Copyright © 2026 SmileCode Team &amp; zoufudun. 保留所有权利。</span>
+        <div class="footer-bottom-links">
+          <a href="index.html">返回首页</a>
+          <span>·</span>
+          <a href="docs.html">技术文档</a>
+          <span>·</span>
+          <a href="https://github.com/zoufudun/SmileCodeIDE" target="_blank" rel="noopener">GitHub</a>
+          <span>·</span>
+          <a href="#navbar">回到顶部 &uarr;</a>
+        </div>
       </div>
     </div>
   </footer>
@@ -876,10 +889,28 @@ flowchart TD
     }
 
     function openDiagramModal(card) {
-      const svg = card.querySelector('svg');
-      if (!svg || !modal || !modalStage) return;
+      if (!card || !modal || !modalStage) return;
 
-      const title = card.getAttribute('data-title') || card.querySelector('.mermaid-card-caption')?.textContent || '高清矢量图表放大查看';
+      // Precisely find Mermaid diagram SVG, NOT the 14px zoom icon inside button
+      const allSvgs = card.querySelectorAll('svg');
+      let svg = null;
+      for (const s of allSvgs) {
+        if (!s.closest('.btn-zoom-card')) {
+          svg = s;
+          break;
+        }
+      }
+      if (!svg) {
+        svg = card.querySelector('.mermaid svg, pre.mermaid svg, svg[id^="mermaid"]');
+      }
+
+      if (!svg) {
+        console.warn('Diagram SVG still rendering...');
+        return;
+      }
+
+      const captionEl = card.querySelector('.mermaid-card-caption span') || card.querySelector('.mermaid-card-caption');
+      const title = card.getAttribute('data-title') || (captionEl ? captionEl.textContent.trim() : '高清矢量图表超清放大');
       if (modalTitle) modalTitle.textContent = title;
 
       // Clone SVG cleanly
@@ -887,10 +918,12 @@ flowchart TD
       const clone = svg.cloneNode(true);
       clone.removeAttribute('height');
       clone.style.width = '100%';
+      clone.style.minWidth = '850px';
       clone.style.maxWidth = 'none';
       clone.style.height = 'auto';
       modalStage.appendChild(clone);
 
+      modal.style.setProperty('display', 'flex', 'important');
       modal.classList.add('active');
       modal.setAttribute('aria-hidden', 'false');
       document.body.style.overflow = 'hidden';
@@ -900,6 +933,7 @@ flowchart TD
 
     function closeDiagramModal() {
       if (!modal) return;
+      modal.style.setProperty('display', 'none', 'important');
       modal.classList.remove('active');
       modal.setAttribute('aria-hidden', 'true');
       document.body.style.overflow = '';
@@ -996,7 +1030,7 @@ flowchart TD
   <!-- =========================================================================
        Mermaid Diagram Zoom Lightbox Modal (Full-Screen Pan & Zoom Engine)
        ========================================================================= -->
-  <div class="mermaid-modal" id="mermaidModal" aria-hidden="true">
+  <div class="mermaid-modal" id="mermaidModal" style="display: none !important;" aria-hidden="true">
     <div class="mermaid-modal-backdrop" id="mermaidModalBackdrop"></div>
     <div class="mermaid-modal-dialog">
       <div class="mermaid-modal-header">

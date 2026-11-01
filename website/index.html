@@ -24,6 +24,13 @@
     (function() {
       var saved = localStorage.getItem('smilecode_theme') || localStorage.getItem('smilecode-theme') || 'parchment';
       document.documentElement.setAttribute('data-theme', saved);
+      if (saved === 'dark') {
+        document.documentElement.classList.add('dark-theme');
+        document.documentElement.classList.remove('parchment-theme');
+      } else {
+        document.documentElement.classList.add('parchment-theme');
+        document.documentElement.classList.remove('dark-theme');
+      }
     })();
   </script>
 </head>
@@ -55,7 +62,7 @@
                 <div class="item-content">
                   <div class="item-title-row">
                     <span class="item-title">SmileCode IDE</span>
-                    <span class="badge-tag badge-new">v2.3.4</span>
+                    <span class="badge-tag badge-new">v2.3.5</span>
                   </div>
                   <span class="item-sub">C/C++ 代码编辑器与 GDB</span>
                 </div>
@@ -204,7 +211,7 @@
         <div class="hero-left-top">
           <div class="hero-badge-pill">
             <span>🎉</span>
-            <span>SmileCode Studio v2.3.4 正式发布</span>
+            <span>SmileCode Studio v2.3.5 正式发布</span>
           </div>
 
           <div class="hero-brand-row">
@@ -495,7 +502,7 @@
                   <div class="studio-app-info">
                     <div class="studio-app-header-row">
                       <span class="studio-app-title">SmileCode IDE</span>
-                      <span class="studio-app-ver">v2.3.4</span>
+                      <span class="studio-app-ver">v2.3.5</span>
                       <span class="studio-app-cat-tag">嵌入式开发</span>
                       <span class="studio-app-star starred" title="切换收藏">★</span>
                     </div>
@@ -581,7 +588,7 @@
               <span>● 运行中应用: <strong id="studioRunCount" style="color: #10b981;">0</strong> 个</span>
               <span>● 已集成应用: <strong id="studioTotCount" style="color: #f59e0b;">9</strong> 个</span>
             </div>
-            <div>SmileCode Studio v2.3.4</div>
+            <div>SmileCode Studio v2.3.5</div>
           </div>
         </div>
       </div>
@@ -627,7 +634,7 @@
   <section class="section" id="plugins-hub">
     <div class="container">
       <div class="section-header text-center">
-        <h2 class="section-title">应用市场 9 大核心插件矩阵</h2>
+        <h2 class="section-title">应用市场 插件生态矩阵</h2>
         <p class="section-subtitle">严格对照实际软件界面，包含 6 款内置核心工作台应用与 3 款官方标准 Qt 动态插件，点击任意插件可查看专属介绍主页。</p>
       </div>
 
@@ -756,7 +763,7 @@
         <a href="plugins/smilecode-ide.html" class="plugin-card">
           <div class="plugin-card-top">
             <span class="plugin-icon" style="color: #6c5ce7;">💻</span>
-            <span class="plugin-ver-badge">v2.3.4 · 核心工作台</span>
+            <span class="plugin-ver-badge">v2.3.5 · 核心工作台</span>
           </div>
           <h3 class="plugin-card-title">SmileCode IDE</h3>
           <p class="plugin-card-desc"><strong>嵌入式 C/C++ 代码编辑器与 GDB 调试器</strong><br>基于 QScintilla 的嵌入式 C/C++ IDE，集成 GCC/Make 编译构建、GDB 断点与单步调试、ST-Link / J-Link / CMSIS-DAP 固件烧录及任务取消。</p>
@@ -829,7 +836,7 @@
               <th style="padding: 16px 20px;">对比维度</th>
               <th style="padding: 16px 20px;">传统 Keil MDK / 闭源工具</th>
               <th style="padding: 16px 20px;">STM32CubeIDE / Eclipse系</th>
-              <th style="padding: 16px 20px; color: var(--accent-primary); font-weight: 800;">SmileCode Studio (v2.3.4)</th>
+              <th style="padding: 16px 20px; color: var(--accent-primary); font-weight: 800;">SmileCode Studio (v2.3.5)</th>
             </tr>
           </thead>
           <tbody>
@@ -932,13 +939,13 @@ CFLAGS = $(MCU) $(C_DEFS) $(C_INCLUDES) $(OPT) \
               <span class="badge-tag">免安装绿色版</span>
             </div>
             <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 8px;">ZIP 便携压缩包</h3>
-            <p style="font-size: 0.84rem; color: var(--text-muted); margin-bottom: 14px;">解压即用，支持存放于 U 盘随身携带，不污染 Windows 注册表，包含全套 9 大插件与示例工程。</p>
+            <p style="font-size: 0.84rem; color: var(--text-muted); margin-bottom: 14px;">解压即用，支持存放于 U 盘随身携带，不污染 Windows 注册表，包含全套 插件与示例工程。</p>
             <div style="font-size: 0.76rem; font-family: var(--font-mono); color: var(--text-muted); background: rgba(0,0,0,0.05); padding: 8px; border-radius: 6px; margin-bottom: 16px;">
-              文件: SmileCodeIDE-v2.3.4-Windows-x64.zip<br>
+              文件: SmileCodeIDE-v2.3.5-Windows-x64.zip<br>
               体积: 45.75 MB
             </div>
           </div>
-          <a href="https://github.com/zoufudun/SmileCodeIDE/releases/download/v2.3.4/SmileCodeIDE-v2.3.4-Windows-x64.zip" class="btn-primary" style="text-align: center; justify-content: center;">
+          <a href="https://github.com/zoufudun/SmileCodeIDE/releases/download/v2.3.5/SmileCodeIDE-v2.3.5-Windows-x64.zip" class="btn-primary" style="text-align: center; justify-content: center;">
             <span>下载 ZIP 绿色包</span>
           </a>
         </div>
@@ -953,11 +960,11 @@ CFLAGS = $(MCU) $(C_DEFS) $(C_INCLUDES) $(OPT) \
             <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 8px;">EXE 安装向导 (免提权)</h3>
             <p style="font-size: 0.84rem; color: var(--text-muted); margin-bottom: 14px;">解决传统安装程序 UAC 权限拒绝报错，默认安装于用户空间，自动生成桌面图标与开始菜单，完成即可立即启动。</p>
             <div style="font-size: 0.76rem; font-family: var(--font-mono); color: var(--text-muted); background: rgba(0,0,0,0.05); padding: 8px; border-radius: 6px; margin-bottom: 16px;">
-              文件: SmileCodeIDE-v2.3.4-Setup.exe<br>
+              文件: SmileCodeIDE-v2.3.5-Setup.exe<br>
               体积: 69.40 MB
             </div>
           </div>
-          <a href="https://github.com/zoufudun/SmileCodeIDE/releases/download/v2.3.4/SmileCodeIDE-v2.3.4-Setup.exe" class="btn-primary" style="text-align: center; justify-content: center;">
+          <a href="https://github.com/zoufudun/SmileCodeIDE/releases/download/v2.3.5/SmileCodeIDE-v2.3.5-Setup.exe" class="btn-primary" style="text-align: center; justify-content: center;">
             <span>下载 EXE 安装包</span>
           </a>
         </div>
@@ -972,11 +979,11 @@ CFLAGS = $(MCU) $(C_DEFS) $(C_INCLUDES) $(OPT) \
             <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 8px;">MSI 企业部署包</h3>
             <p style="font-size: 0.84rem; color: var(--text-muted); margin-bottom: 14px;">微软官方标准 Windows Installer 安装包，支持 Active Directory 组策略 (GPO)、Intune 与静默推送安装。</p>
             <div style="font-size: 0.76rem; font-family: var(--font-mono); color: var(--text-muted); background: rgba(0,0,0,0.05); padding: 8px; border-radius: 6px; margin-bottom: 16px;">
-              文件: SmileCodeIDE-v2.3.4-Setup.msi<br>
+              文件: SmileCodeIDE-v2.3.5-Setup.msi<br>
               体积: 46.02 MB
             </div>
           </div>
-          <a href="https://github.com/zoufudun/SmileCodeIDE/releases/download/v2.3.4/SmileCodeIDE-v2.3.4-Setup.msi" class="btn-primary" style="text-align: center; justify-content: center;">
+          <a href="https://github.com/zoufudun/SmileCodeIDE/releases/download/v2.3.5/SmileCodeIDE-v2.3.5-Setup.msi" class="btn-primary" style="text-align: center; justify-content: center;">
             <span>下载 MSI 安装包</span>
           </a>
         </div>
@@ -1008,7 +1015,7 @@ CFLAGS = $(MCU) $(C_DEFS) $(C_INCLUDES) $(OPT) \
               <img src="assets/smilecode-logo.svg" class="modal-brand-icon" alt="logo">
               <div class="modal-brand-titles">
                 <h4>SmileCode Studio · 微笑代码工作站</h4>
-                <p>应用市场容器核心 v2.3.4 (最新正式版)</p>
+                <p>应用市场容器核心 v2.3.5 (最新正式版)</p>
               </div>
             </div>
             <button class="modal-check-btn" id="modalCheckContainerBtn">🔄 检查更新</button>
@@ -1122,7 +1129,7 @@ CFLAGS = $(MCU) $(C_DEFS) $(C_INCLUDES) $(OPT) \
                 </div>
                 <div class="modal-item-desc">嵌入式 C/C++ 代码编辑器与 GDB 调试器 · GCC/Make 构建</div>
               </div>
-              <div class="modal-item-ver">v2.3.4</div>
+              <div class="modal-item-ver">v2.3.5</div>
               <div class="modal-item-status">🟢 已是最新</div>
               <button class="modal-item-check-btn">检查更新</button>
             </div>
@@ -1159,9 +1166,9 @@ CFLAGS = $(MCU) $(C_DEFS) $(C_INCLUDES) $(OPT) \
       <!-- Changelog Page -->
       <div class="studio-modal-body" id="modalBodyChangelog" style="display: none;">
         <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 18px; font-size: 0.82rem; line-height: 1.7;">
-          <h3 style="color: #2563eb; margin-bottom: 8px;">v2.3.4 (最新稳定版 - 2026-10-31)</h3>
+          <h3 style="color: #2563eb; margin-bottom: 8px;">v2.3.5 (最新稳定版 - 2026-10-31)</h3>
           <ul style="padding-left: 20px; margin-bottom: 16px;">
-            <li><b>实机界面 100% 对齐</b>：应用市场容器与 9 大核心插件 (6 内置应用 + 3 Qt 动态插件) 全面同步。</li>
+            <li><b>实机界面 100% 对齐</b>：应用市场容器与 核心插件 (6 内置应用 + 3 Qt 动态插件) 全面同步。</li>
             <li><b>关于窗口滚动区域自适应修复</b>：增加 QScrollArea 容器与最小高度约束，杜绝多插件情况下的窗口纵向挤压。</li>
             <li><b>可视化编译器优化控制台</b>：新增 -O0 到 -O3、-Os、-Og 六大档位自主选择与 DWARF2 符号注入。</li>
             <li><b>硬件延时防死锁根治</b>：彻底解决高等级 GCC 将空循环延时优化清空导致的板卡假死问题。</li>
@@ -1199,7 +1206,7 @@ CFLAGS = $(MCU) $(C_DEFS) $(C_INCLUDES) $(OPT) \
         <h4 class="footer-col-heading">快速入口</h4>
         <ul class="footer-link-list">
           <li><a href="#studioChassis">在线体验嵌入式应用工作台</a></li>
-          <li><a href="#plugins-hub">9 大核心插件矩阵</a></li>
+          <li><a href="#plugins-hub">插件生态矩阵</a></li>
           <li><a href="#optimization">编译器优化等级可视化配置</a></li>
           <li><a href="#download">客户端全格式下载矩阵</a></li>
           <li><a href="docs.html">官方技术文档与架构白皮书</a></li>
@@ -1211,8 +1218,8 @@ CFLAGS = $(MCU) $(C_DEFS) $(C_INCLUDES) $(OPT) \
         <h4 class="footer-col-heading">开源与资源</h4>
         <ul class="footer-link-list">
           <li><a href="https://github.com/zoufudun/SmileCodeIDE" target="_blank" rel="noopener">GitHub 源码仓库</a></li>
-          <li><a href="https://github.com/zoufudun/SmileCodeIDE/releases" target="_blank" rel="noopener">Releases 历史安装包 (v2.3.4)</a></li>
-          <li><a href="RELEASE_NOTES_v2.3.4.md" target="_blank" rel="noopener">版本更新日志 (v2.3.4)</a></li>
+          <li><a href="https://github.com/zoufudun/SmileCodeIDE/releases" target="_blank" rel="noopener">Releases 历史安装包 (v2.3.5)</a></li>
+          <li><a href="RELEASE_NOTES_v2.3.5.md" target="_blank" rel="noopener">版本更新日志 (v2.3.5)</a></li>
           <li><a href="docs.html#custom-plugin-sdk">开发者扩展插件 SDK</a></li>
           <li><a href="https://github.com/zoufudun/SmileCodeIDE/issues" target="_blank" rel="noopener">问题反馈与 Bug 提交</a></li>
         </ul>

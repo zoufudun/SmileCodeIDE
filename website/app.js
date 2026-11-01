@@ -19,9 +19,10 @@ document.addEventListener('DOMContentLoaded', () => {
   applyWebsiteTheme(savedTheme);
 
   if (themeBtn) {
-    themeBtn.addEventListener('click', () => {
+    themeBtn.addEventListener('click', (e) => {
+      e.preventDefault();
       const current = document.documentElement.getAttribute('data-theme') || (document.body.classList.contains('parchment-theme') ? 'parchment' : 'dark');
-      const nextTheme = current === 'parchment' ? 'dark' : 'parchment';
+      const nextTheme = (current === 'dark') ? 'parchment' : 'dark';
       applyWebsiteTheme(nextTheme);
     });
   }
@@ -29,19 +30,23 @@ document.addEventListener('DOMContentLoaded', () => {
   // Bi-directional binding with Studio Simulator Theme Select Dropdown
   if (studioThemeSelect) {
     studioThemeSelect.addEventListener('change', (e) => {
-      const selected = e.target.value === 'dark' || e.target.value === 'titanium' ? 'dark' : 'parchment';
+      const selected = (e.target.value === 'dark' || e.target.value === 'titanium') ? 'dark' : 'parchment';
       applyWebsiteTheme(selected);
     });
   }
 
   function applyWebsiteTheme(theme) {
-    localStorage.setItem('smilecode_theme', theme);
-    localStorage.setItem('smilecode-theme', theme);
+    try {
+      localStorage.setItem('smilecode_theme', theme);
+      localStorage.setItem('smilecode-theme', theme);
+    } catch(err) {}
     
     document.documentElement.setAttribute('data-theme', theme);
     document.body.setAttribute('data-theme', theme);
 
     if (theme === 'dark') {
+      document.documentElement.classList.remove('parchment-theme');
+      document.documentElement.classList.add('dark-theme');
       document.body.classList.remove('parchment-theme');
       document.body.classList.add('dark-theme');
       if (themeIcon) {
@@ -51,6 +56,8 @@ document.addEventListener('DOMContentLoaded', () => {
         studioThemeSelect.value = 'dark';
       }
     } else {
+      document.documentElement.classList.remove('dark-theme');
+      document.documentElement.classList.add('parchment-theme');
       document.body.classList.remove('dark-theme');
       document.body.classList.add('parchment-theme');
       if (themeIcon) {
