@@ -132,3 +132,4 @@ flowchart TD
 - **版本号升级**：根据小修正规范，版本号由 `v2.3.1` 升级至 **`v2.3.2`**；
 - **Git 提交信息**：`refactor(website): Hero左底平齐、产品按钮箭头化、工作台双主题自适应及docs文档Mermaid排版升级 (v2.3.2)`；
 - **远程分支与 Pages 部署**：已推送到 `origin/main`、`origin/V10.0`、标签 `v2.3.2` 以及 `origin/gh-pages`。
+

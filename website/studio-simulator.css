@@ -1344,3 +1344,44 @@ body.parchment-theme .studio-statusbar {
   border-top: 1px solid #dfd5c4 !important;
   color: #6b6054 !important;
 }
+/* ==========================================================================
+   Crucial Fix for Figure 1: Studio Card Title & Subhead Text Visibility
+   ========================================================================== */
+[data-theme="parchment"] .studio-app-title,
+.parchment-theme .studio-app-title,
+body.parchment-theme .studio-app-title {
+  color: #1a1511 !important;
+  font-weight: 700 !important;
+  font-size: 0.94rem !important;
+}
+
+[data-theme="parchment"] .studio-app-subhead,
+.parchment-theme .studio-app-subhead,
+body.parchment-theme .studio-app-subhead {
+  color: #5c4e43 !important;
+  font-weight: 600 !important;
+  font-size: 0.8rem !important;
+}
+
+[data-theme="parchment"] .studio-app-desc,
+.parchment-theme .studio-app-desc,
+body.parchment-theme .studio-app-desc {
+  color: #3e342c !important;
+  font-size: 0.77rem !important;
+  line-height: 1.5 !important;
+}
+
+[data-theme="parchment"] .studio-app-cat-tag,
+.parchment-theme .studio-app-cat-tag,
+body.parchment-theme .studio-app-cat-tag {
+  color: #7a6e63 !important;
+  font-size: 0.75rem !important;
+}
+
+[data-theme="parchment"] .studio-tag-chip,
+.parchment-theme .studio-tag-chip,
+body.parchment-theme .studio-tag-chip {
+  background: #f4ecdf !important;
+  color: #55483d !important;
+  border: 1px solid #e5dbcd !important;
+}

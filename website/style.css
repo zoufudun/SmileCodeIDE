@@ -1961,3 +1961,331 @@ body.parchment-theme .markdown-body {
     align-items: center !important;
   }
 }
+/* ==========================================================================
+   Crucial Fix for Figure 2: Expanded Breathing Spacing between Brand & Slogan
+   ========================================================================== */
+.hero-brand-row {
+  display: flex !important;
+  align-items: center !important;
+  gap: 16px !important;
+  margin-bottom: 20px !important;
+}
+
+.hero-main-title {
+  font-size: 3.25rem !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.03em !important;
+  line-height: 1.12 !important;
+}
+
+.hero-slogan {
+  font-size: 1.48rem !important;
+  font-weight: 600 !important;
+  color: var(--text-secondary) !important;
+  margin-top: 6px !important;
+  margin-bottom: 30px !important;
+  line-height: 1.45 !important;
+  letter-spacing: -0.01em !important;
+}
+/* ==========================================================================
+   Book-Grade Typography & Reading Aesthetics (Figure 4 Ultimate Upgrade)
+   "就像一本非常美丽的书籍，让读者忍不住往下看完"
+   ========================================================================== */
+.docs-page-layout {
+  display: flex !important;
+  max-width: 1560px !important;
+  margin: 0 auto !important;
+  padding: 104px 32px 70px !important;
+  gap: 40px !important;
+}
+
+/* Book Central Page Container */
+.docs-center-content {
+  flex: 1 !important;
+  min-width: 0 !important;
+  max-width: 880px !important;
+  margin: 0 auto !important;
+  background: #fdfbf7 !important;
+  border: 1px solid #e7ded0 !important;
+  border-radius: 16px !important;
+  padding: 52px 64px 70px !important;
+  box-shadow: 0 16px 50px -10px rgba(95, 70, 35, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.02) !important;
+  text-align: left !important;
+  transition: all var(--transition-normal);
+}
+
+[data-theme="dark"] .docs-center-content,
+.dark-theme .docs-center-content {
+  background: #141923 !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 20px 60px -10px rgba(0, 0, 0, 0.6) !important;
+}
+
+/* Book Header Area */
+.docs-book-meta-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #8c7f73;
+}
+
+.docs-article-title {
+  font-size: 2.35rem !important;
+  font-weight: 900 !important;
+  letter-spacing: -0.025em !important;
+  color: #1a1410 !important;
+  line-height: 1.25 !important;
+  margin-bottom: 12px !important;
+}
+
+[data-theme="dark"] .docs-article-title,
+.dark-theme .docs-article-title {
+  color: #f8fafc !important;
+}
+
+.docs-book-subtitle {
+  font-size: 1.08rem !important;
+  font-weight: 500 !important;
+  color: #63564b !important;
+  line-height: 1.6 !important;
+  margin-bottom: 20px !important;
+}
+
+[data-theme="dark"] .docs-book-subtitle,
+.dark-theme .docs-book-subtitle {
+  color: #94a3b8 !important;
+}
+
+.docs-article-meta {
+  display: flex !important;
+  align-items: center !important;
+  gap: 18px !important;
+  font-size: 0.82rem !important;
+  color: #8a7c6f !important;
+  padding-bottom: 24px !important;
+  border-bottom: 1px solid #e8e0d2 !important;
+  margin-bottom: 36px !important;
+}
+
+[data-theme="dark"] .docs-article-meta,
+.dark-theme .docs-article-meta {
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+  color: #64748b !important;
+}
+
+/* Reading Typography: Book Lead & Paragraphs */
+.book-lead {
+  font-size: 1.08rem !important;
+  line-height: 2 !important;
+  color: #2e2620 !important;
+  font-weight: 500 !important;
+  margin-bottom: 24px !important;
+}
+
+[data-theme="dark"] .book-lead,
+.dark-theme .book-lead {
+  color: #e2e8f0 !important;
+}
+
+.markdown-body p {
+  font-size: 1rem !important;
+  line-height: 1.95 !important;
+  color: #3b322a !important;
+  margin-bottom: 22px !important;
+}
+
+[data-theme="dark"] .markdown-body p,
+.dark-theme .markdown-body p {
+  color: #cbd5e1 !important;
+}
+
+/* Chapter Heading H2 with Elegant Number Badges */
+.markdown-body h2 {
+  font-size: 1.6rem !important;
+  font-weight: 800 !important;
+  color: #1a1410 !important;
+  margin: 54px 0 20px !important;
+  padding-bottom: 12px !important;
+  border-bottom: 1px solid #e6ddd0 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+}
+
+[data-theme="dark"] .markdown-body h2,
+.dark-theme .markdown-body h2 {
+  color: #f1f5f9 !important;
+  border-bottom-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.chapter-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: #faede2;
+  color: #c2410c;
+  font-size: 0.88rem;
+  font-weight: 800;
+  font-family: var(--font-mono);
+}
+
+[data-theme="dark"] .chapter-num,
+.dark-theme .chapter-num {
+  background: rgba(234, 88, 12, 0.2);
+  color: #ea580c;
+}
+
+/* Mermaid Diagram Card Container in Book Aesthetic */
+.mermaid-diagram-card {
+  background: #f9f5ed !important;
+  border: 1px solid #dfd6c5 !important;
+  border-radius: 14px !important;
+  padding: 30px 24px !important;
+  margin: 34px 0 !important;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.02), 0 4px 16px rgba(100, 75, 45, 0.04) !important;
+  overflow-x: auto !important;
+  text-align: center !important;
+  transition: all var(--transition-normal);
+}
+
+[data-theme="dark"] .mermaid-diagram-card,
+.dark-theme .mermaid-diagram-card {
+  background: #0f141d !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+}
+
+.mermaid-diagram-card svg {
+  max-width: 100% !important;
+  height: auto !important;
+  font-family: var(--font-sans) !important;
+}
+
+.mermaid-card-caption {
+  margin-top: 18px !important;
+  font-size: 0.83rem !important;
+  color: #796e63 !important;
+  font-weight: 600 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+}
+
+[data-theme="dark"] .mermaid-card-caption,
+.dark-theme .mermaid-card-caption {
+  color: #94a3b8 !important;
+}
+
+/* Tables in Book Layout */
+.markdown-table-wrapper {
+  margin: 30px 0 !important;
+  border: 1px solid #e4dcd0 !important;
+  border-radius: 10px !important;
+  overflow: hidden !important;
+  box-shadow: 0 2px 8px rgba(100, 75, 45, 0.03) !important;
+}
+
+.markdown-table th {
+  background: #f2ebe0 !important;
+  color: #1a1410 !important;
+  font-weight: 700 !important;
+  font-size: 0.88rem !important;
+  padding: 14px 18px !important;
+  border-bottom: 1px solid #e4dcd0 !important;
+}
+
+.markdown-table td {
+  padding: 13px 18px !important;
+  font-size: 0.86rem !important;
+  line-height: 1.6 !important;
+  color: #3e352d !important;
+  border-bottom: 1px solid #ede5d8 !important;
+}
+
+[data-theme="dark"] .markdown-table th,
+.dark-theme .markdown-table th {
+  background: #1e2533 !important;
+  color: #f1f5f9 !important;
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="dark"] .markdown-table td,
+.dark-theme .markdown-table td {
+  color: #cbd5e1 !important;
+  border-bottom-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+/* Callouts in Book Layout */
+.markdown-callout {
+  background: #fbf7ef !important;
+  border: 1px solid #e8e0d2 !important;
+  border-left: 4px solid #ea580c !important;
+  border-radius: 10px !important;
+  padding: 18px 24px !important;
+  margin: 28px 0 !important;
+  font-size: 0.92rem !important;
+  line-height: 1.8 !important;
+  color: #332b24 !important;
+}
+
+[data-theme="dark"] .markdown-callout,
+.dark-theme .markdown-callout {
+  background: rgba(234, 88, 12, 0.08) !important;
+  border-color: rgba(234, 88, 12, 0.3) !important;
+  border-left-color: #ea580c !important;
+  color: #fed7aa !important;
+}
+
+/* Right TOC Chapter Styling */
+.docs-right-toc {
+  width: 250px !important;
+  border-left: 1px solid #e7ded0 !important;
+  padding-left: 20px !important;
+}
+
+[data-theme="dark"] .docs-right-toc,
+.dark-theme .docs-right-toc {
+  border-left-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.toc-heading {
+  font-size: 0.86rem !important;
+  font-weight: 800 !important;
+  color: #1a1410 !important;
+  margin-bottom: 16px !important;
+  letter-spacing: 0.02em !important;
+}
+
+[data-theme="dark"] .toc-heading,
+.dark-theme .toc-heading {
+  color: #f1f5f9 !important;
+}
+
+.toc-link {
+  font-size: 0.82rem !important;
+  line-height: 1.6 !important;
+  color: #796e63 !important;
+  padding: 6px 10px !important;
+  border-radius: 6px !important;
+  margin-bottom: 4px !important;
+  transition: all var(--transition-fast) !important;
+}
+
+.toc-link:hover {
+  color: #c2410c !important;
+  background: #f5ece0 !important;
+}
+
+.toc-link.active {
+  color: #c2410c !important;
+  background: #f7eee2 !important;
+  font-weight: 700 !important;
+  border-left: 3px solid #c2410c !important;
+}
