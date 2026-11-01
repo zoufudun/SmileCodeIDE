@@ -111,6 +111,11 @@
   * **核心设计**：顶部声明与全局内联双重安全主题引擎；DOM 物理前移与 SVG 高精克隆 Lightbox 放大镜；4 大分发规格横向条目卡片、一键复制、SHA256 校验与双主题自适应。
   * **对应版本**：`v2.3.6`
 
+* **[全站导航栏增加首页入口与非文档页主题切换失效物理根治.md](file:///k:/TOPFIRE/SmileCodeIDEUpdate/docs/全站导航栏增加首页入口与非文档页主题切换失效物理根治.md)**
+  * **解决问题**：图 1 全站导航栏最左侧增加【首页】入口（统一为：首页、产品 ▾、容器市场、技术文档、软件下载）；彻底解决“只有在文档页面才能切换主题，首页、下载页及插件页点击主题切换无效”的顽疾。
+  * **核心根因与设计**：查明 `index.html` 与 `plugins/*.html` 中内联 `onclick` 与 `app.js` 中的 `themeBtn.addEventListener` 发生双重触发自抵消（0ms 内连续反转两次），且 `window.toggleGlobalTheme` 未同步更新 `document.documentElement.classList` 及 `download.html` 初始 `<body>` 类名。通过移除 `app.js` 重复监听器、注入 200ms 防抖锁、统一全节点（`<html>` + `<body>`）同步引擎 `window.applyGlobalTheme` 并追加 `?v=2.3.8` 防缓存参数彻底根治。
+  * **对应版本**：`v2.3.8`
+
 ---
 
 ### 7. 综合全景走查报告

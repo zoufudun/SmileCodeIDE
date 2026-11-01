@@ -28,14 +28,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const savedTheme = localStorage.getItem('smilecode_theme') || localStorage.getItem('smilecode-theme') || 'parchment';
   applyWebsiteTheme(savedTheme);
 
-  if (themeBtn) {
-    themeBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      const current = document.documentElement.getAttribute('data-theme') || (document.body.classList.contains('parchment-theme') ? 'parchment' : 'dark');
-      const nextTheme = (current === 'dark') ? 'parchment' : 'dark';
-      applyWebsiteTheme(nextTheme);
-    });
-  }
+  // Note: #themeToggleBtn click is handled globally via onclick="window.toggleGlobalTheme(event)"
+  // Do NOT bind a duplicate addEventListener('click') here, which caused double-toggle cancellation!
 
   // Bi-directional binding with Studio Simulator Theme Select Dropdown
   if (studioThemeSelect) {
@@ -46,45 +40,45 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function applyWebsiteTheme(theme) {
+    const t = (theme === 'dark') ? 'dark' : 'parchment';
     try {
-      localStorage.setItem('smilecode_theme', theme);
-      localStorage.setItem('smilecode-theme', theme);
+      localStorage.setItem('smilecode_theme', t);
+      localStorage.setItem('smilecode-theme', t);
     } catch(err) {}
     
-    document.documentElement.setAttribute('data-theme', theme);
-    document.body.setAttribute('data-theme', theme);
+    document.documentElement.setAttribute('data-theme', t);
+    document.documentElement.classList.remove('parchment-theme', 'dark-theme');
+    document.documentElement.classList.add(t === 'dark' ? 'dark-theme' : 'parchment-theme');
 
-    if (theme === 'dark') {
-      document.documentElement.classList.remove('parchment-theme');
-      document.documentElement.classList.add('dark-theme');
-      document.body.classList.remove('parchment-theme');
-      document.body.classList.add('dark-theme');
-      if (themeIcon) {
-        themeIcon.innerHTML = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>`;
-      }
-      if (studioThemeSelect) {
-        studioThemeSelect.value = 'dark';
-      }
-    } else {
-      document.documentElement.classList.remove('dark-theme');
-      document.documentElement.classList.add('parchment-theme');
-      document.body.classList.remove('dark-theme');
-      document.body.classList.add('parchment-theme');
-      if (themeIcon) {
-        themeIcon.innerHTML = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`;
-      }
-      if (studioThemeSelect) {
-        studioThemeSelect.value = 'parchment';
+    if (document.body) {
+      document.body.setAttribute('data-theme', t);
+      document.body.classList.remove('parchment-theme', 'dark-theme');
+      document.body.classList.add(t === 'dark' ? 'dark-theme' : 'parchment-theme');
+    }
+
+    const iconEl = document.getElementById('themeToggleIcon') || themeIcon;
+    if (iconEl) {
+      if (t === 'dark') {
+        iconEl.innerHTML = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>`;
+      } else {
+        iconEl.innerHTML = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`;
       }
     }
 
-    if (studioChassis) {
-      studioChassis.removeAttribute('style');
+    const selectEl = document.getElementById('studioThemeSelect') || studioThemeSelect;
+    if (selectEl) {
+      selectEl.value = t;
+    }
+
+    const chassisEl = document.getElementById('studioChassis') || studioChassis;
+    if (chassisEl) {
+      chassisEl.removeAttribute('style');
     }
   }
 
-  // Expose to window for inline onclick safety
+  // Expose to window for global theme engine synchronization
   window.applyWebsiteTheme = applyWebsiteTheme;
+  window.applyGlobalTheme = applyWebsiteTheme;
 
   // =========================================================================
   // 3. Real Studio Simulator Interactivity (Figure 2 Matching)
