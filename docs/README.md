@@ -66,6 +66,11 @@
   * **核心设计**：实现 `AboutUpdateDialog` 客户端组件；重构 QtIFW 安装向导免提权路径；构建双主题 CSS 引擎与 5 大插件独立展示矩阵。
   * **对应版本**：`v2.3.1`
 
+* **[SmileCodeStudio实机界面对齐与更新中心排版修复及全插件动态交互发布.md](file:///k:/TOPFIRE/SmileCodeIDEUpdate/docs/SmileCodeStudio实机界面对齐与更新中心排版修复及全插件动态交互发布.md)**
+  * **解决问题**：彻底解决关于与更新中心插件列表被挤压变形缺陷（图 1 修复）；官网首页 Hero 首屏 100% 还原用户真实使用的 SmileCode Studio 容器工作台（图 2 对齐）；9 大插件专属主页全部接入真实且可点击操作的动态仿真操作台（CAN 总线收发、示波器波形扫描、STM32 IAP 固件擦写升级、GDB 单步调试等）；全量打包排除嵌套目录缺陷，发布免安装 ZIP、向导 EXE 与微软标准 MSI。
+  * **核心设计**：采用 `QScrollArea` 包装插件列表并规范行高与呼吸感；编写拟物化 `studio-simulator.css` 与 `app.js` 实时过滤器；为 9 大插件构建 HTML5 Canvas 与事件流实时交互引擎；优化全量打包流水线并发布至 GitHub。
+  * **对应版本**：`v2.3.1`
+
 ---
 
 ### 7. 综合全景走查报告

@@ -29,9 +29,10 @@ $msiPath = "$distDir/SmileCodeIDE-$Version-Setup.msi"
 # STEP 1: Prepare Portable Distribution Directory
 # ------------------------------------------------------------------------------
 Write-Host "`n[STEP 1/5] Preparing clean portable distribution files..." -ForegroundColor Green
-if (-not (Test-Path $targetDir)) {
-    New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
+if (Test-Path $targetDir) {
+    Remove-Item $targetDir -Recurse -Force
 }
+New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
 
 # Copy main binary and core dynamic libraries
 Copy-Item "PhudonTools/release/PhudonTools.exe" "$targetDir/SmileCodeIDE.exe" -Force
@@ -48,7 +49,8 @@ if (Test-Path "PhudonTools/release/kerneldlls") {
 # Copy plugins
 if (Test-Path "PhudonTools/release/plugins") {
     Write-Host "  -> Copying plugins (STM32WorkbenchPlugin.dll)..." -ForegroundColor Gray
-    Copy-Item "PhudonTools/release/plugins" "$targetDir/plugins" -Recurse -Force
+    New-Item -ItemType Directory -Path "$targetDir/plugins" -Force | Out-Null
+    Copy-Item "PhudonTools/release/plugins/*" "$targetDir/plugins/" -Recurse -Force
 }
 
 # Deploy Qt dependencies via windeployqt
@@ -72,6 +74,12 @@ foreach ($dll in $mingwDlls) {
 Copy-Item "README.md" "$targetDir/" -Force -ErrorAction SilentlyContinue
 Copy-Item "CHANGELOG.zh.md" "$targetDir/" -Force -ErrorAction SilentlyContinue
 Copy-Item "RELEASE_NOTES_v2.3.1.md" "$targetDir/" -Force -ErrorAction SilentlyContinue
+
+# Copy sample project suite
+if (Test-Path "Examples") {
+    Write-Host "  -> Copying sample projects (Examples/STM32F103_Demo)..." -ForegroundColor Gray
+    Copy-Item "Examples" "$targetDir/Examples" -Recurse -Force
+}
 
 # ------------------------------------------------------------------------------
 # STEP 2: Build Portable ZIP Package

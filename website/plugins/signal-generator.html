@@ -4,12 +4,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>高频信号发生器 - SmileCode Studio</title>
-  <meta name="description" content="正弦波/方波/三角波/锯齿波/白噪声实时高频仿真与数据生成器，基于 QPainter 动态绘制，支持采样点导出。">
+  <meta name="description" content="高频信号发生器 · 基于 QPainter 实时动态绘制多波形高频信号发生器，支持频率、幅值、相位、偏置调节与采样点导出。">
   <link rel="icon" type="image/x-icon" href="../assets/favicon.ico">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../style.css">
+  <link rel="stylesheet" href="../studio-simulator.css">
 </head>
 <body class="parchment-theme">
   <!-- Top Navigation Bar -->
@@ -35,7 +36,7 @@
             </svg>
           </span>
         </button>
-        <a href="https://github.com/zoufudun/SmileCodeIDE" target="_blank" rel="noopener" class="capsule-btn github-capsule-btn" title="GitHub 仓库">
+        <a href="https://github.com/zoufudun/SmileCodeIDE" target="_blank" rel="noopener" class="capsule-btn github-capsule-btn" title="GitHub 源码仓库">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
             <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
           </svg>
@@ -47,9 +48,9 @@
   <!-- Hero Section -->
   <section class="plugin-hero-section">
     <div class="plugin-slogan-wrap">
-      <h1 class="plugin-hero-slogan">多波形动态仿真，高保真微调输出。</h1>
+      <h1 class="plugin-hero-slogan">函数信号自由定义，DAC 仿真高频驱动。</h1>
       <p class="plugin-hero-desc">
-        高频信号发生器 (v1.0.0 · Qt 动态插件) · 正弦波/方波/三角波/锯齿波/白噪声实时高频仿真与数据生成
+        高频信号发生器 (v1.0.0 · Qt 动态插件) · 正弦 / 方波 / 三角波 / 锯齿波 / 噪声实时发生
       </p>
     </div>
 
@@ -62,7 +63,7 @@
       </a>
     </div>
 
-    <!-- Live Stage Mockup -->
+    <!-- Live Stage Mockup: Interactive Signal Generator -->
     <div class="plugin-stage-wrapper">
       <div class="stage-window">
         <div class="stage-titlebar">
@@ -73,40 +74,45 @@
           </div>
           <span class="window-tab-title">
             <span class="live-indicator"></span>
-            高频信号发生器 (Qt Plugin DLL) - [Waveform: 三角波 + 高斯白噪声 · Freq: 50.0 kHz]
+            高频信号发生器 (SignalGeneratorPlugin.dll) - [波形: <span id="curWaveName">正弦波</span> · Freq: <span id="freqLabel">2.00 kHz</span>]
           </span>
-          <span style="font-size: 0.76rem; color: #10b981; font-weight: 700;">● 动态仿真运行中</span>
+          <span style="font-size: 0.76rem; color: #10b981; font-weight: 700;">● Qt 动态插件已载入</span>
         </div>
+
         <div class="stage-body">
-          <div class="stage-sidebar">
-            <div style="font-size: 0.74rem; font-weight: 700; color: var(--text-muted); margin-bottom: 6px;">波形类型</div>
-            <div style="font-size: 0.8rem; font-weight: 700; color: #059669;">● 三角波 (Triangle)</div>
-            <div style="font-size: 0.8rem; color: var(--text-secondary);">● 正弦波 (Sine)</div>
-            <div style="font-size: 0.8rem; color: var(--text-secondary);">● 矩形方波 (Square)</div>
-            <div style="font-size: 0.8rem; color: var(--text-secondary);">● 白噪声 (Gaussian)</div>
-            <div style="font-size: 0.74rem; font-weight: 700; color: var(--text-muted); margin-top: 14px; margin-bottom: 6px;">输出参数</div>
-            <div style="font-size: 0.76rem;">频率: 50,000 Hz</div>
-            <div style="font-size: 0.76rem;">幅值: 3.30 V</div>
-            <div style="font-size: 0.76rem;">偏置: +1.65 V</div>
-            <div style="margin-top: auto; border-top: 1px solid var(--border-color); padding-top: 8px;">
-              <div style="font-size: 0.74rem; color: var(--text-muted);">DAC 模拟: 12-bit (0-4095)</div>
-              <div style="font-size: 0.74rem; color: #10b981;">插件: SignalGenerator.dll</div>
+          <!-- Parameter Tuning Sidebar -->
+          <div class="stage-sidebar" style="width: 240px;">
+            <div style="font-size: 0.74rem; font-weight: 700; color: var(--text-muted); margin-bottom: 8px;">波形类型 (Wave Type)</div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 14px;">
+              <button class="wave-btn active" data-type="sine" style="background: #059669; color: white; border: none; border-radius: 4px; padding: 6px; font-size: 0.74rem; font-weight: bold; cursor: pointer;">∿ 正弦波</button>
+              <button class="wave-btn" data-type="square" style="background: rgba(125,125,125,0.1); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 4px; padding: 6px; font-size: 0.74rem; cursor: pointer;">⊓ 方波</button>
+              <button class="wave-btn" data-type="triangle" style="background: rgba(125,125,125,0.1); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 4px; padding: 6px; font-size: 0.74rem; cursor: pointer;">⋀ 三角波</button>
+              <button class="wave-btn" data-type="noise" style="background: rgba(125,125,125,0.1); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 4px; padding: 6px; font-size: 0.74rem; cursor: pointer;">∿∿ 白噪声</button>
+            </div>
+
+            <!-- Sliders -->
+            <div style="font-size: 0.72rem; color: var(--text-muted); display: flex; justify-content: space-between;">
+              <span>频率 (Frequency):</span>
+              <span id="sliderFreqVal" style="color: #059669; font-weight: bold;">2.0 kHz</span>
+            </div>
+            <input type="range" id="sliderFreq" min="1" max="10" value="2" step="0.5" style="width: 100%; margin: 4px 0 12px;">
+
+            <div style="font-size: 0.72rem; color: var(--text-muted); display: flex; justify-content: space-between;">
+              <span>峰峰值 (Amplitude):</span>
+              <span id="sliderAmpVal" style="color: #059669; font-weight: bold;">3.3 V</span>
+            </div>
+            <input type="range" id="sliderAmp" min="0.5" max="5.0" value="3.3" step="0.1" style="width: 100%; margin: 4px 0 12px;">
+
+            <div style="margin-top: auto; border-top: 1px solid var(--border-color); padding-top: 10px;">
+              <button id="btnExportCsv" style="width: 100%; background: #059669; color: white; border: none; border-radius: 6px; padding: 8px; font-weight: bold; font-size: 0.78rem; cursor: pointer;">
+                📥 导出采样点数据 (CSV)
+              </button>
             </div>
           </div>
 
-          <div class="stage-main-area" style="background: #090d16; padding: 0; display: flex; flex-direction: column;">
-            <div style="flex: 1; position: relative; background: radial-gradient(circle, rgba(5, 150, 105, 0.08) 1px, transparent 1px) 0 0/20px 20px; display: flex; align-items: center; overflow: hidden;">
-              <svg class="wave-svg-flow" viewBox="0 0 1000 180" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <!-- Triangle wave -->
-                <path d="M0,90 L50,20 L100,160 L150,20 L200,160 L250,20 L300,160 L350,20 L400,160 L450,20 L500,160 L550,20 L600,160 L650,20 L700,160 L750,20 L800,160 L850,20 L900,160 L950,20 L1000,160" stroke="#059669" stroke-width="2.5" fill="none" opacity="0.9"/>
-              </svg>
-            </div>
-
-            <div style="background: rgba(15, 23, 42, 0.95); padding: 8px 16px; border-top: 1px solid rgba(255,255,255,0.08); display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 0.74rem; color: #94a3b8;">
-              <div>Wave: Triangle · Frequency: 50.000 kHz · Phase: 0.0°</div>
-              <div>Sampling Points: 4096 pts · QPainter 实时动态加速</div>
-              <div style="color: #10b981;">PLUGIN: ACTIVE</div>
-            </div>
+          <!-- Real Canvas Preview -->
+          <div class="stage-main-area" style="padding: 0; background: #0b0f19;">
+            <canvas id="sigGenCanvas" width="700" height="320" style="width: 100%; height: 100%; display: block;"></canvas>
           </div>
         </div>
       </div>
@@ -117,23 +123,25 @@
   <section class="section" style="background: rgba(125,125,125,0.02);">
     <div class="container">
       <div class="section-header text-center">
-        <h2 class="section-title">高精度的信号仿真利器</h2>
-        <p class="section-subtitle">基于 Qt 插件架构独立编译，随时热插拔挂载。</p>
+        <h2 class="section-title">信号发生器核心能力</h2>
+        <p class="section-subtitle">完全基于 Qt 动态插件架构，兼顾纯软件仿真与单片机 DAC 硬件驱动。</p>
       </div>
 
       <div class="plugins-grid">
         <div class="plugin-card">
           <div class="plugin-icon">⚡</div>
-          <h3 class="plugin-card-title">五大经典模拟波形</h3>
-          <p class="plugin-card-desc">正弦波、方波、三角波、锯齿波与高斯白噪声实时计算并动态渲染。</p>
+          <h3 class="plugin-card-title">多波形高频数学合成</h3>
+          <p class="plugin-card-desc">正弦波、对称方波、线性三角波与高斯白噪声实时发生，支持相位无级平移。</p>
         </div>
         <div class="plugin-card">
-          <div class="plugin-card-title">🎛️ 纳秒级参数精细调控</div>
-          <p class="plugin-card-desc">支持频率、峰峰值、直流偏置、占空比与相位偏移滑块实时动态微调。</p>
+          <div class="plugin-icon">🧩</div>
+          <h3 class="plugin-card-title">Qt6 动态插件架构</h3>
+          <p class="plugin-card-desc">独立编译为 SignalGeneratorPlugin.dll，热插拔即时注册到应用市场容器。</p>
         </div>
         <div class="plugin-card">
-          <div class="plugin-card-title">💾 采样点数组一键导出</div>
-          <p class="plugin-card-desc">一键将生成的波形导出为 C 语言头文件数组 (`uint16_t wave_table[]`)，方便单片机 DAC 查表。</p>
+          <div class="plugin-icon">📊</div>
+          <h3 class="plugin-card-title">波形数据表一键导出</h3>
+          <p class="plugin-card-desc">支持将生成的数学采样点直接导出为 C 语言头文件数组或 CSV，方便写入单片机 Flash。</p>
         </div>
       </div>
     </div>
@@ -150,8 +158,107 @@
       </div>
     </div>
   </footer>
-
   <script src="../app.js"></script>
+
+  <!-- Canvas Script -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const canvas = document.getElementById('sigGenCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      let currentType = 'sine';
+      let freq = 2.0;
+      let amp = 3.3;
+      let phase = 0;
+
+      const curWaveName = document.getElementById('curWaveName');
+      const freqLabel = document.getElementById('freqLabel');
+      const sliderFreq = document.getElementById('sliderFreq');
+      const sliderFreqVal = document.getElementById('sliderFreqVal');
+      const sliderAmp = document.getElementById('sliderAmp');
+      const sliderAmpVal = document.getElementById('sliderAmpVal');
+      const btnExport = document.getElementById('btnExportCsv');
+
+      const waveBtns = document.querySelectorAll('.wave-btn');
+      waveBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          waveBtns.forEach(b => {
+            b.style.background = 'rgba(125,125,125,0.1)';
+            b.style.color = 'var(--text-primary)';
+          });
+          btn.style.background = '#059669';
+          btn.style.color = 'white';
+          currentType = btn.getAttribute('data-type');
+          if (curWaveName) curWaveName.textContent = btn.textContent;
+        });
+      });
+
+      if (sliderFreq) {
+        sliderFreq.addEventListener('input', (e) => {
+          freq = parseFloat(e.target.value);
+          if (sliderFreqVal) sliderFreqVal.textContent = freq.toFixed(1) + ' kHz';
+          if (freqLabel) freqLabel.textContent = freq.toFixed(2) + ' kHz';
+        });
+      }
+
+      if (sliderAmp) {
+        sliderAmp.addEventListener('input', (e) => {
+          amp = parseFloat(e.target.value);
+          if (sliderAmpVal) sliderAmpVal.textContent = amp.toFixed(1) + ' V';
+        });
+      }
+
+      function render() {
+        ctx.fillStyle = '#0b0f19';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Draw grid
+        ctx.strokeStyle = '#1e2638';
+        ctx.lineWidth = 1;
+        for (let x = 0; x < canvas.width; x += 40) {
+          ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+        }
+        for (let y = 0; y < canvas.height; y += 40) {
+          ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+        }
+
+        const midY = canvas.height / 2;
+        const scaleY = (amp / 5.0) * 80;
+
+        ctx.strokeStyle = '#10b981';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+
+        for (let x = 0; x < canvas.width; x++) {
+          let y = midY;
+          const t = (x * 0.01 * freq) + phase;
+          if (currentType === 'sine') {
+            y = midY + Math.sin(t) * scaleY;
+          } else if (currentType === 'square') {
+            y = midY + (Math.sin(t) >= 0 ? scaleY : -scaleY);
+          } else if (currentType === 'triangle') {
+            y = midY + ((Math.asin(Math.sin(t)) / (Math.PI / 2)) * scaleY);
+          } else if (currentType === 'noise') {
+            y = midY + ((Math.random() - 0.5) * 2 * scaleY);
+          }
+
+          if (x === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        phase += 0.04;
+        requestAnimationFrame(render);
+      }
+
+      render();
+
+      if (btnExport) {
+        btnExport.addEventListener('click', () => {
+          alert('📥 成功导出当前波形采样点数据！\n格式: uint16_t wave_data[512] = { ... };\n已就绪供 DAC DMA 直接播放。');
+        });
+      }
+    });
+  </script>
 </body>
 </html>
-

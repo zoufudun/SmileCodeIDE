@@ -1,4 +1,5 @@
 #include "aboutupdatedialog.h"
+#include <QScrollArea>
 #include <QDesktopServices>
 #include <QUrl>
 #include <QTimer>
@@ -8,9 +9,9 @@
 AboutUpdateDialog::AboutUpdateDialog(QWidget *parent)
     : QDialog(parent)
 {
-    setWindowTitle(QStringLiteral("关于与软件更新 - SmileCodeIDE"));
-    resize(760, 600);
-    setMinimumSize(680, 520);
+    setWindowTitle(QStringLiteral("关于与软件更新 - SmileCode Studio"));
+    resize(820, 680);
+    setMinimumSize(760, 560);
     setupUi();
     applyCustomStyles();
 }
@@ -33,10 +34,16 @@ void AboutUpdateDialog::setupUi()
     m_mainTabs = new QTabWidget(this);
     m_mainTabs->setObjectName("aboutMainTabs");
 
-    // Page 1: 容器与插件更新
-    QWidget *updatePage = new QWidget(this);
+    // Page 1: 容器与插件更新 (嵌入无边框平滑滚动区域，杜绝插件增多时的纵向挤压)
+    QScrollArea *updateScroll = new QScrollArea(m_mainTabs);
+    updateScroll->setObjectName("updateScrollArea");
+    updateScroll->setWidgetResizable(true);
+    updateScroll->setFrameShape(QFrame::NoFrame);
+    updateScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+
+    QWidget *updatePage = new QWidget(updateScroll);
     QVBoxLayout *updatePageLayout = new QVBoxLayout(updatePage);
-    updatePageLayout->setContentsMargins(0, 12, 0, 0);
+    updatePageLayout->setContentsMargins(6, 12, 10, 12);
     updatePageLayout->setSpacing(16);
 
     // 1. 最外层应用市场容器卡片
@@ -49,7 +56,8 @@ void AboutUpdateDialog::setupUi()
     updatePageLayout->addWidget(createPluginsCard());
 
     updatePageLayout->addStretch();
-    m_mainTabs->addTab(updatePage, QStringLiteral("🚀 软件与插件更新"));
+    updateScroll->setWidget(updatePage);
+    m_mainTabs->addTab(updateScroll, QStringLiteral("🚀 软件与插件更新"));
 
     // Page 2: 详细更新记录 (Changelog)
     m_mainTabs->addTab(createChangelogView(), QStringLiteral("📋 详细更新记录 (Changelog)"));
@@ -201,6 +209,7 @@ QWidget* AboutUpdateDialog::createPluginsCard()
     QHBoxLayout *titleRow = new QHBoxLayout();
     QLabel *titleLabel = new QLabel(QStringLiteral("🧩 各插件更新与运行状态 (Plugins Status)"), card);
     titleLabel->setObjectName("sectionHeaderLabel");
+    titleLabel->setFixedHeight(26);
     titleRow->addWidget(titleLabel);
 
     titleRow->addStretch();
@@ -237,6 +246,8 @@ QWidget* AboutUpdateDialog::createPluginsCard()
     for (const auto &p : plugins) {
         QFrame *rowFrame = new QFrame(card);
         rowFrame->setObjectName("pluginRowFrame");
+        rowFrame->setMinimumHeight(56);
+        rowFrame->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
         QHBoxLayout *rowLayout = new QHBoxLayout(rowFrame);
         rowLayout->setContentsMargins(10, 8, 10, 8);
 
@@ -415,6 +426,12 @@ void AboutUpdateDialog::applyCustomStyles()
         "  font-weight: bold;"
         "  color: #0f172a;"
         "}"
+        
+        "#updateScrollArea { background: transparent; border: none; }"
+        "QScrollBar:vertical { border: none; background: #f1f5f9; width: 8px; margin: 0; border-radius: 4px; }"
+        "QScrollBar::handle:vertical { background: #cbd5e1; min-height: 24px; border-radius: 4px; }"
+        "QScrollBar::handle:vertical:hover { background: #94a3b8; }"
+        "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0px; }"
         "#aboutMainTabs::pane {"
         "  border: 1px solid #e2e8f0;"
         "  background: #ffffff;"

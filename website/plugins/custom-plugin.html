@@ -3,13 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>自定义扩展插件 - SmileCode Studio</title>
-  <meta name="description" content="开箱即用的 Qt 动态插件开发范例与接口演示，标准 Qt Plugin 动态加载、宿主上下文服务交互与主题联动机制。">
+  <title>自定义扩展插件开发范例 - SmileCode Studio</title>
+  <meta name="description" content="自定义扩展插件 · 开箱即用的 Qt 动态插件开发范例与接口演示，展示元数据注册、界面实例化、宿主上下文服务交互与主题联动机制。">
   <link rel="icon" type="image/x-icon" href="../assets/favicon.ico">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../style.css">
+  <link rel="stylesheet" href="../studio-simulator.css">
 </head>
 <body class="parchment-theme">
   <!-- Top Navigation Bar -->
@@ -35,7 +36,7 @@
             </svg>
           </span>
         </button>
-        <a href="https://github.com/zoufudun/SmileCodeIDE" target="_blank" rel="noopener" class="capsule-btn github-capsule-btn" title="GitHub 仓库">
+        <a href="https://github.com/zoufudun/SmileCodeIDE" target="_blank" rel="noopener" class="capsule-btn github-capsule-btn" title="GitHub 源码仓库">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
             <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
           </svg>
@@ -47,9 +48,9 @@
   <!-- Hero Section -->
   <section class="plugin-hero-section">
     <div class="plugin-slogan-wrap">
-      <h1 class="plugin-hero-slogan">灵活开放的动态扩展生态，随心定制。</h1>
+      <h1 class="plugin-hero-slogan">开箱即用插件模板，自由拓展专属生态。</h1>
       <p class="plugin-hero-desc">
-        自定义扩展插件 (v1.0.0 · Qt 动态插件) · 开箱即用的 Qt 动态插件开发范例与接口演示
+        自定义扩展插件 (TemplatePlugin.dll · v1.0.0) · 标准 Qt6 Plugin 接口与生命周期演练
       </p>
     </div>
 
@@ -73,36 +74,39 @@
           </div>
           <span class="window-tab-title">
             <span class="live-indicator"></span>
-            自定义扩展插件 - [TemplatePlugin.dll · QPluginLoader 动态加载成功]
+            Qt 动态插件交互测试台 - [Plugin: TemplatePlugin.dll · Qt 6.11 MinGW · Status: Active]
           </span>
-          <span style="font-size: 0.76rem; color: #10b981; font-weight: 700;">● 插件正常运行</span>
+          <span style="font-size: 0.76rem; color: #10b981; font-weight: 700;">● 插件已动态注册</span>
         </div>
+
         <div class="stage-body">
-          <div class="stage-sidebar">
-            <div style="font-size: 0.74rem; font-weight: 700; color: var(--text-muted); margin-bottom: 6px;">插件工程</div>
-            <div style="font-size: 0.8rem; font-weight: 700; color: #9333ea;">TemplatePlugin.pro</div>
-            <div style="font-size: 0.74rem; color: var(--text-muted);">元数据: plugin.json</div>
-            <div style="font-size: 0.74rem; font-weight: 700; color: var(--text-muted); margin-top: 14px; margin-bottom: 6px;">宿主交互接口</div>
-            <div style="font-size: 0.76rem; color: #10b981;">● IAppPlugin 纯虚接口</div>
-            <div style="font-size: 0.76rem; color: #10b981;">● IHostContext 消息总线</div>
+          <!-- Lifecycle Hook Trigger Sidebar -->
+          <div class="stage-sidebar" style="width: 220px;">
+            <div style="font-size: 0.74rem; font-weight: bold; color: var(--text-muted); margin-bottom: 8px;">插件生命周期钩子</div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <button class="hook-btn" data-hook="init" style="background: #7c3aed; color: white; border: none; border-radius: 4px; padding: 6px; font-size: 0.74rem; font-weight: bold; cursor: pointer;">⚡ onAppLaunch()</button>
+              <button class="hook-btn" data-hook="project" style="background: rgba(125,125,125,0.1); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 4px; padding: 6px; font-size: 0.74rem; cursor: pointer;">📂 onProjectOpened()</button>
+              <button class="hook-btn" data-hook="theme" style="background: rgba(125,125,125,0.1); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 4px; padding: 6px; font-size: 0.74rem; cursor: pointer;">🎨 onThemeChanged()</button>
+            </div>
+
             <div style="margin-top: auto; border-top: 1px solid var(--border-color); padding-top: 8px;">
-              <div style="font-size: 0.74rem; color: var(--text-muted);">加载方式: 便携动态 DLL</div>
-              <div style="font-size: 0.74rem; color: #10b981;">主题状态: 联动同步</div>
+              <button id="btnCopyTemplate" style="width: 100%; background: rgba(125,125,125,0.15); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px; padding: 6px; font-size: 0.72rem; font-weight: bold; cursor: pointer;">
+                📋 一键复制 C++ 模板源码
+              </button>
             </div>
           </div>
 
-          <div class="stage-main-area">
-            <pre style="background: rgba(125,125,125,0.03); padding: 16px; border-radius: 8px; font-family: var(--font-mono); font-size: 0.82rem; line-height: 1.7; color: var(--text-primary); border: 1px solid var(--border-color);"><span style="color: #64748b;">// plugin.json - 插件元数据声明</span>
-{
-    <span style="color: #2563eb;">"id"</span>: <span style="color: #059669;">"com.smilecode.template"</span>,
-    <span style="color: #2563eb;">"name"</span>: <span style="color: #059669;">"自定义扩展插件范例"</span>,
-    <span style="color: #2563eb;">"version"</span>: <span style="color: #059669;">"1.0.0"</span>,
-    <span style="color: #2563eb;">"category"</span>: <span style="color: #059669;">"Utility"</span>,
-    <span style="color: #2563eb;">"author"</span>: <span style="color: #059669;">"SmileCode Developer"</span>
-}</pre>
-            <div style="margin-top: 12px; background: rgba(0,0,0,0.03); border-radius: 6px; padding: 10px 14px; font-family: var(--font-mono); font-size: 0.76rem; border: 1px solid var(--border-color);">
-              <div style="color: #10b981; font-weight: 700;">[PluginLoader] 成功从 plugins/TemplatePlugin.dll 加载扩展插件！</div>
-              <div style="color: var(--text-secondary);">注入宿主服务: Toast 提示、全局暗黑/暖羊皮纸主题回调、主容器状态监听就绪。</div>
+          <!-- Event Log Output -->
+          <div class="stage-main-area" style="display: flex; flex-direction: column; justify-content: space-between;">
+            <div id="pluginEventLog" style="height: 240px; background: #070a12; color: #cbd5e1; padding: 10px; border-radius: 6px; font-family: var(--font-mono); font-size: 0.76rem; line-height: 1.6; overflow-y: auto;">
+              <div style="color: #a855f7;">[10:15:00] QPluginLoader: 成功载入 plugins/TemplatePlugin.dll (IAppPlugin 接口校验通过)</div>
+              <div style="color: #10b981;">[10:15:01] 注册元数据: ID="custom_plugin", 名称="自定义扩展插件", 版本="v1.0.0"</div>
+              <div style="color: #60a5fa;">[10:15:02] 宿主注入 IPluginContext 服务总线就绪。</div>
+              <div style="color: #94a3b8;">[10:15:03] 点击左侧生命周期钩子，观察宿主与动态插件的双向通讯日志。</div>
+            </div>
+
+            <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 6px;">
+              * 位于源码目录 <code>Plugins/TemplatePlugin/</code>，任何人均可基于此模板快速开发专属私有嵌入式工具。
             </div>
           </div>
         </div>
@@ -114,23 +118,25 @@
   <section class="section" style="background: rgba(125,125,125,0.02);">
     <div class="container">
       <div class="section-header text-center">
-        <h2 class="section-title">极其简洁的扩展开发体验</h2>
-        <p class="section-subtitle">几行代码即可为 SmileCode Studio 打造你专属的硬件调试或算法插件。</p>
+        <h2 class="section-title">动态插件架构设计理念</h2>
+        <p class="section-subtitle">基于工业级微内核设计，让软件随着您的工程需求无限演进。</p>
       </div>
 
       <div class="plugins-grid">
         <div class="plugin-card">
           <div class="plugin-icon">🧩</div>
-          <h3 class="plugin-card-title">标准 QPluginLoader 机制</h3>
-          <p class="plugin-card-desc">无需重新编译主程序，编译出的 DLL 直接丢入 `plugins/` 目录即可热识别上架。</p>
+          <h3 class="plugin-card-title">纯正 Qt Plugin 接口</h3>
+          <p class="plugin-card-desc">基于 Q_DECLARE_INTERFACE 与 Q_PLUGIN_METADATA 宏，免侵入式注册扩展应用。</p>
         </div>
         <div class="plugin-card">
-          <div class="plugin-card-title">🎨 全局主题样式无缝继承</div>
-          <p class="plugin-card-desc">主程序自动向插件广播配色方案，无论是极客暗黑还是暖羊皮纸，插件界面浑然天成。</p>
+          <div class="plugin-icon">🎨</div>
+          <h3 class="plugin-card-title">全局主题联动响应</h3>
+          <p class="plugin-card-desc">宿主切换极客暗黑或暖羊皮纸时，自动广播 ThemeChangeEvent，插件无缝换肤。</p>
         </div>
         <div class="plugin-card">
-          <div class="plugin-card-title">📡 宿主上下文双向通信</div>
-          <p class="plugin-card-desc">插件可调起主程序 Toast 弹窗、调用其他插件的数据流、甚至向主窗口注册菜单栏按钮。</p>
+          <div class="plugin-icon">⚡</div>
+          <h3 class="plugin-card-title">服务总线互操作</h3>
+          <p class="plugin-card-desc">可直接调用宿主提供的串口服务、CAN 总线监视器以及代码编辑器，业务自由组合。</p>
         </div>
       </div>
     </div>
@@ -147,8 +153,35 @@
       </div>
     </div>
   </footer>
-
   <script src="../app.js"></script>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const log = document.getElementById('pluginEventLog');
+      const hookBtns = document.querySelectorAll('.hook-btn');
+      const btnCopy = document.getElementById('btnCopyTemplate');
+
+      hookBtns.forEach(b => {
+        b.addEventListener('click', () => {
+          if (!log) return;
+          const hook = b.getAttribute('data-hook');
+          if (hook === 'init') {
+            log.innerHTML += '<div style="color: #10b981;">[10:15:' + Math.floor(Math.random()*60) + '] 触发 onAppLaunch(): 插件界面实例化并嵌入 SmileCode Studio 工作台！</div>';
+          } else if (hook === 'project') {
+            log.innerHTML += '<div style="color: #60a5fa;">[10:15:' + Math.floor(Math.random()*60) + '] 触发 onProjectOpened(): 捕获工程目录变更，开始解析私有配置。</div>';
+          } else if (hook === 'theme') {
+            log.innerHTML += '<div style="color: #f59e0b;">[10:15:' + Math.floor(Math.random()*60) + '] 触发 onThemeChanged(): 成功联动当前主题配色 QSS 样式表！</div>';
+          }
+          log.scrollTop = log.scrollHeight;
+        });
+      });
+
+      if (btnCopy) {
+        btnCopy.addEventListener('click', () => {
+          alert('📋 已复制标准 Qt Plugin 头文件接口与实现范例！\n可直接在 Plugins/TemplatePlugin/ 目录进行二次开发。');
+        });
+      }
+    });
+  </script>
 </body>
 </html>
-

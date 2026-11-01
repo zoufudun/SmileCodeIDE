@@ -3,13 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SmileCode IDE - 嵌入式 C/C++ 代码编辑器与 GDB 调试器</title>
-  <meta name="description" content="基于 QScintilla 的嵌入式 C/C++ IDE，集成 GCC/Make 编译构建、GDB 断点与单步调试、ST-Link / J-Link / CMSIS-DAP 固件烧录及任务取消。">
+  <title>SmileCode IDE - SmileCode Studio</title>
+  <meta name="description" content="SmileCode IDE · 嵌入式 C/C++ 代码编辑器与 GDB 调试器，基于 QScintilla，集成 GCC/Make 编译构建、硬件在线断点调试与固件烧录。">
   <link rel="icon" type="image/x-icon" href="../assets/favicon.ico">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../style.css">
+  <link rel="stylesheet" href="../studio-simulator.css">
 </head>
 <body class="parchment-theme">
   <!-- Top Navigation Bar -->
@@ -35,7 +36,7 @@
             </svg>
           </span>
         </button>
-        <a href="https://github.com/zoufudun/SmileCodeIDE" target="_blank" rel="noopener" class="capsule-btn github-capsule-btn" title="GitHub 仓库">
+        <a href="https://github.com/zoufudun/SmileCodeIDE" target="_blank" rel="noopener" class="capsule-btn github-capsule-btn" title="GitHub 源码仓库">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
             <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
           </svg>
@@ -47,9 +48,9 @@
   <!-- Hero Section -->
   <section class="plugin-hero-section">
     <div class="plugin-slogan-wrap">
-      <h1 class="plugin-hero-slogan">轻巧优雅的嵌入式代码开发与调试核心。</h1>
+      <h1 class="plugin-hero-slogan">专为嵌入式而生，现代代码编辑与硬件调试。</h1>
       <p class="plugin-hero-desc">
-        SmileCode IDE (v2.3.1 · 核心工作台) · 基于 QScintilla 的嵌入式 C/C++ 代码编辑器与 GDB 调试器
+        SmileCode IDE (v2.3.1 · 核心工作台) · QScintilla 深度定制 · GCC 14 · 可视化编译优化
       </p>
     </div>
 
@@ -62,7 +63,7 @@
       </a>
     </div>
 
-    <!-- Live Stage Mockup -->
+    <!-- Live Stage Mockup: SmileCode IDE Interface -->
     <div class="plugin-stage-wrapper">
       <div class="stage-window">
         <div class="stage-titlebar">
@@ -73,37 +74,67 @@
           </div>
           <span class="window-tab-title">
             <span class="live-indicator"></span>
-            SmileCode IDE v2.3.1 - [main.c] - GCC 14.2.Rel1 · GDB 在线调试
+            SmileCode IDE v2.3.1 - [Project: STM32H743_TouchPad · main.c · Target: STM32H743IIT6]
           </span>
-          <span style="font-size: 0.76rem; color: #10b981; font-weight: 700;">● 就绪</span>
+          <span style="font-size: 0.76rem; color: #10b981; font-weight: 700;">● 就绪 (Ready)</span>
         </div>
+
+        <!-- Action Toolbar -->
+        <div style="background: rgba(125,125,125,0.06); border-bottom: 1px solid var(--border-color); padding: 6px 16px; display: flex; align-items: center; justify-content: space-between; font-size: 0.78rem;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <button id="btnBuildIde" style="background: #4f46e5; color: white; border: none; border-radius: 4px; padding: 4px 12px; font-weight: bold; cursor: pointer;">
+              🔨 构建工程 (Build)
+            </button>
+            <button id="btnRunIde" style="background: #10b981; color: white; border: none; border-radius: 4px; padding: 4px 12px; font-weight: bold; cursor: pointer;">
+              ▶ 烧录并运行
+            </button>
+            <button id="btnOptConsole" style="background: rgba(125,125,125,0.1); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px; padding: 4px 10px; cursor: pointer;">
+              ⚙️ 编译器优化: <strong>-O1 (推荐)</strong>
+            </button>
+          </div>
+          <div style="font-size: 0.74rem; color: var(--text-muted); font-family: var(--font-mono);">
+            ARM GCC 14.2 · OpenOCD 0.12 · ST-Link V3
+          </div>
+        </div>
+
         <div class="stage-body">
-          <div class="stage-sidebar">
-            <div style="font-size: 0.74rem; font-weight: 700; color: var(--text-muted); margin-bottom: 6px;">项目工程</div>
-            <div style="font-size: 0.8rem; font-weight: 700; color: #6c5ce7;">📁 STM32H750_Project</div>
-            <div style="font-size: 0.78rem; color: var(--accent-primary); font-weight: 700; padding: 2px 4px;">📄 main.c (编辑中)</div>
-            <div style="font-size: 0.78rem; color: var(--text-secondary); padding: 2px 4px;">📄 stm32h7xx_it.c</div>
-            <div style="font-size: 0.78rem; color: var(--text-secondary); padding: 2px 4px;">📄 bsp_led.c</div>
-            <div style="margin-top: auto; border-top: 1px solid var(--border-color); padding-top: 8px;">
-              <div style="font-size: 0.74rem; color: var(--text-muted);">内核: QScintilla C++</div>
-              <div style="font-size: 0.74rem; color: #10b981;">烧录器: ST-Link / DAP</div>
-            </div>
+          <!-- Project Tree Sidebar -->
+          <div class="stage-sidebar" style="width: 200px; font-family: var(--font-mono); font-size: 0.74rem;">
+            <div style="font-weight: bold; color: #4f46e5; margin-bottom: 6px;">📁 STM32H743_Touch</div>
+            <div style="padding-left: 10px; color: var(--text-muted);">📁 Core</div>
+            <div style="padding-left: 20px; color: var(--text-secondary);">📄 main.c (active)</div>
+            <div style="padding-left: 20px; color: var(--text-secondary);">📄 stm32h7xx_it.c</div>
+            <div style="padding-left: 10px; color: var(--text-muted);">📁 Drivers/BSP</div>
+            <div style="padding-left: 20px; color: var(--text-secondary);">📄 gt9xx.c</div>
+            <div style="padding-left: 20px; color: var(--text-secondary);">📄 palette.c</div>
+            <div style="padding-left: 10px; color: var(--text-muted);">⚙️ Makefile</div>
           </div>
 
-          <div class="stage-main-area">
-            <pre style="background: rgba(125,125,125,0.03); padding: 16px; border-radius: 8px; font-family: var(--font-mono); font-size: 0.82rem; line-height: 1.7; color: var(--text-primary); border: 1px solid var(--border-color);"><span style="color: #64748b;">// SmileCode IDE - 嵌入式单片机主入口</span>
-<span style="color: #ea580c; font-weight: 700;">int</span> <span style="color: #2563eb; font-weight: 700;">main</span>(<span style="color: #ea580c;">void</span>) {
-    HAL_Init();
-    SystemClock_Config();
-    LED_GPIO_Config();
+          <!-- Code Editor + Build Console -->
+          <div class="stage-main-area" style="padding: 0; display: flex; flex-direction: column;">
+            <!-- Code Tab -->
+            <div style="background: #0f172a; padding: 4px 12px; border-bottom: 1px solid rgba(255,255,255,0.06); font-family: var(--font-mono); font-size: 0.74rem; color: #94a3b8;">
+              <span style="color: #60a5fa; font-weight: bold;">main.c</span> &nbsp;&times;
+            </div>
 
-    <span style="color: #7c3aed; font-weight: 700;">while</span> (<span style="color: #10b981;">1</span>) {
-        LED1_TOGGLE();
-        HAL_Delay(<span style="color: #10b981;">500</span>); <span style="color: #64748b;">// 硬件延时防锁死机制护航</span>
-    }
-}</pre>
-            <div style="margin-top: 12px; background: rgba(0,0,0,0.03); border-radius: 6px; padding: 8px 12px; font-family: var(--font-mono); font-size: 0.76rem; border: 1px solid var(--border-color);">
-              <span style="color: #10b981; font-weight: 700;">[Build Finished]</span> 0 Errors, 0 Warnings. Build time: 0.68s.
+            <!-- Code Editor Area -->
+            <div style="flex: 1; background: #070a12; color: #e2e8f0; padding: 12px; font-family: var(--font-mono); font-size: 0.76rem; line-height: 1.6; overflow-y: auto;">
+              <div><span style="color:#64748b;">01</span> <span style="color:#c084fc;">#include</span> <span style="color:#34d399;">"main.h"</span></div>
+              <div><span style="color:#64748b;">02</span> <span style="color:#c084fc;">#include</span> <span style="color:#34d399;">"bsp_lcd.h"</span></div>
+              <div><span style="color:#64748b;">03</span> </div>
+              <div><span style="color:#64748b;">04</span> <span style="color:#60a5fa;">int</span> <span style="color:#fbbf24;">main</span>(<span style="color:#60a5fa;">void</span>) {</div>
+              <div><span style="color:#64748b;">05</span> &nbsp;&nbsp;&nbsp;&nbsp;HAL_Init();</div>
+              <div><span style="color:#64748b;">06</span> &nbsp;&nbsp;&nbsp;&nbsp;SystemClock_Config();</div>
+              <div><span style="color:#64748b;">07</span> &nbsp;&nbsp;&nbsp;&nbsp;bsp_InitLCD(); &nbsp;<span style="color:#64748b;">// 初始化电容触摸屏</span></div>
+              <div><span style="color:#64748b;">08</span> &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#c084fc;">while</span> (1) {</div>
+              <div><span style="color:#64748b;">09</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Touch_Scan(); &nbsp;<span style="color:#64748b;">// 毫秒级防锁死平滑延时</span></div>
+              <div><span style="color:#64748b;">10</span> &nbsp;&nbsp;&nbsp;&nbsp;}</div>
+              <div><span style="color:#64748b;">11</span> }</div>
+            </div>
+
+            <!-- Build Dock -->
+            <div style="height: 110px; background: #0b0f19; border-top: 1px solid rgba(255,255,255,0.08); padding: 8px 12px; font-family: var(--font-mono); font-size: 0.72rem; overflow-y: auto;" id="ideBuildLog">
+              <div style="color: #94a3b8;">[构建状态] 项目已载入，准备就绪。点击上方【构建工程】测试编译。</div>
             </div>
           </div>
         </div>
@@ -115,23 +146,25 @@
   <section class="section" style="background: rgba(125,125,125,0.02);">
     <div class="container">
       <div class="section-header text-center">
-        <h2 class="section-title">专为嵌入式设计的核心 IDE</h2>
-        <p class="section-subtitle">极速冷启动、智能符号跳转与优雅多主题体验。</p>
+        <h2 class="section-title">SmileCode IDE 独特研发体验</h2>
+        <p class="section-subtitle">告别 Keil 繁琐收费与卡顿，享受现代敏捷的嵌入式开发。</p>
       </div>
 
       <div class="plugins-grid">
         <div class="plugin-card">
           <div class="plugin-icon">💻</div>
-          <h3 class="plugin-card-title">QScintilla 工业级代码高亮</h3>
-          <p class="plugin-card-desc">针对 C/C++ 关键字、预编译宏、结构体指针与汇编指令提供毫秒级语法着色与自动缩进。</p>
+          <h3 class="plugin-card-title">QScintilla 深度优化编辑器</h3>
+          <p class="plugin-card-desc">毫秒级语法高亮、括号匹配、函数跳转，原生支持 C23 与 C++20 现代语法规范。</p>
         </div>
         <div class="plugin-card">
-          <div class="plugin-card-title">🐛 硬件级 GDB 在线断点调试</div>
-          <p class="plugin-card-desc">支持 ST-Link、J-Link、CMSIS-DAP 一键连接，单步步过/步入与实时变量监视。</p>
+          <div class="plugin-icon">🔨</div>
+          <h3 class="plugin-card-title">自动化依赖构建引擎</h3>
+          <p class="plugin-card-desc">自动根据工程头文件变动解析依赖关系，多核并发构建，编译耗时较传统工具提升 3-5 倍。</p>
         </div>
         <div class="plugin-card">
-          <div class="plugin-card-title">⚡ 秒级极速构建与取消</div>
-          <p class="plugin-card-desc">多线程增量并行编译，随时一键取消构建任务，拒绝任何界面假死锁死。</p>
+          <div class="plugin-icon">🛡️</div>
+          <h3 class="plugin-card-title">智能 GCC 14 宽容机制</h3>
+          <p class="plugin-card-desc">自动注入 -fcommon 与安全参数，老旧 BSP 库（如野火、正点原子）无需改源码零报错直接通过。</p>
         </div>
       </div>
     </div>
@@ -148,8 +181,31 @@
       </div>
     </div>
   </footer>
-
   <script src="../app.js"></script>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const btnBuild = document.getElementById('btnBuildIde');
+      const log = document.getElementById('ideBuildLog');
+
+      if (btnBuild && log) {
+        btnBuild.addEventListener('click', () => {
+          btnBuild.disabled = true;
+          log.innerHTML = '<div style="color:#60a5fa;">[开始编译] arm-none-eabi-gcc -c -O1 -gdwarf-2 -Wall -fdata-sections -ffunction-sections -fcommon main.c -o build/main.o</div>';
+          
+          setTimeout(() => {
+            log.innerHTML += '<div>[编译驱动] arm-none-eabi-gcc -c -O1 gt9xx.c palette.c ... [OK]</div>';
+            log.innerHTML += '<div style="color:#f59e0b;">[符号链接] arm-none-eabi-gcc build/main.o build/gt9xx.o -T STM32H743IITx_FLASH.ld -o build/project.elf</div>';
+          }, 300);
+
+          setTimeout(() => {
+            log.innerHTML += '<div style="color:#10b981; font-weight:bold;">[构建完成] 编译耗时: 1.2 秒 | 错误: 0, 警告: 0 | Flash: 48.2 KB (2.4%), RAM: 18.5 KB (1.8%)</div>';
+            log.scrollTop = log.scrollHeight;
+            btnBuild.disabled = false;
+          }, 700);
+        });
+      }
+    });
+  </script>
 </body>
 </html>
-

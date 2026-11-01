@@ -1,76 +1,283 @@
 /**
- * SmileCodeIDE Official Website Scripts (v2.3.1)
+ * SmileCode Studio Official Website Scripts (v2.3.1)
  * Features:
  *  - Dual Theme Switching: Cyber Dark Mode & Warm Parchment (Beige) Mode
- *  - Navigation Mega Menu (Figure 4)
- *  - Right-top capsules (Figure 2)
+ *  - Real Studio Application Hub Simulator Interactivity (Figure 2 Replica)
+ *  - Studio Search Filtering, Category Tab Switching & Star Favorites
+ *  - Fixed About & Update Center Modal with Simulation
+ *  - Navigation Mega Menu & Top Right Actions
  */
 
 document.addEventListener('DOMContentLoaded', () => {
-  // 1. Dual Theme Management (Dark Mode & Warm Parchment Mode)
+  // =========================================================================
+  // 1. Dual Theme Engine for Website
+  // =========================================================================
   const themeBtn = document.getElementById('themeToggleBtn');
   const themeIcon = document.getElementById('themeToggleIcon');
   const body = document.body;
 
-  // Retrieve saved theme or default to parchment/dark
   const savedTheme = localStorage.getItem('smilecode_theme') || 'parchment';
-  applyTheme(savedTheme);
+  applyWebsiteTheme(savedTheme);
 
   if (themeBtn) {
     themeBtn.addEventListener('click', () => {
       const current = body.classList.contains('parchment-theme') ? 'parchment' : 'dark';
       const nextTheme = current === 'parchment' ? 'dark' : 'parchment';
-      applyTheme(nextTheme);
+      applyWebsiteTheme(nextTheme);
       localStorage.setItem('smilecode_theme', nextTheme);
     });
   }
 
-  function applyTheme(theme) {
+  function applyWebsiteTheme(theme) {
     if (theme === 'dark') {
       body.classList.remove('parchment-theme');
       body.classList.add('dark-theme');
       if (themeIcon) {
-        // In dark mode, show sun to switch to warm parchment
         themeIcon.innerHTML = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>`;
       }
     } else {
       body.classList.remove('dark-theme');
       body.classList.add('parchment-theme');
       if (themeIcon) {
-        // In warm mode, show moon to switch to dark mode (Figure 2)
         themeIcon.innerHTML = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`;
       }
     }
   }
 
-  // 2. Mobile Menu Toggle
-  const mobileToggle = document.getElementById('mobileToggle');
-  const navLinks = document.querySelector('.nav-links');
-  if (mobileToggle && navLinks) {
-    mobileToggle.addEventListener('click', () => {
-      if (navLinks.style.display === 'flex') {
-        navLinks.style.display = 'none';
+  // =========================================================================
+  // 2. Real Studio Simulator Interactivity (Figure 2 Matching)
+  // =========================================================================
+  const studioSearchInput = document.getElementById('studioSearchInput');
+  const studioCardsList = document.getElementById('studioCardsList');
+  const studioEmptyState = document.getElementById('studioEmptyState');
+  const studioSidebar = document.getElementById('studioSidebar');
+  const studioTotCount = document.getElementById('studioTotCount');
+  const studioThemeSelect = document.getElementById('studioThemeSelect');
+  const studioChassis = document.getElementById('studioChassis');
+
+  let currentCategory = 'all';
+  let searchQuery = '';
+
+  // Filter Cards Function
+  function filterCards() {
+    if (!studioCardsList) return;
+    const cards = studioCardsList.querySelectorAll('.studio-app-card');
+    let visibleCount = 0;
+
+    cards.forEach(card => {
+      const cardCat = card.getAttribute('data-cat') || '';
+      const isStarred = card.getAttribute('data-star') === 'true';
+      const cardTitle = (card.querySelector('.studio-app-title')?.textContent || '').toLowerCase();
+      const cardDesc = (card.querySelector('.studio-app-desc')?.textContent || '').toLowerCase();
+      const cardTags = (card.getAttribute('data-tags') || '').toLowerCase();
+
+      // Category check
+      let matchesCategory = false;
+      if (currentCategory === 'all') {
+        matchesCategory = true;
+      } else if (currentCategory === 'favorites') {
+        matchesCategory = isStarred;
       } else {
-        navLinks.style.display = 'flex';
-        navLinks.style.flexDirection = 'column';
-        navLinks.style.position = 'absolute';
-        navLinks.style.top = '68px';
-        navLinks.style.left = '0';
-        navLinks.style.right = '0';
-        navLinks.style.background = 'var(--bg-card)';
-        navLinks.style.padding = '20px';
-        navLinks.style.borderBottom = '1px solid var(--border-color)';
+        matchesCategory = (cardCat === currentCategory);
+      }
+
+      // Search query check
+      let matchesSearch = true;
+      if (searchQuery.trim() !== '') {
+        const q = searchQuery.trim().toLowerCase();
+        matchesSearch = cardTitle.includes(q) || cardDesc.includes(q) || cardTags.includes(q);
+      }
+
+      if (matchesCategory && matchesSearch) {
+        card.style.display = 'flex';
+        visibleCount++;
+      } else {
+        card.style.display = 'none';
+      }
+    });
+
+    if (studioTotCount) {
+      studioTotCount.textContent = visibleCount;
+    }
+
+    if (studioEmptyState) {
+      studioEmptyState.style.display = visibleCount === 0 ? 'block' : 'none';
+    }
+  }
+
+  // Search Input Event
+  if (studioSearchInput) {
+    studioSearchInput.addEventListener('input', (e) => {
+      searchQuery = e.target.value;
+      filterCards();
+    });
+  }
+
+  // Sidebar Category Click Event
+  if (studioSidebar) {
+    const catItems = studioSidebar.querySelectorAll('.studio-cat-item');
+    catItems.forEach(item => {
+      item.addEventListener('click', () => {
+        catItems.forEach(i => i.classList.remove('active'));
+        item.classList.add('active');
+        currentCategory = item.getAttribute('data-cat') || 'all';
+        filterCards();
+      });
+    });
+  }
+
+  // Star Toggle
+  if (studioCardsList) {
+    studioCardsList.addEventListener('click', (e) => {
+      const star = e.target.closest('.studio-app-star');
+      if (star) {
+        const card = star.closest('.studio-app-card');
+        const currentlyStarred = card.getAttribute('data-star') === 'true';
+        card.setAttribute('data-star', currentlyStarred ? 'false' : 'true');
+        star.classList.toggle('starred', !currentlyStarred);
+        star.textContent = currentlyStarred ? '☆' : '★';
+
+        // Update favorite count
+        const favCountBadge = document.getElementById('catCountFav');
+        const starredCards = studioCardsList.querySelectorAll('.studio-app-card[data-star="true"]').length;
+        if (favCountBadge) favCountBadge.textContent = starredCards;
+
+        if (currentCategory === 'favorites') {
+          filterCards();
+        }
       }
     });
   }
 
-  // 3. Navbar background shadow on scroll
+  // Studio Internal Theme Selector
+  if (studioThemeSelect && studioChassis) {
+    studioThemeSelect.addEventListener('change', (e) => {
+      const mode = e.target.value;
+      if (mode === 'light') {
+        studioChassis.style.background = '#f8fafc';
+        studioChassis.style.color = '#0f172a';
+        studioChassis.querySelectorAll('.studio-app-card').forEach(c => {
+          c.style.background = '#ffffff';
+          c.style.borderColor = '#e2e8f0';
+        });
+        studioChassis.querySelectorAll('.studio-app-title').forEach(t => t.style.color = '#0f172a');
+        studioChassis.querySelectorAll('.studio-app-subhead').forEach(s => s.style.color = '#334155');
+      } else if (mode === 'parchment') {
+        studioChassis.style.background = '#fcf9f2';
+        studioChassis.style.color = '#1c1917';
+        studioChassis.querySelectorAll('.studio-app-card').forEach(c => {
+          c.style.background = '#ffffff';
+          c.style.borderColor = '#e7ded0';
+        });
+        studioChassis.querySelectorAll('.studio-app-title').forEach(t => t.style.color = '#1c1917');
+        studioChassis.querySelectorAll('.studio-app-subhead').forEach(s => s.style.color = '#57534e');
+      } else {
+        studioChassis.style.background = '#11141c';
+        studioChassis.style.color = '#f1f5f9';
+        studioChassis.querySelectorAll('.studio-app-card').forEach(c => {
+          c.style.background = '#181c26';
+          c.style.borderColor = 'rgba(255, 255, 255, 0.07)';
+        });
+        studioChassis.querySelectorAll('.studio-app-title').forEach(t => t.style.color = '#ffffff');
+        studioChassis.querySelectorAll('.studio-app-subhead').forEach(s => s.style.color = '#cbd5e1');
+      }
+    });
+  }
+
+  // =========================================================================
+  // 3. About & Software Update Center Modal (Figure 1 & Figure 3)
+  // =========================================================================
+  const studioBtnAbout = document.getElementById('studioBtnAbout');
+  const studioAboutModal = document.getElementById('studioAboutModal');
+  const studioModalCloseBtn = document.getElementById('studioModalCloseBtn');
+  const studioModalCloseBtnBottom = document.getElementById('studioModalCloseBtnBottom');
+  const modalTabUpdates = document.getElementById('modalTabUpdates');
+  const modalTabChangelog = document.getElementById('modalTabChangelog');
+  const modalBodyUpdates = document.getElementById('modalBodyUpdates');
+  const modalBodyChangelog = document.getElementById('modalBodyChangelog');
+  const modalCheckContainerBtn = document.getElementById('modalCheckContainerBtn');
+  const modalContainerStatus = document.getElementById('modalContainerStatus');
+  const modalBatchCheckBtn = document.getElementById('modalBatchCheckBtn');
+
+  function openAboutModal() {
+    if (studioAboutModal) studioAboutModal.classList.add('open');
+  }
+
+  function closeAboutModal() {
+    if (studioAboutModal) studioAboutModal.classList.remove('open');
+  }
+
+  if (studioBtnAbout) studioBtnAbout.addEventListener('click', openAboutModal);
+  if (studioModalCloseBtn) studioModalCloseBtn.addEventListener('click', closeAboutModal);
+  if (studioModalCloseBtnBottom) studioModalCloseBtnBottom.addEventListener('click', closeAboutModal);
+
+  if (studioAboutModal) {
+    studioAboutModal.addEventListener('click', (e) => {
+      if (e.target === studioAboutModal) closeAboutModal();
+    });
+  }
+
+  // Modal Tab Switching
+  if (modalTabUpdates && modalTabChangelog) {
+    modalTabUpdates.addEventListener('click', () => {
+      modalTabUpdates.classList.add('active');
+      modalTabChangelog.classList.remove('active');
+      if (modalBodyUpdates) modalBodyUpdates.style.display = 'flex';
+      if (modalBodyChangelog) modalBodyChangelog.style.display = 'none';
+    });
+
+    modalTabChangelog.addEventListener('click', () => {
+      modalTabChangelog.classList.add('active');
+      modalTabUpdates.classList.remove('active');
+      if (modalBodyUpdates) modalBodyUpdates.style.display = 'none';
+      if (modalBodyChangelog) modalBodyChangelog.style.display = 'flex';
+    });
+  }
+
+  // Check Container Update Simulation
+  if (modalCheckContainerBtn && modalContainerStatus) {
+    modalCheckContainerBtn.addEventListener('click', () => {
+      modalCheckContainerBtn.disabled = true;
+      modalCheckContainerBtn.textContent = '正在检查...';
+      modalContainerStatus.textContent = '正在连接 GitHub Release 服务器查询最新版本元数据...';
+      setTimeout(() => {
+        modalCheckContainerBtn.disabled = false;
+        modalCheckContainerBtn.textContent = '🔄 检查更新';
+        modalContainerStatus.textContent = '🟢 恭喜！当前 SmileCode Studio 容器已是最新稳定版 (v2.3.1)。';
+      }, 1000);
+    });
+  }
+
+  // Batch Check Plugins Update Simulation
+  if (modalBatchCheckBtn) {
+    modalBatchCheckBtn.addEventListener('click', () => {
+      modalBatchCheckBtn.disabled = true;
+      modalBatchCheckBtn.textContent = '正在批量检查...';
+      const statusLabels = document.querySelectorAll('.modal-item-status');
+      statusLabels.forEach(s => s.textContent = '🔄 检查中...');
+      setTimeout(() => {
+        statusLabels.forEach(s => s.textContent = '🟢 已是最新');
+        modalBatchCheckBtn.disabled = false;
+        modalBatchCheckBtn.textContent = '一键检查所有插件更新';
+      }, 900);
+    });
+  }
+
+  // Extension Center Button
+  const studioBtnExt = document.getElementById('studioBtnExt');
+  if (studioBtnExt) {
+    studioBtnExt.addEventListener('click', () => {
+      alert('🌸 SmileCode Studio 扩展中心已就绪！\n支持导入 .dll 格式的 Qt 动态插件，或一键从应用市场加载。');
+    });
+  }
+
+  // Navbar Scroll Shadow
   const navbar = document.getElementById('navbar');
   window.addEventListener('scroll', () => {
     if (window.scrollY > 30) {
-      navbar.style.boxShadow = '0 4px 20px rgba(0,0,0,0.08)';
+      if (navbar) navbar.style.boxShadow = '0 4px 20px rgba(0,0,0,0.08)';
     } else {
-      navbar.style.boxShadow = 'none';
+      if (navbar) navbar.style.boxShadow = 'none';
     }
   });
 });

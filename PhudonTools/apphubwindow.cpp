@@ -283,7 +283,7 @@ void AppHubWindow::setupFooter() {
     m_statusTotalLabel = new QLabel(QStringLiteral("📦 已集成应用: 0 个"), m_footerWidget);
     m_statusTotalLabel->setStyleSheet("font-size: 11px;");
 
-    m_verLabel = new QLabel(QStringLiteral("SmileCode Studio v2.1.0"), m_footerWidget);
+    m_verLabel = new QLabel(QStringLiteral("SmileCode Studio v2.3.1"), m_footerWidget);
     m_verLabel->setStyleSheet("font-size: 11px;");
 
     footerLayout->addWidget(m_statusRunningLabel);
