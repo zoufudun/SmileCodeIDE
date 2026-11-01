@@ -11,9 +11,9 @@
 
 | 安装包类型 | 文件名称 | 格式特性 | 体积 | SHA-256 校验和 |
 | :--- | :--- | :--- | :--- | :--- |
-| **免安装便携版** | `SmileCodeIDE-v2.3.1-Windows-x64.zip` | 解压即用，配置隔离，随身U盘首选 | **55.82 MB** | `DBE25534A2749BA4FEFB9060D42E3E5163DB25E9B81BFE47D9ADAF41EFA95FB5` |
-| **EXE 安装向导** | `SmileCodeIDE-v2.3.1-Setup.exe` | 图形化安装向导，自动创建桌面与开始菜单快捷方式，附带卸载工具 | **74.80 MB** | `F127DE33F5231A6D676BCA25BAF6407CD04F58C2F650133E7C8BAF63C4ED92B4` |
-| **MSI 企业安装包** | `SmileCodeIDE-v2.3.1-Setup.msi` | 微软标准 Windows Installer，支持 `msiexec /qn` 静默安装与 GPO 组策略域分发 | **46.01 MB** | `AE28A1077CBDB18298485028416DE009C10C311CEE585CE8EB868C8C22021563` |
+| **免安装便携版** | `SmileCodeIDE-v2.3.1-Windows-x64.zip` | 解压即用，配置隔离，随身U盘首选 | **55.86 MB** | `785F83672501E239747C5247CDFDE3E4A683A97CEEC25D612B8FE7DD185679D6` |
+| **EXE 安装向导** | `SmileCodeIDE-v2.3.1-Setup.exe` | 图形化安装向导，已修复权限与快捷方式，默认安装至用户目录免提权，附带卸载工具 | **74.91 MB** | `DDC12B622782FBB5B1E6C62643FC22D52063DB3E7B745F69D27903DA7FA85648` |
+| **MSI 企业安装包** | `SmileCodeIDE-v2.3.1-Setup.msi` | 微软标准 Windows Installer，支持 `msiexec /qn` 静默安装与 GPO 组策略域分发 | **46.85 MB** | `69B2AFA5BB4B12DEBCA6AB98D39208164C2FC2DFD6F4DD8F88689D2C693A3765` |
 
 > [!TIP]
 > - **个人开发/临时排查**：推荐下载 **免安装便携版 (`.zip`)**，无需管理员权限，解压后双击 `SmileCodeIDE.exe` 即可直接使用；

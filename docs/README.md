@@ -61,6 +61,11 @@
   * **核心设计**：结合 Qt 运行时部署、MinGW 运行时补齐、Qt Installer Framework 交互向导与 WiX Toolset 原生 MSI 编译链接；输出 SHA256/MD5 校验报告；升级官网三列安装包下载卡片。
   * **对应版本**：`v2.3.1`
 
+* **[SmileCodeIDE软件更新中心与双主题官网及全插件展示主页设计.md](file:///k:/TOPFIRE/SmileCodeIDEUpdate/docs/SmileCodeIDE软件更新中心与双主题官网及全插件展示主页设计.md)**
+  * **解决问题**：修复 EXE 安装向导权限问题；在客户端“关于”增加软件更新中心（应用容器更新、GitHub Star 激励引导卡片、各插件运行与更新状态、Changelog）；官网全面深度对标 CC Switch 风格，支持极客暗黑与暖羊皮纸双主题切换、右上角三胶囊、导航【产品 ▾】Mega Menu，并为 5 个核心插件建立动态效果专属展示主页。
+  * **核心设计**：实现 `AboutUpdateDialog` 客户端组件；重构 QtIFW 安装向导免提权路径；构建双主题 CSS 引擎与 5 大插件独立展示矩阵。
+  * **对应版本**：`v2.3.1`
+
 ---
 
 ### 7. 综合全景走查报告

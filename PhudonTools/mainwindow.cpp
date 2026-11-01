@@ -1,3 +1,4 @@
+#include "aboutupdatedialog.h"
 #include "mainwindow.h"
 #include <QApplication>
 #include <QDebug>
@@ -2597,19 +2598,8 @@ void MainWindow::changeTheme(int themeIndex) {
 }
 
 void MainWindow::showAboutDialog() {
-  QMessageBox msgBox(this);
-  msgBox.setWindowTitle("关于 PhudonTools");
-  msgBox.setIconPixmap(QPixmap(":/icons/xptools2.png").scaled(128, 128, Qt::KeepAspectRatio, Qt::SmoothTransformation));
-  msgBox.setText(QString("<h2 style='color:#1565C0;'>PhudonTools</h2>"
-                 "<p><b>版本:</b> %1</p>"
-                 "<p><b>作者:</b> PhodonZou</p>"
-                 "<p>嵌入式开发调试一体化工具集<br>"
-                 "支持 STM32 编译烧录、串口/CAN 调试、IAP 升级</p>"
-                 "<p style='color:#666;'>基于 Qt · ARM GCC · OpenOCD / J-Link</p>")
-                 .arg(QCoreApplication::applicationVersion()));
-  msgBox.setStandardButtons(QMessageBox::Ok);
-  msgBox.exec();
-  statusBar()->showMessage("已显示关于信息", 2000);
+  AboutUpdateDialog dlg(this);
+  dlg.exec();
 }
 
 void MainWindow::setDarkTheme() {

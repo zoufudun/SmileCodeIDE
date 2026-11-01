@@ -1,4 +1,5 @@
 #include "apphubwindow.h"
+#include "aboutupdatedialog.h"
 #include "pluginmanagerdialog.h"
 #include "idetheme.h"
 #include <QApplication>
@@ -445,20 +446,8 @@ void AppHubWindow::onOpenPluginManagerClicked() {
 }
 
 void AppHubWindow::onShowAboutClicked() {
-    QMessageBox::about(this, QStringLiteral("关于 SmileCode Studio"),
-        QStringLiteral("<h3>SmileCode Studio v2.1.0</h3>"
-                       "<p>专业嵌入式开发与多协议总线调试应用平台</p>"
-                       "<p><b>集成组件：</b></p>"
-                       "<ul>"
-                       "<li>SmileCode IDE（嵌入式 C/C++ 代码编辑器与 GDB 调试）</li>"
-                       "<li>多通信接口数字示波器（串口/TCP/UDP/WebSocket 数据波形测量）</li>"
-                       "<li>串口调试助手（高速多标签页收发与分屏监视）</li>"
-                       "<li>CAN 调试助手（支持 ZLG USBCANFD 与 CXCAN 及 CANopen Master）</li>"
-                       "<li>网络调试助手（TCP 客户端/服务端与 UDP 调试）</li>"
-                       "<li>STM32 IAP 固件升级工具（串口与网络 Bootloader 升级）</li>"
-                       "<li>第三方插件与外部工具扩展中心</li>"
-                       "</ul>"
-                       "<p>Copyright © 2026 PhudonZou / SmileCode Team</p>"));
+    AboutUpdateDialog dlg(this);
+    dlg.exec();
 }
 
 void AppHubWindow::onAppLaunched(const QString &appId, QWidget *widget) {

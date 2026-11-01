@@ -79,6 +79,7 @@ win32: RC_ICONS = resources/app.ico
 
 # 源文件
 SOURCES += \
+    aboutupdatedialog.cpp \
     codeeditorcommands.cpp \
     projectsearchengine.cpp \
     projectsearchpanel.cpp \
@@ -156,6 +157,7 @@ SOURCES += \
 
 # 头文件
 HEADERS += \
+    aboutupdatedialog.h \
     projectsearchengine.h \
     projectsearchpanel.h \
     ../Plugins/STM32WorkbenchPlugin/UI/TargetChipDialog.h \

@@ -67,3 +67,16 @@
   4. [x] 自动生成 SHA-256 和 MD5 校验和报告 `dist/checksums.txt`；
   5. [x] 更新官网下载专区，提供全套三款安装包的下载卡片与校验和展示；
   6. [x] 更新 GitHub Release 说明与自动化工作流，同步推送至 GitHub 远程仓库与 `gh-pages` 分支。
+
+---
+
+### 阶段 8：EXE 安装向导修复、客户端关于更新中心、双主题官网与全插件主页矩阵【进行中】
+- **归档文档**：[docs/SmileCodeIDE软件更新中心与双主题官网及全插件展示主页设计.md](file:///k:/TOPFIRE/SmileCodeIDEUpdate/docs/SmileCodeIDE软件更新中心与双主题官网及全插件展示主页设计.md)
+- **核心目标**：
+  1. [x] 修复 EXE 安装向导权限问题（目标路径设为免提权用户目录，修复快捷方式编码，配置安装完成自动启动）；
+  2. [x] 实现客户端“关于与软件更新中心”（包含最外层应用市场容器更新、GitHub Star 引导卡片、各插件运行状态与 Changelog），并成功编译集成到 `PhudonTools.exe`；
+  3. [x] 官网主页全面对标 CC Switch 风格（图 1 简约突出与拟物容器窗体、图 2 右上角三胶囊、图 4 导航产品 Mega Menu）；
+  4. [x] 实现极客暗黑与暖羊皮纸（warm parchment）双主题引擎切换与本地持久化；
+  5. [x] 建立 5 大核心插件专属独立主页（`stm32-workbench.html`、`oscilloscope.html`、`can-analyzer.html`、`uds-diagnostic.html`、`serial-assistant.html`），各具动态视觉展台（图 5 风格）；
+  6. [ ] 重新生成全套分发包（ZIP、EXE、MSI）并更新校验哈希；
+  7. [ ] 推送 GitHub 仓库 `V10.0`、更新 `v2.3.1` Release 与 `gh-pages` 部署。

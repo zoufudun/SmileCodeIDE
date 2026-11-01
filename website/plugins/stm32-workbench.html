@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>STM32 全功能开发工作台 - SmileCode IDE</title>
+  <meta name="description" content="基于 GCC 14 现代编译链与 OpenOCD/GDB 的 STM32 全功能开发工作台，具备硬件延时防锁死机制与现代化智能调试。">
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/x-icon" href="../assets/favicon.ico">
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body class="parchment-theme">
+  <!-- Top Navigation Bar -->
+  <header class="navbar" id="navbar">
+    <div class="nav-container">
+      <a href="../index.html" class="nav-brand">
+        <img src="../assets/favicon.ico" alt="SmileCode IDE" class="brand-icon">
+        <span class="brand-title">SmileCode IDE</span>
+      </a>
+
+      <nav class="nav-links">
+        <a href="../index.html" class="nav-link">← 返回官网主页</a>
+        <!-- Products Mega Menu -->
+        <div class="nav-item dropdown">
+          <a href="../index.html#plugins-hub" class="nav-link">
+            <span>其他产品</span>
+            <svg viewBox="0 0 20 20" width="16" height="16" fill="currentColor">
+              <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
+            </svg>
+          </a>
+          <div class="dropdown-menu">
+            <div class="dropdown-col">
+              <div class="dropdown-col-title">仪器与工作台</div>
+              <a href="oscilloscope.html" class="dropdown-item-card">
+                <div class="item-icon">📈</div>
+                <div class="item-content">
+                  <div class="item-title">多通道虚拟示波器</div>
+                  <span class="item-sub">高帧率实时波形采样与 FFT</span>
+                </div>
+              </a>
+              <a href="serial-assistant.html" class="dropdown-item-card">
+                <div class="item-icon">🔌</div>
+                <div class="item-content">
+                  <div class="item-title">多协议串口助手</div>
+                  <span class="item-sub">百万包流式收发与曲线图</span>
+                </div>
+              </a>
+            </div>
+            <div class="dropdown-col">
+              <div class="dropdown-col-title">车载与工业总线</div>
+              <a href="can-analyzer.html" class="dropdown-item-card">
+                <div class="item-icon">🚗</div>
+                <div class="item-content">
+                  <div class="item-title">CAN / CAN-FD 分析仪</div>
+                  <span class="item-sub">DBC 信号解析与负载监控</span>
+                </div>
+              </a>
+              <a href="uds-diagnostic.html" class="dropdown-item-card">
+                <div class="item-icon">🛡️</div>
+                <div class="item-content">
+                  <div class="item-title">UDS 汽车诊断套件</div>
+                  <span class="item-sub">ISO 14229 诊断与固件刷写</span>
+                </div>
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <a href="../index.html#comparison" class="nav-link">痛点对比</a>
+        <a href="../index.html#optimization" class="nav-link">编译器优化</a>
+        <a href="../index.html#download" class="nav-link">下载客户端</a>
+      </nav>
+
+      <!-- Right Capsules (Figure 2 Style) -->
+      <div class="nav-actions">
+        <button class="capsule-btn" title="语言切换">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+          </svg>
+          <span>CN</span>
+        </button>
+        <button class="capsule-btn theme-capsule-btn" id="themeToggleBtn" title="切换主题">
+          <span id="themeToggleIcon">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+          </span>
+        </button>
+        <a href="https://github.com/zoufudun/SmileCodeIDE" target="_blank" rel="noopener" class="capsule-btn github-capsule-btn" title="GitHub 仓库">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+          </svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Section (Figure 5 Style) -->
+  <section class="plugin-hero-section">
+    <div class="plugin-slogan-wrap">
+      <h1 class="plugin-hero-slogan">从想法到实现，轻松搞定。</h1>
+      <p class="plugin-hero-desc">
+        STM32 全功能开发工作台 · 深度融合 ARM GCC 14 现代编译工具链与 OpenOCD 在线硬件调试
+      </p>
+    </div>
+
+    <!-- Actions (Figure 5 Style) -->
+    <div class="plugin-hero-actions">
+      <a href="../index.html#download" class="btn-pill-primary">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+        </svg>
+        <span>立即下载</span>
+      </a>
+      <a href="../index.html#download" class="btn-pill-secondary">
+        <span>所有下载 &rarr;</span>
+      </a>
+    </div>
+
+    <!-- Live Stage Mockup (Figure 5 Dynamic Visual Window) -->
+    <div class="plugin-stage-wrapper">
+      <div class="stage-window">
+        <div class="stage-titlebar">
+          <div class="window-dots">
+            <span class="dot red"></span>
+            <span class="dot yellow"></span>
+            <span class="dot green"></span>
+          </div>
+          <span class="window-tab-title">
+            <span class="live-indicator"></span>
+            STM32 Workbench - [Core/Src/main.c] - Target: STM32H750XBH6 - GCC 14.2.Rel1 (-O2)
+          </span>
+          <span style="font-size: 0.76rem; color: #10b981; font-weight: 700;">● ST-Link V3 在线</span>
+        </div>
+        <div class="stage-body">
+          <!-- Sidebar -->
+          <div class="stage-sidebar">
+            <div style="font-size: 0.74rem; font-weight: 700; color: var(--text-muted); margin-bottom: 6px;">项目工程</div>
+            <div style="font-size: 0.82rem; font-weight: 600; padding: 4px 8px; border-radius: 4px; background: rgba(125,125,125,0.1);">📁 Core / Src</div>
+            <div style="font-size: 0.82rem; padding: 4px 8px; color: var(--accent-primary); font-weight: 700;">📄 main.c (编辑中)</div>
+            <div style="font-size: 0.82rem; padding: 4px 8px; color: var(--text-secondary);">📄 stm32h7xx_it.c</div>
+            <div style="font-size: 0.82rem; padding: 4px 8px; color: var(--text-secondary);">📄 bsp_led.c</div>
+            <div style="font-size: 0.82rem; padding: 4px 8px; color: var(--text-secondary);">📄 gt9xx.c</div>
+            <div style="margin-top: auto; font-size: 0.74rem; color: var(--text-muted); border-top: 1px solid var(--border-color); padding-top: 8px;">
+              <span>优化等级: -O2 均衡</span><br>
+              <span>防锁死延时: 已激活</span>
+            </div>
+          </div>
+
+          <!-- Main Code & Live Debug Pane -->
+          <div class="stage-main-area">
+            <div style="display: flex; gap: 8px; margin-bottom: 12px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
+              <span class="capsule-btn" style="height: 28px; font-size: 0.74rem; background: var(--btn-primary-bg); color: #fff;">⚡ 一键构建 (Build)</span>
+              <span class="capsule-btn" style="height: 28px; font-size: 0.74rem;">🚀 芯片烧写 (Flash)</span>
+              <span class="capsule-btn" style="height: 28px; font-size: 0.74rem;">🐛 GDB 硬件调试</span>
+              <span class="capsule-btn" style="height: 28px; font-size: 0.74rem;">⚙️ 编译器优化配置</span>
+            </div>
+
+            <!-- Code Editor Area -->
+            <pre style="background: rgba(125,125,125,0.03); padding: 16px; border-radius: 8px; font-family: var(--font-mono); font-size: 0.82rem; line-height: 1.7; color: var(--text-primary); border: 1px solid var(--border-color);"><span style="color: #64748b;">// SmileCode IDE - STM32 硬件级断点命中演示</span>
+<span style="color: #ea580c; font-weight: 700;">int</span> <span style="color: #2563eb; font-weight: 700;">main</span>(<span style="color: #ea580c;">void</span>) {
+    HAL_Init();
+    SystemClock_Config();
+    LED_GPIO_Config();
+    LCD_Init();
+
+    <span style="color: #64748b;">// 独家延时防锁死：无论 -O0 还是 -O3，精准保持时钟节奏，杜绝假死</span>
+    <span style="color: #7c3aed; font-weight: 700;">while</span> (<span style="color: #10b981;">1</span>) {
+        LED1_TOGGLE();
+        <span style="background: rgba(234, 88, 12, 0.2); padding: 2px 6px; border-radius: 4px; border-left: 3px solid #ea580c;">HAL_Delay(<span style="color: #10b981;">500</span>);   <span style="color: #ea580c; font-weight: 700;">// Breakpoint #1 Hit (PC = 0x080002AC)</span></span>
+        LCD_DispString_EN_CH(<span style="color: #10b981;">10</span>, <span style="color: #10b981;">20</span>, (<span style="color: #ea580c;">uint8_t</span>*)<span style="color: #059669;">"SmileCode IDE Running"</span>);
+    }
+}</pre>
+
+            <!-- Bottom Console Output Simulation -->
+            <div style="margin-top: 14px; background: rgba(0,0,0,0.04); border-radius: 6px; padding: 10px 14px; font-family: var(--font-mono); font-size: 0.76rem; border: 1px solid var(--border-color);">
+              <div style="color: #10b981; font-weight: 700;">[OpenOCD] Target: stm32h7x.cpu0 halted due to breakpoint, current mode: Thread</div>
+              <div style="color: var(--text-secondary);">r0: 0x20000000  r1: 0x000001f4  r2: 0x58024400  sp: 0x20020000  lr: 0x080003b7</div>
+              <div style="color: #059669; font-weight: 700;">[Build] Finished in 0.84s! Flash: 48.2 KB (2.3%), RAM: 12.8 KB (2.5%). 0 Errors, 0 Warnings.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Feature Grid Section -->
+  <section class="section" style="background: rgba(125,125,125,0.02);">
+    <div class="container">
+      <div class="section-header text-center">
+        <h2 class="section-title">重新定义单片机开发效率</h2>
+        <p class="section-subtitle">从底层工具链升级到上层调试体验，全面超越传统老旧 Keil MDK。</p>
+      </div>
+
+      <div class="plugins-grid">
+        <div class="plugin-card">
+          <div class="plugin-icon">🚀</div>
+          <h3 class="plugin-card-title">ARM GCC 14 现代编译链</h3>
+          <p class="plugin-card-desc">拥抱 C23 与 C++23 现代语言特性，极速增量编译，内存占用低，无商业许可证限制。</p>
+        </div>
+        <div class="plugin-card">
+          <div class="plugin-card-title">🛡️ 原生延时防锁死</div>
+          <p class="plugin-card-desc">自动检测微秒/毫秒空循环延时，插入安全屏障指令，杜绝高优化等级下软件跑飞板卡挂死。</p>
+        </div>
+        <div class="plugin-card">
+          <div class="plugin-card-title">🔍 OpenOCD 硬件在线级调试</div>
+          <p class="plugin-card-desc">支持 ST-Link、J-Link、CMSIS-DAP 免驱即插即用，实时寄存器监视、外设内存倾倒与断点回溯。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Download Footer -->
+  <footer class="footer">
+    <div class="container text-center">
+      <h3 style="font-size: 1.6rem; font-weight: 800; margin-bottom: 12px;">立即体验 SmileCode IDE</h3>
+      <p style="color: var(--text-secondary); margin-bottom: 24px;">完全免费开源，提供绿色免安装 Zip、EXE 安装包与 MSI 企业包三种规格。</p>
+      <div style="display: flex; justify-content: center; gap: 14px;">
+        <a href="../index.html#download" class="btn-primary">前往下载页面</a>
+        <a href="../index.html" class="btn-secondary">返回官方主页</a>
+      </div>
+      <div style="margin-top: 36px; font-size: 0.82rem; color: var(--text-muted);">
+        &copy; 2026 SmileCodeIDE Team. Released under MIT License.
+      </div>
+    </div>
+  </footer>
+
+  <script src="../app.js"></script>
+</body>
+</html>
+

@@ -8,10 +8,15 @@
     <InstallerApplicationIcon>logo</InstallerApplicationIcon>
     <InstallerWindowIcon>logo.ico</InstallerWindowIcon>
     <Logo>logo.png</Logo>
-    <TargetDir>@ApplicationsDir@/SmileCodeIDE</TargetDir>
+    <!-- Default install path: User local app directory (No admin rights required, perfectly safe) -->
+    <TargetDir>@HomeDir@/AppData/Local/Programs/SmileCodeIDE</TargetDir>
     <AdminTargetDir>@ApplicationsDir@/SmileCodeIDE</AdminTargetDir>
     <StartMenuDir>SmileCodeIDE</StartMenuDir>
     <AllowNonAsciiCharacters>true</AllowNonAsciiCharacters>
     <WizardStyle>Modern</WizardStyle>
+    <WizardDefaultWidth>780</WizardDefaultWidth>
+    <WizardDefaultHeight>540</WizardDefaultHeight>
+    <!-- Run program automatically on finish -->
+    <RunProgram>@TargetDir@/SmileCodeIDE.exe</RunProgram>
+    <RunProgramDescription>立即运行 SmileCodeIDE</RunProgramDescription>
 </Installer>
-

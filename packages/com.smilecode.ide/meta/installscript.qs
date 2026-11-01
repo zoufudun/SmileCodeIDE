@@ -9,28 +9,33 @@ Component.prototype.createOperations = function()
     component.createOperations();
 
     if (systemInfo.productType === "windows") {
-        // Desktop Shortcut
+        var targetExe = installer.value("TargetDir") + "/SmileCodeIDE.exe";
+        var workingDir = installer.value("TargetDir");
+
+        // 1. Desktop Shortcut
         component.addOperation("CreateShortcut",
-                               "@TargetDir@/SmileCodeIDE.exe",
+                               targetExe,
                                "@DesktopDir@/SmileCodeIDE.lnk",
-                               "workingDirectory=@TargetDir@",
-                               "iconPath=@TargetDir@/SmileCodeIDE.exe",
-                               "description=SmileCodeIDE 嵌入式智能开发工作台");
+                               "workingDirectory=" + workingDir,
+                               "iconPath=" + targetExe,
+                               "iconId=0",
+                               "description=SmileCodeIDE Studio");
 
-        // Start Menu Shortcuts
+        // 2. Start Menu Program Shortcut
         component.addOperation("CreateShortcut",
-                               "@TargetDir@/SmileCodeIDE.exe",
+                               targetExe,
                                "@StartMenuDir@/SmileCodeIDE.lnk",
-                               "workingDirectory=@TargetDir@",
-                               "iconPath=@TargetDir@/SmileCodeIDE.exe",
-                               "description=SmileCodeIDE 嵌入式智能开发工作台");
+                               "workingDirectory=" + workingDir,
+                               "iconPath=" + targetExe,
+                               "iconId=0",
+                               "description=SmileCodeIDE Studio");
 
-        // Uninstall Shortcut
+        // 3. Start Menu Uninstaller Shortcut
+        var maintTool = installer.value("TargetDir") + "/maintenancetool.exe";
         component.addOperation("CreateShortcut",
-                               "@TargetDir@/maintenancetool.exe",
-                               "@StartMenuDir@/卸载 SmileCodeIDE.lnk",
-                               "workingDirectory=@TargetDir@",
-                               "description=卸载 SmileCodeIDE");
+                               maintTool,
+                               "@StartMenuDir@/Uninstall SmileCodeIDE.lnk",
+                               "workingDirectory=" + workingDir,
+                               "description=Uninstall SmileCodeIDE");
     }
 }
-
