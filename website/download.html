@@ -4,15 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>下载 SmileCode Studio - 官方发布与全平台分发矩阵</title>
-  <meta name="description" content="SmileCode Studio 官方软件下载中心。提供 Windows Installer 标准安装版 (.msi)、图形向导版 (.exe)、便携解压版 (.zip) 及单文件版。">
+  <meta name="description" content="SmileCode Studio 官方软件下载中心。提供 Windows Installer 标准安装版 (.msi)、图形向导版 (.exe)、便携解压版 (.zip) 及便携单文件版。">
   <link rel="icon" type="image/svg+xml" href="assets/smilecode-logo.svg">
-  <link rel="stylesheet" href="style.css">
-  <link rel="stylesheet" href="studio-simulator.css">
+  <link rel="stylesheet" href="style.css?v=2.3.7">
+  <link rel="stylesheet" href="studio-simulator.css?v=2.3.7">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 
-  <!-- Immediate Theme Engine -->
+  <!-- Immediate Theme Engine: 100% synchronized with index.html & docs.html -->
   <script id="immediateThemeScript">
     (function() {
       var saved = localStorage.getItem('smilecode_theme') || localStorage.getItem('smilecode-theme') || 'parchment';
@@ -54,10 +54,678 @@
       };
     })();
   </script>
+
+  <!-- Self-contained Core Styles: Guaranteeing 100% Robust Rendering Under Any Cache Condition -->
+  <style>
+    /* CSS Variables & Theme Engine */
+    :root {
+      --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --font-mono: 'JetBrains Mono', Consolas, monospace;
+      --transition-fast: 0.15s ease;
+      --transition-normal: 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    body.parchment-theme {
+      --bg-page: #f4efe6;
+      --bg-card: #ffffff;
+      --bg-header: rgba(244, 239, 230, 0.92);
+      --border-color: rgba(0, 0, 0, 0.08);
+      --border-hover: rgba(234, 88, 12, 0.35);
+      --text-primary: #1c1917;
+      --text-secondary: #57534e;
+      --text-muted: #8c827a;
+      --accent-primary: #ea580c;
+      --accent-hover: #c2410c;
+    }
+    body.dark-theme, [data-theme="dark"] body {
+      --bg-page: #070a12;
+      --bg-card: rgba(15, 23, 42, 0.75);
+      --bg-header: rgba(7, 10, 18, 0.88);
+      --border-color: rgba(255, 255, 255, 0.08);
+      --border-hover: rgba(99, 102, 241, 0.45);
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --accent-primary: #ea580c;
+      --accent-hover: #c2410c;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg-page);
+      color: var(--text-primary);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      transition: background-color 0.3s ease, color 0.3s ease;
+    }
+
+    /* Fixed Navigation Bar */
+    .navbar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 68px;
+      background: var(--bg-header);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border-color);
+      z-index: 1000;
+    }
+    .nav-container {
+      max-width: 1240px;
+      height: 100%;
+      margin: 0 auto;
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: var(--text-primary);
+      font-weight: 800;
+      font-size: 1.18rem;
+      letter-spacing: -0.015em;
+    }
+    .brand-icon {
+      width: 32px;
+      height: 32px;
+    }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 32px;
+    }
+    .nav-link {
+      text-decoration: none;
+      color: var(--text-secondary);
+      font-size: 0.95rem;
+      font-weight: 600;
+      transition: color var(--transition-fast);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+    }
+    .nav-link:hover, .nav-link.active {
+      color: var(--accent-primary);
+    }
+    .nav-link-download.active {
+      color: var(--accent-primary);
+      position: relative;
+    }
+    .nav-link-download.active::after {
+      content: '';
+      position: absolute;
+      bottom: -4px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--accent-primary);
+      border-radius: 2px;
+    }
+
+    /* Products Dropdown Menu */
+    .nav-item.dropdown {
+      position: relative;
+    }
+    .dropdown-menu {
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%) translateY(10px);
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      padding: 20px;
+      box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
+      display: none;
+      gap: 16px;
+      z-index: 1001;
+      width: 720px;
+      grid-template-columns: 1fr 1fr 1fr;
+    }
+    body.dark-theme .dropdown-menu {
+      background: #0d1322;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+    }
+    .nav-item.dropdown:hover .dropdown-menu {
+      display: grid;
+    }
+    .dropdown-col-title {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .dropdown-item-card {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      text-decoration: none;
+      color: var(--text-primary);
+      transition: background var(--transition-fast);
+    }
+    .dropdown-item-card:hover {
+      background: rgba(234, 88, 12, 0.08);
+    }
+    body.dark-theme .dropdown-item-card:hover {
+      background: rgba(99, 102, 241, 0.15);
+    }
+    .dropdown-item-card .item-icon {
+      font-size: 1.25rem;
+      line-height: 1;
+    }
+    .dropdown-item-card .item-title {
+      font-size: 0.88rem;
+      font-weight: 700;
+    }
+    .dropdown-item-card .item-sub {
+      font-size: 0.74rem;
+      color: var(--text-muted);
+      line-height: 1.35;
+      display: block;
+      margin-top: 2px;
+    }
+    .badge-tag {
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 4px;
+      background: rgba(0, 0, 0, 0.06);
+      color: var(--text-muted);
+      margin-left: 4px;
+    }
+    .badge-new { background: rgba(16, 185, 129, 0.15); color: #059669; }
+    .badge-hot { background: rgba(234, 88, 12, 0.15); color: #ea580c; }
+
+    /* Action Capsules */
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .capsule-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      border: 1px solid var(--border-color);
+      background: transparent;
+      color: var(--text-primary);
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all var(--transition-fast);
+    }
+    .capsule-btn:hover {
+      border-color: var(--accent-primary);
+      color: var(--accent-primary);
+      background: rgba(234, 88, 12, 0.05);
+    }
+    .theme-capsule-btn {
+      width: 36px;
+      height: 36px;
+      padding: 0;
+      justify-content: center;
+      border-radius: 50%;
+    }
+    .theme-capsule-btn * {
+      pointer-events: none !important;
+    }
+
+    /* Main Download Page Layout */
+    .download-page-main {
+      flex: 1;
+      padding: 110px 24px 80px;
+      width: 100%;
+      max-width: 980px;
+      margin: 0 auto;
+    }
+
+    /* Hero Header */
+    .download-hero {
+      text-align: center;
+      margin-bottom: 56px;
+    }
+    .download-hero-title {
+      font-size: 2.75rem;
+      font-weight: 800;
+      letter-spacing: -0.025em;
+      color: var(--text-primary);
+      margin-bottom: 16px;
+    }
+    .download-hero-sub {
+      font-size: 1.05rem;
+      color: var(--text-secondary);
+      max-width: 680px;
+      margin: 0 auto 16px;
+      line-height: 1.6;
+    }
+    .download-ver-tag {
+      font-size: 0.86rem;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      margin-bottom: 26px;
+    }
+
+    /* Main Download Capsule Button */
+    .download-main-btn-wrap {
+      margin-bottom: 22px;
+    }
+    .btn-download-primary {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px 38px;
+      background: #ea580c;
+      color: #ffffff !important;
+      border-radius: 12px;
+      font-size: 1.15rem;
+      font-weight: 700;
+      text-decoration: none !important;
+      box-shadow: 0 6px 20px rgba(234, 88, 12, 0.35);
+      transition: all var(--transition-fast);
+    }
+    .btn-download-primary:hover {
+      transform: translateY(-2px);
+      background: #c2410c;
+      box-shadow: 0 10px 28px rgba(234, 88, 12, 0.45);
+    }
+
+    .download-hero-tips {
+      font-size: 0.86rem;
+      color: var(--text-muted);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      line-height: 1.5;
+    }
+    .inline-accent-link {
+      color: #ea580c;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .inline-accent-link:hover {
+      text-decoration: underline;
+    }
+
+    /* Formats Section */
+    .download-formats-section {
+      margin-bottom: 50px;
+    }
+    .section-subheading {
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      margin-bottom: 16px;
+      letter-spacing: -0.01em;
+    }
+
+    /* Platform Tabs */
+    .format-tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 12px;
+    }
+    .format-tab-btn {
+      padding: 8px 18px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: transparent;
+      border: 1px solid transparent;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all var(--transition-fast);
+    }
+    .format-tab-btn.active {
+      background: #ffffff;
+      color: #1a1511;
+      border-color: #dfd6c5;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    }
+    body.dark-theme .format-tab-btn.active {
+      background: rgba(30, 41, 59, 0.85);
+      color: #f8fafc;
+      border-color: rgba(99, 102, 241, 0.4);
+      box-shadow: 0 0 15px rgba(99, 102, 241, 0.2);
+    }
+
+    /* Distribution Cards List (HengJi Figure 2 Matching) */
+    .format-cards-list {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .format-card-row {
+      background: #ffffff;
+      border: 1px solid #e5dcce;
+      border-radius: 12px;
+      padding: 22px 26px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+      transition: all 0.2s ease;
+    }
+    body.dark-theme .format-card-row {
+      background: rgba(15, 23, 42, 0.75);
+      border-color: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(14px);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    }
+    .format-card-row:hover {
+      border-color: #ea580c;
+      box-shadow: 0 8px 24px -4px rgba(234, 88, 12, 0.18);
+      transform: translateY(-2px);
+    }
+    body.dark-theme .format-card-row:hover {
+      border-color: rgba(99, 102, 241, 0.55);
+      box-shadow: 0 8px 30px rgba(99, 102, 241, 0.25);
+    }
+
+    .format-card-main {
+      flex: 1;
+    }
+    .format-card-title-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+    .format-card-name {
+      font-size: 1.08rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    .format-badge {
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+    .badge-recommend {
+      background: rgba(234, 88, 12, 0.12);
+      color: #c2410c;
+      border: 1px solid rgba(234, 88, 12, 0.25);
+    }
+    .badge-guide {
+      background: rgba(16, 185, 129, 0.12);
+      color: #047857;
+      border: 1px solid rgba(16, 185, 129, 0.25);
+    }
+
+    .format-card-desc {
+      font-size: 0.86rem;
+      color: var(--text-secondary);
+      margin-bottom: 10px;
+      line-height: 1.5;
+    }
+    .format-card-file {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+    .file-code {
+      font-family: var(--font-mono);
+      background: #f5eedf;
+      color: #3e342c;
+      padding: 2px 8px;
+      border-radius: 4px;
+      border: 1px solid #e5dcce;
+      font-size: 0.78rem;
+    }
+    body.dark-theme .file-code {
+      background: rgba(30, 41, 59, 0.8);
+      border-color: rgba(255, 255, 255, 0.12);
+      color: #93c5fd;
+    }
+
+    .btn-copy-code {
+      background: transparent;
+      border: 1px solid #dfd6c5;
+      color: #63574c;
+      border-radius: 4px;
+      padding: 2px 8px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.15s;
+    }
+    body.dark-theme .btn-copy-code {
+      border-color: rgba(255, 255, 255, 0.15);
+      color: #94a3b8;
+    }
+    .btn-copy-code:hover {
+      background: #ea580c;
+      color: #ffffff;
+      border-color: #ea580c;
+    }
+
+    .format-card-actions {
+      display: flex;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+    .btn-action-dl {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 9px 16px;
+      border-radius: 8px;
+      font-size: 0.86rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.15s ease;
+    }
+    .btn-dl-fast {
+      background: #fbf7ef;
+      border: 1px solid #dfd6c5;
+      color: #1a1511;
+    }
+    body.dark-theme .btn-dl-fast {
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(99, 102, 241, 0.25));
+      border-color: rgba(99, 102, 241, 0.4);
+      color: #f1f5f9;
+    }
+    .btn-dl-fast:hover {
+      background: #ea580c;
+      border-color: #ea580c;
+      color: #ffffff;
+      transform: translateY(-1px);
+    }
+    body.dark-theme .btn-dl-fast:hover {
+      background: linear-gradient(135deg, #2563eb, #6366f1);
+      border-color: #818cf8;
+      color: #ffffff;
+    }
+
+    .btn-dl-git {
+      background: transparent;
+      border: 1px solid #e0d7c7;
+      color: #5c4e43;
+    }
+    body.dark-theme .btn-dl-git {
+      border-color: rgba(255, 255, 255, 0.15);
+      color: #94a3b8;
+    }
+    .btn-dl-git:hover {
+      border-color: #111111;
+      color: #111111;
+      transform: translateY(-1px);
+    }
+    body.dark-theme .btn-dl-git:hover {
+      border-color: #cbd5e1;
+      color: #ffffff;
+    }
+
+    /* Verification Footnote */
+    .download-footnote {
+      font-size: 0.84rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+      padding: 16px 20px;
+      background: rgba(0, 0, 0, 0.02);
+      border-radius: 8px;
+      border: 1px dashed var(--border-color);
+    }
+    body.dark-theme .download-footnote {
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    /* History Releases */
+    .download-history-section {
+      padding-top: 24px;
+      border-top: 1px solid var(--border-color);
+    }
+    .history-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 6px;
+    }
+    .history-desc {
+      font-size: 0.86rem;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+    .history-link {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #ea580c;
+      text-decoration: none;
+    }
+    .history-link:hover {
+      text-decoration: underline;
+    }
+
+    /* Toast */
+    .copy-toast {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%) translateY(40px);
+      background: #1e1814;
+      color: #ffffff;
+      padding: 10px 22px;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 9999999;
+    }
+    .copy-toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
+    /* Footer */
+    .footer {
+      background: var(--bg-card);
+      border-top: 1px solid var(--border-color);
+      padding: 60px 0 30px;
+      margin-top: auto;
+    }
+    .footer-grid-container {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr;
+      gap: 40px;
+      margin-bottom: 40px;
+    }
+    .footer-brand-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 1.2rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      margin-bottom: 12px;
+    }
+    .footer-brand-desc {
+      font-size: 0.86rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+      max-width: 420px;
+    }
+    .footer-col-heading {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 16px;
+    }
+    .footer-link-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .footer-link-list a {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.86rem;
+      transition: color var(--transition-fast);
+    }
+    .footer-link-list a:hover {
+      color: var(--accent-primary);
+    }
+    .footer-bottom-line {
+      border-top: 1px solid var(--border-color);
+      padding-top: 24px;
+    }
+    .footer-bottom-inner {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+    .footer-bottom-links {
+      display: flex;
+      gap: 12px;
+    }
+    .footer-bottom-links a {
+      color: var(--text-muted);
+      text-decoration: none;
+    }
+    .footer-bottom-links a:hover {
+      color: var(--accent-primary);
+    }
+  </style>
 </head>
 <body class="parchment-theme download-page-body">
 
-  <!-- Top Navigation Bar -->
+  <!-- Top Navigation Bar (100% Unified with index.html & docs.html) -->
   <header class="navbar" id="navbar">
     <div class="nav-container">
       <a href="index.html" class="nav-brand">
@@ -67,14 +735,122 @@
 
       <!-- Center Nav Links -->
       <nav class="nav-links">
+        <!-- Products Mega Menu (Figure 4 - Exactly matching real plugins) -->
         <div class="nav-item dropdown">
           <a href="index.html#plugins-hub" class="nav-link dropdown-toggle">
             <span>产品</span>
-            <svg class="dropdown-chevron" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5">
-              <path d="M6 9l6 6 6-6"/>
+            <svg viewBox="0 0 20 20" width="16" height="16" fill="currentColor">
+              <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
             </svg>
           </a>
+          <div class="dropdown-menu">
+            <!-- Column 1: Embedded Development -->
+            <div class="dropdown-col">
+              <div class="dropdown-col-title">嵌入式开发</div>
+              <a href="plugins/smilecode-ide.html" class="dropdown-item-card">
+                <div class="item-icon">💻</div>
+                <div class="item-content">
+                  <div class="item-title-row">
+                    <span class="item-title">SmileCode IDE</span>
+                    <span class="badge-tag badge-new">v2.3.6</span>
+                  </div>
+                  <span class="item-sub">C/C++ 代码编辑器与 GDB</span>
+                </div>
+              </a>
+              <a href="plugins/stm32-build-debug.html" class="dropdown-item-card">
+                <div class="item-icon">⚙️</div>
+                <div class="item-content">
+                  <div class="item-title-row">
+                    <span class="item-title">STM32 编译与调试</span>
+                    <span class="badge-tag badge-hot">插件</span>
+                  </div>
+                  <span class="item-sub">GCC/Make 构建与 OpenOCD 单步调试</span>
+                </div>
+              </a>
+              <a href="plugins/stm32-iap.html" class="dropdown-item-card">
+                <div class="item-icon">🚀</div>
+                <div class="item-content">
+                  <div class="item-title-row">
+                    <span class="item-title">STM32 IAP 升级</span>
+                    <span class="badge-tag">v1.8.0</span>
+                  </div>
+                  <span class="item-sub">串口/网络双通道 Bootloader</span>
+                </div>
+              </a>
+            </div>
+
+            <!-- Column 2: Bus & Communication -->
+            <div class="dropdown-col">
+              <div class="dropdown-col-title">总线与通信</div>
+              <a href="plugins/can-workbench.html" class="dropdown-item-card">
+                <div class="item-icon">🚗</div>
+                <div class="item-content">
+                  <div class="item-title-row">
+                    <span class="item-title">CAN 总线工作台</span>
+                    <span class="badge-tag badge-hot">Pro</span>
+                  </div>
+                  <span class="item-sub">ZLG/CXCAN 工业级 CANFD/CANOpen</span>
+                </div>
+              </a>
+              <a href="plugins/serial-master.html" class="dropdown-item-card">
+                <div class="item-icon">🔌</div>
+                <div class="item-content">
+                  <div class="item-title-row">
+                    <span class="item-title">串口调试大师</span>
+                    <span class="badge-tag">Pro</span>
+                  </div>
+                  <span class="item-sub">多标签分屏、实时曲线与 Modbus</span>
+                </div>
+              </a>
+              <a href="plugins/network-debugger.html" class="dropdown-item-card">
+                <div class="item-icon">🌐</div>
+                <div class="item-content">
+                  <div class="item-title-row">
+                    <span class="item-title">网络通信调试助手</span>
+                    <span class="badge-tag">v2.0.0</span>
+                  </div>
+                  <span class="item-sub">TCP Client/Server 与 UDP 调试</span>
+                </div>
+              </a>
+            </div>
+
+            <!-- Column 3: Measurement & Utility -->
+            <div class="dropdown-col">
+              <div class="dropdown-col-title">测量分析与扩展</div>
+              <a href="plugins/digital-oscilloscope.html" class="dropdown-item-card">
+                <div class="item-icon">📈</div>
+                <div class="item-content">
+                  <div class="item-title-row">
+                    <span class="item-title">多接口数字示波器</span>
+                    <span class="badge-tag">v2.0.0</span>
+                  </div>
+                  <span class="item-sub">多通道实时波形采集与 FFT 频谱</span>
+                </div>
+              </a>
+              <a href="plugins/signal-generator.html" class="dropdown-item-card">
+                <div class="item-icon">⚡</div>
+                <div class="item-content">
+                  <div class="item-title-row">
+                    <span class="item-title">高频信号发生器</span>
+                    <span class="badge-tag">v1.0.0</span>
+                  </div>
+                  <span class="item-sub">正弦/方波/三角波/噪声实时仿真</span>
+                </div>
+              </a>
+              <a href="plugins/custom-plugin.html" class="dropdown-item-card">
+                <div class="item-icon">🧩</div>
+                <div class="item-content">
+                  <div class="item-title-row">
+                    <span class="item-title">自定义扩展插件</span>
+                    <span class="badge-tag">Qt DLL</span>
+                  </div>
+                  <span class="item-sub">标准 Qt Plugin 动态加载工程范例</span>
+                </div>
+              </a>
+            </div>
+          </div>
         </div>
+
         <a href="index.html#plugins-hub" class="nav-link">容器市场</a>
         <a href="docs.html" class="nav-link">技术文档</a>
         <a href="download.html" class="nav-link nav-link-download active">软件下载</a>
@@ -122,7 +898,7 @@
 
         <!-- Big Primary Download Button -->
         <div class="download-main-btn-wrap">
-          <a href="https://github.com/zoufudun/SmileCodeIDE/releases/download/v2.3.5/SmileCodeIDE-v2.3.5-Setup.exe" class="btn-download-primary">
+          <a href="https://github.com/zoufudun/SmileCodeIDE/releases/download/v2.3.6/SmileCodeIDE-v2.3.6-Setup.exe" class="btn-download-primary">
             <span>📥 下载 Windows 版 · 约 48 MB</span>
           </a>
         </div>
@@ -156,15 +932,15 @@
               <p class="format-card-desc">Windows Installer 标准安装程序（支持自定义非系统盘目录，全程无终端弹窗）</p>
               <div class="format-card-file">
                 <span class="file-label">文件标识</span>
-                <code class="file-code">SmileCodeIDE-v2.3.5-Setup.msi</code>
-                <button class="btn-copy-code" onclick="copyFileText('SmileCodeIDE-v2.3.5-Setup.msi', this)" title="复制文件名">
+                <code class="file-code">SmileCodeIDE-v2.3.6-Setup.msi</code>
+                <button class="btn-copy-code" onclick="copyFileText('SmileCodeIDE-v2.3.6-Setup.msi', this)" title="复制文件名">
                   <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                   <span>复制</span>
                 </button>
               </div>
             </div>
             <div class="format-card-actions">
-              <a href="https://github.com/zoufudun/SmileCodeIDE/releases/download/v2.3.5/SmileCodeIDE-v2.3.5-Setup.msi" class="btn-action-dl btn-dl-fast">
+              <a href="https://github.com/zoufudun/SmileCodeIDE/releases/download/v2.3.6/SmileCodeIDE-v2.3.6-Setup.msi" class="btn-action-dl btn-dl-fast">
                 <span>📥 x64 高速镜像 .msi</span>
               </a>
               <a href="https://github.com/zoufudun/SmileCodeIDE/releases" target="_blank" rel="noopener" class="btn-action-dl btn-dl-git">
@@ -183,15 +959,15 @@
               <p class="format-card-desc">QtIFW / NSIS 标准图形安装向导（自动创建桌面快捷方式，支持平滑覆盖升级）</p>
               <div class="format-card-file">
                 <span class="file-label">文件标识</span>
-                <code class="file-code">SmileCodeIDE-v2.3.5-Setup.exe</code>
-                <button class="btn-copy-code" onclick="copyFileText('SmileCodeIDE-v2.3.5-Setup.exe', this)" title="复制文件名">
+                <code class="file-code">SmileCodeIDE-v2.3.6-Setup.exe</code>
+                <button class="btn-copy-code" onclick="copyFileText('SmileCodeIDE-v2.3.6-Setup.exe', this)" title="复制文件名">
                   <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                   <span>复制</span>
                 </button>
               </div>
             </div>
             <div class="format-card-actions">
-              <a href="https://github.com/zoufudun/SmileCodeIDE/releases/download/v2.3.5/SmileCodeIDE-v2.3.5-Setup.exe" class="btn-action-dl btn-dl-fast">
+              <a href="https://github.com/zoufudun/SmileCodeIDE/releases/download/v2.3.6/SmileCodeIDE-v2.3.6-Setup.exe" class="btn-action-dl btn-dl-fast">
                 <span>📥 x64 高速镜像 .exe</span>
               </a>
               <a href="https://github.com/zoufudun/SmileCodeIDE/releases" target="_blank" rel="noopener" class="btn-action-dl btn-dl-git">
@@ -209,15 +985,15 @@
               <p class="format-card-desc">免安装，解压即用（适合内网受限终端或直接解压至 D:\ 盘运行）</p>
               <div class="format-card-file">
                 <span class="file-label">文件标识</span>
-                <code class="file-code">SmileCodeIDE-v2.3.5-Windows-x64.zip</code>
-                <button class="btn-copy-code" onclick="copyFileText('SmileCodeIDE-v2.3.5-Windows-x64.zip', this)" title="复制文件名">
+                <code class="file-code">SmileCodeIDE-v2.3.6-Windows-x64.zip</code>
+                <button class="btn-copy-code" onclick="copyFileText('SmileCodeIDE-v2.3.6-Windows-x64.zip', this)" title="复制文件名">
                   <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                   <span>复制</span>
                 </button>
               </div>
             </div>
             <div class="format-card-actions">
-              <a href="https://github.com/zoufudun/SmileCodeIDE/releases/download/v2.3.5/SmileCodeIDE-v2.3.5-Windows-x64.zip" class="btn-action-dl btn-dl-fast">
+              <a href="https://github.com/zoufudun/SmileCodeIDE/releases/download/v2.3.6/SmileCodeIDE-v2.3.6-Windows-x64.zip" class="btn-action-dl btn-dl-fast">
                 <span>📥 x64 高速镜像 .zip</span>
               </a>
               <a href="https://github.com/zoufudun/SmileCodeIDE/releases" target="_blank" rel="noopener" class="btn-action-dl btn-dl-git">
@@ -243,7 +1019,7 @@
               </div>
             </div>
             <div class="format-card-actions">
-              <a href="https://github.com/zoufudun/SmileCodeIDE/releases/download/v2.3.5/SmileCodeIDE-v2.3.5-Windows-x64.zip" class="btn-action-dl btn-dl-fast">
+              <a href="https://github.com/zoufudun/SmileCodeIDE/releases/download/v2.3.6/SmileCodeIDE-v2.3.6-Windows-x64.zip" class="btn-action-dl btn-dl-fast">
                 <span>📥 x64 高速镜像 · 单文件</span>
               </a>
               <a href="https://github.com/zoufudun/SmileCodeIDE/releases" target="_blank" rel="noopener" class="btn-action-dl btn-dl-git">
@@ -257,7 +1033,7 @@
         <!-- Verification Guidance Footnote (Figure 2 Matching) -->
         <div class="download-footnote">
           <p>不确定选哪个？大多数电脑选 <strong>安装版 (.msi)</strong> 或 <strong>安装向导版 (.exe)</strong>。</p>
-          <p>校验完整性：下载后可在终端执行 <code>certutil -hashfile &lt;file&gt; SHA256</code>，输出应与 GitHub Releases 页面显示的 SHA-256 一致。</p>
+          <p style="margin-top: 6px;">校验完整性：下载后可在终端执行 <code>certutil -hashfile &lt;file&gt; SHA256</code>，输出应与 GitHub Releases 页面显示的 SHA-256 一致。</p>
         </div>
       </section>
 
@@ -275,18 +1051,15 @@
 
   <!-- Modern Grid Footer (HengJi Style) -->
   <footer class="footer">
-    <div class="container footer-grid-container">
+    <div class="container footer-grid-container" style="max-width: 1240px; margin: 0 auto; padding: 0 24px;">
       <div class="footer-col-brand">
         <div class="footer-brand-title">
-          <img src="assets/smilecode-logo.svg" alt="SmileCode Studio Logo" class="footer-logo">
+          <img src="assets/smilecode-logo.svg" alt="SmileCode Studio Logo" style="width: 28px; height: 28px;">
           <span>SmileCode Studio</span>
         </div>
         <p class="footer-brand-desc">
           微笑代码工作站：为嵌入式全生命周期开发打造的专业级工作台。统一管理代码编写、增量构建、在线单步调试、双通道固件烧录、工业级总线与虚拟仪器工作流。
         </p>
-        <div class="footer-team-info">
-          <span>打造下一代嵌入式全流程开发生态</span>
-        </div>
       </div>
 
       <div class="footer-col-links">
@@ -305,7 +1078,6 @@
         <h4 class="footer-col-heading">开源与资源</h4>
         <ul class="footer-link-list">
           <li><a href="docs.html">技术架构文档</a></li>
-          <li><a href="index.html#optimization">编译器优化等级</a></li>
           <li><a href="download.html">安装包下载矩阵</a></li>
           <li><a href="https://github.com/zoufudun/SmileCodeIDE" target="_blank" rel="noopener">GitHub 仓库源码</a></li>
           <li><a href="https://github.com/zoufudun/SmileCodeIDE/releases" target="_blank" rel="noopener">Releases 历史版本</a></li>
@@ -314,7 +1086,7 @@
     </div>
 
     <div class="footer-bottom-line">
-      <div class="container footer-bottom-inner">
+      <div class="container footer-bottom-inner" style="max-width: 1240px; margin: 0 auto; padding: 0 24px;">
         <span>Copyright © 2026 SmileCode Team &amp; zoufudun. 保留所有权利。</span>
         <div class="footer-bottom-links">
           <a href="index.html">返回首页</a>
@@ -333,6 +1105,17 @@
   <div id="copyToast" class="copy-toast">已复制到剪贴板</div>
 
   <script>
+    // Synchronize icon on load
+    const saved = localStorage.getItem('smilecode_theme') || 'parchment';
+    const icon = document.getElementById('themeToggleIcon');
+    if (icon) {
+      if (saved === 'dark') {
+        icon.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>';
+      } else {
+        icon.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
+      }
+    }
+
     function copyFileText(text, btn) {
       if (navigator.clipboard) {
         navigator.clipboard.writeText(text).then(() => {
