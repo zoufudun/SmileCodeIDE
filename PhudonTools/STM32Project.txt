@@ -1,0 +1,25 @@
+STM32Project/
+├── Inc/                  # 头文件目录
+│   ├── main.h
+│   ├── stm32f1xx_hal_conf.h
+│   └── ...
+├── Src/                  # 源文件目录
+│   ├── main.c
+│   ├── stm32f1xx_it.c
+│   └── ...
+├── Drivers/              # 驱动文件目录
+│   ├── CMSIS/            # CMSIS库
+│   │   ├── Device/
+│   │   │   └── ST/
+│   │   │       └── STM32F1xx/
+│   │   │           ├── Include/
+│   │   │           └── Source/
+│   │   └── Include/
+│   └── STM32F1xx_HAL_Driver/ # HAL库
+│       ├── Inc/
+│       └── Src/
+├── Middlewares/          # 中间件目录(可选)
+│   └── ...
+├── build/                # 构建输出目录
+├── STM32F103C8Tx_FLASH.ld # 链接脚本
+└── Makefile              # 构建脚本

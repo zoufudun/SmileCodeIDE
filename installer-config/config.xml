@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Installer>
+    <Name>SmileCodeIDE</Name>
+    <Version>2.3.1</Version>
+    <Title>SmileCodeIDE 安装向导</Title>
+    <Publisher>SmileCodeIDE Team (zoufudun)</Publisher>
+    <ProductUrl>https://zoufudun.github.io/SmileCodeIDE/</ProductUrl>
+    <InstallerApplicationIcon>logo</InstallerApplicationIcon>
+    <InstallerWindowIcon>logo.ico</InstallerWindowIcon>
+    <Logo>logo.png</Logo>
+    <!-- Default install path: User local app directory (No admin rights required, perfectly safe) -->
+    <TargetDir>@HomeDir@/AppData/Local/Programs/SmileCodeIDE</TargetDir>
+    <AdminTargetDir>@ApplicationsDir@/SmileCodeIDE</AdminTargetDir>
+    <StartMenuDir>SmileCodeIDE</StartMenuDir>
+    <AllowNonAsciiCharacters>true</AllowNonAsciiCharacters>
+    <WizardStyle>Modern</WizardStyle>
+    <WizardDefaultWidth>780</WizardDefaultWidth>
+    <WizardDefaultHeight>540</WizardDefaultHeight>
+    <!-- Run program automatically on finish -->
+    <RunProgram>@TargetDir@/SmileCodeIDE.exe</RunProgram>
+    <RunProgramDescription>立即运行 SmileCodeIDE</RunProgramDescription>
+</Installer>

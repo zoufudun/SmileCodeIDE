@@ -1,0 +1,236 @@
+/* Gerry主题样式表 */
+
+QWidget {
+    background-color: #1E1E1E;
+    color: #D4D4D4;
+    selection-background-color: #264F78;
+    selection-color: #FFFFFF;
+}
+
+QMainWindow {
+    background-color: #1E1E1E;
+}
+
+QMenuBar {
+    background-color: #333333;
+    color: #D4D4D4;
+}
+
+QMenuBar::item {
+    background-color: transparent;
+}
+
+QMenuBar::item:selected {
+    background-color: #264F78;
+    color: #FFFFFF;
+}
+
+QMenu {
+    background-color: #333333;
+    color: #D4D4D4;
+    border: 1px solid #1A1A1A;
+}
+
+QMenu::item:selected {
+    background-color: #264F78;
+    color: #FFFFFF;
+}
+
+QToolBar {
+    background-color: #333333;
+    border: none;
+}
+
+QToolButton {
+    background-color: transparent;
+    color: #D4D4D4;
+    border: none;
+    padding: 4px;
+}
+
+QToolButton:hover {
+    background-color: #264F78;
+}
+
+QToolButton:pressed {
+    background-color: #007ACC;
+}
+
+QPushButton {
+    background-color: #0E639C;
+    color: #FFFFFF;
+    border: 1px solid #1A1A1A;
+    border-radius: 3px;
+    padding: 5px 10px;
+}
+
+QPushButton:hover {
+    background-color: #1177BB;
+}
+
+QPushButton:pressed {
+    background-color: #13A1F5;
+}
+
+QPushButton:disabled {
+    background-color: #333333;
+    color: #6D6D6D;
+}
+
+QLineEdit {
+    background-color: #252526;
+    color: #D4D4D4;
+    border: 1px solid #1A1A1A;
+    border-radius: 3px;
+    padding: 3px;
+}
+
+QTextEdit {
+    background-color: #252526;
+    color: #D4D4D4;
+    border: 1px solid #1A1A1A;
+    selection-background-color: #264F78;
+}
+
+QTabWidget::pane {
+    border: 1px solid #1A1A1A;
+    background-color: #1E1E1E;
+}
+
+QTabBar::tab {
+    background-color: #333333;
+    color: #D4D4D4;
+    border: 1px solid #1A1A1A;
+    border-bottom: none;
+    padding: 5px 10px;
+}
+
+QTabBar::tab:selected {
+    background-color: #1E1E1E;
+    border-bottom: 2px solid #007ACC;
+}
+
+QTabBar::tab:!selected {
+    margin-top: 2px;
+}
+
+QComboBox {
+    background-color: #252526;
+    color: #D4D4D4;
+    border: 1px solid #1A1A1A;
+    border-radius: 3px;
+    padding: 3px 18px 3px 3px;
+}
+
+QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 15px;
+    border-left: 1px solid #1A1A1A;
+}
+
+QComboBox QAbstractItemView {
+    background-color: #252526;
+    color: #D4D4D4;
+    border: 1px solid #1A1A1A;
+    selection-background-color: #264F78;
+}
+
+QGroupBox {
+    border: 1px solid #1A1A1A;
+    border-radius: 3px;
+    margin-top: 10px;
+    padding-top: 10px;
+    color: #D4D4D4;
+}
+
+QGroupBox::title {
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    padding: 0 3px;
+    color: #007ACC;
+}
+
+QTreeView {
+    background-color: #252526;
+    color: #D4D4D4;
+    border: 1px solid #1A1A1A;
+    alternate-background-color: #333333;
+}
+
+QTreeView::item:selected {
+    background-color: #264F78;
+    color: #FFFFFF;
+}
+
+QHeaderView::section {
+    background-color: #333333;
+    color: #D4D4D4;
+    padding: 5px;
+    border: 1px solid #1A1A1A;
+}
+
+QScrollBar:vertical {
+    background-color: #333333;
+    width: 12px;
+    margin: 12px 0 12px 0;
+}
+
+QScrollBar::handle:vertical {
+    background-color: #3E3E3E;
+    min-height: 20px;
+    border-radius: 3px;
+}
+
+QScrollBar::add-line:vertical {
+    border: none;
+    background: none;
+}
+
+QScrollBar::sub-line:vertical {
+    border: none;
+    background: none;
+}
+
+QScrollBar:horizontal {
+    background-color: #333333;
+    height: 12px;
+    margin: 0 12px 0 12px;
+}
+
+QScrollBar::handle:horizontal {
+    background-color: #3E3E3E;
+    min-width: 20px;
+    border-radius: 3px;
+}
+
+QScrollBar::add-line:horizontal {
+    border: none;
+    background: none;
+}
+
+QScrollBar::sub-line:horizontal {
+    border: none;
+    background: none;
+}
+
+QStatusBar {
+    background-color: #007ACC;
+    color: #FFFFFF;
+}
+
+QStatusBar QLabel {
+    color: #FFFFFF;
+}
+
+QSplitter::handle {
+    background-color: #1A1A1A;
+}
+
+QSplitter::handle:horizontal {
+    width: 1px;
+}
+
+QSplitter::handle:vertical {
+    height: 1px;
+}

@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- 背景渐变 -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0D47A1"/>
+      <stop offset="50%" stop-color="#1976D2"/>
+      <stop offset="100%" stop-color="#42A5F5"/>
+    </linearGradient>
+    <!-- 文字阴影 -->
+    <filter id="textShadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="2" dy="3" stdDeviation="3" flood-color="#000" flood-opacity="0.35"/>
+    </filter>
+    <!-- 圆形发光 -->
+    <radialGradient id="glow" cx="35%" cy="30%" r="65%">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.20)"/>
+      <stop offset="50%" stop-color="rgba(255,255,255,0.03)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+    </radialGradient>
+  </defs>
+
+  <!-- 主圆形背景 -->
+  <circle cx="256" cy="256" r="220" fill="url(#bgGrad)"/>
+
+  <!-- 外环 (3层) -->
+  <circle cx="256" cy="256" r="220" fill="none" stroke="rgba(255,255,255,0.20)" stroke-width="3"/>
+  <circle cx="256" cy="256" r="214" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="2"/>
+  <circle cx="256" cy="256" r="206" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1.5"/>
+
+  <!-- 顶部装饰弧线 -->
+  <ellipse cx="256" cy="256" rx="164" ry="186"
+           fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="2.5"
+           stroke-dasharray="500 1000" stroke-dashoffset="380" stroke-linecap="round"/>
+  <ellipse cx="256" cy="256" rx="156" ry="178"
+           fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="1.5"
+           stroke-dasharray="480 1000" stroke-dashoffset="380" stroke-linecap="round"/>
+
+  <!-- 底部装饰弧线 -->
+  <ellipse cx="256" cy="256" rx="164" ry="186"
+           fill="none" stroke="rgba(255,255,255,0.10)" stroke-width="2"
+           stroke-dasharray="300 1000" stroke-dashoffset="-700" stroke-linecap="round"/>
+
+  <!-- 左上高光 -->
+  <circle cx="256" cy="256" r="220" fill="url(#glow)"/>
+
+  <!-- 主文字: Phudon -->
+  <text x="256" y="240"
+        font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif"
+        font-size="94" font-weight="700" letter-spacing="6"
+        fill="#FFFFFF" text-anchor="middle" dominant-baseline="central"
+        filter="url(#textShadow)">
+    Phudon
+  </text>
+
+  <!-- 副标题: TOOLS -->
+  <text x="256" y="330"
+        font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif"
+        font-size="28" font-weight="400" letter-spacing="24"
+        fill="rgba(255,255,255,0.63)" text-anchor="middle" dominant-baseline="central">
+    TOOLS
+  </text>
+
+  <!-- 顶部装饰点 -->
+  <circle cx="256" cy="90" r="4" fill="rgba(255,255,255,0.40)"/>
+  <circle cx="256" cy="77" r="2.5" fill="rgba(255,255,255,0.25)"/>
+
+  <!-- 底部装饰点 -->
+  <circle cx="256" cy="424" r="2.5" fill="rgba(255,255,255,0.25)"/>
+</svg>

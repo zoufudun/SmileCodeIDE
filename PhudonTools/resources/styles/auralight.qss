@@ -1,0 +1,61 @@
+/* Aura Light Theme */
+QMainWindow, QDialog {
+    background-color: #FDFDFD;
+    color: #383838;
+}
+QMenuBar, QToolBar {
+    background-color: #F8F8F8;
+    color: #383838;
+    border-bottom: 1px solid #EAEAEA;
+}
+QMenu {
+    background-color: #FDFDFD;
+    color: #383838;
+    border: 1px solid #EAEAEA;
+}
+QTabWidget::pane {
+    border: 1px solid #EAEAEA;
+}
+QTabBar::tab {
+    background-color: #F8F8F8;
+    color: #6C6C6C;
+    padding: 8px 12px;
+}
+QTabBar::tab:selected {
+    background-color: #FDFDFD;
+    color: #383838;
+    border-bottom: 2px solid #5522E0;
+}
+QTextEdit, QLineEdit {
+    background-color: #FFFFFF;
+    color: #383838;
+    border: 1px solid #EAEAEA;
+}
+QPushButton {
+    background-color: #5522E0;
+    color: #FFFFFF;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+}
+QPushButton:hover {
+    background-color: #6A3FF0;
+}
+QComboBox {
+    background-color: #FFFFFF;
+    color: #383838;
+    border: 1px solid #EAEAEA;
+}
+QTreeView {
+    background-color: #FDFDFD;
+    color: #383838;
+    border: 1px solid #EAEAEA;
+}
+QTreeView::item:selected {
+    background-color: #E6E0F8;
+    color: #5522E0;
+}
+QStatusBar {
+    background-color: #5522E0;
+    color: #FFFFFF;
+}

@@ -1,0 +1,40 @@
+{
+  "name": "STM32F407xG",
+  "series": "F4",
+  "chip": "STM32F407",
+  "core": "Cortex-M4",
+  "fpu": true,
+  "cpu_flags": "-mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard",
+  "c_flags": "-Wall -g -O0",
+  "cpp_flags": "-fno-exceptions -fno-rtti",
+  "defines": [
+    "STM32F407xx",
+    "USE_HAL_DRIVER"
+  ],
+  "includes": [
+    ".",
+    "Inc",
+    "Drivers/CMSIS/Include",
+    "Drivers/CMSIS/Device/ST/STM32F4xx/Include",
+    "Drivers/STM32F4xx_HAL_Driver/Inc"
+  ],
+  "memory": {
+    "flash": {
+      "origin": "0x08000000",
+      "size": "1M"
+    },
+    "ram": {
+      "origin": "0x20000000",
+      "size": "192K"
+    },
+    "sram2": {
+      "origin": "0x20030000",
+      "size": "64K"
+    },
+    "sram3": {
+      "origin": "0x20040000",
+      "size": "64K"
+    }
+  },
+  "linker_template": "STM32F4xx_FLASH.ld"
+}

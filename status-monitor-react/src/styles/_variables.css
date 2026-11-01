@@ -1,0 +1,104 @@
+/* ===== 语义化主题变量 ===== */
+
+:root {
+  color-scheme: dark;
+
+  /* Theme accent */
+  --primary-color: #00d9e8;
+  --primary-glow: rgba(0, 217, 232, 0.36);
+  --primary-glow-light: rgba(0, 217, 232, 0.14);
+  --primary-border: rgba(0, 217, 232, 0.3);
+
+  /* Surfaces and typography */
+  --bg-color: #080d16;
+  --bg-elevated: #0d1522;
+  --panel-bg: rgba(16, 26, 42, 0.78);
+  --panel-bg-solid: #101a2a;
+  --font-body: 'Inter', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', -apple-system, sans-serif;
+  --font-display: 'Orbitron', 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
+  --font-mono: 'Share Tech Mono', 'Consolas', 'Microsoft YaHei', monospace;
+  --radius-panel: 12px;
+  --radius-control: 6px;
+  --radius-detail: 4px;
+  --shadow-panel: 0 8px 32px rgba(0, 0, 0, 0.35);
+  --panel-border: rgba(148, 163, 184, 0.14);
+  --panel-border-strong: rgba(148, 163, 184, 0.24);
+  --text-primary: #e8eef7;
+  --text-secondary: #aab8c9;
+  --text-muted: #718096;
+  --text-faint: #526176;
+  --control-bg: rgba(5, 11, 20, 0.58);
+  --control-hover: rgba(255, 255, 255, 0.07);
+  --focus-ring: rgba(0, 217, 232, 0.55);
+  --canvas-bg: rgba(5, 11, 20, 0.54);
+  --canvas-grid: rgba(148, 163, 184, 0.1);
+  --danger: #f05252;
+  --danger-soft: rgba(240, 82, 82, 0.14);
+  --success: #22c58b;
+  --success-soft: rgba(34, 197, 139, 0.14);
+  --warning: #e7a52b;
+  --warning-soft: rgba(231, 165, 43, 0.14);
+}
+
+/* 科技蓝 Cyber */
+body.theme-cyber {
+  --primary-color: #00d9e8;
+  --primary-glow: rgba(0, 217, 232, 0.36);
+  --primary-glow-light: rgba(0, 217, 232, 0.14);
+  --primary-border: rgba(0, 217, 232, 0.3);
+  --bg-color: #080d16;
+  --bg-elevated: #0d1522;
+  --panel-bg: rgba(16, 26, 42, 0.78);
+  --panel-bg-solid: #101a2a;
+  --panel-bg-muted: color-mix(in srgb, var(--panel-bg-solid) 70%, transparent);
+  --card-bg: color-mix(in srgb, var(--panel-bg-solid) 85%, transparent);
+  --card-hover: color-mix(in srgb, var(--panel-bg-solid) 90%, var(--primary-color) 10%);
+}
+
+/* 翡翠绿 Emerald */
+body.theme-emerald {
+  --primary-color: #2ccf94;
+  --primary-glow: rgba(44, 207, 148, 0.34);
+  --primary-glow-light: rgba(44, 207, 148, 0.14);
+  --primary-border: rgba(44, 207, 148, 0.3);
+  --bg-color: #08130f;
+  --bg-elevated: #0e211a;
+  --panel-bg: rgba(15, 37, 29, 0.78);
+  --panel-bg-solid: #102a21;
+  --panel-bg-muted: color-mix(in srgb, var(--panel-bg-solid) 70%, transparent);
+  --card-bg: color-mix(in srgb, var(--panel-bg-solid) 85%, transparent);
+  --card-hover: color-mix(in srgb, var(--panel-bg-solid) 90%, var(--primary-color) 10%);
+  --focus-ring: rgba(44, 207, 148, 0.55);
+}
+
+/* 琥珀金 Amber */
+body.theme-amber {
+  --primary-color: #f0b43c;
+  --primary-glow: rgba(240, 180, 60, 0.34);
+  --primary-glow-light: rgba(240, 180, 60, 0.14);
+  --primary-border: rgba(240, 180, 60, 0.32);
+  --bg-color: #151008;
+  --bg-elevated: #241a0b;
+  --panel-bg: rgba(39, 29, 13, 0.8);
+  --panel-bg-solid: #2a200e;
+  --panel-bg-muted: color-mix(in srgb, var(--panel-bg-solid) 70%, transparent);
+  --card-bg: color-mix(in srgb, var(--panel-bg-solid) 85%, transparent);
+  --card-hover: color-mix(in srgb, var(--panel-bg-solid) 90%, var(--primary-color) 10%);
+  --focus-ring: rgba(240, 180, 60, 0.58);
+}
+
+/* 烈焰红 Ruby */
+body.theme-ruby {
+  --primary-color: #f26464;
+  --primary-glow: rgba(242, 100, 100, 0.34);
+  --primary-glow-light: rgba(242, 100, 100, 0.14);
+  --primary-border: rgba(242, 100, 100, 0.3);
+  --bg-color: #150a0d;
+  --bg-elevated: #271318;
+  --panel-bg: rgba(42, 19, 25, 0.8);
+  --panel-bg-solid: #2d171d;
+  --panel-bg-muted: color-mix(in srgb, var(--panel-bg-solid) 70%, transparent);
+  --card-bg: color-mix(in srgb, var(--panel-bg-solid) 85%, transparent);
+  --card-hover: color-mix(in srgb, var(--panel-bg-solid) 90%, var(--primary-color) 10%);
+  --focus-ring: rgba(242, 100, 100, 0.58);
+}

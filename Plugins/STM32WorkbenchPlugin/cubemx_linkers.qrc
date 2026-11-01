@@ -1,0 +1,15 @@
+<RCC>
+  <qresource prefix="/stm32/startup">
+    <file alias="startup_stm32f429xx.s">data/startup/startup_stm32f429xx.s</file>
+  </qresource>
+  <qresource prefix="/stm32/linker">
+    <file alias="STM32H743VITX_FLASH.ld">data/cubemx-6.18.0/STM32H743VITX_FLASH.ld</file>
+    <file alias="STM32H743VITX_RAM.ld">data/cubemx-6.18.0/STM32H743VITX_RAM.ld</file>
+  </qresource>
+  <qresource prefix="/stm32/catalog">
+    <file alias="manifest.json">data/cubemx-6.18.0/manifest.json</file>
+  </qresource>
+  <qresource prefix="/stm32/ui">
+    <file alias="arrow_down.png">icons/arrow_down.png</file>
+  </qresource>
+</RCC>

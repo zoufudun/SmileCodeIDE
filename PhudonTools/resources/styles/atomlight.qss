@@ -1,0 +1,59 @@
+/* Atom Light Theme */
+QMainWindow, QDialog {
+    background-color: #FAFAFA;
+    color: #383A42;
+}
+QMenuBar {
+    background-color: #EAEAEB;
+    color: #383A42;
+}
+QMenu {
+    background-color: #FAFAFA;
+    color: #383A42;
+    border: 1px solid #DBDBDC;
+}
+QToolBar {
+    background-color: #EAEAEB;
+    border-bottom: 1px solid #DBDBDC;
+}
+QTabWidget::pane {
+    border: 1px solid #DBDBDC;
+}
+QTabBar::tab {
+    background-color: #EAEAEB;
+    color: #A0A1A7;
+    padding: 8px 12px;
+}
+QTabBar::tab:selected {
+    background-color: #FAFAFA;
+    color: #383A42;
+    border-bottom: 2px solid #526FFF;
+}
+QTextEdit, QLineEdit, QComboBox {
+    background-color: #FFFFFF;
+    color: #383A42;
+    border: 1px solid #DBDBDC;
+}
+QPushButton {
+    background-color: #526FFF;
+    color: #FFFFFF;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+}
+QPushButton:hover {
+    background-color: #4058d6;
+}
+QTreeView {
+    background-color: #FAFAFA;
+    color: #383A42;
+    border: none;
+}
+QTreeView::item:selected {
+    background-color: #E5E5E6;
+    color: #526FFF;
+}
+QStatusBar {
+    background-color: #526FFF;
+    color: #FFFFFF;
+}

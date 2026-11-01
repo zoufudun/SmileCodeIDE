@@ -1,32 +1,23 @@
-# Prerequisites
-*.d
+.qodo
+*Debug
+build
+*.bat
+.cache
+.vscode
+*/QCodeEditor
+*/PhudonTools/nul
+PhudonTools/release/
+PhudonTools/tests-bin/
+PhudonTools/Makefile.WorkflowTests*
+PhudonTools/MainWindowWorkflowTest_resource.rc
 
-# Compiled Object files
-*.slo
-*.lo
 *.o
-*.obj
+dist/
+tools/
+build_msi/
+packages/*/data/
+scratch/
+Plugins/STM32WorkbenchPlugin/tests/moc/
+Plugins/STM32WorkbenchPlugin/tests/debug/
+Plugins/STM32WorkbenchPlugin/tests/release/*.exe
 
-# Precompiled Headers
-*.gch
-*.pch
-
-# Compiled Dynamic libraries
-*.so
-*.dylib
-*.dll
-
-# Fortran module files
-*.mod
-*.smod
-
-# Compiled Static libraries
-*.lai
-*.la
-*.a
-*.lib
-
-# Executables
-*.exe
-*.out
-*.app

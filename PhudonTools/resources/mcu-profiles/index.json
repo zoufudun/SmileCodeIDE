@@ -1,0 +1,29 @@
+{
+  "version": "1.0",
+  "profiles": [
+    {
+      "file": "f0.json",
+      "name": "STM32F0",
+      "series": "F0",
+      "core": "Cortex-M0"
+    },
+    {
+      "file": "f1.json",
+      "name": "STM32F1",
+      "series": "F1", 
+      "core": "Cortex-M3"
+    },
+    {
+      "file": "f4.json",
+      "name": "STM32F4",
+      "series": "F4",
+      "core": "Cortex-M4"
+    },
+    {
+      "file": "h7.json",
+      "name": "STM32H7",
+      "series": "H7",
+      "core": "Cortex-M7"
+    }
+  ]
+}

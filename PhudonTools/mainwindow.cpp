@@ -1,0 +1,4405 @@
+#include "aboutupdatedialog.h"
+#include "mainwindow.h"
+#include <QApplication>
+#include <QDebug>
+#include <QDir>
+#include <QFile>
+#include <QFileDialog>
+#include <QGridLayout>
+#include <QGroupBox>
+#include <QHBoxLayout>
+#include <QInputDialog>
+#include <QMenu>
+#include <QMenuBar>
+#include <QMessageBox>
+#include <QProgressDialog>
+#include <QSplitter>
+#include <QStatusBar>
+#include <QTextStream>
+#include <QThread> // Add this include for QThread
+#include <QToolBar>
+#include <QVBoxLayout>
+
+// #include <QCodeEditor>
+// #include <QCXXHighlighter>
+// #include <QSyntaxStyle>
+// #include <QGLSLCompleter>
+#include <QDockWidget>
+#include <QStandardItemModel>
+
+#include "serialportplot.h"
+#include "oscilloscopewindow.h"
+#include "appmanager.h"
+#include "idetheme.h"
+#include "ideworkflowicons.h"
+#include "../Plugins/STM32WorkbenchPlugin/UI/TargetChipDialog.h"
+#include "../Plugins/STM32WorkbenchPlugin/UI/FlashConfigDialog.h"
+#include "../Plugins/STM32WorkbenchPlugin/UI/ToolchainConfigDialog.h"
+#include <QSignalBlocker>
+#include <QStyle>
+#include "TOOLS/CIconFont.h"
+#include <QDialog>
+#include <QtSerialPort/QSerialPort>
+#include <QtSerialPort/QSerialPortInfo>
+
+#include <QCheckBox>
+#include <QComboBox>
+#include <QGridLayout>
+#include <QGroupBox>
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QLineEdit>
+#include <QPushButton>
+#include <QRadioButton>
+#include <QSpinBox>
+#include <QTextEdit>
+#include <QTreeWidget>
+#include <QVBoxLayout>
+
+#include <QFontDatabase>
+
+#include "iaptool.h"
+
+MainWindow::MainWindow(QWidget *parent)
+    : QMainWindow(parent), m_isDebugging(false), m_serialPlot(nullptr),
+      m_iapTool(nullptr) {
+
+  setWindowIcon(QIcon(":/icons/xptools2.png"));
+
+  m_debugController = new STM32DebugController(this);
+  setupUi();
+  setupThemeMenu(); // 移到createMenus()之前
+  createActions();
+  createMenus();
+  createToolbars();
+  //    createCentralWidget();
+  connect(m_codeEditor, &CodeEditor::newFileRequested, this,
+          &MainWindow::newFile);
+
+  // 初始化STM32调试与构建总控中心
+
+  // 统一输出窗口至中央界面的 m_outputConsole (m_tabWidget)
+  m_outputWindow = m_outputConsole;
+
+  // 连接STM32DebugController构建与调试核心信号
+  connect(m_debugController, &STM32DebugController::buildStarted, this, [this](const QString &action) {
+    Q_UNUSED(action);
+    clearProblemsTable();
+    if (m_outputConsole) m_outputConsole->clear();
+    m_tabWidget->setCurrentWidget(m_outputConsole);
+  });
+  connect(m_debugController, &STM32DebugController::buildOutput, this, [this](const QString &text, bool isError) {
+    Q_UNUSED(isError);
+    if (m_outputConsole) m_outputConsole->append(text);
+  });
+  connect(m_debugController, &STM32DebugController::buildFinished, this, [this](bool success, int exitCode, int durationMs) {
+    Q_UNUSED(exitCode);
+    Q_UNUSED(durationMs);
+    onBuildFinished(success);
+  });
+  connect(m_debugController, &STM32DebugController::diagnosticFound, this, &MainWindow::addProblemDiagnostic);
+  connect(m_debugController, &STM32DebugController::chipChanged, this, [this](const QString &) {
+    updateDebugUiState(m_isDebugging, false);
+    updateStatusInfo();
+  });
+  connect(m_debugController, &STM32DebugController::probeChanged, this, [this](const QString &) {
+    updateStatusInfo();
+  });
+
+  connect(m_debugController, &STM32DebugController::flashStarted, this, [this]() {
+    if (m_outputConsole) m_outputConsole->append(">>> 开始固件烧录...");
+    m_tabWidget->setCurrentWidget(m_outputConsole);
+  });
+  connect(m_debugController, &STM32DebugController::flashOutput, this, [this](const QString &text, bool isError) {
+    Q_UNUSED(isError);
+    if (m_outputConsole) m_outputConsole->append(text);
+  });
+  connect(m_debugController, &STM32DebugController::flashFinished, this, [this](bool success, const QString &message) {
+    if (m_outputConsole) m_outputConsole->append(message);
+    statusBar()->showMessage(success ? "烧录成功完成" : QString("烧录失败: %1").arg(message), 3000);
+  });
+
+  connect(m_debugController, &STM32DebugController::stateChanged, this, [this](STM32SessionState state) {
+    bool isDebugging = (state == STM32SessionState::StartingDebug ||
+                        state == STM32SessionState::Stopped ||
+                        state == STM32SessionState::Running);
+    bool isRunning = (state == STM32SessionState::Running);
+    updateDebugUiState(isDebugging, isRunning);
+
+    if (state == STM32SessionState::StartingDebug) {
+      m_tabWidget->setCurrentWidget(m_debugConsole);
+      if (m_variablesDock) m_variablesDock->show();
+      if (m_registersDock) m_registersDock->show();
+      if (m_breakpointsDock) m_breakpointsDock->show();
+      if (m_callStackDock) m_callStackDock->show();
+      statusBar()->showMessage("GDB调试会话启动中...", 3000);
+    }
+  });
+
+  connect(m_debugController, &STM32DebugController::debugSessionEnded, this, [this]() {
+    m_isDebugging = false;
+    updateDebugUiState(false, false);
+    if (m_codeEditor) m_codeEditor->clearExecutionLine();
+    if (m_callStackDock) m_callStackDock->clear();
+    if (m_variablesDock) m_variablesDock->clear();
+    if (m_registersDock) m_registersDock->clear();
+    for (auto dock : {static_cast<QDockWidget *>(m_variablesDock), static_cast<QDockWidget *>(m_registersDock),
+                      static_cast<QDockWidget *>(m_callStackDock), static_cast<QDockWidget *>(m_breakpointsDock)}) dock->hide();
+    statusBar()->showMessage("调试会话已退出", 3000);
+  });
+
+  connect(m_debugController, &STM32DebugController::targetRunning, this, [this]() {
+    updateDebugUiState(true, true);
+    if (m_codeEditor) m_codeEditor->clearExecutionLine();
+    statusBar()->showMessage("目标CPU正在全速运行...", 2000);
+  });
+
+  connect(m_debugController, &STM32DebugController::targetStopped, this, [this](const QString &file, int line, const QString &func, const QString &reason) {
+    Q_UNUSED(reason);
+    updateDebugUiState(true, false);
+    if (m_codeEditor && !file.isEmpty() && line > 0) {
+      m_codeEditor->openFileAndGoTo(file, line);
+      m_codeEditor->setExecutionLine(file, line);
+    }
+    QString funcName = func.isEmpty() ? "Unknown" : func;
+    statusBar()->showMessage(QString("调试停机: %1 (%2:%3)")
+                                 .arg(funcName)
+                                 .arg(file)
+                                 .arg(line), 5000);
+  });
+
+  connect(m_debugController, &STM32DebugController::stackTraceReceived, this, [this](const QVector<GdbStackFrame> &frames) {
+    if (m_callStackDock) m_callStackDock->setFrames(frames);
+  });
+  connect(m_debugController, &STM32DebugController::localsReceived, this, [this](const QVector<GdbVariable> &vars) {
+    if (m_variablesDock) m_variablesDock->setLocals(vars);
+  });
+  connect(m_debugController, &STM32DebugController::registersReceived, this, [this](const QVector<GdbRegister> &regs) {
+    if (m_registersDock) m_registersDock->setRegisters(regs);
+  });
+  connect(m_debugController, &STM32DebugController::expressionEvaluated, this, [this](const QString &expr, const QString &result) {
+    if (m_variablesDock) m_variablesDock->updateWatchResult(expr, result);
+    if (m_debugConsole) m_debugConsole->append(QString("%1 = %2").arg(expr, result));
+  });
+  connect(m_debugController, &STM32DebugController::gdbConsoleOutput, this, [this](const QString &text) {
+    if (m_debugConsole) m_debugConsole->append(text);
+  });
+  connect(m_debugController, &STM32DebugController::breakpointsChanged, this, [this](const QMap<QString, QSet<int>> &breakpoints) {
+    if (m_breakpointsDock) m_breakpointsDock->updateBreakpoints(breakpoints);
+    syncBreakpointsToEditor();
+  });
+
+  connect(m_debugController, &STM32DebugController::chipChanged, this, [this](const QString &chipName) {
+    if (!chipName.isEmpty() && m_targetComboBox) {
+      int idx = m_targetComboBox->findText(chipName);
+      if (idx >= 0) {
+        m_targetComboBox->setCurrentIndex(idx);
+      } else {
+        m_targetComboBox->addItem(chipName);
+        m_targetComboBox->setCurrentText(chipName);
+      }
+    }
+  });
+
+  connect(m_debugController, &STM32DebugController::probeChanged, this, [this](const QString &probeName) {
+    if (m_downloaderComboBox) {
+      QString probe = probeName.toUpper();
+      probe.remove('-').remove(' ');
+      int idx = m_downloaderComboBox->findText(probe.contains("JLINK") ? "Jlink" :
+                                            probe.contains("DAP") ? "CMSIS-DAP" : "STLINK");
+      if (idx >= 0) {
+        m_downloaderComboBox->setCurrentIndex(idx);
+      }
+    }
+  });
+
+  // 创建保留旧构建系统指针（防止空引用）
+  m_buildSystem = new BuildSystem(this);
+
+  // 连接编辑器信号
+  connect(m_codeEditor, &CodeEditor::buildRequested, this,
+          &MainWindow::buildProject);
+  connect(m_codeEditor, &CodeEditor::cleanRequested, this,
+          &MainWindow::cleanProject);
+  connect(m_codeEditor, &CodeEditor::breakpointToggled, this, [this](const QString &file, int line, bool added) {
+    if (m_debugController) {
+      if (added) {
+        m_debugController->addBreakpoint(file, line);
+      } else {
+        m_debugController->removeBreakpoint(file, line);
+      }
+    }
+  });
+
+  m_process = new QProcess(this);
+  connect(m_process, &QProcess::readyReadStandardOutput, this,
+          &MainWindow::processOutput);
+  connect(m_process, &QProcess::readyReadStandardError, this,
+          &MainWindow::processError);
+  connect(m_process,
+          QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished), this,
+          &MainWindow::processFinished);
+
+  m_settings = new QSettings("PhudonTools", "Settings", this);
+  loadSettings();
+
+  // 加载上次使用的主题或默认使用深色主题
+  QString theme = m_settings->value("theme", "dark").toString();
+  applyTheme(theme);
+
+  statusBar()->showMessage("就绪");
+
+  // 设置窗口属性
+  setWindowTitle("PhudonTools");
+  resize(1360, 900);
+
+  // 确保快捷键能够正常工作
+  for (auto dock : {static_cast<QDockWidget *>(m_variablesDock), static_cast<QDockWidget *>(m_registersDock),
+                    static_cast<QDockWidget *>(m_callStackDock), static_cast<QDockWidget *>(m_breakpointsDock)}) dock->hide();
+  setFocusPolicy(Qt::StrongFocus);
+  updateDebugUiState(false, false);
+}
+
+MainWindow::~MainWindow() {
+  // Stop while all UI widgets still exist, then detach completion callbacks.
+  m_debugController->closeProject();
+  disconnect(m_debugController, nullptr, this, nullptr);
+  saveSettings();
+  if (m_process->state() == QProcess::Running) {
+    m_process->terminate();
+    m_process->waitForFinished(1000);
+  }
+  // if (m_apiCPP) {
+  //     delete m_apiCPP;
+  //     m_apiCPP = nullptr;
+  // }
+}
+// void MainWindow::createMenus()
+// {
+//     // Create main menu bar
+//     QMenuBar *menuBar = this->menuBar();
+
+//     // File menu
+//     QMenu *fileMenu = menuBar->addMenu("文件");
+//     fileMenu->addAction(findChild<QAction*>("新建项目"));
+//     fileMenu->addAction(findChild<QAction*>("打开项目"));
+//     fileMenu->addAction(findChild<QAction*>("保存项目"));
+//     fileMenu->addSeparator();
+//     fileMenu->addAction(findChild<QAction*>("保存文件"));
+//     fileMenu->addAction(findChild<QAction*>("文件另存为"));
+//     fileMenu->addSeparator();
+//     fileMenu->addAction(findChild<QAction*>("退出"));
+
+//     fileMenu->addAction(m_newProjectAction);
+//     fileMenu->addAction(m_openProjectAction);
+//     fileMenu->addAction(m_saveProjectAction);
+
+//     // Build menu
+//     QMenu *buildMenu = menuBar->addMenu("构建");
+//     buildMenu->addAction(findChild<QAction*>("编译"));
+//     buildMenu->addAction(findChild<QAction*>("清理"));
+//     buildMenu->addAction(findChild<QAction*>("烧录"));
+
+//     // Debug menu
+//     QMenu *debugMenu = menuBar->addMenu("调试");
+//     debugMenu->addAction(findChild<QAction*>("开始调试"));
+//     debugMenu->addAction(findChild<QAction*>("停止调试"));
+//     debugMenu->addSeparator();
+//     debugMenu->addAction(findChild<QAction*>("继续"));
+//     debugMenu->addAction(findChild<QAction*>("单步跳过"));
+//     debugMenu->addAction(findChild<QAction*>("单步进入"));
+//     debugMenu->addAction(findChild<QAction*>("单步跳出"));
+//     debugMenu->addSeparator();
+//     debugMenu->addAction(findChild<QAction*>("设置断点"));
+
+//     // Tools menu
+//     QMenu *toolsMenu = menuBar->addMenu("工具");
+//     toolsMenu->addAction(findChild<QAction*>("配置工具链"));
+
+//     // View menu
+//     QMenu *viewMenu = menuBar->addMenu("视图");
+//     viewMenu->addAction(findChild<QAction*>("全屏模式"));
+
+//     // Theme submenu
+//     QMenu *themeMenu = viewMenu->addMenu("主题");
+//     themeMenu->addAction(m_darkThemeAction);
+//     themeMenu->addAction(m_lightThemeAction);
+//     themeMenu->addAction(m_oneDarkThemeAction);
+//     themeMenu->addAction(m_atomMaterialThemeAction);
+//     themeMenu->addAction(m_atomOneThemeAction);
+//     themeMenu->addAction(m_gerryThemeAction);
+//     themeMenu->addAction(m_materialIconsThemeAction);
+
+//     // Help menu
+//     QMenu *helpMenu = menuBar->addMenu("帮助");
+//     helpMenu->addAction(findChild<QAction*>("关于"));
+// }
+
+void MainWindow::newFile() {
+  // 检查当前文件是否已修改，如果已修改则提示保存
+  if (isCurrentFileModified()) {
+    QMessageBox::StandardButton reply = QMessageBox::question(
+        this, "保存更改", "当前文件已修改，是否保存更改？",
+        QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel);
+
+    if (reply == QMessageBox::Yes) {
+      saveFile();
+    } else if (reply == QMessageBox::Cancel) {
+      return;
+    }
+  }
+
+  // 创建新文件
+  m_codeEditor->setText("");
+  m_currentFilePath = "";
+  setWindowTitle("PhudonTools - 新文件");
+  statusBar()->showMessage("已创建新文件", 2000);
+}
+
+bool MainWindow::isCurrentFileModified() const {
+  // Check if the current editor has modifications
+  if (m_codeEditor && m_codeEditor->currentEditor()) {
+    return m_codeEditor->currentEditor()->isModified();
+  }
+  return false;
+}
+
+void MainWindow::createToolbars() {
+  auto *toolbar = addToolBar(tr("开发工作台"));
+  toolbar->setObjectName("developmentToolbar");
+  toolbar->setMovable(false);
+  toolbar->setFloatable(false);
+  toolbar->setIconSize(QSize(19, 19));
+  toolbar->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+  toolbar->addAction(m_openProjectAction);
+  toolbar->addAction(m_saveFileAction);
+  toolbar->addSeparator();
+  toolbar->addAction(m_buildAction);
+  toolbar->addAction(m_flashAction);
+  toolbar->addAction(m_debugAction);
+  toolbar->addAction(m_cancelTaskAction);
+  toolbar->addAction(m_continueAction);
+  toolbar->addAction(m_pauseDebugAction);
+  toolbar->addAction(m_stepOverAction);
+  toolbar->addAction(m_stepIntoAction);
+  toolbar->addAction(m_stepOutAction);
+  toolbar->addSeparator();
+  toolbar->addAction(m_configureChipAction);
+  toolbar->addAction(m_configureFlashAction);
+  toolbar->addAction(m_configureToolchainAction);
+  auto *spacer = new QWidget(toolbar);
+  spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+  toolbar->addWidget(spacer);
+  m_configurationSummary = new QLabel(toolbar);
+  m_configurationSummary->setObjectName("configurationSummary");
+  m_configurationSummary->setMaximumWidth(250);
+  m_configurationSummary->setContentsMargins(8, 0, 8, 0);
+  toolbar->addWidget(m_configurationSummary);
+  updateStatusInfo();
+}
+
+// 在目标选择部分之后添加下载工具选择
+// void MainWindow::setupUi()
+// {
+//     setWindowTitle("STM32 编译与调试工具");
+//     resize(1024, 768);
+
+//     // 创建中央部件
+//     QWidget *centralWidget = new QWidget(this);
+//     setCentralWidget(centralWidget);
+
+//     // 主布局
+//     QVBoxLayout *mainLayout = new QVBoxLayout(centralWidget);
+
+//     // 创建分割器
+//     QSplitter *mainSplitter = new QSplitter(Qt::Horizontal);
+//     mainLayout->addWidget(mainSplitter);
+
+//     // 左侧项目树
+//     QGroupBox *projectGroup = new QGroupBox("项目文件");
+//     QVBoxLayout *projectLayout = new QVBoxLayout(projectGroup);
+//     m_projectTreeView = new QTreeView();
+//     m_fileSystemModel = new QFileSystemModel();
+//     m_projectTreeView->setModel(m_fileSystemModel);
+//     m_projectTreeView->setColumnWidth(0, 250);
+//     m_projectTreeView->setContextMenuPolicy(Qt::CustomContextMenu);
+//     projectLayout->addWidget(m_projectTreeView);
+//     mainSplitter->addWidget(projectGroup);
+
+//     // 右侧区域
+//     QWidget *rightWidget = new QWidget();
+//     QVBoxLayout *rightLayout = new QVBoxLayout(rightWidget);
+//     mainSplitter->addWidget(rightWidget);
+
+//     // 目标选择
+//     QHBoxLayout *targetLayout = new QHBoxLayout();
+//     targetLayout->addWidget(new QLabel("目标芯片:"));
+//     m_targetComboBox = new QComboBox();
+//     m_targetComboBox->addItems({"STM32F103C8", "STM32F407VG", "STM32F429ZI",
+//     "STM32L476RG"}); targetLayout->addWidget(m_targetComboBox);
+//     targetLayout->addStretch();
+
+//     // 添加下载工具选择
+//     targetLayout->addWidget(new QLabel("下载工具:"));
+//     m_downloaderComboBox = new QComboBox();
+//     m_downloaderComboBox->addItems({"STLINK", "Jlink"});
+//     targetLayout->addWidget(m_downloaderComboBox);
+
+//     rightLayout->addLayout(targetLayout);
+
+//     // 工具按钮
+//     QHBoxLayout *toolLayout = new QHBoxLayout();
+//     m_buildButton = new QPushButton("编译");
+//     m_cleanButton = new QPushButton("清理");
+//     m_flashButton = new QPushButton("烧录");
+//     m_debugButton = new QPushButton("调试");
+//     m_stopButton = new QPushButton("停止");
+//     m_continueButton = new QPushButton("继续");
+//     m_stepOverButton = new QPushButton("单步跳过");
+//     m_stepIntoButton = new QPushButton("单步进入");
+//     m_stepOutButton = new QPushButton("单步跳出");
+
+//     toolLayout->addWidget(m_buildButton);
+//     toolLayout->addWidget(m_cleanButton);
+//     toolLayout->addWidget(m_flashButton);
+//     toolLayout->addWidget(m_debugButton);
+//     toolLayout->addWidget(m_stopButton);
+//     toolLayout->addWidget(m_continueButton);
+//     toolLayout->addWidget(m_stepOverButton);
+//     toolLayout->addWidget(m_stepIntoButton);
+//     toolLayout->addWidget(m_stepOutButton);
+
+//     m_stopButton->setEnabled(false);
+//     m_continueButton->setEnabled(false);
+//     m_stepOverButton->setEnabled(false);
+//     m_stepIntoButton->setEnabled(false);
+//     m_stepOutButton->setEnabled(false);
+
+//     rightLayout->addLayout(toolLayout);
+
+//     // 添加代码编辑器和输出选项卡的分割器
+//     QSplitter *editorOutputSplitter = new QSplitter(Qt::Vertical);
+//     rightLayout->addWidget(editorOutputSplitter);
+
+//     // 创建代码编辑器
+//     m_codeEditor2 = new QsciScintilla(this);
+//     // 设置编辑器字体
+//     QFont font("Consolas", 10);
+//     font.setFixedPitch(true);
+//     m_codeEditor2->setFont(font);
+//     m_codeEditor2->setMarginsFont(font);
+
+//     // 设置行号边距
+//     m_codeEditor2->setMarginWidth(0, "0000");
+//     m_codeEditor2->setMarginLineNumbers(0, true);
+
+//     // 设置折叠边距
+//     m_codeEditor2->setMarginWidth(2, 14);
+//     m_codeEditor2->setMarginType(2, QsciScintilla::SymbolMargin);
+//     m_codeEditor2->setMarginSensitivity(2, true);
+//     m_codeEditor2->setFolding(QsciScintilla::BoxedTreeFoldStyle);
+
+//     // 设置C++语法高亮
+//     m_lexerCPP = new QsciLexerCPP();
+//     m_lexerCPP->setFont(font);
+//     m_codeEditor2->setLexer(m_lexerCPP);
+
+//     // 设置自动缩进
+//     m_codeEditor2->setAutoIndent(true);
+//     m_codeEditor2->setIndentationWidth(4);
+//     m_codeEditor2->setTabWidth(4);
+//     m_codeEditor2->setTabIndents(true);
+//     m_codeEditor2->setBackspaceUnindents(true);
+
+//     // // 设置自动补全
+//     // m_codeEditor2->setAutoCompletionSource(QsciScintilla::AcsAll);
+//     // m_codeEditor2->setAutoCompletionThreshold(2);
+//     // m_codeEditor2->setAutoCompletionCaseSensitivity(false);
+//     // m_codeEditor2->setAutoCompletionReplaceWord(true);
+
+//     // // 创建API对象并添加关键字
+//     // m_apiCPP = new QsciAPIs(m_lexerCPP);
+
+//     // // 添加C/C++关键字和STM32特定关键字
+//     // QStringList keywords;
+//     // keywords << "auto" << "break" << "case" << "char" << "const" <<
+//     "continue" << "default"
+//     //          << "do" << "double" << "else" << "enum" << "extern" <<
+//     "float" << "for"
+//     //          << "goto" << "if" << "int" << "long" << "register" <<
+//     "return" << "short"
+//     //          << "signed" << "sizeof" << "static" << "struct" << "switch"
+//     << "typedef"
+//     //          << "union" << "unsigned" << "void" << "volatile" << "while"
+//     //          // STM32特定关键字
+//     //          << "uint8_t" << "uint16_t" << "uint32_t" << "int8_t" <<
+//     "int16_t" << "int32_t"
+//     //          << "GPIO_InitTypeDef" << "USART_InitTypeDef" <<
+//     "TIM_TimeBaseInitTypeDef"
+//     //          << "HAL_GPIO_WritePin" << "HAL_GPIO_ReadPin" << "HAL_Delay"
+//     << "delay" << "HAL_Delay";
+
+//     // // 添加关键字到API
+//     // for (const QString &keyword : keywords) {
+//     //     m_apiCPP->add(keyword);
+//     // }
+
+//     // // 准备API
+//     // m_apiCPP->prepare();
+
+//     setupAutoCompletion();
+
+//     // 设置示例代码
+//     m_codeEditor2->setText("// STM32 代码编辑器\n#include <stdint.h>\n\nint
+//     main(void) {\n    // 初始化代码\n    while(1) {\n        // 主循环\n }\n
+//     return 0;\n}");
+
+//     // 添加到分割器
+//     editorOutputSplitter->addWidget(m_codeEditor2);
+
+//     //createCentralWidget();
+
+//     // 输出和调试选项卡
+//     m_tabWidget = new QTabWidget();
+//     m_outputConsole = new QTextEdit();
+//     m_outputConsole->setReadOnly(true);
+//     m_outputConsole->setFont(QFont("Consolas", 10));
+//     m_debugConsole = new QTextEdit();
+//     m_debugConsole->setReadOnly(true);
+//     m_debugConsole->setFont(QFont("Consolas", 10));
+
+//     m_tabWidget->addTab(m_outputConsole, "编译输出");
+//     m_tabWidget->addTab(m_debugConsole, "调试输出");
+//     editorOutputSplitter->addWidget(m_tabWidget);
+
+//     // 设置分割器比例
+//     editorOutputSplitter->setStretchFactor(0, 2);
+//     editorOutputSplitter->setStretchFactor(1, 1);
+
+//     // 命令行
+//     QHBoxLayout *commandLayout = new QHBoxLayout();
+//     commandLayout->addWidget(new QLabel("GDB命令:"));
+//     m_commandLine = new QLineEdit();
+//     m_commandLine->setEnabled(false);
+//     commandLayout->addWidget(m_commandLine);
+//     rightLayout->addLayout(commandLayout);
+
+//     // 连接信号和槽
+//     connect(m_buildButton, &QPushButton::clicked, this,
+//     &MainWindow::buildProject); connect(m_cleanButton, &QPushButton::clicked,
+//     this, &MainWindow::cleanProject); connect(m_flashButton,
+//     &QPushButton::clicked, this, &MainWindow::flashProject);
+//     connect(m_debugButton, &QPushButton::clicked, this,
+//     &MainWindow::startDebug); connect(m_stopButton, &QPushButton::clicked,
+//     this, &MainWindow::stopDebug); connect(m_continueButton,
+//     &QPushButton::clicked, this, &MainWindow::continueDebug);
+//     connect(m_stepOverButton, &QPushButton::clicked, this,
+//     &MainWindow::stepOver); connect(m_stepIntoButton, &QPushButton::clicked,
+//     this, &MainWindow::stepInto); connect(m_stepOutButton,
+//     &QPushButton::clicked, this, &MainWindow::stepOut);
+
+//     // 连接项目树的双击信号，用于打开文件
+//     connect(m_projectTreeView, &QTreeView::doubleClicked, this,
+//     &MainWindow::openFile);
+
+//     // 连接下载工具选择信号
+//     connect(m_downloaderComboBox,
+//     QOverload<int>::of(&QComboBox::currentIndexChanged),
+//             this, &MainWindow::downloaderChanged);
+
+//     // 设置分割器比例
+//     mainSplitter->setStretchFactor(0, 1);
+//     mainSplitter->setStretchFactor(1, 3);
+
+//     // 初始化状态栏
+//     // Add this implementation after setupUi() method
+//     setupStatusBar();
+// }
+
+void MainWindow::setupUi() {
+  setWindowTitle("PhudonTools");
+  resize(1024, 768);
+
+  // 创建中央部件
+  QWidget *centralWidget = new QWidget(this);
+  setCentralWidget(centralWidget);
+
+  // 主布局
+  QVBoxLayout *mainLayout = new QVBoxLayout(centralWidget);
+
+  // 创建分割器
+  QSplitter *mainSplitter = new QSplitter(Qt::Horizontal);
+  mainLayout->addWidget(mainSplitter);
+
+  // 左侧项目树
+  QGroupBox *projectGroup = new QGroupBox("项目文件");
+  QVBoxLayout *projectLayout = new QVBoxLayout(projectGroup);
+  m_projectTreeView = new QTreeView();
+  m_fileSystemModel = new QFileSystemModel();
+  m_projectTreeView->setModel(m_fileSystemModel);
+  m_projectTreeView->setColumnWidth(0, 230);
+  m_projectTreeView->setHeaderHidden(true);
+  for (int column = 1; column < m_fileSystemModel->columnCount(); ++column)
+    m_projectTreeView->hideColumn(column);
+  m_projectTreeView->setContextMenuPolicy(Qt::CustomContextMenu);
+  projectLayout->addWidget(m_projectTreeView);
+  mainSplitter->addWidget(projectGroup);
+
+  // 右侧区域
+  QWidget *rightWidget = new QWidget();
+  QVBoxLayout *rightLayout = new QVBoxLayout(rightWidget);
+  mainSplitter->addWidget(rightWidget);
+
+  // 添加代码编辑器和输出选项卡的分割器
+  QSplitter *editorOutputSplitter = new QSplitter(Qt::Vertical);
+  rightLayout->addWidget(editorOutputSplitter);
+
+  // 创建代码编辑器 - 使用新的 CodeEditor 类替换原来的 QsciScintilla
+  m_codeEditor = new CodeEditor(this);
+  connect(m_codeEditor, &CodeEditor::fileOpened, this, [this](const QString &filePath) {
+    m_currentFilePath = filePath;
+    QFileInfo fi(filePath);
+    if (m_projectPath.isEmpty()) {
+      m_codeEditor->setProjectRootPath(fi.dir().absolutePath());
+    } else {
+      m_codeEditor->setProjectRootPath(m_projectPath);
+    }
+    statusBar()->showMessage(tr("Opened: %1").arg(fi.fileName()), 2500);
+    setWindowTitle("PhudonTools - " + fi.fileName());
+    updateMenuState();
+  });
+  editorOutputSplitter->addWidget(m_codeEditor);
+
+  // 目标选择
+  auto *targetControls = new QWidget(this);
+  targetControls->hide();
+  QHBoxLayout *targetLayout = new QHBoxLayout(targetControls);
+  targetLayout->addWidget(new QLabel("目标芯片:"));
+  m_targetComboBox = new QComboBox();
+  QStringList supportedChips = STM32ProfileManager::instance().supportedChips();
+  if (supportedChips.isEmpty()) {
+    supportedChips << "STM32F103C8" << "STM32F407VG" << "STM32F429ZI" << "STM32L476RG";
+  }
+  m_targetComboBox->addItems(supportedChips);
+  connect(m_targetComboBox, &QComboBox::currentTextChanged, this, [this](const QString &chip) {
+    if (m_debugController && !chip.isEmpty()) {
+      m_debugController->setTargetChip(chip);
+    }
+  });
+  targetLayout->addWidget(m_targetComboBox);
+  targetLayout->addStretch();
+
+  // 添加下载工具选择
+  targetLayout->addWidget(new QLabel("下载工具:"));
+  m_downloaderComboBox = new QComboBox();
+  m_downloaderComboBox->addItems({"STLINK", "Jlink", "CMSIS-DAP"});
+  targetLayout->addWidget(m_downloaderComboBox);
+
+
+
+  // 工具按钮
+  auto *legacyControls = new QWidget(this);
+  legacyControls->hide();
+  QHBoxLayout *toolLayout = new QHBoxLayout(legacyControls);
+  m_buildButton = new QPushButton("编译");
+  m_rebuildButton = new QPushButton("重建");
+  m_cleanButton = new QPushButton("清理");
+  m_flashButton = new QPushButton("烧录");
+  m_debugButton = new QPushButton("调试");
+  m_stopButton = new QPushButton("停止");
+  m_continueButton = new QPushButton("继续");
+  m_pauseButton = new QPushButton("暂停");
+  m_stepOverButton = new QPushButton("单步跳过");
+  m_stepIntoButton = new QPushButton("单步进入");
+  m_stepOutButton = new QPushButton("单步跳出");
+
+  toolLayout->addWidget(m_buildButton);
+  toolLayout->addWidget(m_rebuildButton);
+  toolLayout->addWidget(m_cleanButton);
+  toolLayout->addWidget(m_flashButton);
+  toolLayout->addWidget(m_debugButton);
+  toolLayout->addWidget(m_stopButton);
+  toolLayout->addWidget(m_continueButton);
+  toolLayout->addWidget(m_pauseButton);
+  toolLayout->addWidget(m_stepOverButton);
+  toolLayout->addWidget(m_stepIntoButton);
+  toolLayout->addWidget(m_stepOutButton);
+
+  m_stopButton->setEnabled(false);
+  m_continueButton->setEnabled(false);
+  m_stepOverButton->setEnabled(false);
+  m_stepIntoButton->setEnabled(false);
+  m_stepOutButton->setEnabled(false);
+
+
+
+  // 输出、调试与问题诊断选项卡
+  m_tabWidget = new QTabWidget();
+  m_outputConsole = new QTextEdit();
+  m_outputConsole->setReadOnly(true);
+  m_outputConsole->setFont(QFont("Consolas", 10));
+  m_debugConsole = new QTextEdit();
+  m_debugConsole->setReadOnly(true);
+  m_debugConsole->setFont(QFont("Consolas", 10));
+
+  // 创建问题诊断诊断表格部件
+  m_problemsTable = new QTableWidget();
+  m_problemsTable->setColumnCount(4);
+  m_problemsTable->setHorizontalHeaderLabels({"类型", "说明", "文件", "行号"});
+  m_problemsTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
+  m_problemsTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
+  m_problemsTable->horizontalHeader()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
+  m_problemsTable->horizontalHeader()->setSectionResizeMode(3, QHeaderView::ResizeToContents);
+  m_problemsTable->setSelectionBehavior(QAbstractItemView::SelectRows);
+  m_problemsTable->setSelectionMode(QAbstractItemView::SingleSelection);
+  m_problemsTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+  m_problemsTable->setAlternatingRowColors(true);
+
+  m_tabWidget->addTab(m_outputConsole, "编译输出");
+  m_tabWidget->addTab(m_debugConsole, "调试输出");
+  m_tabWidget->addTab(m_problemsTable, "问题诊断");
+  m_projectSearch = new ProjectSearchPanel(this);
+  m_projectSearch->setObjectName("projectSearchPanel");
+  m_tabWidget->addTab(m_projectSearch, tr("项目搜索"));
+  connect(m_codeEditor, &CodeEditor::projectSearchRequested, this, [this]() {
+    m_projectSearch->setProjectRoot(m_codeEditor->projectRootPath());
+    m_projectSearch->setCurrentBuffer(m_codeEditor->currentFilePath(), m_codeEditor->text());
+    m_tabWidget->setCurrentWidget(m_projectSearch);
+    m_projectSearch->focusSearch();
+  });
+  connect(m_projectSearch, &ProjectSearchPanel::sourceLocationActivated,
+          this, [this](const QString &file, int line, int column) {
+    openSourceLocation(file, line, column);
+  });
+  editorOutputSplitter->addWidget(m_tabWidget);
+
+  // 连接双击问题跳转到源代码所在行
+  connect(m_problemsTable, &QTableWidget::cellDoubleClicked, this, [this](int row, int col) {
+    Q_UNUSED(col);
+    QTableWidgetItem *fileItem = m_problemsTable->item(row, 2);
+    QTableWidgetItem *lineItem = m_problemsTable->item(row, 3);
+    if (fileItem && lineItem) {
+      QString filePath = fileItem->text();
+      int line = lineItem->text().toInt();
+      if (m_codeEditor) {
+        m_codeEditor->openFileAndGoTo(filePath, line);
+      }
+    }
+  });
+
+  // 设置分割器比例
+  editorOutputSplitter->setStretchFactor(0, 4);
+  editorOutputSplitter->setSizes({640, 180});
+  editorOutputSplitter->setStretchFactor(1, 1);
+
+  // 命令行
+  m_gdbCommandBar = new QWidget(this);
+  m_gdbCommandBar->setObjectName("gdbCommandBar");
+  m_gdbCommandBar->hide();
+  QHBoxLayout *commandLayout = new QHBoxLayout(m_gdbCommandBar);
+  commandLayout->addWidget(new QLabel("GDB命令:"));
+  m_commandLine = new QLineEdit();
+  m_commandLine->setEnabled(false);
+  m_commandLine->setPlaceholderText("输入原生GDB指令，按Enter执行...");
+  connect(m_commandLine, &QLineEdit::returnPressed, this, &MainWindow::executeGdbCommand);
+  commandLayout->addWidget(m_commandLine);
+  rightLayout->addWidget(m_gdbCommandBar);
+
+  // 连接信号和槽
+  connect(m_buildButton, &QPushButton::clicked, this,
+          &MainWindow::buildProject);
+  connect(m_rebuildButton, &QPushButton::clicked, this, &MainWindow::rebuildProject);
+  connect(m_pauseButton, &QPushButton::clicked, this, &MainWindow::pauseDebug);
+  connect(m_cleanButton, &QPushButton::clicked, this,
+          &MainWindow::cleanProject);
+  connect(m_flashButton, &QPushButton::clicked, this,
+          &MainWindow::flashProject);
+  connect(m_debugButton, &QPushButton::clicked, this, &MainWindow::startDebug);
+  connect(m_stopButton, &QPushButton::clicked, this, &MainWindow::cancelCurrentTask);
+  connect(m_continueButton, &QPushButton::clicked, this,
+          &MainWindow::continueDebug);
+  connect(m_stepOverButton, &QPushButton::clicked, this, &MainWindow::stepOver);
+  connect(m_stepIntoButton, &QPushButton::clicked, this, &MainWindow::stepInto);
+  connect(m_stepOutButton, &QPushButton::clicked, this, &MainWindow::stepOut);
+
+  // 连接项目树的双击信号，用于打开文件
+  connect(m_projectTreeView, &QTreeView::doubleClicked, this,
+          &MainWindow::openFile);
+
+  // 连接下载工具选择信号
+  connect(m_downloaderComboBox,
+          QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+          &MainWindow::downloaderChanged);
+
+  // 设置分割器比例
+  mainSplitter->setStretchFactor(0, 1);
+  mainSplitter->setStretchFactor(1, 5);
+  mainSplitter->setChildrenCollapsible(false);
+  mainSplitter->setSizes({240, 1100});
+
+  // 初始化状态栏
+  setupStatusBar();
+
+  // 创建并停靠调试控制面板
+  setupDockWidgets();
+}
+// void MainWindow::setupAutoCompletion()
+// {
+//     // 创建API对象
+//     m_apiCPP = new QsciAPIs(m_lexerCPP);
+
+//     // 添加C/C++关键字和STM32相关API
+//     QStringList keywords;
+//     // C/C++关键字
+//     keywords << "auto" << "break" << "case" << "char" << "const" <<
+//     "continue" << "default"
+//              << "do" << "double" << "else" << "enum" << "extern" << "float"
+//              << "for"
+//              << "goto" << "if" << "int" << "long" << "register" << "return"
+//              << "short"
+//              << "signed" << "sizeof" << "static" << "struct" << "switch" <<
+//              "typedef"
+//              << "union" << "unsigned" << "void" << "volatile" << "while";
+
+//     // STM32数据类型
+//     keywords << "uint8_t" << "uint16_t" << "uint32_t" << "int8_t" <<
+//     "int16_t" << "int32_t"
+//              << "GPIO_InitTypeDef" << "USART_InitTypeDef" <<
+//              "TIM_TimeBaseInitTypeDef";
+
+//     // STM32特定函数和宏
+//     keywords <<"GPIO_Init"<< "GPIO_SetBits"<< "GPIO_ResetBits"<<
+//     "GPIO_ReadInputDataBit"
+//              <<"TIM_TimeBaseInit"<< "TIM_Cmd"<<"TIM_ITConfig"<<
+//              "TIM_GetCounter"
+//              <<"USART_Init"<<"USART_Cmd"<< "USART_SendData"<<
+//              "USART_ReceiveData"
+//              <<"ADC_Init"<< "ADC_Cmd"<< "ADC_StartConversion"<<
+//              "ADC_GetConversionValue"
+//              <<"RCC_APB1PeriphClockCmd"<< "RCC_APB2PeriphClockCmd"<<
+//              "RCC_AHB1PeriphClockCmd"
+//              <<"NVIC_Init"<<"NVIC_EnableIRQ"<< "NVIC_DisableIRQ"
+//              <<"SysTick_Config"<< "HAL_Delay"<< "HAL_GPIO_WritePin"<<
+//              "HAL_GPIO_ReadPin";
+
+//     // STM32 HAL库函数
+//     keywords << "HAL_Init()" << "HAL_GPIO_Init()" << "HAL_GPIO_WritePin()" <<
+//     "HAL_GPIO_ReadPin()"
+//              << "HAL_Delay()" << "HAL_UART_Init()" << "HAL_UART_Transmit()"
+//              << "HAL_UART_Receive()"
+//              << "HAL_TIM_Base_Init()" << "HAL_TIM_Base_Start()" <<
+//              "HAL_TIM_Base_Stop()";
+
+//     // 添加到API
+//     for (const QString &keyword : keywords) {
+//         m_apiCPP->add(keyword);
+//     }
+
+//     // 准备API
+//     m_apiCPP->prepare();
+
+//     // 设置自动补全
+//     m_codeEditor2->setAutoCompletionThreshold(2); // 输入2个字符后显示补全
+//     m_codeEditor2->setAutoCompletionSource(QsciScintilla::AcsAPIs); //
+//     使用API源 m_codeEditor2->setAutoCompletionCaseSensitivity(false); //
+//     不区分大小写 m_codeEditor2->setAutoCompletionReplaceWord(true); //
+//     替换当前单词
+//     m_codeEditor2->setAutoCompletionUseSingle(QsciScintilla::AcusNever); //
+//     不自动选择唯一匹配项
+
+//     // 连接文本变更信号，以便在编辑时更新变量列表
+//     connect(m_codeEditor2, &QsciScintilla::textChanged, this,
+//     &MainWindow::updateVariableList);
+// }
+
+// // 添加新方法：解析当前文件中的变量定义并更新自动补全列表
+// void MainWindow::updateVariableList()
+// {
+//     // 获取当前文本
+//     QString text = m_codeEditor2->text();
+
+//     // 创建一个新的API对象（保留原来的关键字）
+//     QsciAPIs* newApi = new QsciAPIs(m_lexerCPP);
+
+//     // 复制原有API中的所有项目到新API
+//     for (int i = 0; i < m_apiCPP->apiEntryCount(); ++i) {
+//         newApi->add(m_apiCPP->apiEntry(i));
+//     }
+
+//     // 使用正则表达式查找变量定义
+//     QRegExp
+//     varRegex("\\b(int|char|float|double|uint8_t|uint16_t|uint32_t|int8_t|int16_t|int32_t|bool|void|unsigned|long|short|signed|struct|enum|union)\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\b");
+
+//     int pos = 0;
+//     QSet<QString> variables; // 使用集合避免重复
+
+//     while ((pos = varRegex.indexIn(text, pos)) != -1) {
+//         QString varName = varRegex.cap(2);
+//         variables.insert(varName);
+//         pos += varRegex.matchedLength();
+//     }
+
+//     // 查找函数参数
+//     QRegExp funcRegex("\\b([a-zA-Z_][a-zA-Z0-9_]*)\\s*\\(([^\\)]*)\\)");
+//     pos = 0;
+
+//     while ((pos = funcRegex.indexIn(text, pos)) != -1) {
+//         QString params = funcRegex.cap(2);
+//         QStringList paramList = params.split(',');
+
+//         for (const QString &param : paramList) {
+//             // 解析参数定义，例如 "int value" 或 "char* buffer"
+//             QRegExp
+//             paramRegex("\\b(\\w+)\\s+([\\*&]*)\\s*([a-zA-Z_][a-zA-Z0-9_]*)\\b");
+//             if (paramRegex.indexIn(param) != -1) {
+//                 QString varName = paramRegex.cap(3);
+//                 variables.insert(varName);
+//             }
+//         }
+
+//         pos += funcRegex.matchedLength();
+//     }
+
+//     // 查找for循环中的变量
+//     QRegExp
+//     forRegex("for\\s*\\(\\s*(?:int|char|float|double|uint8_t|uint16_t|uint32_t)\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*=");
+//     pos = 0;
+
+//     while ((pos = forRegex.indexIn(text, pos)) != -1) {
+//         QString varName = forRegex.cap(1);
+//         variables.insert(varName);
+//         pos += forRegex.matchedLength();
+//     }
+
+//     // 将找到的变量添加到API
+//     for (const QString &var : variables) {
+//         newApi->add(var);
+//     }
+
+//     // 准备新API
+//     newApi->prepare();
+
+//     // 替换旧的API
+//     if (m_apiCPP) {
+//         delete m_apiCPP;
+//     }
+//     m_apiCPP = newApi;
+
+//     // 设置新的API到词法分析器
+//     m_lexerCPP->setAPIs(m_apiCPP);
+// }
+
+// 添加新方法：解析当前文件中的变量定义并更新自动补全列表
+// void MainWindow::updateVariableList()
+// {
+//     // 获取当前文本
+//     QString text = m_codeEditor2->text();
+
+//     // 创建一个新的API对象
+//     QsciAPIs* newApi = new QsciAPIs(m_lexerCPP);
+
+//     // 添加C/C++关键字和STM32相关API (重新添加所有标准关键字)
+//     QStringList keywords;
+//     // C/C++关键字
+//     keywords << "auto" << "break" << "case" << "char" << "const" <<
+//     "continue" << "default"
+//              << "do" << "double" << "else" << "enum" << "extern" << "float"
+//              << "for"
+//              << "goto" << "if" << "int" << "long" << "register" << "return"
+//              << "short"
+//              << "signed" << "sizeof" << "static" << "struct" << "switch" <<
+//              "typedef"
+//              << "union" << "unsigned" << "void" << "volatile" << "while";
+
+//     // STM32数据类型
+//     keywords << "uint8_t" << "uint16_t" << "uint32_t" << "int8_t" <<
+//     "int16_t" << "int32_t"
+//              << "GPIO_InitTypeDef" << "USART_InitTypeDef" <<
+//              "TIM_TimeBaseInitTypeDef";
+
+//     // STM32特定函数和宏
+//     keywords <<"GPIO_Init"<< "GPIO_SetBits"<< "GPIO_ResetBits"<<
+//     "GPIO_ReadInputDataBit"
+//              <<"TIM_TimeBaseInit"<< "TIM_Cmd"<<"TIM_ITConfig"<<
+//              "TIM_GetCounter"
+//              <<"USART_Init"<<"USART_Cmd"<< "USART_SendData"<<
+//              "USART_ReceiveData"
+//              <<"ADC_Init"<< "ADC_Cmd"<< "ADC_StartConversion"<<
+//              "ADC_GetConversionValue"
+//              <<"RCC_APB1PeriphClockCmd"<< "RCC_APB2PeriphClockCmd"<<
+//              "RCC_AHB1PeriphClockCmd"
+//              <<"NVIC_Init"<<"NVIC_EnableIRQ"<< "NVIC_DisableIRQ"
+//              <<"SysTick_Config"<< "HAL_Delay"<< "HAL_GPIO_WritePin"<<
+//              "HAL_GPIO_ReadPin";
+
+//     // STM32 HAL库函数
+//     keywords << "HAL_Init()" << "HAL_GPIO_Init()" << "HAL_GPIO_WritePin()" <<
+//     "HAL_GPIO_ReadPin()"
+//              << "HAL_Delay()" << "HAL_UART_Init()" << "HAL_UART_Transmit()"
+//              << "HAL_UART_Receive()"
+//              << "HAL_TIM_Base_Init()" << "HAL_TIM_Base_Start()" <<
+//              "HAL_TIM_Base_Stop()";
+
+//     // 添加关键字到新API
+//     for (const QString &keyword : keywords) {
+//         newApi->add(keyword);
+//     }
+
+//     // 使用正则表达式查找变量定义
+//     QRegExp
+//     varRegex("\\b(int|char|float|double|uint8_t|uint16_t|uint32_t|int8_t|int16_t|int32_t|bool|void|unsigned|long|short|signed|struct|enum|union)\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\b");
+
+//     int pos = 0;
+//     QSet<QString> variables; // 使用集合避免重复
+
+//     while ((pos = varRegex.indexIn(text, pos)) != -1) {
+//         QString varName = varRegex.cap(2);
+//         variables.insert(varName);
+//         pos += varRegex.matchedLength();
+//     }
+
+//     // 查找函数参数
+//     QRegExp funcRegex("\\b([a-zA-Z_][a-zA-Z0-9_]*)\\s*\\(([^\\)]*)\\)");
+//     pos = 0;
+
+//     while ((pos = funcRegex.indexIn(text, pos)) != -1) {
+//         QString params = funcRegex.cap(2);
+//         QStringList paramList = params.split(',');
+
+//         for (const QString &param : paramList) {
+//             // 解析参数定义，例如 "int value" 或 "char* buffer"
+//             QRegExp
+//             paramRegex("\\b(\\w+)\\s+([\\*&]*)\\s*([a-zA-Z_][a-zA-Z0-9_]*)\\b");
+//             if (paramRegex.indexIn(param) != -1) {
+//                 QString varName = paramRegex.cap(3);
+//                 variables.insert(varName);
+//             }
+//         }
+
+//         pos += funcRegex.matchedLength();
+//     }
+
+//     // 查找for循环中的变量
+//     QRegExp
+//     forRegex("for\\s*\\(\\s*(?:int|char|float|double|uint8_t|uint16_t|uint32_t)\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*=");
+//     pos = 0;
+
+//     while ((pos = forRegex.indexIn(text, pos)) != -1) {
+//         QString varName = forRegex.cap(1);
+//         variables.insert(varName);
+//         pos += forRegex.matchedLength();
+//     }
+
+//     // 将找到的变量添加到API
+//     for (const QString &var : variables) {
+//         newApi->add(var);
+//     }
+
+//     // 准备新API
+//     newApi->prepare();
+
+//     // 替换旧的API
+//     if (m_apiCPP) {
+//         delete m_apiCPP;
+//     }
+//     m_apiCPP = newApi;
+
+//     // 设置新的API到词法分析器
+//     m_lexerCPP->setAPIs(m_apiCPP);
+// }
+
+// 添加新方法：解析当前文件中的变量定义并更新自动补全列表
+
+// 主要改进包括：
+
+//     1. 改进了变量定义的正则表达式，使其能够更准确地匹配各种变量定义形式
+//     2. 添加了对结构体成员变量的识别
+//     3. 增加了调试输出，帮助跟踪变量识别过程
+//     4. 添加了对关键字的过滤，避免将关键字误识别为变量
+//     5. 将自动补全阈值从2改为1，使补全更加灵敏
+//     6. 设置自动补全源为 AcsAll ，确保同时使用API和当前文档中的标识符
+//     7. 启用了自动补全填充功能
+// void MainWindow::updateVariableList()
+// {
+//     // 获取当前文本
+//     QString text = m_codeEditor2->text();
+
+//     // 创建一个新的API对象
+//     QsciAPIs* newApi = new QsciAPIs(m_lexerCPP);
+
+//     // 添加C/C++关键字和STM32相关API (重新添加所有标准关键字)
+//     QStringList keywords;
+//     // C/C++关键字
+//     keywords << "auto" << "break" << "case" << "char" << "const" <<
+//     "continue" << "default"
+//              << "do" << "double" << "else" << "enum" << "extern" << "float"
+//              << "for"
+//              << "goto" << "if" << "int" << "long" << "register" << "return"
+//              << "short"
+//              << "signed" << "sizeof" << "static" << "struct" << "switch" <<
+//              "typedef"
+//              << "union" << "unsigned" << "void" << "volatile" << "while";
+
+//     // STM32数据类型
+//     keywords << "uint8_t" << "uint16_t" << "uint32_t" << "int8_t" <<
+//     "int16_t" << "int32_t"
+//              << "GPIO_InitTypeDef" << "USART_InitTypeDef" <<
+//              "TIM_TimeBaseInitTypeDef";
+
+//     // STM32特定函数和宏
+//     keywords <<"GPIO_Init"<< "GPIO_SetBits"<< "GPIO_ResetBits"<<
+//     "GPIO_ReadInputDataBit"
+//              <<"TIM_TimeBaseInit"<< "TIM_Cmd"<<"TIM_ITConfig"<<
+//              "TIM_GetCounter"
+//              <<"USART_Init"<<"USART_Cmd"<< "USART_SendData"<<
+//              "USART_ReceiveData"
+//              <<"ADC_Init"<< "ADC_Cmd"<< "ADC_StartConversion"<<
+//              "ADC_GetConversionValue"
+//              <<"RCC_APB1PeriphClockCmd"<< "RCC_APB2PeriphClockCmd"<<
+//              "RCC_AHB1PeriphClockCmd"
+//              <<"NVIC_Init"<<"NVIC_EnableIRQ"<< "NVIC_DisableIRQ"
+//              <<"SysTick_Config"<< "HAL_Delay"<< "HAL_GPIO_WritePin"<<
+//              "HAL_GPIO_ReadPin";
+
+//     // STM32 HAL库函数
+//     keywords << "HAL_Init()" << "HAL_GPIO_Init()" << "HAL_GPIO_WritePin()" <<
+//     "HAL_GPIO_ReadPin()"
+//              << "HAL_Delay()" << "HAL_UART_Init()" << "HAL_UART_Transmit()"
+//              << "HAL_UART_Receive()"
+//              << "HAL_TIM_Base_Init()" << "HAL_TIM_Base_Start()" <<
+//              "HAL_TIM_Base_Stop()";
+
+//     // 添加关键字到新API
+//     for (const QString &keyword : keywords) {
+//         newApi->add(keyword);
+//     }
+
+//     // 使用正则表达式查找变量定义 - 改进的正则表达式
+//     QRegExp
+//     varRegex("\\b(int|char|float|double|uint8_t|uint16_t|uint32_t|int8_t|int16_t|int32_t|bool|void|unsigned|long|short|signed|struct|enum|union)\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*[;\\[=,)]");
+
+//     int pos = 0;
+//     QSet<QString> variables; // 使用集合避免重复
+
+//     while ((pos = varRegex.indexIn(text, pos)) != -1) {
+//         QString varName = varRegex.cap(2);
+//         if (!varName.isEmpty() && !keywords.contains(varName)) {
+//             variables.insert(varName);
+//             qDebug() << "找到变量: " << varName;
+//         }
+//         pos += varRegex.matchedLength();
+//     }
+
+//     // 查找函数参数 - 改进的正则表达式
+//     QRegExp funcRegex("\\b([a-zA-Z_][a-zA-Z0-9_]*)\\s*\\(([^\\)]*)\\)");
+//     pos = 0;
+
+//     while ((pos = funcRegex.indexIn(text, pos)) != -1) {
+//         QString params = funcRegex.cap(2);
+//         QStringList paramList = params.split(',');
+
+//         for (const QString &param : paramList) {
+//             // 解析参数定义，例如 "int value" 或 "char* buffer"
+//             QRegExp
+//             paramRegex("\\b(\\w+)\\s+([\\*&]*)\\s*([a-zA-Z_][a-zA-Z0-9_]*)\\b");
+//             if (paramRegex.indexIn(param) != -1) {
+//                 QString varName = paramRegex.cap(3);
+//                 if (!varName.isEmpty() && !keywords.contains(varName)) {
+//                     variables.insert(varName);
+//                     qDebug() << "找到参数: " << varName;
+//                 }
+//             }
+//         }
+
+//         pos += funcRegex.matchedLength();
+//     }
+
+//     // 查找for循环中的变量 - 改进的正则表达式
+//     QRegExp
+//     forRegex("for\\s*\\(\\s*(?:int|char|float|double|uint8_t|uint16_t|uint32_t)\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*=");
+//     pos = 0;
+
+//     while ((pos = forRegex.indexIn(text, pos)) != -1) {
+//         QString varName = forRegex.cap(1);
+//         if (!varName.isEmpty() && !keywords.contains(varName)) {
+//             variables.insert(varName);
+//             qDebug() << "找到for循环变量: " << varName;
+//         }
+//         pos += forRegex.matchedLength();
+//     }
+
+//     // 查找结构体和类定义中的成员变量
+//     QRegExp
+//     structRegex("struct\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*\\{([^}]*)\\}"); pos =
+//     0;
+
+//     while ((pos = structRegex.indexIn(text, pos)) != -1) {
+//         QString structBody = structRegex.cap(2);
+//         QRegExp
+//         memberRegex("\\b(\\w+)\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*[;\\[]"); int
+//         memberPos = 0;
+
+//         while ((memberPos = memberRegex.indexIn(structBody, memberPos)) !=
+//         -1) {
+//             QString memberName = memberRegex.cap(2);
+//             if (!memberName.isEmpty() && !keywords.contains(memberName)) {
+//                 variables.insert(memberName);
+//                 qDebug() << "找到结构体成员: " << memberName;
+//             }
+//             memberPos += memberRegex.matchedLength();
+//         }
+
+//         pos += structRegex.matchedLength();
+//     }
+
+//     // 将找到的变量添加到API
+//     for (const QString &var : variables) {
+//         newApi->add(var);
+//     }
+
+//     // 准备新API
+//     newApi->prepare();
+
+//     // 替换旧的API
+//     if (m_apiCPP) {
+//         delete m_apiCPP;
+//     }
+//     m_apiCPP = newApi;
+
+//     // 设置新的API到词法分析器
+//     m_lexerCPP->setAPIs(m_apiCPP);
+
+//     // 设置自动补全模式，确保变量补全生效
+//     m_codeEditor2->setAutoCompletionSource(QsciScintilla::AcsAll); //
+//     使用所有可用的补全源
+// }
+
+// void MainWindow::setupAutoCompletion()
+// {
+//     // 创建API对象
+//     m_apiCPP = new QsciAPIs(m_lexerCPP);
+
+//     // 添加C/C++关键字和STM32相关API
+//     QStringList keywords;
+//     // C/C++关键字
+//     keywords << "auto" << "break" << "case" << "char" << "const" <<
+//     "continue" << "default"
+//              << "do" << "double" << "else" << "enum" << "extern" << "float"
+//              << "for"
+//              << "goto" << "if" << "int" << "long" << "register" << "return"
+//              << "short"
+//              << "signed" << "sizeof" << "static" << "struct" << "switch" <<
+//              "typedef"
+//              << "union" << "unsigned" << "void" << "volatile" << "while";
+
+//     // STM32数据类型
+//     keywords << "uint8_t" << "uint16_t" << "uint32_t" << "int8_t" <<
+//     "int16_t" << "int32_t"
+//              << "GPIO_InitTypeDef" << "USART_InitTypeDef" <<
+//              "TIM_TimeBaseInitTypeDef";
+
+//     // STM32特定函数和宏
+//     keywords <<"GPIO_Init"<< "GPIO_SetBits"<< "GPIO_ResetBits"<<
+//     "GPIO_ReadInputDataBit"
+//              <<"TIM_TimeBaseInit"<< "TIM_Cmd"<<"TIM_ITConfig"<<
+//              "TIM_GetCounter"
+//              <<"USART_Init"<<"USART_Cmd"<< "USART_SendData"<<
+//              "USART_ReceiveData"
+//              <<"ADC_Init"<< "ADC_Cmd"<< "ADC_StartConversion"<<
+//              "ADC_GetConversionValue"
+//              <<"RCC_APB1PeriphClockCmd"<< "RCC_APB2PeriphClockCmd"<<
+//              "RCC_AHB1PeriphClockCmd"
+//              <<"NVIC_Init"<<"NVIC_EnableIRQ"<< "NVIC_DisableIRQ"
+//              <<"SysTick_Config"<< "HAL_Delay"<< "HAL_GPIO_WritePin"<<
+//              "HAL_GPIO_ReadPin";
+
+//     // STM32 HAL库函数
+//     keywords << "HAL_Init()" << "HAL_GPIO_Init()" << "HAL_GPIO_WritePin()" <<
+//     "HAL_GPIO_ReadPin()"
+//              << "HAL_Delay()" << "HAL_UART_Init()" << "HAL_UART_Transmit()"
+//              << "HAL_UART_Receive()"
+//              << "HAL_TIM_Base_Init()" << "HAL_TIM_Base_Start()" <<
+//              "HAL_TIM_Base_Stop()";
+
+//     // 添加到API
+//     for (const QString &keyword : keywords) {
+//         m_apiCPP->add(keyword);
+//     }
+
+//     // 准备API
+//     m_apiCPP->prepare();
+
+//     // 设置自动补全
+//     m_codeEditor2->setAutoCompletionThreshold(1); // 输入1个字符后显示补全
+//     m_codeEditor2->setAutoCompletionSource(QsciScintilla::AcsAll); //
+//     使用所有可用的补全源
+//     m_codeEditor2->setAutoCompletionCaseSensitivity(false); // 不区分大小写
+//     m_codeEditor2->setAutoCompletionReplaceWord(true); // 替换当前单词
+//     m_codeEditor2->setAutoCompletionUseSingle(QsciScintilla::AcusNever); //
+//     不自动选择唯一匹配项
+
+//     // 启用自动补全弹出
+//     m_codeEditor2->setAutoCompletionFillupsEnabled(true);
+
+//     // 连接文本变更信号，以便在编辑时更新变量列表
+//     connect(m_codeEditor2, &QsciScintilla::textChanged, this,
+//     &MainWindow::updateVariableList);
+// }
+
+void MainWindow::setupStatusBar() {
+  // Create status labels
+  m_statusProjectLabel = new QLabel("项目: 无");
+  m_statusTargetLabel = new QLabel("目标: " + m_targetComboBox->currentText());
+  m_statusBuildLabel = new QLabel("状态: 就绪");
+
+  // Add permanent widgets to status bar
+  statusBar()->addPermanentWidget(m_statusProjectLabel);
+  statusBar()->addPermanentWidget(m_statusTargetLabel);
+  statusBar()->addPermanentWidget(m_statusBuildLabel);
+
+  // Set initial status message
+  statusBar()->showMessage("就绪");
+
+  // Update status info
+  updateStatusInfo();
+}
+
+void MainWindow::setupDockWidgets() {
+  m_variablesDock = new VariablesDock(this);
+  m_registersDock = new RegistersDock(this);
+  m_callStackDock = new CallStackDock(this);
+  m_breakpointsDock = new BreakpointsDock(this);
+
+  addDockWidget(Qt::RightDockWidgetArea, m_variablesDock);
+  addDockWidget(Qt::RightDockWidgetArea, m_registersDock);
+  tabifyDockWidget(m_variablesDock, m_registersDock);
+
+  addDockWidget(Qt::RightDockWidgetArea, m_callStackDock);
+  addDockWidget(Qt::RightDockWidgetArea, m_breakpointsDock);
+  tabifyDockWidget(m_callStackDock, m_breakpointsDock);
+
+  m_variablesDock->hide();
+  m_registersDock->hide();
+  m_callStackDock->hide();
+  m_breakpointsDock->hide();
+
+  connect(m_breakpointsDock, &BreakpointsDock::breakpointJumpRequested, this, [this](const QString &file, int line) {
+    if (m_codeEditor) {
+      m_codeEditor->openFileAndGoTo(file, line);
+    }
+  });
+  connect(m_breakpointsDock, &BreakpointsDock::clearAllBreakpointsRequested, this, [this]() {
+    if (m_debugController) {
+      m_debugController->setAllBreakpoints(QMap<QString, QSet<int>>());
+    }
+    if (m_codeEditor) {
+      m_codeEditor->clearAllBreakpoints();
+    }
+  });
+  connect(m_callStackDock, &CallStackDock::frameSelected, this, [this](int level, const QString &file, int line) {
+    Q_UNUSED(level);
+    if (m_codeEditor && !file.isEmpty() && line > 0) {
+      m_codeEditor->openFileAndGoTo(file, line);
+      m_codeEditor->setExecutionLine(file, line);
+    }
+  });
+  connect(m_variablesDock, &VariablesDock::watchRequested, this, [this](const QString &expr) {
+    if (m_debugController) {
+      m_debugController->evaluateWatchExpression(expr);
+    }
+  });
+}
+
+void MainWindow::clearProblemsTable() {
+  if (!m_problemsTable) return;
+  m_problemsTable->setRowCount(0);
+  int tabIdx = m_tabWidget->indexOf(m_problemsTable);
+  if (tabIdx >= 0) {
+    m_tabWidget->setTabText(tabIdx, "问题诊断");
+  }
+}
+
+void MainWindow::addProblemDiagnostic(const BuildDiagnostic &diag) {
+  if (!m_problemsTable) return;
+  int row = m_problemsTable->rowCount();
+  m_problemsTable->insertRow(row);
+
+  QString typeStr = (diag.severity == DiagnosticSeverity::Error || diag.severity == DiagnosticSeverity::Fatal) ? "错误" :
+                    (diag.severity == DiagnosticSeverity::Warning) ? "警告" : "信息";
+  QColor typeColor = (diag.severity == DiagnosticSeverity::Error || diag.severity == DiagnosticSeverity::Fatal) ? QColor("#EF4444") :
+                     (diag.severity == DiagnosticSeverity::Warning) ? QColor("#F59E0B") : QColor("#3B82F6");
+
+  QTableWidgetItem *itemType = new QTableWidgetItem(typeStr);
+  itemType->setForeground(typeColor);
+  itemType->setTextAlignment(Qt::AlignCenter);
+
+  QTableWidgetItem *itemMsg = new QTableWidgetItem(diag.message);
+  QTableWidgetItem *itemFile = new QTableWidgetItem(diag.filePath);
+  QTableWidgetItem *itemLine = new QTableWidgetItem(QString::number(diag.line));
+  itemLine->setTextAlignment(Qt::AlignCenter);
+
+  m_problemsTable->setItem(row, 0, itemType);
+  m_problemsTable->setItem(row, 1, itemMsg);
+  m_problemsTable->setItem(row, 2, itemFile);
+  m_problemsTable->setItem(row, 3, itemLine);
+
+  int tabIdx = m_tabWidget->indexOf(m_problemsTable);
+  if (tabIdx >= 0) {
+    m_tabWidget->setTabText(tabIdx, QString("问题诊断 (%1)").arg(m_problemsTable->rowCount()));
+  }
+}
+
+void MainWindow::updateProblemsTable(const QList<BuildDiagnostic> &diagnostics) {
+  clearProblemsTable();
+  for (const auto &diag : diagnostics) {
+    addProblemDiagnostic(diag);
+  }
+}
+
+void MainWindow::updateDebugUiState(bool isDebugging, bool isRunning) {
+  const STM32SessionState state = m_debugController ? m_debugController->state()
+                                                   : STM32SessionState::Idle;
+  const bool idle = state == STM32SessionState::Idle;
+  const bool stopped = state == STM32SessionState::Stopped;
+  const bool hasProject = (m_debugController && m_debugController->hasProject()) || !m_projectPath.isEmpty() || !m_currentFilePath.isEmpty();
+  isDebugging = state == STM32SessionState::StartingDebug || stopped ||
+                state == STM32SessionState::Running;
+  isRunning = state == STM32SessionState::Running;
+  m_isDebugging = isDebugging;
+
+  if (m_buildAction) m_buildAction->setEnabled(hasProject && idle);
+  if (m_rebuildAction) m_rebuildAction->setEnabled(hasProject && idle);
+  if (m_cleanAction) m_cleanAction->setEnabled(hasProject && idle);
+  if (m_flashAction) m_flashAction->setEnabled(hasProject && idle);
+  if (m_debugAction) m_debugAction->setEnabled(hasProject && idle);
+  if (m_cancelTaskAction) m_cancelTaskAction->setEnabled(!idle);
+  if (m_pauseDebugAction) m_pauseDebugAction->setEnabled(isRunning);
+  if (m_configureToolchainAction) m_configureToolchainAction->setEnabled(idle);
+  if (m_configureChipAction) m_configureChipAction->setEnabled(idle);
+  if (m_configureFlashAction) m_configureFlashAction->setEnabled(idle && hasProject);
+  if (m_cancelTaskAction) m_cancelTaskAction->setVisible(!idle);
+  for (auto action : {m_continueAction, m_pauseDebugAction, m_stepOverAction,
+                      m_stepIntoAction, m_stepOutAction}) action->setVisible(isDebugging);
+  if (m_gdbCommandBar) m_gdbCommandBar->setVisible(isDebugging);
+  if (m_targetComboBox) m_targetComboBox->setEnabled(idle);
+  if (m_downloaderComboBox) m_downloaderComboBox->setEnabled(idle);
+
+  if (m_stopDebugAction) m_stopDebugAction->setEnabled(isDebugging);
+  if (m_continueAction) m_continueAction->setEnabled(stopped);
+  if (m_stepOverAction) m_stepOverAction->setEnabled(stopped);
+  if (m_stepIntoAction) m_stepIntoAction->setEnabled(stopped);
+  if (m_stepOutAction) m_stepOutAction->setEnabled(stopped);
+
+  if (m_buildButton) m_buildButton->setEnabled(hasProject && idle);
+  if (m_rebuildButton) m_rebuildButton->setEnabled(hasProject && idle);
+  if (m_cleanButton) m_cleanButton->setEnabled(hasProject && idle);
+  if (m_flashButton) m_flashButton->setEnabled(hasProject && idle);
+  if (m_debugButton) m_debugButton->setEnabled(hasProject && idle);
+  if (m_pauseButton) m_pauseButton->setEnabled(isRunning);
+
+  if (m_stopButton) m_stopButton->setEnabled(!idle);
+  if (m_continueButton) m_continueButton->setEnabled(stopped);
+  if (m_stepOverButton) m_stepOverButton->setEnabled(stopped);
+  if (m_stepIntoButton) m_stepIntoButton->setEnabled(stopped);
+  if (m_stepOutButton) m_stepOutButton->setEnabled(stopped);
+
+  if (m_commandLine) m_commandLine->setEnabled(stopped || isRunning);
+}
+
+void MainWindow::syncBreakpointsToEditor() {
+  if (!m_codeEditor || !m_debugController) return;
+  const auto allBps = m_debugController->allBreakpoints();
+  if (allBps.isEmpty()) m_codeEditor->clearAllBreakpoints();
+  if (m_breakpointsDock) {
+    m_breakpointsDock->updateBreakpoints(allBps);
+  }
+  for (auto it = allBps.begin(); it != allBps.end(); ++it) {
+    m_codeEditor->setBreakpoints(it.key(), it.value());
+  }
+}
+
+// // 添加打开文件的方法
+// void MainWindow::openFile(const QModelIndex &index)
+// {
+//     // 获取文件路径
+//     QString filePath = m_fileSystemModel->filePath(index);
+//     QFileInfo fileInfo(filePath);
+
+//     // 只处理文件，不处理目录
+//     if (fileInfo.isFile())
+//     {
+//         // 打开文件
+//         QFile file(filePath);
+//         if (file.open(QIODevice::ReadOnly | QIODevice::Text))
+//         {
+//             QTextStream in(&file);
+//             QString content = in.readAll();
+//             file.close();
+
+//             // 在代码编辑器中显示文件内容
+//             m_codeEditor2->setText(content);
+
+//             // 更新当前文件路径
+//             m_currentFilePath = filePath;
+
+//             // 更新状态栏显示当前文件名
+//             statusBar()->showMessage(tr("Opened:
+//             %1").arg(fileInfo.fileName()));
+//         }
+//         else
+//         {
+//             QMessageBox::warning(this, tr("Error"), tr("Cannot open file:
+//             %1").arg(filePath));
+//         }
+//     }
+// }
+
+// void MainWindow::openFile(const QModelIndex &index)
+// {
+//     // 获取文件路径
+//     QString filePath = m_fileSystemModel->filePath(index);
+//     QFileInfo fileInfo(filePath);
+
+//     // 只处理文件，不处理目录
+//     if (fileInfo.isFile())
+//     {
+//         // 打开文件
+//         QFile file(filePath);
+//         if (file.open(QIODevice::ReadOnly | QIODevice::Text))
+//         {
+//             QTextStream in(&file);
+//             QString content = in.readAll();
+//             file.close();
+
+//             // 在代码编辑器中显示文件内容
+//             m_codeEditor2->setText(content);
+
+//             // 更新当前文件路径
+//             m_currentFilePath = filePath;
+
+//             // 更新状态栏显示当前文件名
+//             statusBar()->showMessage(tr("Opened:
+//             %1").arg(fileInfo.fileName()));
+
+//             // 解析文件中的变量并更新自动补全
+//             updateVariableList();
+//         }
+//         else
+//         {
+//             QMessageBox::warning(this, tr("Error"), tr("Cannot open file:
+//             %1").arg(filePath));
+//         }
+//     }
+// }
+
+bool MainWindow::openSourceLocation(QString filePath, int line, int column) {
+  auto showError = [this](const QString &message) {
+    auto *error = new QMessageBox(QMessageBox::Warning, tr("无法打开源文件"),
+                                 message, QMessageBox::Close, this);
+    error->setAttribute(Qt::WA_DeleteOnClose);
+    error->setWindowModality(Qt::NonModal);
+    error->show();
+  };
+  const QFileInfo target(filePath);
+  if (!target.isFile() || !target.isReadable() || !m_codeEditor ||
+      !m_codeEditor->currentEditor()) {
+    showError(tr("无法读取源文件: %1").arg(filePath));
+    return false;
+  }
+  const QString canonicalPath = target.canonicalFilePath();
+  auto *editor = m_codeEditor->currentEditor();
+  if (QFileInfo(m_currentFilePath).canonicalFilePath() != canonicalPath) {
+    if (editor->isModified()) {
+      const auto answer = QMessageBox::warning(
+          this, tr("未保存的更改"), tr("当前文件有未保存的更改。是否保存后打开源文件？"),
+          QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel,
+          QMessageBox::Cancel);
+      if (answer != QMessageBox::Save && answer != QMessageBox::Discard) {
+        return false;
+      }
+      if (answer == QMessageBox::Save) {
+        QString savePath = m_currentFilePath;
+        if (savePath.isEmpty()) {
+          savePath = QFileDialog::getSaveFileName(this, tr("保存文件"), m_projectPath);
+        }
+        if (savePath.isEmpty()) {
+          return false;
+        }
+        if (!m_codeEditor->saveFile(savePath)) {
+          showError(tr("无法保存文件: %1").arg(savePath));
+          return false;
+        }
+        m_currentFilePath = savePath;
+        editor->setModified(false);
+      }
+    }
+    if (!m_codeEditor->openFile(canonicalPath)) {
+      showError(tr("无法读取源文件: %1").arg(filePath));
+      return false;
+    }
+    editor->setModified(false);
+  }
+  const int row = qBound(0, line - 1, qMax(0, editor->lines() - 1));
+  const int lineLength = int(editor->text(row).remove('\r').remove('\n').size());
+  const int col = qBound(0, column - 1, lineLength);
+  editor->setCursorPosition(row, col);
+  editor->ensureLineVisible(row);
+  editor->setFocus();
+  show();
+  raise();
+  activateWindow();
+  return true;
+}
+
+void MainWindow::openFile(const QModelIndex &index) {
+  // 获取文件路径
+  QString filePath = m_fileSystemModel->filePath(index);
+  QFileInfo fileInfo(filePath);
+
+  // 只处理文件，不处理目录
+  if (fileInfo.isFile()) {
+    // 使用 CodeEditor 的 openFile 方法打开文件
+    if (m_codeEditor->openFile(filePath)) {
+      // 更新当前文件路径
+      m_currentFilePath = filePath;
+
+      if (!m_projectPath.isEmpty()) {
+        m_codeEditor->setProjectRootPath(m_projectPath);
+      } else {
+        m_codeEditor->setProjectRootPath(fileInfo.dir().absolutePath());
+      }
+
+      // 更新状态栏显示当前文件名
+      statusBar()->showMessage(tr("Opened: %1").arg(fileInfo.fileName()));
+    } else {
+      QMessageBox::warning(this, tr("Error"),
+                           tr("Cannot open file: %1").arg(filePath));
+    }
+  }
+}
+
+// void MainWindow::applyTheme(const QString &themeName)
+// {
+//     // 保存当前主题名称
+//     m_currentTheme = themeName;
+
+//     // 根据主题名称设置对应的选中状态和加载样式表
+//     if (themeName == "dark") {
+//         m_darkThemeAction->setChecked(true);
+//         loadStyleSheet("dark");
+
+//         // 更新状态栏颜色
+//         statusBar()->setStyleSheet("background-color: #007ACC; color:
+//         #FFFFFF;");
+
+//         // 更新代码编辑器样式
+//         if (m_editor && m_lexerCPP) {
+//             // 设置编辑器背景色和默认文本颜色
+//             m_editor->setColor(QColor("#DCDCDC"));
+//             m_editor->setPaper(QColor("#1E1E1E"));
+
+//             // 设置行号边距颜色
+//             m_editor->setMarginsBackgroundColor(QColor("#1E1E1E"));
+//             m_editor->setMarginsForegroundColor(QColor("#858585"));
+
+//             // 设置折叠边距颜色
+//             m_editor->setFoldMarginColors(QColor("#1E1E1E"),
+//             QColor("#1E1E1E"));
+
+//             // 设置选中文本的颜色
+//             m_editor->setSelectionBackgroundColor(QColor("#264F78"));
+//             m_editor->setSelectionForegroundColor(QColor("#FFFFFF"));
+
+//             // 设置语法高亮颜色
+//             m_lexerCPP->setColor(QColor("#569CD6"), QsciLexerCPP::Keyword);
+//             // 关键字 m_lexerCPP->setColor(QColor("#CE9178"),
+//             QsciLexerCPP::DoubleQuotedString); // 字符串
+//             m_lexerCPP->setColor(QColor("#CE9178"),
+//             QsciLexerCPP::SingleQuotedString); // 字符
+//             m_lexerCPP->setColor(QColor("#B5CEA8"), QsciLexerCPP::Number); //
+//             数字 m_lexerCPP->setColor(QColor("#608B4E"),
+//             QsciLexerCPP::Comment); // 注释
+//             m_lexerCPP->setColor(QColor("#608B4E"),
+//             QsciLexerCPP::CommentLine); // 行注释
+//             m_lexerCPP->setColor(QColor("#C586C0"),
+//             QsciLexerCPP::PreProcessor); // 预处理器
+//             m_lexerCPP->setColor(QColor("#4EC9B0"),
+//             QsciLexerCPP::GlobalClass); // 类名
+
+//             // 设置背景色
+//             m_lexerCPP->setPaper(QColor("#1E1E1E"));
+
+//             // 设置默认字体
+//             QFont font("Consolas", 10);
+//             m_lexerCPP->setFont(font);
+//         }
+//     } else if (themeName == "light") {
+//         // ... existing code ...
+//         m_lightThemeAction->setChecked(true);
+//         loadStyleSheet("light");
+//         statusBar()->setStyleSheet("background-color: #EEEEEE; color:
+//         #546E7A;");
+//         // 更新代码编辑器样式 (浅色主题)
+//         // if (m_codeEditor && m_lexerCPP) {
+//         //     // 设置编辑器背景色和默认文本颜色
+//         //     m_codeEditor->setColor(QColor("#000000"));
+//         //     m_codeEditor->setPaper(QColor("#FFFFFF"));
+
+//         //     // 设置行号边距颜色
+//         //     m_codeEditor->setMarginsBackgroundColor(QColor("#F0F0F0"));
+//         //     m_codeEditor->setMarginsForegroundColor(QColor("#2B91AF"));
+
+//         //     // 设置折叠边距颜色
+//         //     m_codeEditor->setFoldMarginColors(QColor("#F0F0F0"),
+//         QColor("#F0F0F0"));
+
+//         //     // 设置选中文本的颜色
+//         //     m_codeEditor->setSelectionBackgroundColor(QColor("#ADD6FF"));
+//         //     m_codeEditor->setSelectionForegroundColor(QColor("#000000"));
+
+//         //     // 设置语法高亮颜色
+//         //     m_lexerCPP->setColor(QColor("#0000FF"),
+//         QsciLexerCPP::Keyword); // 关键字
+//         //     m_lexerCPP->setColor(QColor("#A31515"),
+//         QsciLexerCPP::DoubleQuotedString); // 字符串
+//         //     m_lexerCPP->setColor(QColor("#A31515"),
+//         QsciLexerCPP::SingleQuotedString); // 字符
+//         //     m_lexerCPP->setColor(QColor("#098658"), QsciLexerCPP::Number);
+//         // 数字
+//         //     m_lexerCPP->setColor(QColor("#008000"),
+//         QsciLexerCPP::Comment); // 注释
+//         //     m_lexerCPP->setColor(QColor("#008000"),
+//         QsciLexerCPP::CommentLine); // 行注释
+//         //     m_lexerCPP->setColor(QColor("#800000"),
+//         QsciLexerCPP::PreProcessor); // 预处理器
+//         //     m_lexerCPP->setColor(QColor("#267F99"),
+//         QsciLexerCPP::GlobalClass); // 类名
+
+//         //     // 设置背景色
+//         //     m_lexerCPP->setPaper(QColor("#FFFFFF"));
+
+//         //     // 设置默认字体
+//         //     QFont font("Consolas", 10);
+//         //     m_lexerCPP->setFont(font);
+//         // }
+//     } else if (themeName == "onedark") {
+//         m_oneDarkThemeAction->setChecked(true);
+//         loadStyleSheet("onedark");
+
+//         // 更新状态栏颜色
+//         statusBar()->setStyleSheet("background-color: #282C34; color:
+//         #ABB2BF;");
+//     } else if (themeName == "githubdark") {
+//         m_githubDarkThemeAction->setChecked(true);
+//         loadStyleSheet("githubdark");
+
+//         // 更新状态栏颜色
+//         statusBar()->setStyleSheet("background-color: #161B22; color:
+//         #C9D1D9;");
+//     } else if (themeName == "xcodedark") {
+//         m_xcodeDarkThemeAction->setChecked(true);
+//         loadStyleSheet("xcodedark");
+
+//         // 更新状态栏颜色
+//         statusBar()->setStyleSheet("background-color: #2D2D32; color:
+//         #FFFFFF;");
+//     } else if (themeName == "vue") {
+//         m_vueThemeAction->setChecked(true);
+//         loadStyleSheet("vue");
+
+//         // 更新状态栏颜色
+//         statusBar()->setStyleSheet("background-color: #1A1A1A; color:
+//         #EEFFFF;");
+//     } else if (themeName == "monokaipro") {
+//         m_monokaiProThemeAction->setChecked(true);
+//         loadStyleSheet("monokaipro");
+
+//         // 更新状态栏颜色
+//         statusBar()->setStyleSheet("background-color: #221F22; color:
+//         #FCFCFA;");
+//     } else if (themeName == "dracula") {
+//         m_draculaThemeAction->setChecked(true);
+//         loadStyleSheet("dracula");
+
+//         // 更新状态栏颜色
+//         statusBar()->setStyleSheet("background-color: #1E1F29; color:
+//         #F8F8F2;");
+//     } else if (themeName == "nord") {
+//         m_nordThemeAction->setChecked(true);
+//         loadStyleSheet("nord");
+
+//         // 更新状态栏颜色
+//         statusBar()->setStyleSheet("background-color: #2E3440; color:
+//         #D8DEE9;");
+//     } else if (themeName == "noctis") {
+//         m_noctisThemeAction->setChecked(true);
+//         loadStyleSheet("noctis");
+
+//         // 更新状态栏颜色
+//         statusBar()->setStyleSheet("background-color: #1B2932; color:
+//         #C2CCDB;");
+//     } else if (themeName == "nightowl") {
+//         m_nightOwlThemeAction->setChecked(true);
+//         loadStyleSheet("nightowl");
+
+//         // 更新状态栏颜色
+//         statusBar()->setStyleSheet("background-color: #011627; color:
+//         #D6DEEB;");
+//     } else if (themeName == "solarizedlight") {
+//         m_solarizedLightThemeAction->setChecked(true);
+//         loadStyleSheet("solarizedlight");
+
+//         // 更新状态栏颜色
+//         statusBar()->setStyleSheet("background-color: #EEE8D5; color:
+//         #657B83;");
+//     } else if (themeName == "materiallight") {
+//         m_materialLightThemeAction->setChecked(true);
+//         loadStyleSheet("materiallight");
+
+//         // 更新状态栏颜色
+//         statusBar()->setStyleSheet("background-color: #EEEEEE; color:
+//         #546E7A;");
+//     } else if (themeName == "atommaterial") {
+//         m_atomMaterialThemeAction->setChecked(true);
+//         loadStyleSheet("atommaterial");
+
+//         // 更新状态栏颜色
+//         statusBar()->setStyleSheet("background-color: #263238; color:
+//         #EEFFFF;");
+//     } else if (themeName == "atomone") {
+//         m_atomOneThemeAction->setChecked(true);
+//         loadStyleSheet("atomone");
+
+//         // 更新状态栏颜色
+//         statusBar()->setStyleSheet("background-color: #2D2D2D; color:
+//         #F8F8F2;");
+//     } else if (themeName == "gerry") {
+//         m_gerryThemeAction->setChecked(true);
+//         loadStyleSheet("gerry");
+
+//         // 更新状态栏颜色
+//         statusBar()->setStyleSheet("background-color: #1E1E1E; color:
+//         #D4D4D4;");
+//     } else if (themeName == "materialicons") {
+//         m_materialIconsThemeAction->setChecked(true);
+//         loadStyleSheet("materialicons");
+
+//         // 更新状态栏颜色
+//         statusBar()->setStyleSheet("background-color: #212121; color:
+//         #FFFFFF;");
+//     }
+
+//     // 保存主题设置到配置文件
+//     m_settings->setValue("theme", m_currentTheme);
+
+//     // 更新状态信息
+//     if (m_statusProjectLabel && m_statusTargetLabel && m_statusBuildLabel) {
+//         updateStatusInfo();
+//     }
+// }
+
+void MainWindow::applyTheme(const QString &themeName) {
+  // 保存当前主题名称并同步到全局主题内核
+  m_currentTheme = themeName;
+  IdeTheme::setCurrentThemeId(themeName);
+  if (qApp) {
+    qApp->setProperty("currentTheme", themeName);
+  }
+  setProperty("currentTheme", themeName);
+  if (AppManager::instance()->getCurrentTheme() != themeName) {
+    AppManager::instance()->setCurrentTheme(themeName);
+  }
+
+  // 根据主题名称设置对应的选中状态
+  if (m_darkThemeAction) m_darkThemeAction->setChecked(themeName == "dark");
+  if (m_lightThemeAction) m_lightThemeAction->setChecked(themeName == "light");
+  if (m_oneDarkThemeAction) m_oneDarkThemeAction->setChecked(themeName == "onedark");
+  if (m_githubDarkThemeAction) m_githubDarkThemeAction->setChecked(themeName == "githubdark");
+  if (m_xcodeDarkThemeAction) m_xcodeDarkThemeAction->setChecked(themeName == "xcodedark");
+  if (m_vueThemeAction) m_vueThemeAction->setChecked(themeName == "vue");
+  if (m_monokaiProThemeAction) m_monokaiProThemeAction->setChecked(themeName == "monokaipro");
+  if (m_draculaThemeAction) m_draculaThemeAction->setChecked(themeName == "dracula");
+  if (m_nordThemeAction) m_nordThemeAction->setChecked(themeName == "nord");
+  if (m_noctisThemeAction) m_noctisThemeAction->setChecked(themeName == "noctis");
+  if (m_nightOwlThemeAction) m_nightOwlThemeAction->setChecked(themeName == "nightowl");
+  if (m_solarizedLightThemeAction) m_solarizedLightThemeAction->setChecked(themeName == "solarizedlight");
+  if (m_materialLightThemeAction) m_materialLightThemeAction->setChecked(themeName == "materiallight");
+  if (m_atomMaterialThemeAction) m_atomMaterialThemeAction->setChecked(themeName == "atommaterial");
+  if (m_atomOneThemeAction) m_atomOneThemeAction->setChecked(themeName == "atomone");
+  if (m_gerryThemeAction) m_gerryThemeAction->setChecked(themeName == "gerry");
+  if (m_materialIconsThemeAction) m_materialIconsThemeAction->setChecked(themeName == "materialicons");
+
+  // 1. 加载并应用全套一体化 QSS 样式表 (覆盖菜单、工具栏、项目树、控制台、滚动条、分割器、CAN工具与对话框)
+  loadStyleSheet(themeName);
+
+  // 2. 深度同步代码编辑器及其语法高亮、大纲列表、彩虹括号
+  if (m_codeEditor) {
+    m_codeEditor->applyTheme(themeName);
+  }
+
+  // 3. 广播给串口调试助手 (若已打开)
+  if (m_serialPlot) {
+    m_serialPlot->applyGlobalTheme(themeName);
+  }
+
+  // 4. 保存主题设置到配置文件
+  if (m_settings) {
+    m_settings->setValue("theme", m_currentTheme);
+  }
+
+  // 5. 更新状态信息
+  if (m_statusProjectLabel && m_statusTargetLabel && m_statusBuildLabel) {
+    updateStatusInfo();
+  }
+}
+
+void MainWindow::loadStyleSheet(const QString &sheetName) {
+  // 生成并应用 IdeTheme 深度融合样式表
+  QString styleSheet = IdeTheme::generateStyleSheet(sheetName);
+  qApp->setStyleSheet(styleSheet);
+  qDebug() << "已应用" << sheetName << "全局一体化主题样式表";
+}
+
+QString MainWindow::getRecentProjectDirectory() const {
+  // 1. 如果当前打开的项目路径有效且在磁盘存在，优先定位到该目录
+  if (!m_projectPath.isEmpty() && QDir(m_projectPath).exists()) {
+    return m_projectPath;
+  }
+
+  // 2. 如果当前有打开编辑的文件，定位到该文件所在目录
+  if (!m_currentFilePath.isEmpty()) {
+    QFileInfo fi(m_currentFilePath);
+    if (fi.exists() && fi.dir().exists()) {
+      return fi.dir().absolutePath();
+    }
+  }
+
+  // 3. 从持久化配置中获取最近打开过的项目/文件夹
+  if (m_settings) {
+    QString lastDir;
+    m_settings->beginGroup("MainWindow");
+    lastDir = m_settings->value("lastOpenDir").toString();
+    if (lastDir.isEmpty()) {
+      lastDir = m_settings->value("projectPath").toString();
+    }
+    m_settings->endGroup();
+
+    if (lastDir.isEmpty()) {
+      lastDir = m_settings->value("lastOpenDir").toString();
+    }
+    if (lastDir.isEmpty()) {
+      lastDir = m_settings->value("projectPath").toString();
+    }
+    if (lastDir.isEmpty()) {
+      lastDir = m_settings->value("STM32Toolchain/lastProject").toString();
+    }
+
+    if (!lastDir.isEmpty() && QDir(lastDir).exists()) {
+      return lastDir;
+    }
+  }
+
+  // 4. 回退到用户主目录
+  return QDir::homePath();
+}
+
+void MainWindow::openProject() {
+  const QString initialDir = getRecentProjectDirectory();
+  QString dir = QFileDialog::getExistingDirectory(
+      this, "选择项目目录", initialDir,
+      QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
+  if (!dir.isEmpty()) {
+    dir = QDir::toNativeSeparators(QDir::cleanPath(dir));
+    m_projectPath = dir;
+
+    // 立即持久化记录最近打开的文件夹，保证下次打开项目立即定位在此处
+    if (m_settings) {
+      m_settings->beginGroup("MainWindow");
+      m_settings->setValue("projectPath", dir);
+      m_settings->setValue("lastOpenDir", dir);
+      m_settings->endGroup();
+      m_settings->setValue("lastOpenDir", dir);
+      m_settings->setValue("projectPath", dir);
+      m_settings->setValue("STM32Toolchain/lastProject", dir);
+      m_settings->sync();
+    }
+
+    updateProjectTree(dir);
+    if (m_codeEditor) {
+      m_codeEditor->setProjectRootPath(dir);
+    }
+    if (m_debugController) {
+      m_debugController->setProjectPath(dir);
+    }
+    updateStatusInfo();
+    statusBar()->showMessage("已打开项目: " + dir, 3000);
+    updateMenuState();
+  }
+}
+
+void MainWindow::updateProjectTree(const QString &path) {
+  if (m_projectSearch) m_projectSearch->setProjectRoot(path);
+  m_fileSystemModel->setRootPath(path);
+  m_projectTreeView->setRootIndex(m_fileSystemModel->index(path));
+}
+
+// void MainWindow::newProject()
+// {
+//     // 实现新建项目功能
+//     QString dir = QFileDialog::getExistingDirectory(this, "选择项目目录",
+//                                                   QDir::homePath(),
+//                                                   QFileDialog::ShowDirsOnly |
+//                                                   QFileDialog::DontResolveSymlinks);
+//     if (dir.isEmpty()) {
+//         return;
+//     }
+
+//     QString projectName = QInputDialog::getText(this, "项目名称",
+//     "请输入项目名称:"); if (projectName.isEmpty()) {
+//         return;
+//     }
+
+//     QString projectPath = dir + "/" + projectName;
+//     QDir projectDir(projectPath);
+
+//     if (projectDir.exists()) {
+//         QMessageBox::warning(this, "错误", "项目目录已存在!");
+//         return;
+//     }
+
+//     // 创建项目目录结构
+//     projectDir.mkpath(".");
+//     projectDir.mkpath("src");
+//     projectDir.mkpath("inc");
+//     projectDir.mkpath("build");
+
+//     // 创建基本的Makefile
+//     QFile makeFile(projectPath + "/Makefile");
+//     if (makeFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
+//         QTextStream out(&makeFile);
+//         out << "# 自动生成的Makefile\n";
+//         out << "TARGET = " << projectName << "\n";
+//         out << "SRCS = $(wildcard src/*.c)\n";
+//         out << "OBJS = $(SRCS:.c=.o)\n";
+//         out << "CC = arm-none-eabi-gcc\n";
+//         out << "CFLAGS = -mcpu=cortex-m3 -mthumb -Wall -g\n";
+//         out << "LDFLAGS = -Wl,-Map=$(TARGET).map -Wl,--gc-sections\n\n";
+//         out << "all: $(TARGET).elf\n\n";
+//         out << "$(TARGET).elf: $(OBJS)\n";
+//         out << "\t$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^\n\n";
+//         out << "%.o: %.c\n";
+//         out << "\t$(CC) $(CFLAGS) -c -o $@ $<\n\n";
+//         out << "clean:\n";
+//         out << "\trm -f $(OBJS) $(TARGET).elf $(TARGET).map\n\n";
+//         out << "flash:\n";
+//         out << "\topenocd -f board/stm32f103c8_blue_pill.cfg -c \"program
+//         $(TARGET).elf verify reset exit\"\n\n"; out << ".PHONY: all clean
+//         flash\n"; makeFile.close();
+//     }
+
+//     // 创建示例源文件
+//     QFile srcFile(projectPath + "/src/main.c");
+//     if (srcFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
+//         QTextStream out(&srcFile);
+//         out << "#include <stdint.h>\n\n";
+//         out << "int main(void) {\n";
+//         out << "    // 初始化代码\n";
+//         out << "    while(1) {\n";
+//         out << "        // 主循环\n";
+//         out << "    }\n";
+//         out << "    return 0;\n";
+//         out << "}\n";
+//         srcFile.close();
+//     }
+
+//     m_projectPath = projectPath;
+//     updateProjectTree(projectPath);
+//     statusBar()->showMessage("已创建新项目: " + projectPath);
+// }
+
+void MainWindow::newProject() {
+  const QString initialDir = getRecentProjectDirectory();
+  // 选择项目目录
+  QString projectDir = QFileDialog::getExistingDirectory(
+      this, "选择STM32项目目录", initialDir, QFileDialog::ShowDirsOnly);
+  if (projectDir.isEmpty()) {
+    return;
+  }
+
+  projectDir = QDir::toNativeSeparators(QDir::cleanPath(projectDir));
+  m_projectPath = projectDir;
+
+  if (m_settings) {
+    m_settings->beginGroup("MainWindow");
+    m_settings->setValue("projectPath", projectDir);
+    m_settings->setValue("lastOpenDir", projectDir);
+    m_settings->endGroup();
+    m_settings->setValue("lastOpenDir", projectDir);
+    m_settings->setValue("projectPath", projectDir);
+    m_settings->setValue("STM32Toolchain/lastProject", projectDir);
+    m_settings->sync();
+  }
+  if (m_debugController) {
+    m_debugController->setProjectPath(projectDir);
+  }
+  if (m_codeEditor) {
+    m_codeEditor->setProjectRootPath(projectDir);
+  }
+
+  // 更新项目树
+  updateProjectTree(projectDir);
+
+  // 更新状态栏
+  updateStatusInfo();
+  updateMenuState();
+
+  statusBar()->showMessage("已选择STM32项目: " + projectDir, 3000);
+}
+
+void MainWindow::saveProject() {
+  // 保存项目配置
+  if (m_projectPath.isEmpty()) {
+    QMessageBox::warning(this, "错误", "没有打开的项目!");
+    return;
+  }
+
+  // 这里可以保存项目特定的配置
+  statusBar()->showMessage("项目已保存");
+}
+
+// void MainWindow::buildProject()
+// {
+//     if (m_projectPath.isEmpty()) {
+//         QMessageBox::warning(this, "错误", "没有打开的项目!");
+//         return;
+//     }
+
+//     m_outputConsole->clear();
+//     m_outputConsole->append("开始编译项目...\n");
+
+//     // 设置工作目录
+//     m_process->setWorkingDirectory(m_projectPath);
+
+//     // 执行make命令
+//     QStringList arguments;
+//     executeCommand("make", arguments);
+
+//     statusBar()->showMessage("正在编译...");
+// }
+
+// 实现构建相关的槽函数
+void MainWindow::buildProject() {
+  saveAllFiles();
+  if (m_outputConsole) {
+    m_outputConsole->clear();
+  }
+  if (m_tabWidget && m_outputConsole) {
+    m_tabWidget->setCurrentWidget(m_outputConsole);
+  }
+
+  QString projectPath = m_projectPath;
+  if (projectPath.isEmpty() && !m_currentFilePath.isEmpty()) {
+    projectPath = QFileInfo(m_currentFilePath).absolutePath();
+    m_projectPath = projectPath;
+  }
+
+  if (projectPath.isEmpty()) {
+    if (m_outputConsole) {
+      m_outputConsole->append("错误: 请先打开或创建STM32项目工程");
+    }
+    QMessageBox::information(this, tr("提示"), tr("请先打开或创建一个STM32项目工程，再执行编译构建。"));
+    return;
+  }
+
+  if (!m_debugController) {
+    if (m_outputConsole) m_outputConsole->append("错误: 调试总控中心未就绪");
+    return;
+  }
+
+  m_debugController->setProjectPath(projectPath);
+  if (m_debugController->targetChip().isEmpty() && m_targetComboBox) {
+    m_debugController->setTargetChip(m_targetComboBox->currentText());
+  }
+  if (m_debugController->probeName().isEmpty() && m_downloaderComboBox) {
+    m_debugController->setProbeName(m_downloaderComboBox->currentText());
+  }
+
+  try {
+    if (!m_debugController->buildProject()) {
+      if (m_outputConsole) {
+        m_outputConsole->append("错误: 无法启动构建进程，请检查当前芯片配置与工具链状态。");
+      }
+    }
+  } catch (const std::exception &e) {
+    if (m_outputConsole) m_outputConsole->append(QString("构建发生异常: %1").arg(e.what()));
+  } catch (...) {
+    if (m_outputConsole) m_outputConsole->append("构建发生未知异常");
+  }
+}
+
+void MainWindow::cleanProject() {
+  if (m_outputConsole) {
+    m_outputConsole->clear();
+  }
+  if (m_tabWidget && m_outputConsole) {
+    m_tabWidget->setCurrentWidget(m_outputConsole);
+  }
+
+  QString projectPath = m_projectPath;
+  if (projectPath.isEmpty() && !m_currentFilePath.isEmpty()) {
+    projectPath = QFileInfo(m_currentFilePath).absolutePath();
+    m_projectPath = projectPath;
+  }
+
+  if (projectPath.isEmpty()) {
+    if (m_outputConsole) {
+      m_outputConsole->append("错误: 请先打开或创建项目");
+    }
+    QMessageBox::information(this, tr("提示"), tr("请先打开或创建项目工程，再执行清理。"));
+    return;
+  }
+
+  if (!m_debugController) return;
+  m_debugController->setProjectPath(projectPath);
+  try {
+    m_debugController->cleanProject();
+  } catch (...) {
+    if (m_outputConsole) m_outputConsole->append("清理发生未知异常");
+  }
+}
+
+void MainWindow::rebuildProject() {
+  saveAllFiles();
+  if (m_outputConsole) {
+    m_outputConsole->clear();
+  }
+  if (m_tabWidget && m_outputConsole) {
+    m_tabWidget->setCurrentWidget(m_outputConsole);
+  }
+
+  QString projectPath = m_projectPath;
+  if (projectPath.isEmpty() && !m_currentFilePath.isEmpty()) {
+    projectPath = QFileInfo(m_currentFilePath).absolutePath();
+    m_projectPath = projectPath;
+  }
+
+  if (projectPath.isEmpty()) {
+    if (m_outputConsole) {
+      m_outputConsole->append(tr("错误: 请先打开或创建项目"));
+    }
+    QMessageBox::information(this, tr("提示"), tr("请先打开或创建项目工程，再执行重新构建。"));
+    return;
+  }
+
+  if (!m_debugController) return;
+  m_debugController->setProjectPath(projectPath);
+  if (m_debugController->targetChip().isEmpty() && m_targetComboBox) {
+    m_debugController->setTargetChip(m_targetComboBox->currentText());
+  }
+  if (m_debugController->probeName().isEmpty() && m_downloaderComboBox) {
+    m_debugController->setProbeName(m_downloaderComboBox->currentText());
+  }
+
+  try {
+    if (!m_debugController->rebuildProject()) {
+      if (m_outputConsole) {
+        m_outputConsole->append(tr("错误: 无法启动重建，请检查工具链与当前任务状态"));
+      }
+    }
+  } catch (...) {
+    if (m_outputConsole) m_outputConsole->append("重建发生未知异常");
+  }
+}
+
+void MainWindow::cancelCurrentTask() {
+  m_debugController->cancelCurrentTask();
+}
+
+void MainWindow::pauseDebug() {
+  m_debugController->pauseDebug();
+}
+
+void MainWindow::appendBuildOutput(const QString &output) {
+  if (m_outputConsole) {
+    m_outputConsole->append(output);
+  }
+}
+
+void MainWindow::onBuildFinished(bool success) {
+  if (m_outputConsole) {
+    m_outputConsole->append(success ? "\n>>> 构建成功完成 <<<" : "\n>>> 构建失败 <<<");
+  }
+  statusBar()->showMessage(success ? "构建成功" : "构建失败", 3000);
+}
+
+void MainWindow::flashProject() {
+  saveAllFiles();
+  m_outputConsole->clear();
+  m_tabWidget->setCurrentWidget(m_outputConsole);
+
+  QString projectPath = m_projectPath;
+  if (projectPath.isEmpty() && !m_currentFilePath.isEmpty()) {
+    projectPath = QFileInfo(m_currentFilePath).absolutePath();
+    m_projectPath = projectPath;
+  }
+
+  if (projectPath.isEmpty()) {
+    QMessageBox::warning(this, "烧录失败", "请先打开或创建项目!");
+    return;
+  }
+
+  m_debugController->setProjectPath(projectPath);
+  m_debugController->setTargetChip(m_targetComboBox->currentText());
+  m_debugController->setProbeName(m_downloaderComboBox->currentText());
+
+  if (!m_debugController->flashProject()) {
+    QMessageBox::warning(this, "烧录失败", "无法启动烧录进程，请检查固件是否已编译生成。");
+  }
+}
+
+void MainWindow::startDebug() {
+  if (m_isDebugging) {
+    continueDebug();
+    return;
+  }
+
+  QString projectPath = m_projectPath;
+  if (projectPath.isEmpty() && !m_currentFilePath.isEmpty()) {
+    projectPath = QFileInfo(m_currentFilePath).absolutePath();
+    m_projectPath = projectPath;
+  }
+
+  if (projectPath.isEmpty()) {
+    QMessageBox::warning(this, "错误", "没有打开的项目!");
+    return;
+  }
+
+  m_debugConsole->clear();
+  m_tabWidget->setCurrentWidget(m_debugConsole);
+
+  m_debugController->setProjectPath(projectPath);
+  m_debugController->setTargetChip(m_targetComboBox->currentText());
+  m_debugController->setProbeName(m_downloaderComboBox->currentText());
+
+  if (!m_debugController->startDebug()) {
+    QMessageBox::warning(this, "调试失败", "无法启动调试，请确保工程已成功构建生成ELF文件，并且探针与GDB工具链配置正确。");
+  }
+}
+
+void MainWindow::stopDebug() {
+  if (m_debugController) {
+    m_debugController->stopDebug();
+  }
+}
+
+void MainWindow::continueDebug() {
+  if (m_debugController) {
+    m_debugController->continueDebug();
+  }
+}
+
+void MainWindow::stepOver() {
+  if (m_debugController) {
+    m_debugController->stepOver();
+  }
+}
+
+void MainWindow::stepInto() {
+  if (m_debugController) {
+    m_debugController->stepInto();
+  }
+}
+
+void MainWindow::stepOut() {
+  if (m_debugController) {
+    m_debugController->stepOut();
+  }
+}
+
+void MainWindow::setBreakpoint() {
+  if (m_codeEditor) {
+    m_codeEditor->toggleBreakpointAtCursor();
+  }
+}
+
+void MainWindow::configureToolchain() {
+  if (m_debugController->state() != STM32SessionState::Idle) return;
+  ToolchainConfigDialog dialog(this, m_settings, m_currentTheme.isEmpty() ? IdeTheme::currentThemeId() : m_currentTheme);
+  dialog.setObjectName("toolchainConfigurationDialog");
+  dialog.setPaths(m_debugController->toolchainPaths());
+  dialog.setChipSelectionVisible(false);
+  dialog.applyTheme(m_currentTheme.isEmpty() ? IdeTheme::currentThemeId() : m_currentTheme);
+  if (dialog.exec() != QDialog::Accepted) return;
+  const ToolchainPaths paths = dialog.getPaths();
+  m_debugController->setToolchainPaths(paths);
+  m_gccPath = paths.gccPath;
+  m_openocdPath = paths.openocdPath;
+  m_outputConsole->append(tr("工具链配置已更新，可在配置窗口后台扫描并查看环境自检报告。"));
+  statusBar()->showMessage(tr("工具链配置已应用"), 3000);
+}
+
+void MainWindow::configureChip() {
+  if (m_debugController->state() != STM32SessionState::Idle) return;
+  TargetChipDialog dialog(this, m_settings, m_debugController->targetChip(), m_currentTheme.isEmpty() ? IdeTheme::currentThemeId() : m_currentTheme);
+  dialog.setObjectName("chipConfigurationDialog");
+  dialog.applyTheme(m_currentTheme.isEmpty() ? IdeTheme::currentThemeId() : m_currentTheme);
+  if (dialog.exec() != QDialog::Accepted) return;
+  m_debugController->setTargetChip(dialog.getSelectedChip());
+  updateStatusInfo();
+}
+
+void MainWindow::configureFlash() {
+  if (m_debugController->state() != STM32SessionState::Idle) return;
+  if (!m_debugController->hasProject()) {
+    statusBar()->showMessage(tr("请先打开项目，再配置该项目的烧录参数。"), 5000);
+    return;
+  }
+  FlashConfigDialog dialog(this, m_settings, m_debugController->currentProfile(), m_currentTheme.isEmpty() ? IdeTheme::currentThemeId() : m_currentTheme);
+  dialog.setObjectName("flashConfigurationDialog");
+  dialog.setOptions(m_debugController->flashOptions());
+  dialog.applyTheme(m_currentTheme.isEmpty() ? IdeTheme::currentThemeId() : m_currentTheme);
+  if (dialog.exec() != QDialog::Accepted) return;
+  m_debugController->setFlashOptions(dialog.getOptions());
+  updateStatusInfo();
+}
+
+// 实现configureToolchain方法
+// void MainWindow::configureToolchain()
+// {
+//     ToolchainDialog dialog(this);
+
+//     if (dialog.exec() == QDialog::Accepted) {
+//         // Get the new configuration using getter methods
+//         m_gccPath = dialog.getGccPath();
+//         m_openocdPath = dialog.getOpenocdPath();
+//         m_openocdConfig = dialog.getOpenocdConfig();
+
+//         // Save configuration
+//         m_settings->setValue("toolchain/gcc", m_gccPath);
+//         m_settings->setValue("toolchain/openocd", m_openocdPath);
+//         m_settings->setValue("toolchain/openocd_config", m_openocdConfig);
+
+//         // Update status bar
+//         updateStatusInfo();
+//     }
+// }
+
+void MainWindow::executeCommand(const QString &command,
+                                const QStringList &arguments) {
+  if (m_process->state() == QProcess::Running) {
+    m_process->kill();
+    m_process->waitForFinished(1000);
+  }
+
+  m_process->start(command, arguments);
+}
+
+void MainWindow::processOutput() {
+  QByteArray output = m_process->readAllStandardOutput();
+  if (m_isDebugging) {
+    m_debugConsole->append(QString::fromUtf8(output));
+  } else {
+    m_outputConsole->append(QString::fromUtf8(output));
+  }
+}
+
+void MainWindow::processError() {
+  QByteArray error = m_process->readAllStandardError();
+  if (m_isDebugging) {
+    m_debugConsole->append(QString::fromUtf8(error));
+  } else {
+    m_outputConsole->append(QString::fromUtf8(error));
+  }
+}
+
+void MainWindow::processFinished(int exitCode,
+                                 QProcess::ExitStatus exitStatus) {
+  if (exitStatus == QProcess::CrashExit) {
+    if (m_isDebugging) {
+      m_debugConsole->append("进程崩溃!\n");
+    } else {
+      m_outputConsole->append("进程崩溃!\n");
+    }
+  } else {
+    if (m_isDebugging) {
+      m_debugConsole->append(QString("进程完成，退出代码: %1\n").arg(exitCode));
+    } else {
+      m_outputConsole->append(
+          QString("进程完成，退出代码: %1\n").arg(exitCode));
+    }
+  }
+
+  statusBar()->showMessage("命令执行完成");
+}
+
+void MainWindow::updateStatusInfo() {
+  if (m_configurationSummary && m_debugController) {
+    m_configurationSummary->setText(m_debugController->targetChip() + " · " + m_debugController->probeName());
+    m_configurationSummary->setToolTip(tr("使用芯片配置和烧录配置修改当前工程目标"));
+  }
+  // 更新状态栏信息
+  if (m_statusProjectLabel) {
+    QString projectName =
+        m_projectPath.isEmpty() ? "无" : QFileInfo(m_projectPath).fileName();
+    m_statusProjectLabel->setText("项目: " + projectName);
+  }
+
+  if (m_statusTargetLabel) {
+    QString targetName = m_targetComboBox->currentText();
+    QString downloaderName = m_downloaderComboBox->currentText();
+    m_statusTargetLabel->setText(
+        QString("目标: %1 | 下载工具: %2").arg(targetName).arg(downloaderName));
+  }
+
+  if (m_statusBuildLabel) {
+    QString buildStatus = m_isDebugging ? "调试中" : "就绪";
+    m_statusBuildLabel->setText("状态: " + buildStatus);
+  }
+}
+
+// void MainWindow::toggleFullScreen()
+// {
+//     // 切换全屏/窗口模式
+//     if (isFullScreen()) {
+//         showNormal();
+//     } else {
+//         showFullScreen();
+//     }
+// }
+
+void MainWindow::toggleFullScreen() {
+  // 切换全屏/窗口模式
+  if (isFullScreen()) {
+    showNormal();
+    m_fullScreenAction->setText("全屏模式");
+    m_fullScreenAction->setChecked(false);
+    statusBar()->showMessage("已退出全屏模式", 2000);
+  } else {
+    showFullScreen();
+    m_fullScreenAction->setText("退出全屏");
+    m_fullScreenAction->setChecked(true);
+    statusBar()->showMessage("已进入全屏模式", 2000);
+  }
+}
+
+void MainWindow::changeTheme(int themeIndex) {
+  // 根据索引切换主题
+  switch (themeIndex) {
+  case 0: // 深色主题
+    applyTheme("dark");
+    break;
+  case 1: // 浅色主题
+    applyTheme("light");
+    break;
+  default:
+    applyTheme("dark"); // 默认使用深色主题
+    break;
+  }
+}
+
+void MainWindow::showAboutDialog() {
+  AboutUpdateDialog dlg(this);
+  dlg.exec();
+}
+
+void MainWindow::setDarkTheme() {
+  // Switch to dark theme
+  applyTheme("dark");
+}
+
+void MainWindow::setLightTheme() {
+  // Switch to light theme
+  applyTheme("light");
+}
+
+void MainWindow::setOneDarkTheme() {
+  // Switch to One Dark theme
+  applyTheme("onedark");
+}
+
+void MainWindow::setAtomMaterialTheme() {
+  // 切换到Atom Material主题
+  applyTheme("atommaterial");
+}
+
+void MainWindow::setAtomOneTheme() {
+  // 切换到Atom One主题
+  applyTheme("atomone");
+}
+
+void MainWindow::setGerryTheme() {
+  // 切换到Gerry主题
+  applyTheme("gerry");
+}
+
+void MainWindow::setMaterialIconsTheme() {
+  // 切换到Material Icons主题
+  applyTheme("materialicons");
+}
+
+// 新增的主题切换方法
+void MainWindow::setGithubDarkTheme() { applyTheme("githubdark"); }
+
+void MainWindow::setXcodeDarkTheme() { applyTheme("xcodedark"); }
+
+void MainWindow::setVueTheme() { applyTheme("vue"); }
+
+void MainWindow::setMonokaiProTheme() { applyTheme("monokaipro"); }
+
+void MainWindow::setDraculaTheme() { applyTheme("dracula"); }
+
+void MainWindow::setNordTheme() { applyTheme("nord"); }
+
+void MainWindow::setNoctisTheme() { applyTheme("noctis"); }
+
+void MainWindow::setNightOwlTheme() { applyTheme("nightowl"); }
+
+void MainWindow::setSolarizedLightTheme() { applyTheme("solarizedlight"); }
+
+void MainWindow::setMaterialLightTheme() { applyTheme("materiallight"); }
+
+void MainWindow::downloaderChanged(int index) {
+  // 根据索引更新当前下载工具
+  m_currentDownloader = m_downloaderComboBox->itemText(index);
+
+  if (m_debugController) {
+    m_debugController->setProbeName(m_currentDownloader);
+  }
+
+  // 更新状态栏信息
+  updateStatusInfo();
+
+  // 输出日志
+  m_outputConsole->append(
+      QString("已选择下载工具: %1").arg(m_currentDownloader));
+}
+
+// // 在MainWindow类中添加保存文件的方法
+// void MainWindow::saveCurrentFile()
+// {
+//     // 获取当前打开的文件路径
+//     QString currentFilePath = statusBar()->currentMessage();
+//     if (currentFilePath.startsWith("已打开文件: ")) {
+//         currentFilePath = currentFilePath.mid(7); // 去掉前缀
+
+//         QFile file(currentFilePath);
+//         if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+//             QTextStream out(&file);
+//             out << m_codeEditor2->toPlainText();
+//             file.close();
+
+//             statusBar()->showMessage("已保存文件: " + currentFilePath);
+//         } else {
+//             QMessageBox::warning(this, "错误", "无法保存文件: " +
+//             currentFilePath);
+//         }
+//     } else {
+//         // 如果没有当前文件，则执行另存为
+//         saveFileAs();
+//     }
+// }
+
+// 修改saveCurrentFile方法以使用新的编辑器
+void MainWindow::saveCurrentFile() {
+  QString filePath = m_currentFilePath;
+  if (filePath.isEmpty()) {
+    QString msg = statusBar()->currentMessage();
+    if (msg.startsWith("已打开文件: ")) {
+      filePath = msg.mid(7).trimmed();
+    }
+  }
+  if (filePath.isEmpty()) {
+    saveFileAs();
+    return;
+  }
+  if (m_codeEditor) {
+    if (m_codeEditor->saveFile(filePath)) {
+      m_currentFilePath = filePath;
+      statusBar()->showMessage(tr("已保存文件: ") + filePath, 3000);
+    } else {
+      QMessageBox::warning(this, tr("错误"), tr("无法保存文件: ") + filePath);
+    }
+  }
+}
+
+// void MainWindow::saveFileAs()
+// {
+//     QString filePath = QFileDialog::getSaveFileName(this, "保存文件",
+//                                                   m_projectPath,
+//                                                   "C/C++源文件 (*.c *.cpp *.h
+//                                                   *.hpp);;汇编文件 (*.s
+//                                                   *.asm);;所有文件 (*.*)");
+//     if (!filePath.isEmpty()) {
+//         QFile file(filePath);
+//         if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+//             QTextStream out(&file);
+//             out << m_codeEditor2->toPlainText();
+//             file.close();
+
+//             statusBar()->showMessage("已保存文件: " + filePath);
+//         } else {
+//             QMessageBox::warning(this, "错误", "无法保存文件: " + filePath);
+//         }
+//     }
+// }
+
+void MainWindow::saveSettings() {
+  if (!m_settings)
+    return;
+
+  m_settings->beginGroup("MainWindow");
+  m_settings->setValue("geometry", saveGeometry());
+  m_settings->setValue("state", saveState());
+  m_settings->setValue("projectPath", m_projectPath);
+  m_settings->setValue("currentTheme", m_currentTheme);
+  m_settings->setValue("currentDownloader", m_currentDownloader);
+  m_settings->endGroup();
+
+  m_settings->beginGroup("Toolchain");
+  m_settings->setValue("gccPath", m_gccPath);
+  m_settings->setValue("openocdPath", m_openocdPath);
+  m_settings->setValue("openocdConfig", m_openocdConfig);
+  m_settings->endGroup();
+
+  m_settings->sync();
+}
+
+void MainWindow::setupThemeMenu() {
+  // Create theme actions
+  m_darkThemeAction = new QAction("⚡ 极客钛金 (Titanium Dark)", this);
+  m_darkThemeAction->setCheckable(true);
+  connect(m_darkThemeAction, &QAction::triggered, this,
+          &MainWindow::setDarkTheme);
+
+  m_lightThemeAction = new QAction("☀️ 纯白曜石 (Crystal Light)", this);
+  m_lightThemeAction->setCheckable(true);
+  connect(m_lightThemeAction, &QAction::triggered, this,
+          &MainWindow::setLightTheme);
+
+  m_vueThemeAction = new QAction("🌲 极客翡翠 (Emerald Matrix)", this);
+  m_vueThemeAction->setCheckable(true);
+  connect(m_vueThemeAction, &QAction::triggered, this,
+          &MainWindow::setVueTheme);
+
+  m_draculaThemeAction = new QAction("🔮 星云紫晶 (Dracula Violet)", this);
+  m_draculaThemeAction->setCheckable(true);
+  connect(m_draculaThemeAction, &QAction::triggered, this,
+          &MainWindow::setDraculaTheme);
+
+  m_nordThemeAction = new QAction("🌊 碧海深渊 (Abyssal Nord)", this);
+  m_nordThemeAction->setCheckable(true);
+  connect(m_nordThemeAction, &QAction::triggered, this,
+          &MainWindow::setNordTheme);
+
+  m_solarizedLightThemeAction = new QAction("📜 暖阳羊皮 (Solarized Light)", this);
+  m_solarizedLightThemeAction->setCheckable(true);
+  connect(m_solarizedLightThemeAction, &QAction::triggered, this,
+          &MainWindow::setSolarizedLightTheme);
+
+  m_githubDarkThemeAction = new QAction("🐙 GitHub Dark", this);
+  m_githubDarkThemeAction->setCheckable(true);
+  connect(m_githubDarkThemeAction, &QAction::triggered, this,
+          &MainWindow::setGithubDarkTheme);
+
+  m_oneDarkThemeAction = new QAction("⚛️ One Dark", this);
+  m_oneDarkThemeAction->setCheckable(true);
+  connect(m_oneDarkThemeAction, &QAction::triggered, this,
+          &MainWindow::setOneDarkTheme);
+
+  m_xcodeDarkThemeAction = new QAction("🍎 Xcode Dark", this);
+  m_xcodeDarkThemeAction->setCheckable(true);
+  connect(m_xcodeDarkThemeAction, &QAction::triggered, this,
+          &MainWindow::setXcodeDarkTheme);
+
+  m_monokaiProThemeAction = new QAction("🎨 Monokai Pro", this);
+  m_monokaiProThemeAction->setCheckable(true);
+  connect(m_monokaiProThemeAction, &QAction::triggered, this,
+          &MainWindow::setMonokaiProTheme);
+
+  m_nightOwlThemeAction = new QAction("🦉 Night Owl", this);
+  m_nightOwlThemeAction->setCheckable(true);
+  connect(m_nightOwlThemeAction, &QAction::triggered, this,
+          &MainWindow::setNightOwlTheme);
+
+  m_materialLightThemeAction = new QAction("💎 Material Light", this);
+  m_materialLightThemeAction->setCheckable(true);
+  connect(m_materialLightThemeAction, &QAction::triggered, this,
+          &MainWindow::setMaterialLightTheme);
+
+  m_atomMaterialThemeAction = new QAction("Atom Material", this);
+  m_atomMaterialThemeAction->setCheckable(true);
+  connect(m_atomMaterialThemeAction, &QAction::triggered, this,
+          &MainWindow::setAtomMaterialTheme);
+
+  m_atomOneThemeAction = new QAction("Atom One", this);
+  m_atomOneThemeAction->setCheckable(true);
+  connect(m_atomOneThemeAction, &QAction::triggered, this,
+          &MainWindow::setAtomOneTheme);
+
+  m_gerryThemeAction = new QAction("Gerry", this);
+  m_gerryThemeAction->setCheckable(true);
+  connect(m_gerryThemeAction, &QAction::triggered, this,
+          &MainWindow::setGerryTheme);
+
+  m_materialIconsThemeAction = new QAction("Material Icons", this);
+  m_materialIconsThemeAction->setCheckable(true);
+  connect(m_materialIconsThemeAction, &QAction::triggered, this,
+          &MainWindow::setMaterialIconsTheme);
+
+  m_noctisThemeAction = new QAction("Noctis", this);
+  m_noctisThemeAction->setCheckable(true);
+  connect(m_noctisThemeAction, &QAction::triggered, this,
+          &MainWindow::setNoctisTheme);
+
+  // Create action group to make theme actions exclusive
+  // m_themeActionGroup = new QActionGroup(this);
+  // m_themeActionGroup->addAction(m_darkThemeAction);
+  // m_themeActionGroup->addAction(m_lightThemeAction);
+  // m_themeActionGroup->addAction(m_oneDarkThemeAction);
+  // m_themeActionGroup->addAction(m_githubDarkThemeAction);
+  // m_themeActionGroup->addAction(m_xcodeDarkThemeAction);
+  // m_themeActionGroup->addAction(m_vueThemeAction);
+  // m_themeActionGroup->addAction(m_monokaiProThemeAction);
+  // m_themeActionGroup->addAction(m_draculaThemeAction);
+  // m_themeActionGroup->addAction(m_nordThemeAction);
+  // m_themeActionGroup->addAction(m_noctisThemeAction);
+  // m_themeActionGroup->addAction(m_nightOwlThemeAction);
+  // m_themeActionGroup->addAction(m_solarizedLightThemeAction);
+  // m_themeActionGroup->addAction(m_materialLightThemeAction);
+  // m_themeActionGroup->addAction(m_atomMaterialThemeAction);
+  // m_themeActionGroup->addAction(m_atomOneThemeAction);
+  // m_themeActionGroup->addAction(m_gerryThemeAction);
+  // m_themeActionGroup->addAction(m_materialIconsThemeAction);
+}
+
+// void MainWindow::createActions()
+// {
+//     // File menu actions
+//     QAction *openProjectAction = new QAction("打开项目", this);
+//     openProjectAction->setShortcut(QKeySequence::Open);
+//     openProjectAction->setObjectName("openProjectAction");  // 添加对象名称
+//     connect(openProjectAction, &QAction::triggered, this,
+//     &MainWindow::openProject);
+
+//     QAction *newProjectAction = new QAction("新建项目", this);
+//     newProjectAction->setShortcut(QKeySequence::New);
+//     connect(newProjectAction, &QAction::triggered, this,
+//     &MainWindow::newProject);
+
+//     QAction *saveProjectAction = new QAction("保存项目", this);
+//     saveProjectAction->setShortcut(QKeySequence::Save);
+//     connect(saveProjectAction, &QAction::triggered, this,
+//     &MainWindow::saveProject);
+
+//     QAction *saveFileAction = new QAction("保存文件", this);
+//     saveFileAction->setShortcut(QKeySequence("Ctrl+S"));
+//     connect(saveFileAction, &QAction::triggered, this,
+//     &MainWindow::saveCurrentFile);
+
+//     QAction *saveFileAsAction = new QAction("文件另存为", this);
+//     saveFileAsAction->setShortcut(QKeySequence("Ctrl+Shift+S"));
+//     connect(saveFileAsAction, &QAction::triggered, this,
+//     &MainWindow::saveFileAs);
+
+//     QAction *exitAction = new QAction("退出", this);
+//     exitAction->setShortcut(QKeySequence::Quit);
+//     connect(exitAction, &QAction::triggered, this, &QWidget::close);
+
+//     // Build menu actions
+//     QAction *buildAction = new QAction("编译", this);
+//     buildAction->setShortcut(QKeySequence("F7"));
+//     connect(buildAction, &QAction::triggered, this,
+//     &MainWindow::buildProject);
+
+//     QAction *cleanAction = new QAction("清理", this);
+//     connect(cleanAction, &QAction::triggered, this,
+//     &MainWindow::cleanProject);
+
+//     QAction *flashAction = new QAction("烧录", this);
+//     flashAction->setShortcut(QKeySequence("F8"));
+//     connect(flashAction, &QAction::triggered, this,
+//     &MainWindow::flashProject);
+
+//     // Debug menu actions
+//     QAction *debugAction = new QAction("开始调试", this);
+//     debugAction->setShortcut(QKeySequence("F5"));
+//     connect(debugAction, &QAction::triggered, this, &MainWindow::startDebug);
+
+//     QAction *stopDebugAction = new QAction("停止调试", this);
+//     stopDebugAction->setShortcut(QKeySequence("Shift+F5"));
+//     connect(stopDebugAction, &QAction::triggered, this,
+//     &MainWindow::stopDebug);
+
+//     QAction *continueAction = new QAction("继续", this);
+//     continueAction->setShortcut(QKeySequence("F5"));
+//     connect(continueAction, &QAction::triggered, this,
+//     &MainWindow::continueDebug);
+
+//     QAction *stepOverAction = new QAction("单步跳过", this);
+//     stepOverAction->setShortcut(QKeySequence("F10"));
+//     connect(stepOverAction, &QAction::triggered, this,
+//     &MainWindow::stepOver);
+
+//     QAction *stepIntoAction = new QAction("单步进入", this);
+//     stepIntoAction->setShortcut(QKeySequence("F11"));
+//     connect(stepIntoAction, &QAction::triggered, this,
+//     &MainWindow::stepInto);
+
+//     QAction *stepOutAction = new QAction("单步跳出", this);
+//     stepOutAction->setShortcut(QKeySequence("Shift+F11"));
+//     connect(stepOutAction, &QAction::triggered, this, &MainWindow::stepOut);
+
+//     QAction *breakpointAction = new QAction("设置断点", this);
+//     breakpointAction->setShortcut(QKeySequence("F9"));
+//     connect(breakpointAction, &QAction::triggered, this,
+//     &MainWindow::setBreakpoint);
+
+//     // Tools menu actions
+//     QAction *configureToolchainAction = new QAction("配置工具链", this);
+//     connect(configureToolchainAction, &QAction::triggered, this,
+//     &MainWindow::configureToolchain);
+
+//     // View menu actions
+//     QAction *fullScreenAction = new QAction("全屏模式", this);
+//     fullScreenAction->setShortcut(QKeySequence("F11"));
+//     fullScreenAction->setCheckable(true);
+//     connect(fullScreenAction, &QAction::triggered, this,
+//     &MainWindow::toggleFullScreen);
+
+//     // Help menu actions
+//     QAction *aboutAction = new QAction("关于", this);
+//     connect(aboutAction, &QAction::triggered, this,
+//     &MainWindow::showAboutDialog);
+// }
+
+void MainWindow::createActions() {
+  auto createToolActionIcon = [](ushort unicodeChar, const QColor &color) -> QIcon {
+    QPixmap pix(24, 24);
+    pix.fill(Qt::transparent);
+    QPainter painter(&pix);
+    painter.setRenderHint(QPainter::Antialiasing);
+    painter.setRenderHint(QPainter::TextAntialiasing);
+    try {
+      QFont font = CIconFont::instance()->getIconFont(20);
+      font.setPixelSize(20);
+      painter.setFont(font);
+    } catch (...) {}
+    painter.setPen(color);
+    painter.drawText(QRect(0, 0, 24, 24), Qt::AlignCenter, QString(QChar(unicodeChar)));
+    return QIcon(pix);
+  };
+
+  // File menu actions
+  m_openProjectAction = new QAction("打开项目", this);
+  m_openProjectAction->setObjectName("打开项目");
+  m_openProjectAction->setIcon(
+      QIcon(":/icons/folder-open-outline.png"));
+  m_openProjectAction->setStatusTip("打开STM32项目工程");
+  m_openProjectAction->setToolTip("打开项目 (Ctrl+O)");
+  m_openProjectAction->setShortcut(QKeySequence::Open);
+  connect(m_openProjectAction, &QAction::triggered, this,
+          &MainWindow::openProject);
+
+  m_newProjectAction = new QAction("新建项目", this);
+  m_newProjectAction->setObjectName("新建项目");
+  m_newProjectAction->setIcon(
+      QIcon(":/icons/folder-plus.png"));
+  m_newProjectAction->setStatusTip("新建STM32项目工程");
+  m_newProjectAction->setToolTip("新建项目 (Ctrl+N)");
+  m_newProjectAction->setShortcut(QKeySequence::New);
+  connect(m_newProjectAction, &QAction::triggered, this,
+          &MainWindow::newProject);
+
+  m_saveProjectAction = new QAction("保存项目", this);
+  m_saveProjectAction->setObjectName("保存项目");
+  m_saveProjectAction->setIcon(
+      QIcon(":/icons/content-save-check.png"));
+  m_saveProjectAction->setStatusTip("保存当前项目配置");
+  m_saveProjectAction->setToolTip("保存项目 (Ctrl+S)");
+  m_saveProjectAction->setShortcut(QKeySequence::Save);
+  connect(m_saveProjectAction, &QAction::triggered, this,
+          &MainWindow::saveProject);
+
+  m_closeProjectAction = new QAction("关闭项目", this);
+  m_closeProjectAction->setObjectName("关闭项目");
+  m_closeProjectAction->setIcon(
+      QIcon(":/icons/close-box.png"));
+  m_closeProjectAction->setStatusTip("关闭当前打开的项目");
+  m_closeProjectAction->setToolTip("关闭项目 (Ctrl+W)");
+  m_closeProjectAction->setShortcut(QKeySequence("Ctrl+W"));
+  connect(m_closeProjectAction, &QAction::triggered, this,
+          &MainWindow::closeProject);
+
+  m_saveFileAction = new QAction("保存文件", this);
+  m_saveFileAction->setShortcut(QKeySequence("Ctrl+S"));
+  connect(m_saveFileAction, &QAction::triggered, this,
+          &MainWindow::saveCurrentFile);
+
+  m_saveAllAction = new QAction("全部保存", this);
+  m_saveAllAction->setShortcut(QKeySequence("Ctrl+A"));
+  connect(m_saveAllAction, &QAction::triggered, this,
+          &MainWindow::saveAllFiles);
+
+  m_saveFileAsAction = new QAction("文件另存为", this);
+  m_saveFileAsAction->setShortcut(QKeySequence("Ctrl+Shift+S"));
+  connect(m_saveFileAsAction, &QAction::triggered, this,
+          &MainWindow::saveFileAs);
+
+  m_exitAction = new QAction("退出", this);
+  m_exitAction->setShortcut(QKeySequence::Quit);
+  connect(m_exitAction, &QAction::triggered, this, &QWidget::close);
+
+  // Build menu actions
+  m_buildAction = new QAction(tr("编译"), this);
+  m_buildAction->setObjectName("编译");
+  m_buildAction->setIcon(IDEWorkflowIcons::icon(IDEWorkflowIcons::Kind::Build));
+  m_buildAction->setStatusTip(tr("编译当前工程 (F7)"));
+  m_buildAction->setToolTip(tr("编译构建 (F7)"));
+  m_buildAction->setShortcut(QKeySequence("F7"));
+  connect(m_buildAction, &QAction::triggered, this, &MainWindow::buildProject);
+
+  m_rebuildAction = new QAction(tr("重新构建"), this);
+  m_rebuildAction->setObjectName("rebuildProject");
+  m_rebuildAction->setIcon(IDEWorkflowIcons::icon(IDEWorkflowIcons::Kind::Rebuild));
+  m_rebuildAction->setShortcut(QKeySequence("Ctrl+F7"));
+  m_rebuildAction->setToolTip(tr("重新构建 (Ctrl+F7)"));
+  connect(m_rebuildAction, &QAction::triggered, this, &MainWindow::rebuildProject);
+
+  m_cancelTaskAction = new QAction(tr("取消当前任务"), this);
+  m_cancelTaskAction->setObjectName("cancelCurrentTask");
+  m_cancelTaskAction->setIcon(IDEWorkflowIcons::icon(IDEWorkflowIcons::Kind::Stop));
+  m_cancelTaskAction->setShortcut(QKeySequence("Ctrl+Shift+F5"));
+  m_cancelTaskAction->setToolTip(tr("停止当前后台处理 (Ctrl+Shift+F5)"));
+  connect(m_cancelTaskAction, &QAction::triggered, this, &MainWindow::cancelCurrentTask);
+
+  m_pauseDebugAction = new QAction(tr("暂停调试"), this);
+  m_pauseDebugAction->setObjectName("pauseDebug");
+  m_pauseDebugAction->setIcon(IDEWorkflowIcons::icon(IDEWorkflowIcons::Kind::Pause));
+  m_pauseDebugAction->setShortcut(QKeySequence("F6"));
+  m_pauseDebugAction->setToolTip(tr("暂停目标 CPU (F6)"));
+  connect(m_pauseDebugAction, &QAction::triggered, this, &MainWindow::pauseDebug);
+
+  m_cleanAction = new QAction(tr("清理"), this);
+  m_cleanAction->setObjectName("cleanProject");
+  m_cleanAction->setIcon(IDEWorkflowIcons::icon(IDEWorkflowIcons::Kind::Clean));
+  m_cleanAction->setStatusTip(tr("清理构建输出"));
+  m_cleanAction->setToolTip(tr("清理项目"));
+  connect(m_cleanAction, &QAction::triggered, this, &MainWindow::cleanProject);
+
+  m_flashAction = new QAction(tr("烧录"), this);
+  m_flashAction->setObjectName("flashProject");
+  m_flashAction->setIcon(IDEWorkflowIcons::icon(IDEWorkflowIcons::Kind::Flash));
+  m_flashAction->setStatusTip(tr("烧录固件至目标芯片 (F8)"));
+  m_flashAction->setToolTip(tr("烧录固件 (F8)"));
+  m_flashAction->setShortcut(QKeySequence("F8"));
+  connect(m_flashAction, &QAction::triggered, this, &MainWindow::flashProject);
+
+  // Debug menu actions
+  m_debugAction = new QAction(tr("开始调试"), this);
+  m_debugAction->setObjectName("startDebug");
+  m_debugAction->setIcon(IDEWorkflowIcons::icon(IDEWorkflowIcons::Kind::Debug));
+  m_debugAction->setStatusTip(tr("启动 STM32 GDB 异步调试会话 (F5)"));
+  m_debugAction->setToolTip(tr("开始调试 (F5)"));
+  m_debugAction->setShortcut(QKeySequence("F5"));
+  connect(m_debugAction, &QAction::triggered, this, &MainWindow::startDebug);
+
+  m_stopDebugAction = new QAction(tr("停止调试"), this);
+  m_stopDebugAction->setObjectName("stopDebug");
+  m_stopDebugAction->setIcon(IDEWorkflowIcons::icon(IDEWorkflowIcons::Kind::Stop));
+  m_stopDebugAction->setStatusTip(tr("终止当前 GDB 调试会话 (Shift+F5)"));
+  m_stopDebugAction->setToolTip(tr("停止调试 (Shift+F5)"));
+  m_stopDebugAction->setShortcut(QKeySequence("Shift+F5"));
+  connect(m_stopDebugAction, &QAction::triggered, this, &MainWindow::stopDebug);
+
+  m_continueAction = new QAction(tr("继续运行"), this);
+  m_continueAction->setObjectName("continueDebug");
+  m_continueAction->setIcon(IDEWorkflowIcons::icon(IDEWorkflowIcons::Kind::Continue));
+  m_continueAction->setStatusTip(tr("全速继续运行目标 CPU (F5)"));
+  m_continueAction->setToolTip(tr("继续运行 (F5)"));
+  m_continueAction->setShortcut(QKeySequence("F5"));
+  connect(m_continueAction, &QAction::triggered, this,
+          &MainWindow::continueDebug);
+
+  m_stepOverAction = new QAction(tr("单步跳过"), this);
+  m_stepOverAction->setObjectName("stepOver");
+  m_stepOverAction->setIcon(IDEWorkflowIcons::icon(IDEWorkflowIcons::Kind::StepOver));
+  m_stepOverAction->setStatusTip(tr("单步执行，跳过函数 (F10)"));
+  m_stepOverAction->setToolTip(tr("单步跳过 (F10)"));
+  m_stepOverAction->setShortcut(QKeySequence("F10"));
+  connect(m_stepOverAction, &QAction::triggered, this, &MainWindow::stepOver);
+
+  m_stepIntoAction = new QAction(tr("单步进入"), this);
+  m_stepIntoAction->setObjectName("单步进入");
+  m_stepIntoAction->setIcon(IDEWorkflowIcons::icon(IDEWorkflowIcons::Kind::StepInto));
+  m_stepIntoAction->setStatusTip(tr("单步进入函数内部 (F11)"));
+  m_stepIntoAction->setToolTip(tr("单步进入 (F11)"));
+  m_stepIntoAction->setShortcut(QKeySequence("F11"));
+  connect(m_stepIntoAction, &QAction::triggered, this, &MainWindow::stepInto);
+
+  m_stepOutAction = new QAction(tr("单步跳出"), this);
+  m_stepOutAction->setObjectName("stepOut");
+  m_stepOutAction->setIcon(IDEWorkflowIcons::icon(IDEWorkflowIcons::Kind::StepOut));
+  m_stepOutAction->setStatusTip(tr("执行直到跳出当前函数 (Shift+F11)"));
+  m_stepOutAction->setToolTip(tr("单步跳出 (Shift+F11)"));
+  m_stepOutAction->setShortcut(QKeySequence("Shift+F11"));
+  connect(m_stepOutAction, &QAction::triggered, this, &MainWindow::stepOut);
+
+  m_breakpointAction = new QAction("设置断点", this);
+  m_breakpointAction->setObjectName("设置断点");
+  m_breakpointAction->setIcon(IDEWorkflowIcons::icon(IDEWorkflowIcons::Kind::Breakpoint));
+  m_breakpointAction->setStatusTip("在当前行切换断点 (F9)");
+  m_breakpointAction->setToolTip("切换断点 (F9)");
+  m_breakpointAction->setShortcut(QKeySequence("F9"));
+  connect(m_breakpointAction, &QAction::triggered, this,
+          &MainWindow::setBreakpoint);
+
+  const QList<QPair<QPushButton *, QAction *>> workflowButtons = {
+      {m_buildButton, m_buildAction}, {m_rebuildButton, m_rebuildAction},
+      {m_cleanButton, m_cleanAction}, {m_flashButton, m_flashAction},
+      {m_debugButton, m_debugAction}, {m_stopButton, m_cancelTaskAction},
+      {m_continueButton, m_continueAction}, {m_pauseButton, m_pauseDebugAction},
+      {m_stepOverButton, m_stepOverAction}, {m_stepIntoButton, m_stepIntoAction},
+      {m_stepOutButton, m_stepOutAction}};
+  for (const auto &entry : workflowButtons) {
+    entry.first->setIcon(entry.second->icon());
+    entry.first->setIconSize(QSize(20, 20));
+    entry.first->setToolTip(entry.second->toolTip());
+  }
+
+  // Tools menu actions
+
+  m_configureChipAction = new QAction(tr("芯片配置"), this);
+  m_configureChipAction->setObjectName("configureChip");
+  m_configureChipAction->setIcon(style()->standardIcon(QStyle::SP_ComputerIcon));
+  connect(m_configureChipAction, &QAction::triggered, this, &MainWindow::configureChip);
+  m_configureFlashAction = new QAction(tr("烧录配置"), this);
+  m_configureFlashAction->setObjectName("configureFlash");
+  m_configureFlashAction->setIcon(IDEWorkflowIcons::icon(IDEWorkflowIcons::Kind::Flash));
+  connect(m_configureFlashAction, &QAction::triggered, this, &MainWindow::configureFlash);
+  m_configureToolchainAction = new QAction(tr("工具链配置"), this);
+  m_configureToolchainAction->setObjectName("configureToolchain");
+  m_configureToolchainAction->setIcon(QIcon(":/icons/ToosSetting.png"));
+  m_configureToolchainAction->setStatusTip("配置编译和调试工具链");
+  m_configureToolchainAction->setToolTip("配置编译和调试工具链");
+  connect(m_configureToolchainAction, &QAction::triggered, this,
+          &MainWindow::configureToolchain);
+
+  // 添加应用工作台动作 (ICON 图标 0xe635)
+  m_appHubAction = new QAction("应用工作台", this);
+  m_appHubAction->setIcon(createToolActionIcon(0xe635, QColor("#6C5CE7")));
+  m_appHubAction->setStatusTip("返回 SmileCode Studio 应用工作台 / APP 市场");
+  m_appHubAction->setToolTip("返回应用工作台 (APP 容器主界面)");
+  connect(m_appHubAction, &QAction::triggered, this, &MainWindow::openAppHub);
+
+  // 添加数字示波器动作 (ICON 图标 0xe86e)
+  m_oscilloscopeAction = new QAction("数字示波器", this);
+  m_oscilloscopeAction->setIcon(createToolActionIcon(0xe86e, QColor("#0EA5E9")));
+  m_oscilloscopeAction->setStatusTip("打开独立多通信接口数字示波器 (支持串口/Modbus/CAN/以太网/USB)");
+  m_oscilloscopeAction->setToolTip("打开独立多通信接口数字示波器");
+  connect(m_oscilloscopeAction, &QAction::triggered, this, &MainWindow::openOscilloscopeTool);
+
+  // 添加串口调试助手动作 (ICON 图标 0xe661)
+  m_serialToolAction = new QAction("串口调试助手", this);
+  m_serialToolAction->setIcon(createToolActionIcon(0xe661, QColor("#8B5CF6")));
+  m_serialToolAction->setStatusTip("打开串口调试助手");
+  m_serialToolAction->setToolTip("打开串口调试助手");
+  connect(m_serialToolAction, &QAction::triggered, this,
+          &MainWindow::openSerialTool);
+
+  // 添加网络调试助手动作 (ICON 图标 0xe7d2)
+  m_networkToolAction = new QAction("网络调试助手", this);
+  m_networkToolAction->setIcon(createToolActionIcon(0xe7d2, QColor("#3B82F6")));
+  m_networkToolAction->setStatusTip("打开网络调试助手");
+  m_networkToolAction->setToolTip("打开网络调试助手");
+  connect(m_networkToolAction, &QAction::triggered, this,
+          &MainWindow::openNetworkTool);
+
+  // 添加CAN调试助手动作 (ICON 图标 0xe8a2)
+  m_canToolAction = new QAction("CAN调试助手", this);
+  m_canToolAction->setIcon(createToolActionIcon(0xe8a2, QColor("#FF6D00")));
+  m_canToolAction->setStatusTip("打开CAN调试助手");
+  m_canToolAction->setToolTip("打开CAN调试助手");
+  connect(m_canToolAction, &QAction::triggered, this, &MainWindow::openCANTool);
+
+  // 添加IAP升级工具动作 (ICON 图标 0xe8bf)
+  m_iapToolAction = new QAction("STM32 IAP升级工具", this);
+  m_iapToolAction->setIcon(createToolActionIcon(0xe8bf, QColor("#10B981")));
+  m_iapToolAction->setStatusTip("打开STM32 IAP升级工具");
+  m_iapToolAction->setToolTip("打开STM32 IAP升级工具");
+  connect(m_iapToolAction, &QAction::triggered, this, &MainWindow::openIAPTool);
+
+  // View menu actions
+  // m_fullScreenAction = new QAction("全屏模式", this);
+  // m_fullScreenAction->setShortcut(QKeySequence("F11"));
+  // m_fullScreenAction->setCheckable(true);
+  // connect(m_fullScreenAction, &QAction::triggered, this,
+  // &MainWindow::toggleFullScreen);
+
+  // m_fullScreenAction = new QAction("全屏模式", this);
+  // m_fullScreenAction->setShortcut(QKeySequence("F11"));
+  // m_fullScreenAction->setShortcutContext(Qt::ApplicationShortcut); //
+  // 确保在整个应用程序范围内有效 m_fullScreenAction->setCheckable(true);
+  // connect(m_fullScreenAction, &QAction::triggered, this,
+  // &MainWindow::toggleFullScreen);
+
+  // 修改 createActions() 方法中的 F11 快捷键设置
+  m_fullScreenAction = new QAction("全屏模式", this);
+  m_fullScreenAction->setShortcut(
+      QKeySequence("Ctrl+F11")); // 修改为 Ctrl+F11 避免冲突
+  m_fullScreenAction->setShortcutContext(Qt::ApplicationShortcut);
+  m_fullScreenAction->setCheckable(true);
+  connect(m_fullScreenAction, &QAction::triggered, this,
+          &MainWindow::toggleFullScreen);
+
+  // Help menu actions
+  m_aboutAction = new QAction("关于", this);
+  connect(m_aboutAction, &QAction::triggered, this,
+          &MainWindow::showAboutDialog);
+
+  // 添加分栏相关的动作
+  m_horizontalSplitAction = new QAction("水平分栏", this);
+  m_horizontalSplitAction->setIcon(QIcon(":/icons/horizontal_split.png"));
+  m_horizontalSplitAction->setStatusTip("创建水平分栏");
+  connect(m_horizontalSplitAction, &QAction::triggered,
+          [this]() { m_codeEditor->createSplitView(Qt::Horizontal); });
+
+  m_verticalSplitAction = new QAction("垂直分栏", this);
+  m_verticalSplitAction->setIcon(QIcon(":/icons/vertical_split.png"));
+  m_verticalSplitAction->setStatusTip("创建垂直分栏");
+  connect(m_verticalSplitAction, &QAction::triggered,
+          [this]() { m_codeEditor->createSplitView(Qt::Vertical); });
+
+  m_closeSplitAction = new QAction("关闭分栏", this);
+  m_closeSplitAction->setIcon(QIcon(":/icons/close_split.png"));
+  m_closeSplitAction->setStatusTip("关闭当前分栏");
+  connect(m_closeSplitAction, &QAction::triggered,
+          [this]() { m_codeEditor->closeSplitView(); });
+
+  // Help menu actions
+  m_welcomeAction = new QAction("欢迎主界面", this);
+  m_welcomeAction->setStatusTip("显示欢迎界面");
+  connect(m_welcomeAction, &QAction::triggered, this,
+          &MainWindow::showWelcomeScreen);
+
+  m_checkUpdatesAction = new QAction("检查更新", this);
+  m_checkUpdatesAction->setStatusTip("检查是否有新版本");
+  connect(m_checkUpdatesAction, &QAction::triggered, this,
+          &MainWindow::checkForUpdates);
+
+  // Terminal actions
+  m_newTerminalAction = new QAction("新建终端", this);
+  m_newTerminalAction->setStatusTip("在当前项目目录打开新终端");
+  m_newTerminalAction->setShortcut(QKeySequence("Ctrl+Shift+`"));
+  connect(m_newTerminalAction, &QAction::triggered, this,
+          &MainWindow::newTerminal);
+}
+
+void MainWindow::createMenus() {
+  // 创建主菜单栏
+  QMenuBar *menuBar = this->menuBar();
+
+  // 1. 文件菜单
+  QMenu *fileMenu = menuBar->addMenu("文件");
+  fileMenu->addAction(m_newProjectAction);
+  fileMenu->addAction(m_openProjectAction);
+  fileMenu->addAction(m_saveProjectAction);
+  fileMenu->addAction(m_closeProjectAction);
+  fileMenu->addSeparator();
+  fileMenu->addAction(m_saveFileAction);
+  fileMenu->addAction(m_saveFileAsAction);
+  fileMenu->addAction(m_saveAllAction);
+  fileMenu->addSeparator();
+  fileMenu->addAction(m_exitAction);
+
+  // 2. 编辑菜单 (预先创建，方便 codeEditor 注入)
+  QMenu *editMenu = menuBar->addMenu("编辑");
+  Q_UNUSED(editMenu);
+
+  // 3. 视图菜单 (全局唯一)
+  QMenu *viewMenu = menuBar->addMenu("视图");
+  viewMenu->addAction(m_fullScreenAction);
+
+  // 4. 导航菜单
+  QMenu *navMenu = menuBar->addMenu("导航");
+  Q_UNUSED(navMenu);
+
+  // 5. 搜索菜单
+  QMenu *searchMenu = menuBar->addMenu("搜索");
+  Q_UNUSED(searchMenu);
+
+  // 注入代码编辑器命令：将撤销/复制等入编辑、查找入搜索、大纲/分栏入视图、定义跳转入导航
+  m_codeEditor->createEditorMenus(menuBar);
+
+  // 完善视图菜单特有面板与主题
+  viewMenu->addSeparator();
+  QMenu *debugPanelsMenu = viewMenu->addMenu("调试面板");
+  if (m_variablesDock) debugPanelsMenu->addAction(m_variablesDock->toggleViewAction());
+  if (m_registersDock) debugPanelsMenu->addAction(m_registersDock->toggleViewAction());
+  if (m_callStackDock) debugPanelsMenu->addAction(m_callStackDock->toggleViewAction());
+  if (m_breakpointsDock) debugPanelsMenu->addAction(m_breakpointsDock->toggleViewAction());
+
+  QMenu *themeMenu = viewMenu->addMenu("主题");
+  themeMenu->addSeparator();
+  QMenu *darkThemesMenu = themeMenu->addMenu("深色主题");
+  darkThemesMenu->addAction(m_darkThemeAction);
+  darkThemesMenu->addAction(m_oneDarkThemeAction);
+  darkThemesMenu->addAction(m_githubDarkThemeAction);
+  darkThemesMenu->addAction(m_xcodeDarkThemeAction);
+  darkThemesMenu->addAction(m_vueThemeAction);
+  darkThemesMenu->addAction(m_monokaiProThemeAction);
+  darkThemesMenu->addAction(m_draculaThemeAction);
+  darkThemesMenu->addAction(m_nordThemeAction);
+  darkThemesMenu->addAction(m_noctisThemeAction);
+  darkThemesMenu->addAction(m_nightOwlThemeAction);
+  darkThemesMenu->addAction(m_atomMaterialThemeAction);
+  darkThemesMenu->addAction(m_atomOneThemeAction);
+  darkThemesMenu->addAction(m_gerryThemeAction);
+  darkThemesMenu->addAction(m_materialIconsThemeAction);
+
+  QMenu *lightThemesMenu = themeMenu->addMenu("浅色主题");
+  lightThemesMenu->addAction(m_lightThemeAction);
+  lightThemesMenu->addAction(m_solarizedLightThemeAction);
+  lightThemesMenu->addAction(m_materialLightThemeAction);
+
+  // 6. 构建菜单
+  QMenu *buildMenu = menuBar->addMenu("构建");
+  buildMenu->addAction(m_buildAction);
+  buildMenu->addAction(m_rebuildAction);
+  buildMenu->addAction(m_cleanAction);
+  buildMenu->addAction(m_flashAction);
+  buildMenu->addSeparator();
+  buildMenu->addAction(m_cancelTaskAction);
+
+  // 7. 调试菜单
+  QMenu *debugMenu = menuBar->addMenu("调试");
+  debugMenu->addAction(m_debugAction);
+  debugMenu->addAction(m_stopDebugAction);
+  debugMenu->addSeparator();
+  debugMenu->addAction(m_continueAction);
+  debugMenu->addAction(m_pauseDebugAction);
+  debugMenu->addAction(m_stepOverAction);
+  debugMenu->addAction(m_stepIntoAction);
+  debugMenu->addAction(m_stepOutAction);
+  debugMenu->addSeparator();
+  debugMenu->addAction(m_breakpointAction);
+
+  // 8. 工具菜单
+  QMenu *toolsMenu = menuBar->addMenu("工具");
+  toolsMenu->addAction(m_configureChipAction);
+  toolsMenu->addAction(m_configureFlashAction);
+  toolsMenu->addAction(m_configureToolchainAction);
+  toolsMenu->addAction(m_appHubAction);
+  toolsMenu->addSeparator();
+  toolsMenu->addAction(m_oscilloscopeAction);
+  toolsMenu->addAction(m_serialToolAction);
+  toolsMenu->addAction(m_networkToolAction);
+  toolsMenu->addAction(m_canToolAction);
+  toolsMenu->addAction(m_iapToolAction);
+
+  // 9. 终端菜单
+  QMenu *terminalMenu = menuBar->addMenu("终端");
+  terminalMenu->addAction(m_newTerminalAction);
+
+  // 10. 帮助菜单
+  QMenu *helpMenu = menuBar->addMenu("帮助");
+  helpMenu->addAction(m_welcomeAction);
+  helpMenu->addAction(m_checkUpdatesAction);
+  helpMenu->addSeparator();
+  helpMenu->addAction(m_aboutAction);
+}
+
+void MainWindow::showWelcomeScreen() {
+  QMessageBox::information(this, "欢迎",
+                           "<h3>欢迎使用 SmileCodeIDE</h3>"
+                           "<p>这是一个专为STM32开发设计的集成开发环境。</p>"
+                           "<p>开始你的嵌入式开发之旅吧！</p>");
+}
+
+void MainWindow::checkForUpdates() {
+  QMessageBox::information(this, tr("版本信息"),
+      tr("当前版本 v%1。\n尚未配置在线更新服务，请从项目发布渠道检查新版本。")
+          .arg(QCoreApplication::applicationVersion()));
+}
+
+void MainWindow::newTerminal() {
+  QString workingDir = m_projectPath;
+  if (workingDir.isEmpty()) {
+    workingDir = QDir::currentPath();
+  }
+
+  TerminalWidget *terminal = new TerminalWidget(workingDir, this);
+  int index = m_tabWidget->addTab(terminal, "终端");
+  m_tabWidget->setCurrentIndex(index);
+  m_tabWidget->show();
+  // If specifically dock hidden, ensure dock is visible - reusing m_tabWidget
+  // which is in a splitter
+}
+
+void MainWindow::loadSettings() {
+  if (!m_settings)
+    return;
+
+  m_settings->beginGroup("MainWindow");
+  restoreGeometry(m_settings->value("geometry").toByteArray());
+  restoreState(m_settings->value("state").toByteArray());
+  m_projectPath = m_settings->value("projectPath").toString();
+  m_currentTheme = m_settings->value("currentTheme", "dark").toString();
+  m_currentDownloader =
+      m_settings->value("currentDownloader", "STLINK").toString();
+  m_settings->endGroup();
+
+  m_settings->beginGroup("Toolchain");
+  m_gccPath = m_settings->value("gccPath").toString();
+  m_openocdPath = m_settings->value("openocdPath").toString();
+  m_openocdConfig = m_settings->value("openocdConfig").toString();
+  m_settings->endGroup();
+
+  // If we have a saved project path, update the project tree
+  if (!m_projectPath.isEmpty()) {
+    updateProjectTree(m_projectPath);
+    if (m_codeEditor) {
+      m_codeEditor->setProjectRootPath(m_projectPath);
+    }
+    if (m_debugController) {
+      m_debugController->setProjectPath(m_projectPath);
+    }
+    statusBar()->showMessage("已加载项目: " + m_projectPath, 3000);
+  }
+
+  if (m_debugController) {
+    ToolchainPaths paths;
+    if (m_settings->contains("STM32Toolchain/gccPath")) {
+      ToolchainDetector detector;
+      paths = detector.loadSettings(m_settings);
+    } else {
+      paths = m_debugController->toolchainPaths();
+      if (!m_gccPath.isEmpty()) paths.gccPath = m_gccPath;
+      if (!m_openocdPath.isEmpty()) paths.openocdPath = m_openocdPath;
+    }
+    m_debugController->setToolchainPaths(paths);
+    m_gccPath = paths.gccPath;
+    m_openocdPath = paths.openocdPath;
+  }
+
+  // Update the downloader combobox to match the saved setting
+  int downloaderIndex = m_downloaderComboBox->findText(m_currentDownloader);
+  if (downloaderIndex >= 0) {
+    m_downloaderComboBox->setCurrentIndex(downloaderIndex);
+  }
+}
+
+void MainWindow::keyPressEvent(QKeyEvent *event) {
+  // 检查是否按下了 Ctrl+F11 组合键
+  if (event->key() == Qt::Key_F11 &&
+      event->modifiers() == Qt::ControlModifier) {
+    toggleFullScreen();
+    event->accept();
+    qDebug("全屏模式切换");
+  } else {
+    // 其他键交给父类处理
+    QMainWindow::keyPressEvent(event);
+  }
+}
+
+// // 在文件末尾添加以下方法实现
+
+// void MainWindow::setupCodeFolding()
+// {
+//     // 扫描文档查找可折叠的代码块
+//     QTextDocument *doc = m_codeEditor->document();
+//     QTextBlock block = doc->begin();
+
+//     while (block.isValid()) {
+//         int lineNumber = block.blockNumber() + 1;
+//         if (isFoldable(lineNumber)) {
+//             // 在行号区域添加折叠标记
+//             // 这里需要自定义 QCodeEditor 类来支持折叠标记的显示
+//         }
+//         block = block.next();
+//     }
+// }
+
+// void MainWindow::updateCodeFolding(const QRect &rect, int dy)
+// {
+//     if (dy != 0) {
+//         // 文档垂直滚动时更新折叠标记
+//         setupCodeFolding();
+//     }
+// }
+
+// bool MainWindow::isFoldable(int line)
+// {
+//     // 判断一行是否可折叠
+//     // 例如：检查是否有 { 开始的代码块
+//     QTextBlock block = m_codeEditor->document()->findBlockByLineNumber(line -
+//     1); if (!block.isValid())
+//         return false;
+
+//     QString text = block.text().trimmed();
+
+//     // 检查是否是可折叠的代码块开始
+//     // 例如：函数定义、if/for/while 语句等
+//     return (text.contains("{") && !text.contains("}")) ||
+//            (text.contains("if") && text.contains("(") && text.contains(")")
+//            && !text.contains(";")) || (text.contains("for") &&
+//            text.contains("(") && text.contains(")") && !text.contains(";"))
+//            || (text.contains("while") && text.contains("(") &&
+//            text.contains(")") && !text.contains(";"));
+// }
+
+// void MainWindow::toggleFold(int line)
+// {
+//     // 切换指定行的折叠状态
+//     if (m_foldedBlocks.contains(line)) {
+//         // 取消折叠
+//         m_foldedBlocks.remove(line);
+//     } else if (isFoldable(line)) {
+//         // 折叠代码块
+//         m_foldedBlocks[line] = true;
+//     }
+
+//     // 更新编辑器显示
+//     m_codeEditor->update();
+// }
+// Add this implementation somewhere in your mainwindow.cpp file
+bool MainWindow::event(QEvent *event) {
+  // Call the base class implementation first
+  return QMainWindow::event(event);
+}
+
+// Add this implementation somewhere in your mainwindow.cpp file
+void MainWindow::mousePressEvent(QMouseEvent *event) {
+  // Call the base class implementation first
+  QMainWindow::mousePressEvent(event);
+}
+
+// Add this implementation somewhere in your mainwindow.cpp file
+void MainWindow::resizeEvent(QResizeEvent *event) {
+  // Call the base class implementation first
+  QMainWindow::resizeEvent(event);
+}
+
+// 在createCentralWidget方法中替换原有的代码编辑器部分
+void MainWindow::createCentralWidget() {
+  // 创建中央窗口部件
+  QWidget *centralWidget = new QWidget(this);
+  setCentralWidget(centralWidget);
+
+  // 创建水平布局
+  QHBoxLayout *hLayout = new QHBoxLayout(centralWidget);
+  hLayout->setContentsMargins(0, 0, 0, 0);
+
+  // 创建项目树视图
+  m_fileSystemModel = new QFileSystemModel(this);
+  m_fileSystemModel->setReadOnly(false);
+  m_fileSystemModel->setNameFilters(QStringList() << "*.c"
+                                                  << "*.h"
+                                                  << "*.cpp"
+                                                  << "*.hpp"
+                                                  << "*.s"
+                                                  << "*.asm"
+                                                  << "Makefile");
+  m_fileSystemModel->setNameFilterDisables(false);
+
+  m_projectTreeView = new QTreeView(this);
+  m_projectTreeView->setModel(m_fileSystemModel);
+  m_projectTreeView->setRootIndex(m_fileSystemModel->index(QDir::homePath()));
+  m_projectTreeView->setAnimated(true);
+  m_projectTreeView->setIndentation(20);
+  m_projectTreeView->setSortingEnabled(true);
+  m_projectTreeView->setColumnWidth(0, 230);
+  m_projectTreeView->setHeaderHidden(true);
+  for (int column = 1; column < m_fileSystemModel->columnCount(); ++column)
+    m_projectTreeView->hideColumn(column);
+  m_projectTreeView->setContextMenuPolicy(Qt::CustomContextMenu);
+
+  connect(m_projectTreeView, &QTreeView::doubleClicked, this,
+          &MainWindow::onFileDoubleClicked);
+  connect(m_projectTreeView, &QTreeView::customContextMenuRequested, this,
+          &MainWindow::showContextMenu);
+
+  // 创建垂直分割器
+  QSplitter *vSplitter = new QSplitter(Qt::Vertical);
+
+  // 创建QScintilla编辑器
+  // m_editor = new QsciScintilla(this);
+  // setupEditor();
+
+  // 创建输出和调试控制台
+  m_tabWidget = new QTabWidget(this);
+  m_outputConsole = new QTextEdit(this);
+  m_outputConsole->setReadOnly(true);
+  m_debugConsole = new QTextEdit(this);
+  m_debugConsole->setReadOnly(true);
+
+  m_tabWidget->addTab(m_outputConsole, "输出");
+  m_tabWidget->addTab(m_debugConsole, "调试");
+
+  // 添加命令行输入
+  QWidget *debugControlWidget = new QWidget(this);
+  QVBoxLayout *debugLayout = new QVBoxLayout(debugControlWidget);
+  debugLayout->setContentsMargins(0, 0, 0, 0);
+
+  QHBoxLayout *debugButtonLayout = new QHBoxLayout();
+  m_stopButton = new QPushButton("停止", this);
+  m_continueButton = new QPushButton("继续", this);
+  m_stepOverButton = new QPushButton("单步跳过", this);
+  m_stepIntoButton = new QPushButton("单步进入", this);
+  m_stepOutButton = new QPushButton("单步跳出", this);
+
+  debugButtonLayout->addWidget(m_stopButton);
+  debugButtonLayout->addWidget(m_continueButton);
+  debugButtonLayout->addWidget(m_stepOverButton);
+  debugButtonLayout->addWidget(m_stepIntoButton);
+  debugButtonLayout->addWidget(m_stepOutButton);
+
+  m_commandLine = new QLineEdit(this);
+  m_commandLine->setPlaceholderText("输入GDB命令...");
+
+  debugLayout->addLayout(debugButtonLayout);
+  debugLayout->addWidget(m_commandLine);
+  debugLayout->addWidget(m_debugConsole);
+
+  m_tabWidget->addTab(debugControlWidget, "调试控制");
+
+  // 禁用调试相关按钮，直到开始调试
+  m_stopButton->setEnabled(false);
+  m_continueButton->setEnabled(false);
+  m_stepOverButton->setEnabled(false);
+  m_stepIntoButton->setEnabled(false);
+  m_stepOutButton->setEnabled(false);
+  m_commandLine->setEnabled(false);
+
+  // 连接调试按钮信号
+  connect(m_stopButton, &QPushButton::clicked, this, &MainWindow::stopDebug);
+  connect(m_continueButton, &QPushButton::clicked, this,
+          &MainWindow::continueDebug);
+  connect(m_stepOverButton, &QPushButton::clicked, this, &MainWindow::stepOver);
+  connect(m_stepIntoButton, &QPushButton::clicked, this, &MainWindow::stepInto);
+  connect(m_stepOutButton, &QPushButton::clicked, this, &MainWindow::stepOut);
+  connect(m_commandLine, &QLineEdit::returnPressed, this,
+          &MainWindow::executeGdbCommand);
+
+  // 添加组件到垂直分割器
+  vSplitter->addWidget(m_editor);
+  vSplitter->addWidget(m_tabWidget);
+  vSplitter->setStretchFactor(0, 7);
+  vSplitter->setStretchFactor(1, 3);
+
+  // 创建水平分割器
+  QSplitter *hSplitter = new QSplitter(Qt::Horizontal);
+  hSplitter->addWidget(m_projectTreeView);
+  hSplitter->addWidget(vSplitter);
+  hSplitter->setStretchFactor(0, 1);
+  hSplitter->setStretchFactor(1, 4);
+
+  // 添加到主布局
+  hLayout->addWidget(hSplitter);
+
+  // 创建工具栏
+  createToolbars();
+}
+
+// 添加设置编辑器的方法
+// void MainWindow::setupEditor()
+// {
+//     // 基本设置
+//     m_editor->setUtf8(true);                          // 使用UTF-8编码
+//     m_editor->setMarginLineNumbers(1, true);          // 显示行号
+//     m_editor->setMarginWidth(1, "9999");              // 设置行号区域宽度
+//     m_editor->setAutoIndent(true);                    // 自动缩进
+//     m_editor->setIndentationGuides(true);             // 显示缩进指南
+//     m_editor->setTabWidth(4);                         // 设置Tab宽度
+//     m_editor->setIndentationsUseTabs(false);          // 使用空格而非Tab
+//     m_editor->setBraceMatching(QsciScintilla::SloppyBraceMatch); // 括号匹配
+//     m_editor->setCaretLineVisible(true);              // 高亮当前行
+//     m_editor->setCaretLineBackgroundColor(QColor("#1F1F1F")); // 当前行背景色
+//     m_editor->setMarginsBackgroundColor(QColor("#282828")); // 边距背景色
+//     m_editor->setMarginsForegroundColor(QColor("#CCCCCC")); // 边距前景色
+
+//     // 设置代码折叠
+//     m_editor->setFolding(QsciScintilla::BoxedTreeFoldStyle, 2); //
+//     设置折叠样式和边距 m_editor->setFoldMarginColors(QColor("#282828"),
+//     QColor("#282828")); // 折叠区域颜色
+
+//     // 设置自动补全
+//     setupAutoCompletion();
+
+//     // 设置C++语法高亮
+//     m_lexerCPP = new QsciLexerCPP();
+//     m_lexerCPP->setDefaultFont(QFont("Consolas", 10));
+
+//     // 设置语法高亮颜色
+//     m_lexerCPP->setColor(QColor("#569CD6"), QsciLexerCPP::Keyword);
+//     m_lexerCPP->setColor(QColor("#D69D85"),
+//     QsciLexerCPP::DoubleQuotedString);
+//     m_lexerCPP->setColor(QColor("#D69D85"),
+//     QsciLexerCPP::SingleQuotedString);
+//     m_lexerCPP->setColor(QColor("#608B4E"), QsciLexerCPP::Comment);
+//     m_lexerCPP->setColor(QColor("#608B4E"), QsciLexerCPP::CommentLine);
+//     m_lexerCPP->setColor(QColor("#9CDCFE"), QsciLexerCPP::Identifier);
+//     m_lexerCPP->setColor(QColor("#B5CEA8"), QsciLexerCPP::Number);
+//     m_lexerCPP->setColor(QColor("#C586C0"), QsciLexerCPP::Operator);
+//     m_lexerCPP->setColor(QColor("#4EC9B0"), QsciLexerCPP::GlobalClass);
+
+//     // 设置编辑器使用C++词法分析器
+//     m_editor->setLexer(m_lexerCPP);
+
+//     // 创建Makefile词法分析器
+//     m_lexerMake = new QsciLexerMakefile();
+//     m_lexerMake->setDefaultFont(QFont("Consolas", 10));
+
+//     // 连接信号
+//     connect(m_editor, &QsciScintilla::textChanged, [this]() {
+//         // 文件已修改，可以在这里添加标记
+//         if (!m_editor->isModified()) {
+//             m_editor->setModified(true);
+//         }
+//     });
+// }
+
+void MainWindow::setupEditor() {
+  m_editor = new QsciScintilla(this);
+  // 设置编辑器字体
+  QFont font("Consolas", 10);
+  font.setFixedPitch(true);
+  m_editor->setFont(font);
+  m_editor->setMarginsFont(font);
+
+  // 设置行号
+  m_editor->setMarginType(0, QsciScintilla::NumberMargin);
+  m_editor->setMarginWidth(0, 35);
+  m_editor->setMarginLineNumbers(0, true);
+
+  // 设置自动缩进
+  m_editor->setAutoIndent(true);
+  m_editor->setIndentationWidth(4);
+  m_editor->setTabWidth(4);
+  m_editor->setTabIndents(true);
+  m_editor->setBackspaceUnindents(true);
+
+  // 设置括号匹配
+  m_editor->setBraceMatching(QsciScintilla::SloppyBraceMatch);
+
+  // 设置自动换行
+  m_editor->setWrapMode(QsciScintilla::WrapWord);
+
+  // 设置代码折叠
+  m_editor->setFolding(QsciScintilla::BoxedTreeFoldStyle);
+
+  // 设置UTF-8编码
+  m_editor->setUtf8(true);
+
+  // 设置C++语法高亮
+  m_lexerCPP = new QsciLexerCPP();
+  m_lexerCPP->setFont(font);
+  m_editor->setLexer(m_lexerCPP);
+
+  // 设置Makefile语法高亮器（备用）
+  m_lexerMake = new QsciLexerMakefile();
+  m_lexerMake->setFont(font);
+
+  // 设置自动补全
+  // setupAutoCompletion();
+
+  // 根据当前主题设置颜色
+  if (m_currentTheme == "dark" || m_currentTheme.isEmpty()) {
+    // 深色主题
+    m_editor->setColor(QColor("#DCDCDC"));                    // 文本颜色
+    m_editor->setPaper(QColor("#1E1E1E"));                    // 背景颜色
+    m_editor->setMarginsForegroundColor(QColor("#AAAAAA"));   // 行号前景色
+    m_editor->setMarginsBackgroundColor(QColor("#2D2D2D"));   // 行号背景色
+    m_editor->setCaretForegroundColor(QColor("#FFFFFF"));     // 光标颜色
+    m_editor->setSelectionBackgroundColor(QColor("#264F78")); // 选择背景色
+
+    // 设置语法高亮颜色
+    m_lexerCPP->setColor(QColor("#569CD6"), QsciLexerCPP::Keyword); // 关键字
+    m_lexerCPP->setColor(QColor("#CE9178"),
+                         QsciLexerCPP::DoubleQuotedString); // 字符串
+    m_lexerCPP->setColor(QColor("#CE9178"),
+                         QsciLexerCPP::SingleQuotedString);         // 字符
+    m_lexerCPP->setColor(QColor("#B5CEA8"), QsciLexerCPP::Number);  // 数字
+    m_lexerCPP->setColor(QColor("#608B4E"), QsciLexerCPP::Comment); // 注释
+    m_lexerCPP->setColor(QColor("#608B4E"),
+                         QsciLexerCPP::CommentLine); // 行注释
+    m_lexerCPP->setColor(QColor("#C586C0"),
+                         QsciLexerCPP::PreProcessor); // 预处理器
+    m_lexerCPP->setColor(QColor("#4EC9B0"), QsciLexerCPP::GlobalClass); // 类名
+    m_lexerCPP->setPaper(QColor("#1E1E1E")); // 背景色
+  } else {
+    // 浅色主题
+    m_editor->setColor(QColor("#000000"));                    // 文本颜色
+    m_editor->setPaper(QColor("#FFFFFF"));                    // 背景颜色
+    m_editor->setMarginsForegroundColor(QColor("#333333"));   // 行号前景色
+    m_editor->setMarginsBackgroundColor(QColor("#F0F0F0"));   // 行号背景色
+    m_editor->setCaretForegroundColor(QColor("#000000"));     // 光标颜色
+    m_editor->setSelectionBackgroundColor(QColor("#ADD6FF")); // 选择背景色
+
+    // 设置语法高亮颜色
+    m_lexerCPP->setColor(QColor("#0000FF"), QsciLexerCPP::Keyword); // 关键字
+    m_lexerCPP->setColor(QColor("#A31515"),
+                         QsciLexerCPP::DoubleQuotedString); // 字符串
+    m_lexerCPP->setColor(QColor("#A31515"),
+                         QsciLexerCPP::SingleQuotedString);         // 字符
+    m_lexerCPP->setColor(QColor("#098658"), QsciLexerCPP::Number);  // 数字
+    m_lexerCPP->setColor(QColor("#008000"), QsciLexerCPP::Comment); // 注释
+    m_lexerCPP->setColor(QColor("#008000"),
+                         QsciLexerCPP::CommentLine); // 行注释
+    m_lexerCPP->setColor(QColor("#800000"),
+                         QsciLexerCPP::PreProcessor); // 预处理器
+    m_lexerCPP->setColor(QColor("#267F99"), QsciLexerCPP::GlobalClass); // 类名
+    m_lexerCPP->setPaper(QColor("#FFFFFF")); // 背景色
+  }
+}
+
+// void MainWindow::setupAutoCompletion()
+// {
+//     // 创建C++自动补全API
+//     m_apiCPP = new QsciAPIs(m_lexerCPP);
+
+//     // 添加常用的C/C++关键字和函数
+//     QStringList keywords = {
+//         "int", "char", "void", "float", "double", "long", "short",
+//         "unsigned", "signed", "struct", "union", "enum", "typedef", "const",
+//         "volatile", "static", "extern", "if", "else", "for", "while", "do",
+//         "switch", "case", "default", "break", "continue", "return", "goto",
+//         "sizeof", "NULL", "true", "false",
+
+//         // STM32特定函数和宏
+//         "GPIO_Init", "GPIO_SetBits", "GPIO_ResetBits",
+//         "GPIO_ReadInputDataBit", "TIM_TimeBaseInit", "TIM_Cmd",
+//         "TIM_ITConfig", "TIM_GetCounter", "USART_Init", "USART_Cmd",
+//         "USART_SendData", "USART_ReceiveData", "ADC_Init", "ADC_Cmd",
+//         "ADC_StartConversion", "ADC_GetConversionValue",
+//         "RCC_APB1PeriphClockCmd", "RCC_APB2PeriphClockCmd",
+//         "RCC_AHB1PeriphClockCmd", "NVIC_Init", "NVIC_EnableIRQ",
+//         "NVIC_DisableIRQ", "SysTick_Config", "HAL_Delay",
+//         "HAL_GPIO_WritePin", "HAL_GPIO_ReadPin"
+//     };
+
+//     // 添加关键字到API
+//     for (const QString &keyword : keywords) {
+//         m_apiCPP->add(keyword);
+//     }
+
+//     // 准备API
+//     m_apiCPP->prepare();
+
+//     // 设置自动补全
+//     m_editor->setAutoCompletionSource(QsciScintilla::AcsAll);  // 所有来源
+//     m_editor->setAutoCompletionThreshold(2);                   //
+//     输入2个字符后显示 m_editor->setAutoCompletionCaseSensitivity(false); //
+//     不区分大小写 m_editor->setAutoCompletionReplaceWord(true); //
+//     替换整个单词
+//     m_editor->setAutoCompletionUseSingle(QsciScintilla::AcusNever); //
+//     不自动选择唯一项
+// }
+
+// // 添加加载文件的方法
+// void MainWindow::loadFile(const QString &filePath)
+// {
+//     QFile file(filePath);
+//     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+//         QMessageBox::warning(this, "错误", "无法打开文件: " + filePath);
+//         return;
+//     }
+
+//     // 读取文件内容
+//     QTextStream in(&file);
+//     QString content = in.readAll();
+//     file.close();
+
+//     // 设置编辑器内容
+//     m_editor->setText(content);
+//     m_editor->setModified(false);
+
+//     // 根据文件类型设置词法分析器
+//     if (filePath.endsWith(".c") || filePath.endsWith(".cpp") ||
+//         filePath.endsWith(".h") || filePath.endsWith(".hpp")) {
+//         m_editor->setLexer(m_lexerCPP);
+//     } else if (filePath.endsWith("Makefile") ||
+//     filePath.contains("makefile")) {
+//         m_editor->setLexer(m_lexerMake);
+//     }
+
+//     // 更新状态栏
+//     statusBar()->showMessage("已打开文件: " + filePath);
+// }
+
+void MainWindow::loadFile(const QString &filePath) {
+  QFile file(filePath);
+  if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+    QMessageBox::warning(this, tr("错误"),
+                         tr("无法打开文件: %1").arg(filePath));
+    return;
+  }
+
+  QTextStream in(&file);
+  QString content = in.readAll();
+  file.close();
+
+  // 根据文件扩展名选择合适的语法高亮器
+  QFileInfo fileInfo(filePath);
+  QString extension = fileInfo.suffix().toLower();
+
+  if (extension == "c" || extension == "cpp" || extension == "h" ||
+      extension == "hpp") {
+    m_editor->setLexer(m_lexerCPP);
+  } else if (extension == "mk" || fileInfo.fileName().toLower() == "makefile") {
+    m_editor->setLexer(m_lexerMake);
+  } else {
+    // 对于其他类型的文件，清除语法高亮
+    m_editor->setLexer(nullptr);
+  }
+
+  // 设置文件内容
+  m_editor->setText(content);
+
+  // 更新当前文件路径
+  m_currentFilePath = filePath;
+
+  // 更新状态栏
+  statusBar()->showMessage(tr("已打开: %1").arg(fileInfo.fileName()));
+}
+
+// 修改onFileDoubleClicked方法以使用新的编辑器
+void MainWindow::onFileDoubleClicked(const QModelIndex &index) {
+  QString filePath = m_fileSystemModel->filePath(index);
+  QFileInfo fileInfo(filePath);
+
+  if (fileInfo.isFile()) {
+    loadFile(filePath);
+  }
+}
+
+void MainWindow::saveFile() {
+  // Check if we have a current file path
+  if (m_currentFilePath.isEmpty()) {
+    // If no current file path, call saveFileAs instead
+    saveFileAs();
+    return;
+  }
+
+  // Save the file using the CodeEditor's saveFile method
+  if (m_codeEditor->saveFile(m_currentFilePath)) {
+    statusBar()->showMessage("File saved: " + m_currentFilePath, 2000);
+    setWindowTitle("PhudonTools - " + QFileInfo(m_currentFilePath).fileName());
+  } else {
+    QMessageBox::warning(this, "Save Failed",
+                         "Failed to save file: " + m_currentFilePath);
+  }
+}
+
+// 修改saveFileAs方法以使用新的编辑器
+void MainWindow::saveFileAs() {
+  QString filePath = QFileDialog::getSaveFileName(
+      this, tr("保存文件"), m_projectPath,
+      "C/C++源文件 (*.c *.cpp *.h *.hpp);;汇编文件 (*.s *.asm);;所有文件 (*.*)");
+  if (filePath.isEmpty()) return;
+
+  if (m_codeEditor) {
+    if (m_codeEditor->saveFile(filePath)) {
+      m_currentFilePath = filePath;
+      statusBar()->showMessage(tr("已保存文件: ") + filePath, 3000);
+    } else {
+      QMessageBox::warning(this, tr("错误"), tr("无法保存文件: ") + filePath);
+    }
+  }
+}
+
+// 添加执行GDB命令的方法
+void MainWindow::executeGdbCommand() {
+  if (!m_isDebugging || !m_debugController) {
+    return;
+  }
+
+  QString command = m_commandLine->text().trimmed();
+  if (!command.isEmpty()) {
+    m_debugConsole->append("(gdb) " + command);
+    m_debugController->executeGdbCommand(command);
+    m_commandLine->clear();
+  }
+}
+
+void MainWindow::showContextMenu(const QPoint &pos) {
+  // Get the index at the position
+  QModelIndex index = m_projectTreeView->indexAt(pos);
+
+  if (index.isValid()) {
+    // Create a context menu
+    QMenu contextMenu(this);
+
+    // Get the file path
+    QString filePath = m_fileSystemModel->filePath(index);
+    QFileInfo fileInfo(filePath);
+
+    // Add actions based on file type
+    if (fileInfo.isFile()) {
+      // File actions
+      QAction *openAction = contextMenu.addAction("打开");
+      connect(openAction, &QAction::triggered,
+              [this, index]() { onFileDoubleClicked(index); });
+
+      contextMenu.addSeparator();
+
+      QAction *renameAction = contextMenu.addAction("重命名");
+      connect(renameAction, &QAction::triggered,
+              [this, index]() { m_projectTreeView->edit(index); });
+
+      QAction *deleteAction = contextMenu.addAction("删除");
+      connect(deleteAction, &QAction::triggered, [this, index]() {
+        QString filePath = m_fileSystemModel->filePath(index);
+        QFile::remove(filePath);
+      });
+    } else if (fileInfo.isDir()) {
+      // Directory actions
+      QAction *newFileAction = contextMenu.addAction("新建文件");
+      connect(newFileAction, &QAction::triggered, [this, filePath]() {
+        QString fileName = QInputDialog::getText(this, "新建文件", "文件名:");
+        if (!fileName.isEmpty()) {
+          QString newFilePath = filePath + "/" + fileName;
+          QFile file(newFilePath);
+          if (file.open(QIODevice::WriteOnly)) {
+            file.close();
+          }
+        }
+      });
+
+      QAction *newFolderAction = contextMenu.addAction("新建文件夹");
+      connect(newFolderAction, &QAction::triggered, [this, filePath]() {
+        QString folderName =
+            QInputDialog::getText(this, "新建文件夹", "文件夹名:");
+        if (!folderName.isEmpty()) {
+          QDir dir(filePath);
+          dir.mkdir(folderName);
+        }
+      });
+
+      contextMenu.addSeparator();
+
+      QAction *renameAction = contextMenu.addAction("重命名");
+      connect(renameAction, &QAction::triggered,
+              [this, index]() { m_projectTreeView->edit(index); });
+
+      QAction *deleteAction = contextMenu.addAction("删除");
+      connect(deleteAction, &QAction::triggered, [this, index]() {
+        QString dirPath = m_fileSystemModel->filePath(index);
+        QDir dir(dirPath);
+        dir.removeRecursively();
+      });
+    }
+
+    // Show the context menu
+    contextMenu.exec(m_projectTreeView->viewport()->mapToGlobal(pos));
+  }
+}
+
+// // 添加关闭工程的方法
+// void MainWindow::closeProject()
+// {
+//     // 防止误关闭整个应用程序
+//     if (sender() == m_exitAction) {
+//         qDebug() << "Exit action triggered, not closing project";
+//         return;
+//     }
+//     qDebug() << "closeProject method called";
+
+//     // // 检查是否有未保存的文件
+//     // if (hasUnsavedChanges()) {
+//     //     QMessageBox::StandardButton reply = QMessageBox::question(this,
+//     // "关闭工程",
+//     // "有未保存的更改，是否保存？",
+//     // QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel);
+
+//     //     if (reply == QMessageBox::Cancel) {
+//     //         qDebug() << "User canceled project closing";
+//     //         return;
+//     //     } else if (reply == QMessageBox::Yes) {
+//     //         saveAllFiles();
+//     //     }
+//     // }
+
+//     // 关闭所有打开的编辑器标签页，但不关闭主编辑器
+//     closeAllEditors();
+
+//     // // 清空主编辑器内容
+//     // if (m_editor) {
+//     //     m_editor->clear();
+//     //     m_editor->setModified(false);
+//     // }
+
+//     // 安全地清空主编辑器内容
+//     if (m_editor) {
+//         // 断开信号连接，防止清空时触发不必要的信号
+//         m_editor->blockSignals(true);
+//         m_editor->clear();
+//         m_editor->setModified(false);
+//         m_editor->blockSignals(false);
+//     }
+
+//     // // 关闭工程
+//     // if (m_buildSystem) {
+//     //     m_buildSystem->closeProject();
+//     // }
+
+//     // 清空项目路径
+//     m_projectPath.clear();
+//     m_currentFilePath.clear();
+
+//     // 更新UI状态
+//     updateWindowTitle();
+//     updateStatusInfo();
+
+//     // 清空项目树
+//     clearProjectTree();
+
+//     // 禁用工程相关的菜单项和工具栏按钮
+//     //updateMenuState();
+
+//     // 清空输出控制台
+//     if (m_outputConsole) {
+//         m_outputConsole->clear();
+//     }
+
+//     // 清空调试控制台
+//     if (m_debugConsole) {
+//         m_debugConsole->clear();
+//     }
+
+//     statusBar()->showMessage("工程已关闭", 3000);
+//     qDebug() << "Project closed successfully";
+// }
+
+void MainWindow::closeProject() {
+  // 防止误关闭整个应用程序
+  if (sender() == m_exitAction) {
+    qDebug() << "Exit action triggered, not closing project";
+    return;
+  }
+  qDebug() << "closeProject method called";
+  // 检查是否有未保存的文件
+  // if (hasUnsavedChanges()) {
+  //     QMessageBox::StandardButton reply = QMessageBox::question(this,
+  //                                                               "关闭工程",
+  //                                                               "有未保存的更改，是否保存？",
+  //                                                               QMessageBox::Yes
+  //                                                               |
+  //                                                               QMessageBox::No
+  //                                                               |
+  //                                                               QMessageBox::Cancel);
+
+  //     if (reply == QMessageBox::Cancel) {
+  //         qDebug() << "User canceled project closing";
+  //         return;
+  //     } else if (reply == QMessageBox::Yes) {
+  //         saveAllFiles();
+  //     }
+  // }
+  try {
+    if (m_debugController) {
+      m_debugController->closeProject();
+    }
+
+    // 清除额外动态选项卡（如终端），保留核心控制台与诊断
+    if (m_tabWidget) {
+      while (m_tabWidget->count() > 4) {
+        QWidget *w = m_tabWidget->widget(4);
+        m_tabWidget->removeTab(4);
+        if (w) w->deleteLater();
+      }
+    }
+
+    // 清空项目路径
+    m_projectPath.clear();
+    m_currentFilePath.clear();
+    if (m_projectSearch) m_projectSearch->setProjectRoot(QString());
+
+    if (m_codeEditor) {
+      m_codeEditor->clearExecutionLine();
+    }
+
+    // 更新UI状态
+    updateStatusInfo();
+    updateWindowTitle();
+
+    // 清空项目树
+    clearProjectTree();
+
+    // 清空输出控制台与问题列表
+    if (m_outputConsole) {
+      m_outputConsole->clear();
+    }
+    if (m_debugConsole) {
+      m_debugConsole->clear();
+    }
+    if (m_problemsTable) {
+      m_problemsTable->setRowCount(0);
+      int tabIdx = m_tabWidget->indexOf(m_problemsTable);
+      if (tabIdx >= 0) m_tabWidget->setTabText(tabIdx, "问题诊断");
+    }
+
+    statusBar()->showMessage("工程已关闭", 3000);
+    updateMenuState();
+    qDebug() << "Project closed successfully";
+  } catch (const std::exception &e) {
+    qDebug() << "Exception in closeProject: " << e.what();
+  } catch (...) {
+    qDebug() << "Unknown exception in closeProject";
+  }
+}
+
+// 添加处理工程关闭信号的槽
+void MainWindow::onProjectClosed() {
+  // 更新UI状态
+  updateWindowTitle();
+  updateStatusInfo();
+
+  // 禁用工程相关的菜单项和工具栏按钮
+  updateMenuState();
+}
+
+// 添加检查未保存更改的方法
+bool MainWindow::hasUnsavedChanges() {
+  if (m_codeEditor && m_codeEditor->currentEditor()) {
+    return m_codeEditor->currentEditor()->isModified();
+  }
+  return false;
+}
+
+// 添加保存所有文件的方法
+void MainWindow::saveAllFiles() {
+  if (m_codeEditor && !m_currentFilePath.isEmpty()) {
+    m_codeEditor->saveFile(m_currentFilePath);
+  }
+}
+
+// 添加关闭所有编辑器的方法
+void MainWindow::closeAllEditors() {
+  // 关闭所有打开的编辑器
+  // 这里需要根据你的编辑器实现来编写具体代码
+  // 简单示例：
+  // while (!m_openEditors.isEmpty()) {
+  //     auto editor = m_openEditors.takeFirst();
+  //     delete editor;
+  // }
+
+  // 如果使用QTabWidget管理编辑器，可以这样清空：
+  if (m_tabWidget) {
+    while (m_tabWidget->count() > 0) {
+      m_tabWidget->removeTab(0);
+    }
+  }
+}
+
+// 添加更新菜单状态的方法
+void MainWindow::updateMenuState() {
+  const bool hasProject = !m_projectPath.isEmpty();
+  if (m_saveFileAction) m_saveFileAction->setEnabled(hasProject);
+  if (m_saveAllAction) m_saveAllAction->setEnabled(hasProject);
+  if (m_closeProjectAction) m_closeProjectAction->setEnabled(hasProject);
+  updateDebugUiState(false, false);
+}
+
+void MainWindow::updateWindowTitle() {
+  if (m_projectPath.isEmpty()) {
+    setWindowTitle("PhudonTools");
+  } else {
+    QFileInfo fileInfo(m_projectPath);
+    QString projectName = fileInfo.fileName();
+    setWindowTitle(QString("STM32 IDE - %1").arg(projectName));
+  }
+}
+
+// Add this helper method to save a QsciScintilla editor's content to a file
+bool MainWindow::saveEditorContent(QsciScintilla *editor,
+                                   const QString &filePath) {
+  if (!editor || filePath.isEmpty()) {
+    return false;
+  }
+
+  QFile file(filePath);
+  if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+    QMessageBox::warning(this, "保存失败", "无法保存文件: " + filePath);
+    return false;
+  }
+
+  QTextStream out(&file);
+  out << editor->text();
+  file.close();
+
+  editor->setModified(false);
+  statusBar()->showMessage("已保存文件: " + filePath, 2000);
+  return true;
+}
+
+// Modify the clearProjectTree method
+void MainWindow::clearProjectTree() {
+  // Since you're using QFileSystemModel, not QStandardItemModel,
+  // we need to handle clearing differently
+  // if (m_projectTreeView) {
+  //     // Set the root path to the home directory or some default location
+  //     m_projectTreeView->setRootIndex(m_fileSystemModel->index(QDir::homePath()));
+
+  //     // Or if you want to completely reset the model:
+  //     // m_fileSystemModel->setRootPath("");
+  //     // m_projectTreeView->setRootIndex(m_fileSystemModel->index(""));
+  // }
+
+  if (m_projectTreeView && m_fileSystemModel) {
+    // m_projectTreeView->setRootIndex(m_fileSystemModel->index(QDir::homePath()));
+    m_fileSystemModel->setRootPath("");
+    m_projectTreeView->setRootIndex(m_fileSystemModel->index(""));
+  }
+}
+
+// // 添加清空项目树的方法
+// void MainWindow::clearProjectTree()
+// {
+//     // 清空项目树视图
+//     // 这里需要根据你的项目树实现来编写具体代码
+//     // 简单示例：
+//     if (m_projectTreeView) {
+//         QStandardItemModel* model =
+//         qobject_cast<QStandardItemModel*>(m_projectTreeView->model()); if
+//         (model) {
+//             model->clear();
+//         }
+//     }
+// }
+
+// 添加在MainWindow类的实现部分末尾
+
+// 打开独立多通信接口数字示波器
+void MainWindow::openOscilloscopeTool() {
+  AppManager::instance()->launchApp("oscilloscope");
+}
+
+// 打开串口调试助手
+void MainWindow::openSerialTool() {
+  AppManager::instance()->launchApp("serial_plot");
+}
+
+// 打开网络调试助手
+void MainWindow::openNetworkTool() {
+  AppManager::instance()->launchApp("network_tool");
+}
+
+// 打开CAN调试助手
+void MainWindow::openCANTool() {
+  AppManager::instance()->launchApp("can_tool");
+}
+
+// 打开IAP升级工具
+void MainWindow::openIAPTool() {
+  AppManager::instance()->launchApp("iap_tool");
+}
+
+// 打开应用工作台主界面
+void MainWindow::openAppHub() {
+  QWidget *hub = AppManager::instance()->getRunningWidget("app_hub");
+  if (hub) {
+    hub->showNormal();
+    hub->raise();
+    hub->activateWindow();
+  }
+}

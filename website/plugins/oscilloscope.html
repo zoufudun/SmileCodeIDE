@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>工业级多通道虚拟示波器 - SmileCode IDE</title>
+  <meta name="description" content="专为嵌入式硬件调试打造的高精度虚拟示波器，支持 8 通道实时采样、FFT 频谱分析与波形捕获。">
+  
+  <link rel="icon" type="image/x-icon" href="../assets/favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body class="parchment-theme">
+  <!-- Top Navigation Bar -->
+  <header class="navbar" id="navbar">
+    <div class="nav-container">
+      <a href="../index.html" class="nav-brand">
+        <img src="../assets/favicon.ico" alt="SmileCode IDE" class="brand-icon">
+        <span class="brand-title">SmileCode IDE</span>
+      </a>
+
+      <nav class="nav-links">
+        <a href="../index.html" class="nav-link">← 返回官网主页</a>
+        <div class="nav-item dropdown">
+          <a href="../index.html#plugins-hub" class="nav-link">
+            <span>其他产品</span>
+            <svg viewBox="0 0 20 20" width="16" height="16" fill="currentColor">
+              <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
+            </svg>
+          </a>
+          <div class="dropdown-menu">
+            <div class="dropdown-col">
+              <div class="dropdown-col-title">仪器与工作台</div>
+              <a href="stm32-workbench.html" class="dropdown-item-card">
+                <div class="item-icon">⚡</div>
+                <div class="item-content">
+                  <div class="item-title">STM32 全功能工作台</div>
+                  <span class="item-sub">基于 GCC 14 + OpenOCD 的开发套件</span>
+                </div>
+              </a>
+              <a href="serial-assistant.html" class="dropdown-item-card">
+                <div class="item-icon">🔌</div>
+                <div class="item-content">
+                  <div class="item-title">多协议串口助手</div>
+                  <span class="item-sub">百万包流式收发与曲线图</span>
+                </div>
+              </a>
+            </div>
+            <div class="dropdown-col">
+              <div class="dropdown-col-title">车载与工业总线</div>
+              <a href="can-analyzer.html" class="dropdown-item-card">
+                <div class="item-icon">🚗</div>
+                <div class="item-content">
+                  <div class="item-title">CAN / CAN-FD 分析仪</div>
+                  <span class="item-sub">DBC 信号解析与负载监控</span>
+                </div>
+              </a>
+              <a href="uds-diagnostic.html" class="dropdown-item-card">
+                <div class="item-icon">🛡️</div>
+                <div class="item-content">
+                  <div class="item-title">UDS 汽车诊断套件</div>
+                  <span class="item-sub">ISO 14229 诊断与固件刷写</span>
+                </div>
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <a href="../index.html#comparison" class="nav-link">痛点对比</a>
+        <a href="../index.html#download" class="nav-link">下载客户端</a>
+      </nav>
+
+      <div class="nav-actions">
+        <button class="capsule-btn" title="语言切换">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+          </svg>
+          <span>CN</span>
+        </button>
+        <button class="capsule-btn theme-capsule-btn" id="themeToggleBtn" title="切换主题">
+          <span id="themeToggleIcon">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+          </span>
+        </button>
+        <a href="https://github.com/zoufudun/SmileCodeIDE" target="_blank" rel="noopener" class="capsule-btn github-capsule-btn" title="GitHub 仓库">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+          </svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Section (Figure 5 Style) -->
+  <section class="plugin-hero-section">
+    <div class="plugin-slogan-wrap">
+      <h1 class="plugin-hero-slogan">波形毫厘毕现，洞察微观信号。</h1>
+      <p class="plugin-hero-desc">
+        多通道虚拟示波器 · 支持最高 8 通道同步采集、自适应电平触发与实时 FFT 频域分解
+      </p>
+    </div>
+
+    <div class="plugin-hero-actions">
+      <a href="../index.html#download" class="btn-pill-primary">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+        </svg>
+        <span>立即下载</span>
+      </a>
+      <a href="../index.html#download" class="btn-pill-secondary">
+        <span>所有下载 &rarr;</span>
+      </a>
+    </div>
+
+    <!-- Live Stage Mockup (Dynamic Waveform Animation) -->
+    <div class="plugin-stage-wrapper">
+      <div class="stage-window">
+        <div class="stage-titlebar">
+          <div class="window-dots">
+            <span class="dot red"></span>
+            <span class="dot yellow"></span>
+            <span class="dot green"></span>
+          </div>
+          <span class="window-tab-title">
+            <span class="live-indicator"></span>
+            Virtual Oscilloscope - [CH1: Sine 1.0 kHz · CH2: PWM 500 Hz · Timebase: 100 µs/div]
+          </span>
+          <span style="font-size: 0.76rem; color: #10b981; font-weight: 700;">● 采集刷新率: 60 FPS</span>
+        </div>
+        <div class="stage-body">
+          <!-- Control Panel -->
+          <div class="stage-sidebar">
+            <div style="font-size: 0.74rem; font-weight: 700; color: var(--text-muted); margin-bottom: 6px;">通道与触发</div>
+            <div style="font-size: 0.82rem; color: #10b981; font-weight: 700;">● CH1: 模拟电压 (V)</div>
+            <div style="font-size: 0.76rem; color: var(--text-muted);">量程: 1.0 V/div</div>
+            <div style="font-size: 0.82rem; color: #f59e0b; font-weight: 700; margin-top: 10px;">● CH2: 脉宽调制 (PWM)</div>
+            <div style="font-size: 0.76rem; color: var(--text-muted);">占空比: 65.4%</div>
+            <div style="margin-top: auto; border-top: 1px solid var(--border-color); padding-top: 8px;">
+              <div style="font-size: 0.74rem; color: var(--text-muted);">触发模式: 边缘上升沿</div>
+              <div style="font-size: 0.74rem; color: var(--text-muted);">Vpp: 3.28V | Freq: 998.4 Hz</div>
+            </div>
+          </div>
+
+          <!-- Dynamic Oscilloscope Grid & Flowing Waveform -->
+          <div class="stage-main-area" style="background: #090d16; padding: 0; overflow: hidden; display: flex; flex-direction: column;">
+            <!-- Grid Background Overlay -->
+            <div style="flex: 1; position: relative; background: radial-gradient(circle, rgba(16, 185, 129, 0.05) 1px, transparent 1px) 0 0/20px 20px; display: flex; align-items: center; overflow: hidden;">
+              <!-- Flowing Waveform SVG -->
+              <svg class="wave-svg-flow" viewBox="0 0 1000 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <!-- CH1 Green Sine Wave -->
+                <path d="M0,90 Q50,20 100,90 T200,90 T300,90 T400,90 T500,90 T600,90 T700,90 T800,90 T900,90 T1000,90" stroke="#10b981" stroke-width="3" fill="none" opacity="0.9"/>
+                <!-- CH2 Orange PWM Wave -->
+                <path d="M0,130 L40,130 L40,50 L80,50 L80,130 L140,130 L140,50 L180,50 L180,130 L240,130 L240,50 L280,50 L280,130 L340,130 L340,50 L380,50 L380,130 L440,130 L440,50 L480,50 L480,130 L540,130 L540,50 L580,50 L580,130 L640,130 L640,50 L680,50 L680,130 L740,130 L740,50 L780,50 L780,130 L840,130 L840,50 L880,50 L880,130 L940,130 L940,50 L980,50 L980,130 L1000,130" stroke="#f59e0b" stroke-width="2.5" fill="none" opacity="0.85"/>
+              </svg>
+            </div>
+
+            <!-- Oscilloscope Measure Bar -->
+            <div style="background: rgba(15, 23, 42, 0.95); padding: 8px 16px; border-top: 1px solid rgba(255,255,255,0.08); display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 0.74rem; color: #94a3b8;">
+              <div>CH1 Vmax: 3.30V · Vmin: 0.02V · RMS: 2.33V</div>
+              <div>CH2 High: 3.3V · Low: 0.0V · Duty: 65.4%</div>
+              <div style="color: #10b981;">AUTO TRIGGER: READY</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Grid -->
+  <section class="section" style="background: rgba(125,125,125,0.02);">
+    <div class="container">
+      <div class="section-header text-center">
+        <h2 class="section-title">高品质信号捕获与深度测量</h2>
+        <p class="section-subtitle">无需购置上万元实体台式示波器，单片机开发板直连即可完成硬件时序调测。</p>
+      </div>
+
+      <div class="plugins-grid">
+        <div class="plugin-card">
+          <div class="plugin-icon">🎯</div>
+          <h3 class="plugin-card-title">自适应多种触发模式</h3>
+          <p class="plugin-card-desc">支持上升沿、下降沿、脉宽阈值与单次捕获 (Single)，轻松抓取偶发性毛刺脉冲。</p>
+        </div>
+        <div class="plugin-card">
+          <div class="plugin-card-title">📊 实时 FFT 频域分析</div>
+          <p class="plugin-card-desc">毫秒级频谱变换，快速排查电源纹波谐波、射频干扰与电磁噪声源头。</p>
+        </div>
+        <div class="plugin-card">
+          <div class="plugin-card-title">💾 历史回放与 CSV 导出</div>
+          <p class="plugin-card-desc">千万级采样点无损本地归档，支持时域游标无级放大缩放与多格式无损导出。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container text-center">
+      <h3 style="font-size: 1.6rem; font-weight: 800; margin-bottom: 12px;">立即体验 SmileCode IDE 虚拟示波器</h3>
+      <p style="color: var(--text-secondary); margin-bottom: 24px;">完全免费开源，已集成在最外层应用容器中，开箱即用。</p>
+      <div style="display: flex; justify-content: center; gap: 14px;">
+        <a href="../index.html#download" class="btn-primary">前往下载客户端</a>
+        <a href="../index.html" class="btn-secondary">返回官方主页</a>
+      </div>
+      <div style="margin-top: 36px; font-size: 0.82rem; color: var(--text-muted);">
+        &copy; 2026 SmileCodeIDE Team. Released under MIT License.
+      </div>
+    </div>
+  </footer>
+
+  <script src="../app.js"></script>
+</body>
+</html>
+

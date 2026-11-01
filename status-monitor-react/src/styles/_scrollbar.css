@@ -1,0 +1,19 @@
+/* ===== WebKit 滚动条统一样式 ===== */
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--control-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--panel-border-strong);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}

@@ -1,0 +1,68 @@
+name: Publish GitHub Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Tag to release (e.g. v2.3.1)'
+        required: true
+        default: 'v2.3.1'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build & Publish GitHub Release Packages
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine Tag
+        id: get_tag
+        shell: pwsh
+        run: |
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            $tag = "${{ github.event.inputs.tag_name }}"
+          } else {
+            $tag = "${{ github.ref_name }}"
+          }
+          Write-Output "RELEASE_TAG=$tag" >> $env:GITHUB_ENV
+          Write-Host "Releasing tag: $tag"
+
+      - name: Setup WiX Toolset
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path "tools/wix" -Force | Out-Null
+          $wixZip = "tools/wix.zip"
+          Invoke-WebRequest -Uri "https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip" -OutFile $wixZip
+          Expand-Archive -Path $wixZip -DestinationPath "tools/wix" -Force
+          Remove-Item $wixZip -Force
+
+      - name: Build Release Artifacts (ZIP, EXE, MSI)
+        shell: pwsh
+        run: |
+          # If dist already built or build via script
+          powershell -ExecutionPolicy Bypass -File scripts/package_release.ps1 -Version "${{ env.RELEASE_TAG }}"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: SmileCodeIDE ${{ env.RELEASE_TAG }}
+          body_path: RELEASE_NOTES_v2.3.1.md
+          draft: false
+          prerelease: false
+          files: |
+            dist/*.zip
+            dist/*.exe
+            dist/*.msi
+            dist/checksums.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

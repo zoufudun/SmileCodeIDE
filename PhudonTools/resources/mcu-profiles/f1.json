@@ -1,0 +1,32 @@
+{
+  "name": "STM32F103xB",
+  "series": "F1",
+  "chip": "STM32F103",
+  "core": "Cortex-M3",
+  "fpu": false,
+  "cpu_flags": "-mcpu=cortex-m3 -mthumb",
+  "c_flags": "-Wall -g -O0",
+  "cpp_flags": "-fno-exceptions -fno-rtti",
+  "defines": [
+    "STM32F103xB",
+    "USE_HAL_DRIVER"
+  ],
+  "includes": [
+    ".",
+    "Inc",
+    "Drivers/CMSIS/Include",
+    "Drivers/CMSIS/Device/ST/STM32F1xx/Include",
+    "Drivers/STM32F1xx_HAL_Driver/Inc"
+  ],
+  "memory": {
+    "flash": {
+      "origin": "0x08000000",
+      "size": "64K"
+    },
+    "ram": {
+      "origin": "0x20000000",
+      "size": "20K"
+    }
+  },
+  "linker_template": "STM32F1xx_FLASH.ld"
+}

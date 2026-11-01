@@ -1,0 +1,25 @@
+{
+  "generator": "STM32CubeMX 6.18.0",
+  "database": "DB.6.0.180",
+  "toolchain": "STM32CubeIDE",
+  "generationSettings": "CubeMX defaults; project generate",
+  "coverage": "H743VITx sample only; not a full STM32 catalog",
+  "targets": [
+    {
+      "referenceName": "STM32H743VITx",
+      "cpn": "STM32H743VIT6",
+      "contexts": [
+        {
+          "variant": "FLASH",
+          "file": "STM32H743VITX_FLASH.ld",
+          "sha256": "a80674f7089fed7e7e0924e9f6742d70915cfb259d908a7b8eaa7f4ef4779bcf"
+        },
+        {
+          "variant": "RAM",
+          "file": "STM32H743VITX_RAM.ld",
+          "sha256": "8d4fe0e1321dfa026d391ff4b63b9b9b0bb59fd8ec7afcd5532510885b8b6051"
+        }
+      ]
+    }
+  ]
+}

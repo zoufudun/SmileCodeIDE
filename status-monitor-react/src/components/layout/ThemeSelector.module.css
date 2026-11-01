@@ -1,0 +1,27 @@
+.select {
+  background: var(--control-bg);
+  border: 1px solid var(--primary-border);
+  color: var(--primary-color);
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 6px;
+  outline: none;
+  transition: all 0.2s;
+  text-shadow: 0 0 5px var(--primary-glow-light);
+}
+
+.select:hover {
+  background: var(--control-hover);
+  box-shadow: 0 0 8px var(--primary-glow);
+}
+
+.select:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.select option {
+  background: var(--panel-bg-solid);
+  color: var(--text-primary);
+}

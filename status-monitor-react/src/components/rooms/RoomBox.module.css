@@ -1,0 +1,111 @@
+.box {
+  position: absolute;
+  background: var(--panel-bg-muted);
+  border: 1.5px dashed var(--primary-border);
+  border-radius: 8px;
+  padding: 14px;
+  z-index: 2;
+  transition: background-color 0.3s, border-color 0.3s, box-shadow 0.3s;
+  display: flex;
+  flex-direction: column;
+}
+
+.alarmActive {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+  animation: room-alarm-pulse 2s infinite ease-in-out;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--panel-border);
+  padding-bottom: 6px;
+  margin-bottom: 8px;
+  user-select: none;
+  cursor: default;
+}
+
+.titleArea {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--primary-color);
+  text-shadow: 0 0 6px var(--primary-glow);
+  letter-spacing: 1px;
+  cursor: default;
+}
+
+.alarmActive .title {
+  color: var(--danger);
+  text-shadow: 0 0 6px var(--danger-soft);
+}
+
+.titleInput {
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--primary-color);
+  color: var(--primary-color);
+  font-family: 'Orbitron', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  outline: none;
+  width: 180px;
+}
+
+.titleInput:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.badge {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 9px;
+  font-weight: bold;
+  padding: 1px 5px;
+  background: var(--primary-glow-light);
+  color: var(--primary-color);
+  border: 1px solid var(--primary-border);
+  border-radius: 8px;
+}
+
+.alarmActive .badge {
+  background: var(--danger-soft);
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.actions {
+  display: flex;
+  gap: 4px;
+}
+
+.btnRename,
+.btnDelete {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-size: 10px;
+  transition: all 0.2s;
+}
+
+.btnRename:hover {
+  color: var(--primary-color);
+  background: var(--primary-glow-light);
+}
+
+.btnDelete:hover {
+  color: var(--danger);
+  background: var(--danger-soft);
+}

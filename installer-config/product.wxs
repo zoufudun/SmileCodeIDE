@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product Id="*" 
+           Name="SmileCodeIDE 2.3.1" 
+           Language="1033" 
+           Version="2.3.1" 
+           Manufacturer="SmileCodeIDE Team (zoufudun)" 
+           UpgradeCode="{B3C2A981-678E-45E9-91B6-0A1D1A2B3C4D}">
+    
+    <Package InstallerVersion="301" 
+             Compressed="yes" 
+             InstallScope="perMachine" 
+             Description="SmileCodeIDE Setup Package" 
+             Comments="Next-Gen Embedded IDE based on GCC 14 and OpenOCD/GDB" />
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version of SmileCodeIDE is already installed." />
+    
+    <MediaTemplate EmbedCab="yes" />
+
+    <Icon Id="AppIcon" SourceFile="PhudonTools/resources/logo.ico" />
+    <Property Id="ARPPRODUCTICON" Value="AppIcon" />
+    <Property Id="ARPHELPLINK" Value="https://zoufudun.github.io/SmileCodeIDE/" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/zoufudun/SmileCodeIDE" />
+
+    <!-- Directory Structure -->
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFiles64Folder">
+        <Directory Id="INSTALLFOLDER" Name="SmileCodeIDE" />
+      </Directory>
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="ApplicationProgramsFolder" Name="SmileCodeIDE" />
+      </Directory>
+      <Directory Id="DesktopFolder" Name="Desktop" />
+    </Directory>
+
+    <!-- Shortcuts -->
+    <DirectoryRef Id="ApplicationProgramsFolder">
+      <Component Id="ApplicationShortcut" Guid="{D84B9123-2891-4C57-9A10-DF0192837465}">
+        <Shortcut Id="ApplicationStartMenuShortcut"
+                  Name="SmileCodeIDE"
+                  Description="SmileCodeIDE Embedded Development Studio"
+                  Target="[INSTALLFOLDER]SmileCodeIDE.exe"
+                  WorkingDirectory="INSTALLFOLDER"
+                  Icon="AppIcon" />
+        <Shortcut Id="UninstallProduct"
+                  Name="Uninstall SmileCodeIDE"
+                  Description="Uninstall SmileCodeIDE"
+                  Target="[SystemFolder]msiexec.exe"
+                  Arguments="/x [ProductCode]" />
+        <RemoveFolder Id="CleanUpShortCut" On="uninstall" />
+        <RegistryValue Root="HKCU" Key="Software\SmileCodeIDE\SmileCodeIDE" Name="installed" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+
+    <DirectoryRef Id="DesktopFolder">
+      <Component Id="ApplicationDesktopShortcut" Guid="{F1823904-9812-4E21-A87B-49C081726354}">
+        <Shortcut Id="ApplicationDesktopShortcut"
+                  Name="SmileCodeIDE"
+                  Description="SmileCodeIDE Embedded Development Studio"
+                  Target="[INSTALLFOLDER]SmileCodeIDE.exe"
+                  WorkingDirectory="INSTALLFOLDER"
+                  Icon="AppIcon" />
+        <RegistryValue Root="HKCU" Key="Software\SmileCodeIDE\SmileCodeIDE" Name="desktopShortcut" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+
+    <!-- Features -->
+    <Feature Id="MainApplication" Title="SmileCodeIDE Main Components" Level="1">
+      <ComponentGroupRef Id="AppFiles" />
+      <ComponentRef Id="ApplicationShortcut" />
+      <ComponentRef Id="ApplicationDesktopShortcut" />
+    </Feature>
+
+    <!-- Basic UI Configuration -->
+    <UIRef Id="WixUI_InstallDir" />
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
+  </Product>
+</Wix>

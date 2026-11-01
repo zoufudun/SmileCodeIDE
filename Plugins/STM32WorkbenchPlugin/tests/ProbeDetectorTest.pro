@@ -1,0 +1,10 @@
+QT += core widgets testlib
+CONFIG += testcase c++17 console
+TARGET = ProbeDetectorTest
+MOC_DIR = $$OUT_PWD/moc
+INCLUDEPATH += $$MOC_DIR
+SOURCES += ProbeDetectorTest.cpp ../Core/ProbeDetector.cpp ../Core/FlashProgrammer.cpp ../Core/STM32Profile.cpp ../Core/ToolchainDetector.cpp ../UI/FlashConfigDialog.cpp
+SOURCES += ../Core/FlashLogModel.cpp
+HEADERS += ../Core/FlashLogModel.h
+HEADERS += ../Core/ProbeDetector.h ../Core/FlashProgrammer.h ../Core/STM32Profile.h ../Core/ToolchainDetector.h ../UI/FlashConfigDialog.h
+win32:LIBS += -lsetupapi -lcfgmgr32

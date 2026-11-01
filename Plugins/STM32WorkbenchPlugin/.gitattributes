@@ -1,0 +1,3 @@
+data/cubemx-6.18.0/*.ld -text -diff
+data/cubemx-6.18.0-f1f4f7h7/**/*.ld -text -diff
+data/cubemx-6.18.0-f1f4f7h7/**/*.ioc -text -diff
