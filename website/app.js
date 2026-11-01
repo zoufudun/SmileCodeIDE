@@ -14,8 +14,6 @@ document.addEventListener('DOMContentLoaded', () => {
   // =========================================================================
   const themeBtn = document.getElementById('themeToggleBtn');
   const themeIcon = document.getElementById('themeToggleIcon');
-  const studioThemeSelect = document.getElementById('studioThemeSelect');
-  const studioChassis = document.getElementById('studioChassis');
 
   const savedTheme = localStorage.getItem('smilecode_theme') || localStorage.getItem('smilecode-theme') || 'parchment';
   applyWebsiteTheme(savedTheme);

@@ -403,11 +403,9 @@ flowchart TD
 
     Host ==> Bus
     Bus ==> DevSuite
-    Bus ==> BusSuite
-    Bus ==> MeasureSuite
-    DevSuite -.-> Drivers
-    BusSuite -.-> Drivers
-    MeasureSuite -.-> Drivers
+    DevSuite ==> BusSuite
+    BusSuite ==> MeasureSuite
+    MeasureSuite ==> Drivers
           </pre>
           <div class="mermaid-card-caption">
             <span>图 1：SmileCode Studio 分层解耦系统架构全景 (Mermaid 清晰流向 · 点击放大按钮可全屏高清缩放)</span>
@@ -469,32 +467,29 @@ sequenceDiagram
             </button>
           </div>
           <pre class="mermaid">
-flowchart TB
-    Code["💻 传统单片机软件空循环延时代码<br/>for(int i=0; i&lt;1000; i++);"]
+flowchart TD
+    Code["💻 传统单片机软件空循环延时代码：for(int i=0; i&lt;1000; i++);"]
 
-    subgraph LevelCards ["⚙️ GCC 四档编译优化指令对比"]
-        subgraph CardO0 ["-O0 级别 (无优化)"]
-            ActO0["保留空循环汇编指令"]
-            ResO0["❌ 400MHz Cortex-M7 下执行耗时放大十倍<br/>GT9xx 触摸屏或 I2C 握手超时死锁"]
-        end
-
-        subgraph CardO1 ["-O1 级别 ★官方推荐"]
-            ActO1["适度流水线重组，保留安全时序"]
-            ResO1["✅ 运行稳定高效：屏幕亮起，外设正常工作<br/>兼顾执行速度与单步断点跟踪精准度"]
-        end
-
-        subgraph CardO2 ["-O2 / -O3 级别 (激进优化)"]
-            ActO2["编译器判定无副作用：整段消除！"]
-            ResO2["❌ 延时被完全剥离为 0 周期<br/>外设建立时间不足 1ns，初始化彻底失败"]
-        end
-
-        subgraph CardOs ["-Os 级别 (空间优化)"]
-            ActOs["公用代码块折叠，指令紧缩"]
-            ResOs["✅ Flash 尺寸缩减 35% 以上<br/>适合存储受限单片机量产发布"]
-        end
+    subgraph O0 ["❌ -O0 级别 (无优化)"]
+        ActO0["保留空循环汇编指令 · 400MHz Cortex-M7 下耗时放大十倍，I2C/触摸屏握手超时死锁"]
     end
 
-    Code --> LevelCards
+    subgraph O1 ["✅ -O1 级别 ★官方工程推荐"]
+        ActO1["适度流水线重组，保留安全时序 · 兼顾硬件执行效率与在线单步断点跟踪精准度"]
+    end
+
+    subgraph O2 ["❌ -O2 / -O3 级别 (激进优化)"]
+        ActO2["编译器判定无副作用并整段消除 · 延时变为 0 周期，外设建立时间不足，初始化失败"]
+    end
+
+    subgraph Os ["✅ -Os 级别 (空间优化)"]
+        ActOs["公用代码块折叠，指令紧缩 · Flash 体积缩减 35% 以上，适合受限单片机量产发布"]
+    end
+
+    Code ==> O0
+    O0 ==> O1
+    O1 ==> O2
+    O2 ==> Os
           </pre>
           <div class="mermaid-card-caption">
             <span>图 3：GCC 编译优化行为对底层硬件时序影响对比矩阵 (Mermaid 矢量深度分析)</span>
@@ -603,16 +598,16 @@ flowchart TB
             </button>
           </div>
           <pre class="mermaid">
-flowchart LR
+flowchart TD
     subgraph Inputs ["📡 物理层硬件设备数据输入"]
-        IN_CAN["周立功 / 创芯 CANFD<br/>(高达 5Mbps 极速报文)"]
-        IN_UART["TTL / RS485 工业串口<br/>(高达 921600bps 数据流)"]
-        IN_NET["以太网 TCP/UDP 报文<br/>(广播 / 组播数据包)"]
+        IN_CAN["周立功 / 创芯 CANFD (高达 5Mbps 极速报文)"]
+        IN_UART["TTL / RS485 工业串口 (高达 921600bps 数据流)"]
+        IN_NET["以太网 TCP/UDP 报文 (广播 / 组播数据包)"]
     end
 
-    subgraph RingBuffer ["⚡ 通信引擎：无锁环形缓冲区"]
-        Queue["FIFO 极速内存收发队列<br/>(Lock-Free RingBuffer)"]
-        Parser["多协议解包器：<br/>Modbus / CANOpen / Ymodem"]
+    subgraph RingBuffer ["⚡ 通信引擎：无锁环形缓冲区 (Lock-Free RingBuffer)"]
+        Queue["FIFO 极速内存收发队列 · 纳秒级零拷贝入队"]
+        Parser["多协议解包器：Modbus / CANOpen / Ymodem 实时解析"]
     end
 
     subgraph Consumers ["📊 统一应用分发消费层"]
@@ -621,9 +616,9 @@ flowchart LR
         Out_File["💾 工业录波：CSV / BIN / PCAP 格式后台秒级落盘"]
     end
 
-    Inputs ==> Queue
+    Inputs ==> RingBuffer
     Queue --> Parser
-    Parser --> Consumers
+    RingBuffer ==> Consumers
           </pre>
           <div class="mermaid-card-caption">
             <span>图 6：工业总线与仪器高吞吐数据流管道架构 (Mermaid 矢量数据流管道)</span>
@@ -738,7 +733,7 @@ flowchart LR
             noteBkgColor: '#1e293b',
             noteTextColor: '#f8fafc',
             noteBorderColor: '#38bdf8',
-            fontSize: '13px',
+            fontSize: '14px',
             fontFamily: 'JetBrains Mono, Noto Sans SC, sans-serif'
           }
         });
@@ -763,7 +758,7 @@ flowchart LR
             noteBkgColor: '#fbf7ef',
             noteTextColor: '#201b17',
             noteBorderColor: '#ea580c',
-            fontSize: '13px',
+            fontSize: '14px',
             fontFamily: 'JetBrains Mono, Noto Sans SC, sans-serif'
           }
         });
