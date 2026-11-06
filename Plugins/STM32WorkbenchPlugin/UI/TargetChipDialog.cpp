@@ -1,5 +1,6 @@
 #include <QApplication>
 #include "idetheme.h"
+#include "ideworkflowicons.h"
 #include "TargetChipDialog.h"
 
 #include <QVBoxLayout>
@@ -16,6 +17,7 @@ TargetChipDialog::TargetChipDialog(QWidget *parent, QSettings *settings, const Q
     : QDialog(parent), m_settings(settings), m_selectedChip(initialChip)
 {
     setWindowTitle(QStringLiteral("目标芯片选择 (Target Device Selection)"));
+    setWindowIcon(IDEWorkflowIcons::icon(IDEWorkflowIcons::Kind::ChipConfig));
     resize(980, 640);
     setMinimumSize(800, 520);
 

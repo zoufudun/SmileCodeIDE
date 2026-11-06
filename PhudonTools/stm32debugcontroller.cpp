@@ -35,6 +35,7 @@ STM32DebugController::STM32DebugController(QObject *parent)
     // 构建系统信号转发
     connect(m_buildManager, &BuildManager::buildStarted, this, &STM32DebugController::buildStarted);
     connect(m_buildManager, &BuildManager::buildOutput, this, &STM32DebugController::buildOutput);
+    connect(m_buildManager, &BuildManager::buildLogChanged, this, &STM32DebugController::buildLogChanged);
     connect(m_buildManager, &BuildManager::diagnosticFound, this, &STM32DebugController::diagnosticFound);
     connect(m_buildManager, &BuildManager::memoryUsageUpdated, this, &STM32DebugController::memoryUsageUpdated);
     connect(m_buildManager, &BuildManager::buildFinished, this, &STM32DebugController::onBuildFinished);
@@ -218,7 +219,15 @@ bool STM32DebugController::buildProject()
         return false;
     }
     setState(STM32SessionState::Building);
-    const bool started = m_buildManager->startBuild(m_projectDir, BuildConfiguration::Debug, 4);
+    CompilerBuildOptions buildOpts;
+    QSettings settings(QSettings::defaultFormat(), QSettings::UserScope, "PhudonTools", "Settings");
+    settings.beginGroup("STM32Toolchain");
+    buildOpts.optLevel = settings.value("optLevel", "-O1").toString();
+    buildOpts.debugLevel = settings.value("debugLevel", "-g3 -gdwarf-2").toString();
+    buildOpts.enableToleranceFlags = settings.value("enableToleranceFlags", true).toBool();
+    buildOpts.customCFlags = settings.value("customCFlags", "").toString();
+    settings.endGroup();
+    const bool started = m_buildManager->startBuild(m_projectDir, BuildConfiguration::Debug, 4, buildOpts);
     if (!started) setState(STM32SessionState::Idle);
     return started;
 }
@@ -238,7 +247,15 @@ bool STM32DebugController::rebuildProject()
         return false;
     }
     setState(STM32SessionState::Building);
-    const bool started = m_buildManager->startRebuild(m_projectDir, BuildConfiguration::Debug, 4);
+    CompilerBuildOptions buildOpts;
+    QSettings settings(QSettings::defaultFormat(), QSettings::UserScope, "PhudonTools", "Settings");
+    settings.beginGroup("STM32Toolchain");
+    buildOpts.optLevel = settings.value("optLevel", "-O1").toString();
+    buildOpts.debugLevel = settings.value("debugLevel", "-g3 -gdwarf-2").toString();
+    buildOpts.enableToleranceFlags = settings.value("enableToleranceFlags", true).toBool();
+    buildOpts.customCFlags = settings.value("customCFlags", "").toString();
+    settings.endGroup();
+    const bool started = m_buildManager->startRebuild(m_projectDir, BuildConfiguration::Debug, 4, buildOpts);
     if (!started) setState(STM32SessionState::Idle);
     return started;
 }

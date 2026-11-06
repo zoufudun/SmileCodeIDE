@@ -46,6 +46,7 @@ private slots:
     void onBrowseOpenocd();
     void onBrowseOpenocdScripts();
     void onBrowseJlink();
+    void onAutoFindJlink();
     void onBrowseStm32Prog();
     void onSaveClicked();
     void onOpenChipSelectDialog();
@@ -89,6 +90,7 @@ private:
     QPushButton *m_selectChipBtn;
     QTextEdit *m_diagnosticReportEdit;
 
+    QPushButton *m_autoFindJlinkBtn = nullptr;
     QPushButton *m_autoDetectBtn;
     QPushButton *m_saveBtn;
     QPushButton *m_cancelBtn;

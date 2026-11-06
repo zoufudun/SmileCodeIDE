@@ -107,7 +107,7 @@ QWidget* AboutUpdateDialog::createContainerCard()
     nameLayout->setSpacing(3);
     QLabel *nameLabel = new QLabel(QStringLiteral("SmileCode Studio · 微笑代码工作站"), card);
     nameLabel->setObjectName("containerNameLabel");
-    m_containerVerLabel = new QLabel(QStringLiteral("应用市场容器核心 v2.3.1 (最新正式版)"), card);
+    m_containerVerLabel = new QLabel(QStringLiteral("应用市场容器核心 v2.3.9 (最新正式版)"), card);
     m_containerVerLabel->setObjectName("containerVerLabel");
     nameLayout->addWidget(nameLabel);
     nameLayout->addWidget(m_containerVerLabel);
@@ -238,8 +238,8 @@ QWidget* AboutUpdateDialog::createPluginsCard()
         {"oscilloscope",      QStringLiteral("多接口数字示波器"),          QStringLiteral("串口/TCP/UDP/WebSocket 实时多通道波形采集 · FFT 频谱与标尺"), QStringLiteral("v2.0.0"), QStringLiteral("内置应用")},
         {"serial_plot",       QStringLiteral("串口调试大师 Pro"),          QStringLiteral("多标签页高速串口通信与分屏工作台 · 实时曲线 · Modbus 解析"), QStringLiteral("v3.0.0"), QStringLiteral("内置应用")},
         {"signal_gen",        QStringLiteral("高频信号发生器"),            QStringLiteral("正弦波/方波/三角波/锯齿波/白噪声实时高频仿真与数据生成"),     QStringLiteral("v1.0.0"), QStringLiteral("Qt 动态插件")},
-        {"smilecode_ide",     QStringLiteral("SmileCode IDE"),             QStringLiteral("嵌入式 C/C++ 代码编辑器与 GDB 调试器 · GCC/Make 构建"),     QStringLiteral("v2.3.1"), QStringLiteral("核心工作台")},
-        {"stm32_build_debug", QStringLiteral("STM32 编译构建与 GDB 调试"), QStringLiteral("GCC/Make 一键编译构建、固件烧录与硬件 GDB 在线断点单步调试"), QStringLiteral("v1.0.0"), QStringLiteral("Qt 动态插件")},
+        {"smilecode_ide",     QStringLiteral("SmileCode IDE"),             QStringLiteral("嵌入式 C/C++ 代码编辑器与 GDB 调试器 · GCC/Make 构建"),     QStringLiteral("v2.3.9"), QStringLiteral("核心工作台")},
+        {"stm32_build_debug", QStringLiteral("STM32 编译构建与 GDB 调试"), QStringLiteral("GCC/Make 一键编译构建、固件烧录与硬件 GDB 在线断点单步调试"), QStringLiteral("v1.1.2"), QStringLiteral("Qt 动态插件")},
         {"custom_plugin",     QStringLiteral("自定义扩展插件"),            QStringLiteral("开箱即用的 Qt 动态插件开发范例与接口演示 · 动态加载与主题联动"), QStringLiteral("v1.0.0"), QStringLiteral("Qt 动态插件")}
     };
 
@@ -312,7 +312,13 @@ QWidget* AboutUpdateDialog::createChangelogView()
 
     QString changelogHtml = QStringLiteral(
         "<div style='font-family: sans-serif; line-height: 1.6;'>"
-        "  <h2 style='color:#3b82f6; border-bottom: 2px solid #3b82f6; padding-bottom: 6px;'>v2.3.1 (最新稳定版 - 2026-10-31)</h2>"
+        "  <h2 style='color:#3b82f6; border-bottom: 2px solid #3b82f6; padding-bottom: 6px;'>v2.3.9 (最新稳定版 - 2026-11-05)</h2>"
+        "  <ul>"
+        "    <li><b>Keil 风格编译输出与多维筛选</b>：主 IDE 与 STM32 工作台全面对齐 Keil MDK 编译进度风格（compiling / assembling / linking / Program Size / X Error(s), Y Warning(s)），支持简约日志与详细日志一键切换，错误（红）与警告（琥珀黄）分色高亮，并支持按全部/仅错误/仅警告/错误与警告实时筛选。</li>"
+        "    <li><b>J-Link 环境自动查找</b>：工具链配置器深度扫描 Windows 注册表、SEGGER/JLink_Vxxx 目录（自动优选最新版本）、各磁盘 Soft/Tools 目录及 Keil MDK 内置 Segger 目录，新增“自动查找”按钮与 J-Link 健康状态诊断。</li>"
+        "    <li><b>芯片配置与烧录配置图标升级</b>：绘制定制化 QFP 四边引脚微控制器晶圆图标（芯片配置）与高速编程闪电+精密齿轮徽标图标（烧录配置），消除通用电脑图标与重复图标混淆。</li>"
+        "  </ul>"
+        "  <h3 style='color:#6366f1; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin-top: 20px;'>v2.3.1 (2026-10-31)</h3>"
         "  <ul>"
         "    <li><b>可视化编译器优化控制台</b>：新增 -O0 到 -O3、-Os、-Og 六大档位自主选择与 DWARF2 符号注入，动态说明与 QSettings 持久化。</li>"
         "    <li><b>硬件延时防死锁根治</b>：彻底解决高等级 GCC 将空循环延时优化清空导致的板卡假死问题。</li>"
@@ -356,7 +362,7 @@ void AboutUpdateDialog::onCheckContainerUpdate()
         m_containerProgressBar->hide();
         m_checkContainerBtn->setEnabled(true);
         m_checkContainerBtn->setText(QStringLiteral("🔄 检查更新"));
-        m_containerStatusLabel->setText(QStringLiteral("🟢 恭喜！当前 SmileCode Studio 容器已是最新版本 (v2.3.1)。"));
+        m_containerStatusLabel->setText(QStringLiteral("🟢 恭喜！当前 SmileCode Studio 容器已是最新版本 (v2.3.9)。"));
     });
 }
 

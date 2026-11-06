@@ -199,6 +199,7 @@ private slots:
         QVERIFY(dialog.findChild<QTextEdit *>("toolchainDiagnosticReport")->toPlainText()
                     .contains(QStringLiteral("扫描完成")));
         QVERIFY(scan->isEnabled());
+        QVERIFY(dialog.findChild<QPushButton *>("autoFindJlinkBtn") != nullptr);
     }
 };
 

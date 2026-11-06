@@ -47,3 +47,15 @@
 - 手册明确：隔离底座用于保护 Signature Data Circuit，降低线路短路对回路的影响；模块功能由 3-SDU 下载的 personality code 决定。
 - Signature Driver Controller 数据表搜索摘要明确：回路控制器上电扫描设备序列号，学习设备在回路中的物理顺序（包括 T 形分支），并依据序列号分配软地址；因此 PPT 可使用“序列号识别—软地址—回路映射—周期监视/事件上传”的机制级表达。
 - 可公开宣传的机理表达：两线制可寻址回路承载设备供电与数字通信；控制器识别/映射设备，持续监视状态；探测器本地微处理器分析传感信号，达到阈值或预警条件后上报；控制器确认事件并按预设逻辑执行报警、记录与消防联动。
+
+## 2026-11-05 Keil 导入
+- 主窗口使用 QFileSystemModel；现有 Keil 扫描仅在 MakefileGenerator 内，丢弃分组信息。
+- CodeEditor 已有较完整符号解析，可抽出静态接口复用。用户已确认直接读取原工程。
+
+- Keil 原文件不会被转换/改写；沿用 IDE 的 .smilecode/project.json 侧车配置。
+- Fire_H7 样本路径为 Project/RVMDK（uv5），源路径为 ../../Libraries，工程根目录推断需支持多级上溯。
+- Qt6.11.1 工具链：D:/Soft/Qt/6.11.1/mingw_64/bin + D:/Soft/Qt/Tools/mingw1310_64/bin。
+
+## Debug 启动崩溃定位
+- Windows Application Error 1000 指向 Qt Creator Debug 构建，异常 0xc0000602，Qt6Core.dll6.11.1。
+- QtCore/qobject.h:268 对 lambda + Qt::UniqueConnection 显式 Q_ASSERT_X；codeeditor.cpp 的 setupFunctionNameHighlighting 存在此调用。Release 警告不崩溃，Debug 会终止。

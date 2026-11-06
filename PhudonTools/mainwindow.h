@@ -56,6 +56,7 @@ class SerialPortPlot;
 class SerialPortContainer;
 class IAPTool;
 class OscilloscopeWindow;
+class ProjectNavigator;
 
 class MainWindow : public QMainWindow {
   Q_OBJECT
@@ -67,8 +68,9 @@ public:
   bool isCurrentFileModified() const;
   void applyTheme(const QString &themeName);
   Q_INVOKABLE bool openSourceLocation(QString filePath, int line, int column = 0);
+  Q_INVOKABLE bool importKeilProject(QString filePath);
   QString getRecentProjectDirectory() const;
-  void closeProject();
+  Q_INVOKABLE void closeProject();
 
 private slots:
   void openProject();
@@ -136,9 +138,11 @@ private slots:
 
   void appendBuildOutput(const QString &output);
   void onBuildFinished(bool success);
+  void renderBuildOutputLog(bool reset = false);
   void updateProblemsTable(const QList<BuildDiagnostic> &diagnostics);
   void addProblemDiagnostic(const BuildDiagnostic &diag);
   void clearProblemsTable();
+  void applyProblemTableFilter();
   void syncBreakpointsToEditor();
 
 
@@ -173,6 +177,7 @@ private:
 
   // 添加菜单相关的成员变量
   QAction *m_openProjectAction;
+  QAction *m_importKeilAction = nullptr;
   QAction *m_newProjectAction;
   QAction *m_saveProjectAction;
   QAction *m_saveFileAction;
@@ -231,6 +236,8 @@ private:
   QComboBox *m_targetComboBox;
   QTreeView *m_projectTreeView;
   QFileSystemModel *m_fileSystemModel;
+  ProjectNavigator *m_projectNavigator = nullptr;
+  QString m_keilProjectFile;
   QProcess *m_process;
   QString m_projectPath;
   QString m_gccPath;
@@ -310,6 +317,18 @@ private:
   RegistersDock *m_registersDock = nullptr;
   BreakpointsDock *m_breakpointsDock = nullptr;
   QTableWidget *m_problemsTable = nullptr;
+  QWidget *m_outputTabPage = nullptr;
+  QComboBox *m_buildLogModeCombo = nullptr;
+  QCheckBox *m_buildVerboseCheck = nullptr;
+  QComboBox *m_buildLogFilterCombo = nullptr;
+  QLabel *m_buildLogCountsLabel = nullptr;
+  QString m_currentBuildHeading;
+  bool m_buildOutputActive = false;
+  qsizetype m_renderedBuildLogEntries = 0;
+  QWidget *m_problemsTabPage = nullptr;
+  QComboBox *m_problemsFilterCombo = nullptr;
+  QLabel *m_problemsCountLabel = nullptr;
+  QList<BuildDiagnostic> m_allDiagnostics;
 
   // 输出窗口
   QTextEdit *m_outputWindow;

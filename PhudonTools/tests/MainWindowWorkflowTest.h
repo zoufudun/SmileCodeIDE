@@ -25,6 +25,8 @@ private slots:
     void testBuildTriggerCrash();
     void testMenuUniquenessAndBuildSafety();
     void testRecentProjectDirectoryResolution();
+    void keilImportNavigationAndDirectorySwitch();
+    void keilBufferUndoRedoTracksSavePoint();
 
 private:
     static void withModal(bool &sawDialog, std::function<void(QDialog *)> action, int attempts = 50);

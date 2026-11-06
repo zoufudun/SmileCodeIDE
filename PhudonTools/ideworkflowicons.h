@@ -5,10 +5,12 @@
 #include <QIconEngine>
 #include <QPainter>
 #include <QPainterPath>
+#include <QtMath>
 
 namespace IDEWorkflowIcons {
 enum class Kind { Build, Rebuild, Clean, Flash, Debug, Stop, Pause, Continue,
-                  StepOver, StepInto, StepOut, Breakpoint };
+                  StepOver, StepInto, StepOut, Breakpoint,
+                  ChipConfig, FlashConfig, ToolchainConfig };
 
 class Engine : public QIconEngine {
 public:
@@ -30,6 +32,9 @@ public:
         case Kind::Pause: color = QColor("#EAB308"); break;
         case Kind::StepInto: case Kind::StepOut: color = QColor("#A78BFA"); break;
         case Kind::Clean: color = QColor("#94A3B8"); break;
+        case Kind::ChipConfig: color = QColor("#06B6D4"); break;
+        case Kind::FlashConfig: color = QColor("#F97316"); break;
+        case Kind::ToolchainConfig: color = QColor("#60A5FA"); break;
         default: break;
         }
         if (mode == QIcon::Disabled) color = QColor("#64748B");
@@ -88,6 +93,69 @@ public:
         }
         case Kind::Breakpoint:
             painter->setBrush(color); painter->drawEllipse(QRectF(5, 5, 14, 14)); break;
+        case Kind::ChipConfig: {
+            // 形象化 QFP 微控制器芯片封装图标（四边引脚 + 内部晶圆内核 + 1脚定位圆点）
+            for (qreal pin : {7.2, 10.4, 13.6, 16.8}) {
+                painter->drawLine(QPointF(pin, 1.8), QPointF(pin, 5.0));
+                painter->drawLine(QPointF(pin, 19.0), QPointF(pin, 22.2));
+                painter->drawLine(QPointF(1.8, pin), QPointF(5.0, pin));
+                painter->drawLine(QPointF(19.0, pin), QPointF(22.2, pin));
+            }
+            QColor fillBody = color;
+            fillBody.setAlpha(mode == QIcon::Disabled ? 25 : 40);
+            painter->setBrush(fillBody);
+            painter->drawRoundedRect(QRectF(5.0, 5.0, 14.0, 14.0), 2.0, 2.0);
+            QColor coreFill = color;
+            coreFill.setAlpha(mode == QIcon::Disabled ? 45 : 85);
+            painter->setBrush(coreFill);
+            painter->drawRoundedRect(QRectF(8.6, 8.6, 6.8, 6.8), 1.0, 1.0);
+            painter->setBrush(color);
+            painter->setPen(Qt::NoPen);
+            painter->drawEllipse(QPointF(7.2, 7.2), 1.0, 1.0);
+            break;
+        }
+        case Kind::FlashConfig: {
+            // 形象化烧录配置图标（左侧高速编程闪电 + 右下角精密配置齿轮徽标）
+            path.moveTo(10.8, 2.2);
+            path.lineTo(4.0, 11.5);
+            path.lineTo(9.2, 11.5);
+            path.lineTo(7.0, 20.5);
+            path.lineTo(15.2, 9.8);
+            path.lineTo(10.0, 9.8);
+            path.closeSubpath();
+            QColor boltFill = color;
+            boltFill.setAlpha(mode == QIcon::Disabled ? 45 : 85);
+            painter->setBrush(boltFill);
+            painter->drawPath(path);
+
+            const QColor gearColor = (mode == QIcon::Disabled) ? QColor("#64748B") : QColor("#38BDF8");
+            painter->setPen(QPen(gearColor, 1.7, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+            painter->setBrush(Qt::NoBrush);
+            const QPointF gearCenter(17.5, 17.2);
+            painter->drawEllipse(gearCenter, 3.0, 3.0);
+            for (int deg = 0; deg < 360; deg += 60) {
+                const qreal rad = qDegreesToRadians(static_cast<qreal>(deg));
+                const QPointF p1(gearCenter.x() + 2.8 * qCos(rad), gearCenter.y() + 2.8 * qSin(rad));
+                const QPointF p2(gearCenter.x() + 4.4 * qCos(rad), gearCenter.y() + 4.4 * qSin(rad));
+                painter->drawLine(p1, p2);
+            }
+            painter->setBrush(gearColor);
+            painter->setPen(Qt::NoPen);
+            painter->drawEllipse(gearCenter, 1.1, 1.1);
+            break;
+        }
+        case Kind::ToolchainConfig: {
+            // 形象化工具链配置图标（交叉扳手与精密齿轮）
+            const QPointF c(12.0, 12.0);
+            painter->drawEllipse(c, 5.2, 5.2);
+            for (int deg = 0; deg < 360; deg += 45) {
+                const qreal rad = qDegreesToRadians(static_cast<qreal>(deg));
+                painter->drawLine(QPointF(c.x() + 5.0 * qCos(rad), c.y() + 5.0 * qSin(rad)),
+                                  QPointF(c.x() + 7.4 * qCos(rad), c.y() + 7.4 * qSin(rad)));
+            }
+            painter->drawEllipse(c, 2.2, 2.2);
+            break;
+        }
         }
         painter->restore();
     }

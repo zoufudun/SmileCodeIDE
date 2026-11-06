@@ -80,3 +80,14 @@
   5. [x] 建立 5 大核心插件专属独立主页（`stm32-workbench.html`、`oscilloscope.html`、`can-analyzer.html`、`uds-diagnostic.html`、`serial-assistant.html`），各具动态视觉展台（图 5 风格）；
   6. [ ] 重新生成全套分发包（ZIP、EXE、MSI）并更新校验哈希；
   7. [ ] 推送 GitHub 仓库 `V10.0`、更新 `v2.3.1` Release 与 `gh-pages` 部署。
+
+## 2026-11-05 Keil 工程导航
+- [x] 有序 uvprojx 解析与回归测试
+- [x] 项目/函数双视图与跳转
+- [x] 主窗口导入、持久化与刷新集成
+- [x] 编译、回归测试、代码审查与归档
+
+## 2026-11-05 Debug 启动崩溃
+- [x] 开启 Qt 断言的最小编辑器启动测试复现
+- [x] 修复 lambda 使用 UniqueConnection，并避免主题切换重复连接
+- [x] 重建 Qt Creator Debug 目标、运行回归、真实入口验证并归档

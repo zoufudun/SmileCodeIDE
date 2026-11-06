@@ -125,7 +125,7 @@ void BuildLogModel::consumeLine(QString text)
     match = size.match(text);
     if (match.hasMatch()) {
         const auto t=match.captured(1).toULongLong(), d=match.captured(2).toULongLong(), b=match.captured(3).toULongLong();
-        entry.text = QString("Program Size: text: %1, data: %2, bss: %3; Flash: %4 bytes, RAM: %5 bytes").arg(t).arg(d).arg(b).arg(t+d).arg(d+b);
+        entry.text = QString("Program Size: Code=%1 RO-data=0 RW-data=%2 ZI-data=%3 (text: %1, data: %2, bss: %3; Flash: %4 bytes, RAM: %5 bytes)").arg(t).arg(d).arg(b).arg(t+d).arg(d+b);
         m_concise.append(entry);
     }
 }
@@ -143,10 +143,43 @@ BuildLogResult BuildLogModel::finish(bool success, int exitCode, int durationMs)
     }
     const bool clean = m_action.compare("clean",Qt::CaseInsensitive)==0 || m_action.contains(QStringLiteral("清理"));
     const auto status = clean ? (success ? QStringLiteral("清理完成") : QStringLiteral("清理失败")) : (success ? QStringLiteral("构建完成") : QStringLiteral("构建失败"));
-    m_result = {success, m_errors, m_warnings, QStringLiteral("%1 · 错误 %2，警告 %3，耗时 %4 秒").arg(status).arg(m_errors).arg(m_warnings).arg(qMax(0,durationMs)/1000.0,0,'f',2)};
+    m_result = {success, m_errors, m_warnings, QStringLiteral("%1 · %2 Error(s), %3 Warning(s) (错误 %2，警告 %3，耗时 %4 秒)").arg(status).arg(m_errors).arg(m_warnings).arg(qMax(0,durationMs)/1000.0,0,'f',2)};
     BuildLogEntry e; e.text=m_result.summary; e.success=success; e.severity=success ? DiagnosticSeverity::Info : DiagnosticSeverity::Error;
     m_concise.append(e); m_detailed.append(e); m_finished=true;
     return m_result;
+}
+
+bool BuildLogModel::matchesFilter(const BuildLogEntry &entry, BuildLogFilter filter)
+{
+    switch (filter) {
+    case BuildLogFilter::ErrorsOnly:
+        return entry.severity == DiagnosticSeverity::Error || entry.severity == DiagnosticSeverity::Fatal;
+    case BuildLogFilter::WarningsOnly:
+        return entry.severity == DiagnosticSeverity::Warning;
+    case BuildLogFilter::ErrorsAndWarnings:
+        return entry.severity == DiagnosticSeverity::Warning ||
+               entry.severity == DiagnosticSeverity::Error ||
+               entry.severity == DiagnosticSeverity::Fatal;
+    case BuildLogFilter::All:
+    default:
+        return true;
+    }
+}
+
+QVector<BuildLogEntry> BuildLogModel::filteredEntries(bool detailed, BuildLogFilter filter) const
+{
+    const auto &source = detailed ? m_detailed : m_concise;
+    if (filter == BuildLogFilter::All) {
+        return source;
+    }
+    QVector<BuildLogEntry> result;
+    result.reserve(source.size());
+    for (const BuildLogEntry &entry : source) {
+        if (matchesFilter(entry, filter)) {
+            result.append(entry);
+        }
+    }
+    return result;
 }
 
 QColor BuildLogModel::color(DiagnosticSeverity severity)

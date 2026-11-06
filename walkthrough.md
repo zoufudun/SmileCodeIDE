@@ -1,4 +1,49 @@
-# SmileCodeIDE 专项升级与问题攻坚走查报告 (Walkthrough)
+# SmileCodeIDE 专项升级与问题攻坚总走查报告 (Master Walkthrough)
+
+---
+
+## [2026-11-06] Keil 风格编译日志输出、编译信息分类筛选、J-Link 环境自动查找及配置图标形象化升级 (v2.3.9)
+
+> **独立详细文档**：[2026-11-06-Keil风格编译日志与JLink环境自动查找及配置图标形象化升级.md](file:///j:/TOPFIRE/SmileCodeIDEUpdate/docs/2026-11-06-Keil风格编译日志与JLink环境自动查找及配置图标形象化升级.md)
+
+### 1. 升级背景与核心目标
+- **Keil 风格编译日志输出**：对齐 Keil MDK 经典编译格式（`*** Build target '...' ***`、`compiling ...`、`linking...`、`Program Size: Code=...`、`X Error(s), Y Warning(s)`），并支持**简约日志**与**详细日志**自由切换。
+- **编译错误与警告区分与多维度筛选**：高对比度红色标红错误、琥珀金色高亮警告，控制台支持点击直接跳转源码行号；提供“全部编译信息 / 仅显示错误 / 仅显示警告 / 错误与警告”四种模式过滤，并在“问题诊断”面板中同步提供分类筛选与统计徽标。
+- **J-Link 调试环境全自动查找**：工具链配置支持从系统环境变量、Windows 注册表、SEGGER 常用目录及 Keil MDK 内置 Segger 多路径中深度智能发现并选择最新版本 J-Link，新增“自动查找”交互按钮。
+- **芯片与烧录形象化图标**：绘制并应用全新高清矢量图标（QFP 四边引脚芯片封装、高速编程闪电+齿轮、工具链精密齿轮）。
+- **版本控制与发布**：升级容器版本为 `v2.3.9`，STM32 工作台插件升至 `v1.1.2`，完善单元测试与中英更新日志。
+
+### 2. 核心架构与模块改动
+1. **编译日志模型重构 (`BuildLogModel.h/cpp`)**：
+   - 增加 `BuildLogFilter` 枚举及 `matchesFilter()`、`filteredEntries()` 高效过滤机制。
+   - Keil 格式化输出保证原有 `Flash: %4`、`RAM: %5`、`text: %1` 兼容性与 Keil 格式双向解析。
+   - 错误/警告统计与构建耗时精确输出。
+2. **J-Link 智能探测引擎 (`ToolchainDetector.h/cpp`)**：
+   - 实现 `detectJLinkPath(hintDir)`：多级扫描环境变量、注册表（`HKCU/HKLM\Software\SEGGER\J-Link`、Uninstall 项、Keil `ARM\Segger`）与多盘符根目录。
+   - 采用静默元数据及版本命名降序分析，严格避免外部交互式命令行挂起阻塞。
+3. **工具链配置交互升级 (`ToolchainConfigDialog.h/cpp`)**：
+   - 在 J-Link 路径配置栏增加“自动查找”专属按钮。
+   - 保证构造函数在毫秒级（<10ms）快速返回，符合异步性能契约（测试要求 <300ms）。
+4. **高清矢量图标升级 (`ideworkflowicons.h`)**：
+   - `Kind::ChipConfig`：QFP 芯片四边引脚、硅晶圆 Die 核心与 Pin 1 定位点。
+   - `Kind::FlashConfig`：高速编程闪电徽标 + 精密设置齿轮。
+   - `Kind::ToolchainConfig`：八齿精密交叉编译齿轮。
+   - 全面覆盖主窗口动作、工作台工具栏及各级配置对话框标题栏。
+5. **主窗口控制台与问题诊断面板联动 (`mainwindow.h/cpp`)**：
+   - 编译输出控制台升级为支持 HTML 锚点的富文本浏览器，支持点击错误行跳转。
+   - 控制台顶部增设“日志模式”、“信息过滤”与实时统计状态徽章。
+   - 问题诊断列表增设“全部问题 / 仅看错误 / 仅看警告”过滤下拉框与统计计数标签。
+
+### 3. 验证与测试结果
+- `BuildLogModelTest`：19 项全部 PASS。
+- `ToolchainConfigDialogAsyncTest`：8 项全部 PASS。
+- `ToolchainDetectorTest`：33 项 PASS（9 项硬件桩跳过）。
+- `MainWindowWorkflowTest`：12 项全部 PASS。
+- 全量构建：`PhudonTools` 及 `STM32WorkbenchPlugin` 均零错误、零警告完成 Release 产物生成与部署。
+
+---
+
+## 历史走查记录：STM32H743 触摸画板工程烧写后黑屏根因攻坚与全流程排查
 
 ## 概述
 

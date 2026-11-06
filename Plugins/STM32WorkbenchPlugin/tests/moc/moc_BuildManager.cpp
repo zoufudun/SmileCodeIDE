@@ -1,7 +1,7 @@
 /****************************************************************************
 ** Meta object code from reading C++ file 'BuildManager.h'
 **
-** Created by: The Qt Meta Object Compiler version 69 (Qt 6.11.2)
+** Created by: The Qt Meta Object Compiler version 69 (Qt 6.11.1)
 **
 ** WARNING! All changes made in this file will be lost!
 *****************************************************************************/
@@ -18,7 +18,7 @@
 #if !defined(Q_MOC_OUTPUT_REVISION)
 #error "The header file 'BuildManager.h' doesn't include <QObject>."
 #elif Q_MOC_OUTPUT_REVISION != 69
-#error "This file was generated using the moc from 6.11.2. It"
+#error "This file was generated using the moc from 6.11.1. It"
 #error "cannot be used with the include files from this version of Qt."
 #error "(The moc has changed too much.)"
 #endif
@@ -39,9 +39,11 @@ template <> constexpr inline auto BuildManager::qt_create_metaobjectdata<qt_meta
     namespace QMC = QtMocConstants;
     QtMocHelpers::StringRefStorage qt_stringData {
         "BuildManager",
-        "buildStarted",
+        "buildSessionStarted",
         "",
         "action",
+        "buildLogChanged",
+        "buildStarted",
         "buildOutput",
         "text",
         "isError",
@@ -67,37 +69,43 @@ template <> constexpr inline auto BuildManager::qt_create_metaobjectdata<qt_meta
     };
 
     QtMocHelpers::UintData qt_methods {
-        // Signal 'buildStarted'
+        // Signal 'buildSessionStarted'
         QtMocHelpers::SignalData<void(const QString &)>(1, 2, QMC::AccessPublic, QMetaType::Void, {{
             { QMetaType::QString, 3 },
         }}),
+        // Signal 'buildLogChanged'
+        QtMocHelpers::SignalData<void()>(4, 2, QMC::AccessPublic, QMetaType::Void),
+        // Signal 'buildStarted'
+        QtMocHelpers::SignalData<void(const QString &)>(5, 2, QMC::AccessPublic, QMetaType::Void, {{
+            { QMetaType::QString, 3 },
+        }}),
         // Signal 'buildOutput'
-        QtMocHelpers::SignalData<void(const QString &, bool)>(4, 2, QMC::AccessPublic, QMetaType::Void, {{
-            { QMetaType::QString, 5 }, { QMetaType::Bool, 6 },
+        QtMocHelpers::SignalData<void(const QString &, bool)>(6, 2, QMC::AccessPublic, QMetaType::Void, {{
+            { QMetaType::QString, 7 }, { QMetaType::Bool, 8 },
         }}),
         // Signal 'diagnosticFound'
-        QtMocHelpers::SignalData<void(const BuildDiagnostic &)>(7, 2, QMC::AccessPublic, QMetaType::Void, {{
-            { 0x80000000 | 8, 9 },
+        QtMocHelpers::SignalData<void(const BuildDiagnostic &)>(9, 2, QMC::AccessPublic, QMetaType::Void, {{
+            { 0x80000000 | 10, 11 },
         }}),
         // Signal 'memoryUsageUpdated'
-        QtMocHelpers::SignalData<void(quint32, quint32, quint32, quint32)>(10, 2, QMC::AccessPublic, QMetaType::Void, {{
-            { QMetaType::UInt, 11 }, { QMetaType::UInt, 12 }, { QMetaType::UInt, 13 }, { QMetaType::UInt, 14 },
+        QtMocHelpers::SignalData<void(quint32, quint32, quint32, quint32)>(12, 2, QMC::AccessPublic, QMetaType::Void, {{
+            { QMetaType::UInt, 13 }, { QMetaType::UInt, 14 }, { QMetaType::UInt, 15 }, { QMetaType::UInt, 16 },
         }}),
         // Signal 'buildFinished'
-        QtMocHelpers::SignalData<void(bool, int, int)>(15, 2, QMC::AccessPublic, QMetaType::Void, {{
-            { QMetaType::Bool, 16 }, { QMetaType::Int, 17 }, { QMetaType::Int, 18 },
+        QtMocHelpers::SignalData<void(bool, int, int)>(17, 2, QMC::AccessPublic, QMetaType::Void, {{
+            { QMetaType::Bool, 18 }, { QMetaType::Int, 19 }, { QMetaType::Int, 20 },
         }}),
         // Signal 'legacyLinkerMigrationRequired'
-        QtMocHelpers::SignalData<void(const QString &)>(19, 2, QMC::AccessPublic, QMetaType::Void, {{
-            { QMetaType::QString, 20 },
+        QtMocHelpers::SignalData<void(const QString &)>(21, 2, QMC::AccessPublic, QMetaType::Void, {{
+            { QMetaType::QString, 22 },
         }}),
         // Slot 'onProcessReadyReadStd'
-        QtMocHelpers::SlotData<void()>(21, 2, QMC::AccessPrivate, QMetaType::Void),
+        QtMocHelpers::SlotData<void()>(23, 2, QMC::AccessPrivate, QMetaType::Void),
         // Slot 'onProcessReadyReadErr'
-        QtMocHelpers::SlotData<void()>(22, 2, QMC::AccessPrivate, QMetaType::Void),
+        QtMocHelpers::SlotData<void()>(24, 2, QMC::AccessPrivate, QMetaType::Void),
         // Slot 'onProcessFinished'
-        QtMocHelpers::SlotData<void(int, QProcess::ExitStatus)>(23, 2, QMC::AccessPrivate, QMetaType::Void, {{
-            { QMetaType::Int, 17 }, { 0x80000000 | 24, 25 },
+        QtMocHelpers::SlotData<void(int, QProcess::ExitStatus)>(25, 2, QMC::AccessPrivate, QMetaType::Void, {{
+            { QMetaType::Int, 19 }, { 0x80000000 | 26, 27 },
         }}),
     };
     QtMocHelpers::UintData qt_properties {
@@ -122,30 +130,36 @@ void BuildManager::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id
     auto *_t = static_cast<BuildManager *>(_o);
     if (_c == QMetaObject::InvokeMetaMethod) {
         switch (_id) {
-        case 0: _t->buildStarted((*reinterpret_cast<std::add_pointer_t<QString>>(_a[1]))); break;
-        case 1: _t->buildOutput((*reinterpret_cast<std::add_pointer_t<QString>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<bool>>(_a[2]))); break;
-        case 2: _t->diagnosticFound((*reinterpret_cast<std::add_pointer_t<BuildDiagnostic>>(_a[1]))); break;
-        case 3: _t->memoryUsageUpdated((*reinterpret_cast<std::add_pointer_t<quint32>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<quint32>>(_a[2])),(*reinterpret_cast<std::add_pointer_t<quint32>>(_a[3])),(*reinterpret_cast<std::add_pointer_t<quint32>>(_a[4]))); break;
-        case 4: _t->buildFinished((*reinterpret_cast<std::add_pointer_t<bool>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<int>>(_a[2])),(*reinterpret_cast<std::add_pointer_t<int>>(_a[3]))); break;
-        case 5: _t->legacyLinkerMigrationRequired((*reinterpret_cast<std::add_pointer_t<QString>>(_a[1]))); break;
-        case 6: _t->onProcessReadyReadStd(); break;
-        case 7: _t->onProcessReadyReadErr(); break;
-        case 8: _t->onProcessFinished((*reinterpret_cast<std::add_pointer_t<int>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<QProcess::ExitStatus>>(_a[2]))); break;
+        case 0: _t->buildSessionStarted((*reinterpret_cast<std::add_pointer_t<QString>>(_a[1]))); break;
+        case 1: _t->buildLogChanged(); break;
+        case 2: _t->buildStarted((*reinterpret_cast<std::add_pointer_t<QString>>(_a[1]))); break;
+        case 3: _t->buildOutput((*reinterpret_cast<std::add_pointer_t<QString>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<bool>>(_a[2]))); break;
+        case 4: _t->diagnosticFound((*reinterpret_cast<std::add_pointer_t<BuildDiagnostic>>(_a[1]))); break;
+        case 5: _t->memoryUsageUpdated((*reinterpret_cast<std::add_pointer_t<quint32>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<quint32>>(_a[2])),(*reinterpret_cast<std::add_pointer_t<quint32>>(_a[3])),(*reinterpret_cast<std::add_pointer_t<quint32>>(_a[4]))); break;
+        case 6: _t->buildFinished((*reinterpret_cast<std::add_pointer_t<bool>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<int>>(_a[2])),(*reinterpret_cast<std::add_pointer_t<int>>(_a[3]))); break;
+        case 7: _t->legacyLinkerMigrationRequired((*reinterpret_cast<std::add_pointer_t<QString>>(_a[1]))); break;
+        case 8: _t->onProcessReadyReadStd(); break;
+        case 9: _t->onProcessReadyReadErr(); break;
+        case 10: _t->onProcessFinished((*reinterpret_cast<std::add_pointer_t<int>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<QProcess::ExitStatus>>(_a[2]))); break;
         default: ;
         }
     }
     if (_c == QMetaObject::IndexOfMethod) {
-        if (QtMocHelpers::indexOfMethod<void (BuildManager::*)(const QString & )>(_a, &BuildManager::buildStarted, 0))
+        if (QtMocHelpers::indexOfMethod<void (BuildManager::*)(const QString & )>(_a, &BuildManager::buildSessionStarted, 0))
             return;
-        if (QtMocHelpers::indexOfMethod<void (BuildManager::*)(const QString & , bool )>(_a, &BuildManager::buildOutput, 1))
+        if (QtMocHelpers::indexOfMethod<void (BuildManager::*)()>(_a, &BuildManager::buildLogChanged, 1))
             return;
-        if (QtMocHelpers::indexOfMethod<void (BuildManager::*)(const BuildDiagnostic & )>(_a, &BuildManager::diagnosticFound, 2))
+        if (QtMocHelpers::indexOfMethod<void (BuildManager::*)(const QString & )>(_a, &BuildManager::buildStarted, 2))
             return;
-        if (QtMocHelpers::indexOfMethod<void (BuildManager::*)(quint32 , quint32 , quint32 , quint32 )>(_a, &BuildManager::memoryUsageUpdated, 3))
+        if (QtMocHelpers::indexOfMethod<void (BuildManager::*)(const QString & , bool )>(_a, &BuildManager::buildOutput, 3))
             return;
-        if (QtMocHelpers::indexOfMethod<void (BuildManager::*)(bool , int , int )>(_a, &BuildManager::buildFinished, 4))
+        if (QtMocHelpers::indexOfMethod<void (BuildManager::*)(const BuildDiagnostic & )>(_a, &BuildManager::diagnosticFound, 4))
             return;
-        if (QtMocHelpers::indexOfMethod<void (BuildManager::*)(const QString & )>(_a, &BuildManager::legacyLinkerMigrationRequired, 5))
+        if (QtMocHelpers::indexOfMethod<void (BuildManager::*)(quint32 , quint32 , quint32 , quint32 )>(_a, &BuildManager::memoryUsageUpdated, 5))
+            return;
+        if (QtMocHelpers::indexOfMethod<void (BuildManager::*)(bool , int , int )>(_a, &BuildManager::buildFinished, 6))
+            return;
+        if (QtMocHelpers::indexOfMethod<void (BuildManager::*)(const QString & )>(_a, &BuildManager::legacyLinkerMigrationRequired, 7))
             return;
     }
 }
@@ -169,51 +183,63 @@ int BuildManager::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 9)
+        if (_id < 11)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 9;
+        _id -= 11;
     }
     if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
-        if (_id < 9)
+        if (_id < 11)
             *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType();
-        _id -= 9;
+        _id -= 11;
     }
     return _id;
 }
 
 // SIGNAL 0
-void BuildManager::buildStarted(const QString & _t1)
+void BuildManager::buildSessionStarted(const QString & _t1)
 {
     QMetaObject::activate<void>(this, &staticMetaObject, 0, nullptr, _t1);
 }
 
 // SIGNAL 1
-void BuildManager::buildOutput(const QString & _t1, bool _t2)
+void BuildManager::buildLogChanged()
 {
-    QMetaObject::activate<void>(this, &staticMetaObject, 1, nullptr, _t1, _t2);
+    QMetaObject::activate(this, &staticMetaObject, 1, nullptr);
 }
 
 // SIGNAL 2
-void BuildManager::diagnosticFound(const BuildDiagnostic & _t1)
+void BuildManager::buildStarted(const QString & _t1)
 {
     QMetaObject::activate<void>(this, &staticMetaObject, 2, nullptr, _t1);
 }
 
 // SIGNAL 3
-void BuildManager::memoryUsageUpdated(quint32 _t1, quint32 _t2, quint32 _t3, quint32 _t4)
+void BuildManager::buildOutput(const QString & _t1, bool _t2)
 {
-    QMetaObject::activate<void>(this, &staticMetaObject, 3, nullptr, _t1, _t2, _t3, _t4);
+    QMetaObject::activate<void>(this, &staticMetaObject, 3, nullptr, _t1, _t2);
 }
 
 // SIGNAL 4
-void BuildManager::buildFinished(bool _t1, int _t2, int _t3)
+void BuildManager::diagnosticFound(const BuildDiagnostic & _t1)
 {
-    QMetaObject::activate<void>(this, &staticMetaObject, 4, nullptr, _t1, _t2, _t3);
+    QMetaObject::activate<void>(this, &staticMetaObject, 4, nullptr, _t1);
 }
 
 // SIGNAL 5
+void BuildManager::memoryUsageUpdated(quint32 _t1, quint32 _t2, quint32 _t3, quint32 _t4)
+{
+    QMetaObject::activate<void>(this, &staticMetaObject, 5, nullptr, _t1, _t2, _t3, _t4);
+}
+
+// SIGNAL 6
+void BuildManager::buildFinished(bool _t1, int _t2, int _t3)
+{
+    QMetaObject::activate<void>(this, &staticMetaObject, 6, nullptr, _t1, _t2, _t3);
+}
+
+// SIGNAL 7
 void BuildManager::legacyLinkerMigrationRequired(const QString & _t1)
 {
-    QMetaObject::activate<void>(this, &staticMetaObject, 5, nullptr, _t1);
+    QMetaObject::activate<void>(this, &staticMetaObject, 7, nullptr, _t1);
 }
 QT_WARNING_POP

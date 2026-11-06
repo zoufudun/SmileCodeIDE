@@ -6,7 +6,7 @@ greaterThan(QT_MAJOR_VERSION, 5): QT += core5compat
 CONFIG += c++17
 # The bundled QScintilla target is a shared library; import its signal methods.
 DEFINES += QSCINTILLA_DLL
-VERSION = 2.3.1
+VERSION = 2.3.9
 DEFINES += SMILECODE_VERSION=\\\"$${VERSION}\\\"
 QMAKE_TARGET_PRODUCT = SmileCodeIDE
 QMAKE_TARGET_DESCRIPTION = SmileCodeIDE Embedded Development Studio
@@ -265,3 +265,7 @@ unix {
 RESOURCES += resources.qrc \
     ../dark/darkstyle.qrc \
     $$PWD/../Plugins/STM32WorkbenchPlugin/cubemx_linkers.qrc
+
+# Read-only Keil project navigation
+SOURCES += keilproject.cpp projectnavigator.cpp
+HEADERS += keilproject.h projectnavigator.h

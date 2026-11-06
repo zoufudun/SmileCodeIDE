@@ -1,7 +1,7 @@
 /****************************************************************************
 ** Meta object code from reading C++ file 'stm32workbenchplugin.h'
 **
-** Created by: The Qt Meta Object Compiler version 69 (Qt 6.11.2)
+** Created by: The Qt Meta Object Compiler version 69 (Qt 6.11.1)
 **
 ** WARNING! All changes made in this file will be lost!
 *****************************************************************************/
@@ -20,7 +20,7 @@
 #if !defined(Q_MOC_OUTPUT_REVISION)
 #error "The header file 'stm32workbenchplugin.h' doesn't include <QObject>."
 #elif Q_MOC_OUTPUT_REVISION != 69
-#error "This file was generated using the moc from 6.11.2. It"
+#error "This file was generated using the moc from 6.11.1. It"
 #error "cannot be used with the include files from this version of Qt."
 #error "(The moc has changed too much.)"
 #endif
@@ -125,7 +125,7 @@ static constexpr unsigned char qt_pluginMetaDataV2_STM32WorkbenchPlugin[] = {
     uchar('\xb0'), uchar('\x83'), uchar('\xe8'), uchar('\xaf'), uchar('\x95'), uchar('\xe5'), uchar('\xb7'), uchar('\xa5'),
     uchar('\xe4'), uchar('\xbd'), uchar('\x9c'), uchar('\xe5'), uchar('\x8f'), uchar('\xb0'), 0x67,  'v', 
     'e',  'r',  's',  'i',  'o',  'n',  0x65,  '1', 
-    '.',  '1',  '.',  '0', 
+    '.',  '1',  '.',  '2', 
     0xff, 
 };
 QT_MOC_EXPORT_PLUGIN_V2(STM32WorkbenchPlugin, STM32WorkbenchPlugin, qt_pluginMetaDataV2_STM32WorkbenchPlugin)
@@ -164,7 +164,7 @@ Q_CONSTINIT static constexpr unsigned char qt_pluginMetaData_STM32WorkbenchPlugi
     uchar('\xb0'), uchar('\x83'), uchar('\xe8'), uchar('\xaf'), uchar('\x95'), uchar('\xe5'), uchar('\xb7'), uchar('\xa5'),
     uchar('\xe4'), uchar('\xbd'), uchar('\x9c'), uchar('\xe5'), uchar('\x8f'), uchar('\xb0'), 0x67,  'v', 
     'e',  'r',  's',  'i',  'o',  'n',  0x65,  '1', 
-    '.',  '1',  '.',  '0', 
+    '.',  '1',  '.',  '2', 
     0xff, 
 };
 QT_MOC_EXPORT_PLUGIN(STM32WorkbenchPlugin, STM32WorkbenchPlugin)

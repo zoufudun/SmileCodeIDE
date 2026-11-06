@@ -1,0 +1,9 @@
+QT += core gui widgets testlib core5compat
+CONFIG += testcase c++17 console release
+CONFIG -= debug app_bundle
+TARGET = KeilProjectTest
+DEFINES += QSCINTILLA_DLL
+INCLUDEPATH += .. ../../QScintilla/src
+SOURCES += KeilProjectTest.cpp ../keilproject.cpp ../projectnavigator.cpp ../codeeditor.cpp ../codeeditorcommands.cpp
+HEADERS += ../keilproject.h ../projectnavigator.h ../codeeditor.h
+LIBS += -L$$PWD/../../QScintilla/src/release -lqscintilla2_qt6

@@ -134,6 +134,9 @@ private:
     QString m_buildLogHeading;
     bool m_buildHasSize = false;
     QCheckBox *m_flashDetailedLog;
+    QComboBox *m_buildLogModeCombo = nullptr;
+    QComboBox *m_buildLogFilter = nullptr;
+    QLabel *m_buildLogCountsBadge = nullptr;
     FlashLogModel m_flashLog;
     QVector<FlashLogEntry> m_flashLogHeader;
     QElapsedTimer m_flashTimer;

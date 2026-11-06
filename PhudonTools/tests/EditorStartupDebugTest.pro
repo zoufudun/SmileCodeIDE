@@ -1,0 +1,9 @@
+QT += core gui widgets testlib core5compat
+CONFIG += testcase console c++17 debug
+CONFIG -= release debug_and_release app_bundle
+TARGET = EditorStartupDebugTest
+DEFINES += QSCINTILLA_DLL
+INCLUDEPATH += .. ../../QScintilla/src
+SOURCES += EditorStartupDebugTest.cpp ../codeeditor.cpp ../codeeditorcommands.cpp
+HEADERS += ../codeeditor.h
+LIBS += -L$$PWD/../../QScintilla/src/release -lqscintilla2_qt6

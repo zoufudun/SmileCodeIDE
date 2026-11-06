@@ -1,5 +1,13 @@
 # 更新日志
 
+## 2.3.9 - 2026-11-05
+
+### 新功能与体验升级
+- **Keil 风格编译输出与日志模式切换**：SmileCode IDE 主窗口与 STM32 工作台编译输出全面对齐 Keil MDK 格式（`*** Build target '...' ***`、`compiling xxx.c...`、`assembling xxx.s...`、`linking ...`、`Program Size: Code=...`、`X Error(s), Y Warning(s)`），支持在**简约日志 (Keil 风格)** 与**详细日志 (完整编译命令)** 之间自由切换。
+- **错误与警告分色高亮及分类筛选**：编译输出终端与问题诊断面板将错误（Error/Fatal，高反差红色 `#f38ba8`/`#EF4444`）与警告（Warning，琥珀黄色 `#f9e2af`/`#F59E0B`）严格分色渲染，支持点击源码行号锚点一键跳转，并新增**全部信息 / 仅显示错误 / 仅显示警告 / 错误与警告**实时筛选器与统计徽标。
+- **J-Link 环境自动查找**：`ToolchainDetector` 与工具链配置对话框新增 SEGGER J-Link 多维自动探测能力（覆盖 `JLINK_HOME`/`SEGGER_HOME`、Windows 注册表 `SEGGER\J-Link` 及卸载项、全盘 `SEGGER/JLink_V*` 版本倒序优选、`Soft/SEGGER` 以及 Keil MDK `ARM/Segger` 备选目录），并在工具链配置界面提供 J-Link **自动查找**按钮与 `JLinkGDBServer` 协同自检状态。
+- **芯片配置与烧录配置形象化矢量图标**：在 `IDEWorkflowIcons` 中新增 QFP 四边引脚微控制器晶圆图标（`Kind::ChipConfig`）、闪电+配置齿轮徽标图标（`Kind::FlashConfig`）与工具链齿轮图标（`Kind::ToolchainConfig`），应用于工具栏、菜单及配置对话框窗口图标。
+
 ## 2.2.0 - 2026-10-28
 
 ### 新功能

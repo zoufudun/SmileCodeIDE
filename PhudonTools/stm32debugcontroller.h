@@ -58,6 +58,7 @@ public:
     QString targetChip() const { return m_currentProfile.chipName; }
     QString probeName() const { return m_probeName; }
     ToolchainPaths toolchainPaths() const { return m_toolchainPaths; }
+    BuildManager *buildManager() const { return m_buildManager; }
 
     void setTargetChip(const QString &chipName);
     void setProbeName(const QString &probeName);
@@ -124,6 +125,7 @@ signals:
     // 构建信号
     void buildStarted(const QString &action);
     void buildOutput(const QString &text, bool isError);
+    void buildLogChanged();
     void diagnosticFound(const BuildDiagnostic &diag);
     void memoryUsageUpdated(quint32 flashUsed, quint32 flashTotal,
                             quint32 ramUsed, quint32 ramTotal);

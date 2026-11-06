@@ -123,6 +123,29 @@ private slots:
         QCOMPARE(BuildLogModel::color(DiagnosticSeverity::Warning),QColor("#f9e2af"));
         QVERIFY(BuildLogModel::color(DiagnosticSeverity::Error)!=BuildLogModel::color(DiagnosticSeverity::Info));
     }
+    void keilStyleFilteringAndSummary() {
+        BuildLogModel m;
+        m.reset("C:/p", "build");
+        m.append("[BUILD:CC] \"Src/main.c\"\n", false);
+        m.append("Src/main.c:10:5: warning: unused variable 'x'\n", true);
+        m.append("Src/main.c:24:2: error: expected ';'\n", true);
+        const auto res = m.finish(false, 1, 800);
+        QVERIFY(res.summary.contains("Error(s)"));
+        QVERIFY(res.summary.contains("Warning(s)"));
+
+        const auto onlyErrors = m.filteredEntries(false, BuildLogFilter::ErrorsOnly);
+        QVERIFY(!onlyErrors.isEmpty());
+        for (const auto &e : onlyErrors) {
+            QVERIFY(e.severity == DiagnosticSeverity::Error || e.severity == DiagnosticSeverity::Fatal);
+        }
+
+        const auto onlyWarnings = m.filteredEntries(false, BuildLogFilter::WarningsOnly);
+        QCOMPARE(onlyWarnings.size(), 1);
+        QCOMPARE(onlyWarnings[0].severity, DiagnosticSeverity::Warning);
+
+        const auto errAndWarn = m.filteredEntries(false, BuildLogFilter::ErrorsAndWarnings);
+        QVERIFY(errAndWarn.size() >= 2);
+    }
 };
 QTEST_GUILESS_MAIN(BuildLogModelTest)
 #include "BuildLogModelTest.moc"

@@ -32,6 +32,8 @@
 #include "appmanager.h"
 #include "idetheme.h"
 #include "ideworkflowicons.h"
+#include "keilproject.h"
+#include "projectnavigator.h"
 #include "../Plugins/STM32WorkbenchPlugin/UI/TargetChipDialog.h"
 #include "../Plugins/STM32WorkbenchPlugin/UI/FlashConfigDialog.h"
 #include "../Plugins/STM32WorkbenchPlugin/UI/ToolchainConfigDialog.h"
@@ -52,8 +54,11 @@
 #include <QPushButton>
 #include <QRadioButton>
 #include <QSpinBox>
+#include <QTextBrowser>
 #include <QTextEdit>
 #include <QTreeWidget>
+#include <QUrlQuery>
+#include <QScrollBar>
 #include <QVBoxLayout>
 
 #include <QFontDatabase>
@@ -83,18 +88,35 @@ MainWindow::MainWindow(QWidget *parent)
 
   // 连接STM32DebugController构建与调试核心信号
   connect(m_debugController, &STM32DebugController::buildStarted, this, [this](const QString &action) {
-    Q_UNUSED(action);
     clearProblemsTable();
-    if (m_outputConsole) m_outputConsole->clear();
-    m_tabWidget->setCurrentWidget(m_outputConsole);
+    m_buildOutputActive = true;
+    m_renderedBuildLogEntries = 0;
+    const QString chipName = m_debugController->targetChip().isEmpty()
+                                 ? QStringLiteral("STM32")
+                                 : m_debugController->targetChip();
+    m_currentBuildHeading = QStringLiteral("*** Build target '%1' (%2) ***").arg(chipName, action);
+    if (m_outputTabPage) m_tabWidget->setCurrentWidget(m_outputTabPage);
+    else if (m_outputConsole) m_tabWidget->setCurrentWidget(m_outputConsole);
+    renderBuildOutputLog(true);
+  });
+  connect(m_debugController, &STM32DebugController::buildLogChanged, this, [this]() {
+    if (m_buildOutputActive) {
+      renderBuildOutputLog(false);
+    }
   });
   connect(m_debugController, &STM32DebugController::buildOutput, this, [this](const QString &text, bool isError) {
+    if (m_buildOutputActive && m_debugController && m_debugController->buildManager()) {
+      return;
+    }
     Q_UNUSED(isError);
     if (m_outputConsole) m_outputConsole->append(text);
   });
   connect(m_debugController, &STM32DebugController::buildFinished, this, [this](bool success, int exitCode, int durationMs) {
     Q_UNUSED(exitCode);
     Q_UNUSED(durationMs);
+    if (m_buildOutputActive) {
+      renderBuildOutputLog(false);
+    }
     onBuildFinished(success);
   });
   connect(m_debugController, &STM32DebugController::diagnosticFound, this, &MainWindow::addProblemDiagnostic);
@@ -107,8 +129,10 @@ MainWindow::MainWindow(QWidget *parent)
   });
 
   connect(m_debugController, &STM32DebugController::flashStarted, this, [this]() {
+    m_buildOutputActive = false;
     if (m_outputConsole) m_outputConsole->append(">>> 开始固件烧录...");
-    m_tabWidget->setCurrentWidget(m_outputConsole);
+    if (m_outputTabPage) m_tabWidget->setCurrentWidget(m_outputTabPage);
+    else if (m_outputConsole) m_tabWidget->setCurrentWidget(m_outputConsole);
   });
   connect(m_debugController, &STM32DebugController::flashOutput, this, [this](const QString &text, bool isError) {
     Q_UNUSED(isError);
@@ -240,7 +264,8 @@ MainWindow::MainWindow(QWidget *parent)
           QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished), this,
           &MainWindow::processFinished);
 
-  m_settings = new QSettings("PhudonTools", "Settings", this);
+  m_settings = new QSettings(QSettings::defaultFormat(), QSettings::UserScope,
+                             "PhudonTools", "Settings", this);
   loadSettings();
 
   // 加载上次使用的主题或默认使用深色主题
@@ -336,22 +361,8 @@ MainWindow::~MainWindow() {
 // }
 
 void MainWindow::newFile() {
-  // 检查当前文件是否已修改，如果已修改则提示保存
-  if (isCurrentFileModified()) {
-    QMessageBox::StandardButton reply = QMessageBox::question(
-        this, "保存更改", "当前文件已修改，是否保存更改？",
-        QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel);
-
-    if (reply == QMessageBox::Yes) {
-      saveFile();
-    } else if (reply == QMessageBox::Cancel) {
-      return;
-    }
-  }
-
-  // 创建新文件
-  m_codeEditor->setText("");
-  m_currentFilePath = "";
+  if (!m_codeEditor->newDocument()) return;
+  m_currentFilePath.clear();
   setWindowTitle("PhudonTools - 新文件");
   statusBar()->showMessage("已创建新文件", 2000);
 }
@@ -372,6 +383,7 @@ void MainWindow::createToolbars() {
   toolbar->setIconSize(QSize(19, 19));
   toolbar->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
   toolbar->addAction(m_openProjectAction);
+  toolbar->addAction(m_importKeilAction);
   toolbar->addAction(m_saveFileAction);
   toolbar->addSeparator();
   toolbar->addAction(m_buildAction);
@@ -635,7 +647,7 @@ void MainWindow::setupUi() {
   QGroupBox *projectGroup = new QGroupBox("项目文件");
   QVBoxLayout *projectLayout = new QVBoxLayout(projectGroup);
   m_projectTreeView = new QTreeView();
-  m_fileSystemModel = new QFileSystemModel();
+  m_fileSystemModel = new QFileSystemModel(this);
   m_projectTreeView->setModel(m_fileSystemModel);
   m_projectTreeView->setColumnWidth(0, 230);
   m_projectTreeView->setHeaderHidden(true);
@@ -643,6 +655,13 @@ void MainWindow::setupUi() {
     m_projectTreeView->hideColumn(column);
   m_projectTreeView->setContextMenuPolicy(Qt::CustomContextMenu);
   projectLayout->addWidget(m_projectTreeView);
+  m_projectNavigator = new ProjectNavigator(projectGroup);
+  m_projectNavigator->hide();
+  projectLayout->addWidget(m_projectNavigator);
+  connect(m_projectNavigator, &ProjectNavigator::sourceLocationActivated, this,
+          [this](const QString &file, int line, int column) { openSourceLocation(file, line, column); });
+  connect(m_projectNavigator, &ProjectNavigator::loadError, this,
+          [this](const QString &error) { statusBar()->showMessage(tr("Keil 工程刷新失败: %1").arg(error), 5000); });
   mainSplitter->addWidget(projectGroup);
 
   // 右侧区域
@@ -656,6 +675,10 @@ void MainWindow::setupUi() {
 
   // 创建代码编辑器 - 使用新的 CodeEditor 类替换原来的 QsciScintilla
   m_codeEditor = new CodeEditor(this);
+  connect(m_codeEditor, &CodeEditor::currentBufferChanged, this,
+          [this](const QString &path, const QString &text) {
+    m_projectNavigator->setSourceBuffer(path, text, m_codeEditor->currentEditor()->isModified());
+  });
   connect(m_codeEditor, &CodeEditor::fileOpened, this, [this](const QString &filePath) {
     m_currentFilePath = filePath;
     QFileInfo fi(filePath);
@@ -735,15 +758,137 @@ void MainWindow::setupUi() {
 
   // 输出、调试与问题诊断选项卡
   m_tabWidget = new QTabWidget();
-  m_outputConsole = new QTextEdit();
-  m_outputConsole->setReadOnly(true);
-  m_outputConsole->setFont(QFont("Consolas", 10));
+
+  // 1. Keil 风格编译输出页面（含简约/详细日志切换与错误/警告颜色筛选栏）
+  m_outputTabPage = new QWidget(m_tabWidget);
+  QVBoxLayout *outputPageLayout = new QVBoxLayout(m_outputTabPage);
+  outputPageLayout->setContentsMargins(0, 0, 0, 0);
+  outputPageLayout->setSpacing(2);
+
+  QWidget *buildLogToolbar = new QWidget(m_outputTabPage);
+  buildLogToolbar->setObjectName("mainBuildLogToolbar");
+  QHBoxLayout *buildLogBarLayout = new QHBoxLayout(buildLogToolbar);
+  buildLogBarLayout->setContentsMargins(8, 4, 8, 2);
+  buildLogBarLayout->setSpacing(8);
+
+  QLabel *buildLogTitle = new QLabel(QStringLiteral("编译输出 (Keil 风格)"), buildLogToolbar);
+  buildLogBarLayout->addWidget(buildLogTitle);
+
+  m_buildLogCountsLabel = new QLabel(QStringLiteral("错误 0 · 警告 0"), buildLogToolbar);
+  m_buildLogCountsLabel->setObjectName("mainBuildLogCounts");
+  m_buildLogCountsLabel->setStyleSheet("color: #10B981; font-weight: bold;");
+  buildLogBarLayout->addWidget(m_buildLogCountsLabel);
+  buildLogBarLayout->addStretch();
+
+  buildLogBarLayout->addWidget(new QLabel(QStringLiteral("日志模式:"), buildLogToolbar));
+  m_buildLogModeCombo = new QComboBox(buildLogToolbar);
+  m_buildLogModeCombo->setObjectName("mainBuildLogModeCombo");
+  m_buildLogModeCombo->addItems({
+      QStringLiteral("简约日志 (Keil 风格)"),
+      QStringLiteral("详细日志 (完整编译命令)")
+  });
+  m_buildLogModeCombo->setToolTip(QStringLiteral("切换 Keil 简约编译进度日志或包含完整 GCC 参数的详细日志"));
+  buildLogBarLayout->addWidget(m_buildLogModeCombo);
+
+  m_buildVerboseCheck = new QCheckBox(QStringLiteral("详细日志"), buildLogToolbar);
+  m_buildVerboseCheck->setObjectName("mainBuildVerboseCheck");
+  m_buildVerboseCheck->setToolTip(QStringLiteral("勾选显示完整编译命令与代码诊断上下文"));
+  buildLogBarLayout->addWidget(m_buildVerboseCheck);
+
+  buildLogBarLayout->addWidget(new QLabel(QStringLiteral("信息筛选:"), buildLogToolbar));
+  m_buildLogFilterCombo = new QComboBox(buildLogToolbar);
+  m_buildLogFilterCombo->setObjectName("mainBuildLogFilterCombo");
+  m_buildLogFilterCombo->addItems({
+      QStringLiteral("全部编译信息"),
+      QStringLiteral("仅显示错误 (Errors)"),
+      QStringLiteral("仅显示警告 (Warnings)"),
+      QStringLiteral("错误与警告")
+  });
+  m_buildLogFilterCombo->setToolTip(QStringLiteral("按类别筛选编译输出中的错误信息与警告信息"));
+  buildLogBarLayout->addWidget(m_buildLogFilterCombo);
+
+  QPushButton *clearBuildLogBtn = new QPushButton(QStringLiteral("清空"), buildLogToolbar);
+  clearBuildLogBtn->setObjectName("clearBuildLogBtn");
+  clearBuildLogBtn->setFixedHeight(24);
+  buildLogBarLayout->addWidget(clearBuildLogBtn);
+
+  outputPageLayout->addWidget(buildLogToolbar);
+
+  QTextBrowser *outputBrowser = new QTextBrowser(m_outputTabPage);
+  outputBrowser->setObjectName("mainBuildOutputConsole");
+  outputBrowser->setReadOnly(true);
+  outputBrowser->setOpenLinks(false);
+  outputBrowser->setOpenExternalLinks(false);
+  outputBrowser->setFont(QFont("Consolas", 10));
+  connect(outputBrowser, &QTextBrowser::anchorClicked, this, [this](const QUrl &url) {
+    if (!url.isLocalFile()) return;
+    const int line = QUrlQuery(url).queryItemValue(QStringLiteral("line")).toInt();
+    const int column = QUrlQuery(url).queryItemValue(QStringLiteral("column")).toInt();
+    if (line > 0) {
+      openSourceLocation(url.toLocalFile(), line, column);
+    }
+  });
+  m_outputConsole = outputBrowser;
+  outputPageLayout->addWidget(m_outputConsole, 1);
+
+  connect(m_buildVerboseCheck, &QCheckBox::toggled, this, [this](bool checked) {
+    if (m_buildLogModeCombo) {
+      const QSignalBlocker blocker(m_buildLogModeCombo);
+      m_buildLogModeCombo->setCurrentIndex(checked ? 1 : 0);
+    }
+    if (m_buildOutputActive) {
+      renderBuildOutputLog(true);
+    }
+  });
+  connect(m_buildLogModeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int index) {
+    if (m_buildVerboseCheck) {
+      m_buildVerboseCheck->setChecked(index == 1);
+    }
+  });
+  connect(m_buildLogFilterCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int) {
+    if (m_buildOutputActive) {
+      renderBuildOutputLog(true);
+    }
+  });
+  connect(clearBuildLogBtn, &QPushButton::clicked, this, [this]() {
+    m_buildOutputActive = false;
+    m_renderedBuildLogEntries = 0;
+    if (m_outputConsole) m_outputConsole->clear();
+  });
+
   m_debugConsole = new QTextEdit();
   m_debugConsole->setReadOnly(true);
   m_debugConsole->setFont(QFont("Consolas", 10));
 
-  // 创建问题诊断诊断表格部件
-  m_problemsTable = new QTableWidget();
+  // 2. 创建问题诊断表格部件（带错误/警告颜色区分与分类筛选栏）
+  m_problemsTabPage = new QWidget(m_tabWidget);
+  QVBoxLayout *problemsPageLayout = new QVBoxLayout(m_problemsTabPage);
+  problemsPageLayout->setContentsMargins(0, 0, 0, 0);
+  problemsPageLayout->setSpacing(2);
+
+  QWidget *problemsToolbar = new QWidget(m_problemsTabPage);
+  QHBoxLayout *problemsBarLayout = new QHBoxLayout(problemsToolbar);
+  problemsBarLayout->setContentsMargins(8, 4, 8, 2);
+  problemsBarLayout->setSpacing(8);
+
+  problemsBarLayout->addWidget(new QLabel(QStringLiteral("诊断筛选:"), problemsToolbar));
+  m_problemsFilterCombo = new QComboBox(problemsToolbar);
+  m_problemsFilterCombo->setObjectName("mainProblemsFilterCombo");
+  m_problemsFilterCombo->addItems({
+      QStringLiteral("全部问题"),
+      QStringLiteral("仅看错误 (Errors)"),
+      QStringLiteral("仅看警告 (Warnings)")
+  });
+  problemsBarLayout->addWidget(m_problemsFilterCombo);
+
+  m_problemsCountLabel = new QLabel(QStringLiteral("错误 0 · 警告 0"), problemsToolbar);
+  m_problemsCountLabel->setObjectName("mainProblemsCounts");
+  m_problemsCountLabel->setStyleSheet("color: #10B981; font-weight: bold;");
+  problemsBarLayout->addWidget(m_problemsCountLabel);
+  problemsBarLayout->addStretch();
+  problemsPageLayout->addWidget(problemsToolbar);
+
+  m_problemsTable = new QTableWidget(m_problemsTabPage);
   m_problemsTable->setColumnCount(4);
   m_problemsTable->setHorizontalHeaderLabels({"类型", "说明", "文件", "行号"});
   m_problemsTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
@@ -754,10 +899,14 @@ void MainWindow::setupUi() {
   m_problemsTable->setSelectionMode(QAbstractItemView::SingleSelection);
   m_problemsTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
   m_problemsTable->setAlternatingRowColors(true);
+  problemsPageLayout->addWidget(m_problemsTable, 1);
 
-  m_tabWidget->addTab(m_outputConsole, "编译输出");
+  connect(m_problemsFilterCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+          this, [this](int) { applyProblemTableFilter(); });
+
+  m_tabWidget->addTab(m_outputTabPage, "编译输出");
   m_tabWidget->addTab(m_debugConsole, "调试输出");
-  m_tabWidget->addTab(m_problemsTable, "问题诊断");
+  m_tabWidget->addTab(m_problemsTabPage, "问题诊断");
   m_projectSearch = new ProjectSearchPanel(this);
   m_projectSearch->setObjectName("projectSearchPanel");
   m_tabWidget->addTab(m_projectSearch, tr("项目搜索"));
@@ -1411,41 +1560,81 @@ void MainWindow::setupDockWidgets() {
 }
 
 void MainWindow::clearProblemsTable() {
+  m_allDiagnostics.clear();
   if (!m_problemsTable) return;
   m_problemsTable->setRowCount(0);
-  int tabIdx = m_tabWidget->indexOf(m_problemsTable);
+  if (m_problemsCountLabel) {
+    m_problemsCountLabel->setText(QStringLiteral("错误 0 · 警告 0"));
+    m_problemsCountLabel->setStyleSheet("color: #10B981; font-weight: bold;");
+  }
+  int tabIdx = m_tabWidget->indexOf(m_problemsTabPage ? m_problemsTabPage : static_cast<QWidget *>(m_problemsTable));
   if (tabIdx >= 0) {
     m_tabWidget->setTabText(tabIdx, "问题诊断");
   }
 }
 
 void MainWindow::addProblemDiagnostic(const BuildDiagnostic &diag) {
+  m_allDiagnostics.append(diag);
+  applyProblemTableFilter();
+}
+
+void MainWindow::applyProblemTableFilter() {
   if (!m_problemsTable) return;
-  int row = m_problemsTable->rowCount();
-  m_problemsTable->insertRow(row);
+  m_problemsTable->setRowCount(0);
 
-  QString typeStr = (diag.severity == DiagnosticSeverity::Error || diag.severity == DiagnosticSeverity::Fatal) ? "错误" :
-                    (diag.severity == DiagnosticSeverity::Warning) ? "警告" : "信息";
-  QColor typeColor = (diag.severity == DiagnosticSeverity::Error || diag.severity == DiagnosticSeverity::Fatal) ? QColor("#EF4444") :
-                     (diag.severity == DiagnosticSeverity::Warning) ? QColor("#F59E0B") : QColor("#3B82F6");
+  const int filterMode = m_problemsFilterCombo ? m_problemsFilterCombo->currentIndex() : 0;
+  int errCount = 0;
+  int warnCount = 0;
 
-  QTableWidgetItem *itemType = new QTableWidgetItem(typeStr);
-  itemType->setForeground(typeColor);
-  itemType->setTextAlignment(Qt::AlignCenter);
+  for (const BuildDiagnostic &diag : m_allDiagnostics) {
+    const bool isErr = (diag.severity == DiagnosticSeverity::Error || diag.severity == DiagnosticSeverity::Fatal);
+    const bool isWarn = (diag.severity == DiagnosticSeverity::Warning);
+    if (isErr) ++errCount;
+    else if (isWarn) ++warnCount;
 
-  QTableWidgetItem *itemMsg = new QTableWidgetItem(diag.message);
-  QTableWidgetItem *itemFile = new QTableWidgetItem(diag.filePath);
-  QTableWidgetItem *itemLine = new QTableWidgetItem(QString::number(diag.line));
-  itemLine->setTextAlignment(Qt::AlignCenter);
+    if (filterMode == 1 && !isErr) continue;
+    if (filterMode == 2 && !isWarn) continue;
 
-  m_problemsTable->setItem(row, 0, itemType);
-  m_problemsTable->setItem(row, 1, itemMsg);
-  m_problemsTable->setItem(row, 2, itemFile);
-  m_problemsTable->setItem(row, 3, itemLine);
+    const int row = m_problemsTable->rowCount();
+    m_problemsTable->insertRow(row);
 
-  int tabIdx = m_tabWidget->indexOf(m_problemsTable);
+    const QString typeStr = isErr ? QStringLiteral("错误") : isWarn ? QStringLiteral("警告") : QStringLiteral("信息");
+    const QColor fgColor = isErr ? QColor("#f38ba8") : isWarn ? QColor("#f9e2af") : QColor("#3B82F6");
+
+    QTableWidgetItem *itemType = new QTableWidgetItem(typeStr);
+    itemType->setForeground(fgColor);
+    itemType->setTextAlignment(Qt::AlignCenter);
+
+    QTableWidgetItem *itemMsg = new QTableWidgetItem(diag.message);
+    itemMsg->setForeground(fgColor);
+
+    QTableWidgetItem *itemFile = new QTableWidgetItem(diag.filePath);
+    itemFile->setForeground(fgColor);
+
+    QTableWidgetItem *itemLine = new QTableWidgetItem(diag.line > 0 ? QString::number(diag.line) : QStringLiteral("-"));
+    itemLine->setForeground(fgColor);
+    itemLine->setTextAlignment(Qt::AlignCenter);
+
+    m_problemsTable->setItem(row, 0, itemType);
+    m_problemsTable->setItem(row, 1, itemMsg);
+    m_problemsTable->setItem(row, 2, itemFile);
+    m_problemsTable->setItem(row, 3, itemLine);
+  }
+
+  if (m_problemsCountLabel) {
+    m_problemsCountLabel->setText(QStringLiteral("错误 %1 · 警告 %2").arg(errCount).arg(warnCount));
+    const QString badgeColor = errCount > 0 ? QStringLiteral("#EF4444")
+                             : warnCount > 0 ? QStringLiteral("#F59E0B")
+                                             : QStringLiteral("#10B981");
+    m_problemsCountLabel->setStyleSheet(QStringLiteral("color: %1; font-weight: bold;").arg(badgeColor));
+  }
+
+  int tabIdx = m_tabWidget->indexOf(m_problemsTabPage ? m_problemsTabPage : static_cast<QWidget *>(m_problemsTable));
   if (tabIdx >= 0) {
-    m_tabWidget->setTabText(tabIdx, QString("问题诊断 (%1)").arg(m_problemsTable->rowCount()));
+    const int totalDiag = errCount + warnCount;
+    m_tabWidget->setTabText(tabIdx, totalDiag > 0
+                                        ? QString("问题诊断 (%1)").arg(totalDiag)
+                                        : QStringLiteral("问题诊断"));
   }
 }
 
@@ -1608,36 +1797,12 @@ bool MainWindow::openSourceLocation(QString filePath, int line, int column) {
   }
   const QString canonicalPath = target.canonicalFilePath();
   auto *editor = m_codeEditor->currentEditor();
-  if (QFileInfo(m_currentFilePath).canonicalFilePath() != canonicalPath) {
-    if (editor->isModified()) {
-      const auto answer = QMessageBox::warning(
-          this, tr("未保存的更改"), tr("当前文件有未保存的更改。是否保存后打开源文件？"),
-          QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel,
-          QMessageBox::Cancel);
-      if (answer != QMessageBox::Save && answer != QMessageBox::Discard) {
-        return false;
-      }
-      if (answer == QMessageBox::Save) {
-        QString savePath = m_currentFilePath;
-        if (savePath.isEmpty()) {
-          savePath = QFileDialog::getSaveFileName(this, tr("保存文件"), m_projectPath);
-        }
-        if (savePath.isEmpty()) {
-          return false;
-        }
-        if (!m_codeEditor->saveFile(savePath)) {
-          showError(tr("无法保存文件: %1").arg(savePath));
-          return false;
-        }
-        m_currentFilePath = savePath;
-        editor->setModified(false);
-      }
-    }
-    if (!m_codeEditor->openFile(canonicalPath)) {
-      showError(tr("无法读取源文件: %1").arg(filePath));
-      return false;
-    }
-    editor->setModified(false);
+  if (QFileInfo(m_codeEditor->currentFilePath()).canonicalFilePath() != canonicalPath) {
+    // CodeEditor owns the save/discard/cancel flow, including untitled buffers.
+    if (!m_codeEditor->openFile(canonicalPath)) return false;
+  } else if (!m_keilProjectFile.isEmpty() && !editor->isModified()) {
+    // A function index may have been refreshed after an external source edit.
+    if (!m_codeEditor->openFile(canonicalPath, true)) return false;
   }
   const int row = qBound(0, line - 1, qMax(0, editor->lines() - 1));
   const int lineLength = int(editor->text(row).remove('\r').remove('\n').size());
@@ -2037,7 +2202,62 @@ void MainWindow::openProject() {
   }
 }
 
+bool MainWindow::importKeilProject(QString filePath) {
+  KeilProject project;
+  QString error;
+  if (!project.load(filePath, &error)) {
+    statusBar()->showMessage(tr("导入 Keil 工程失败: %1").arg(error), 8000);
+    return false;
+  }
+  m_keilProjectFile = project.filePath;
+  // MDK project files commonly reference sources in ../USER or ../Drivers.
+  // Infer a nearby workspace ancestor, without traversing to a drive root for SDK files.
+  QDir root(QFileInfo(project.filePath).absolutePath());
+  const QString configDir = root.absolutePath();
+  int parentLevels = 0;
+  for (const auto &target : project.targets)
+    for (const auto &group : target.groups)
+      for (const auto &file : group.files) {
+        QString relative = root.relativeFilePath(file.path);
+        int levels = 0;
+        while (relative.startsWith("../")) { ++levels; relative.remove(0, 3); }
+        if (levels <= 3) parentLevels = qMax(parentLevels, levels);
+      }
+  for (int level = 0; level < parentLevels; ++level) {
+    QDir parent = root;
+    if (!parent.cdUp() || parent.isRoot()) break;
+    root = parent;
+  }
+  m_projectPath = QDir::toNativeSeparators(root.absolutePath());
+  m_projectNavigator->setProject(project);
+  m_projectNavigator->setSourceBuffer(m_codeEditor->currentFilePath(), m_codeEditor->text(),
+                                    m_codeEditor->currentEditor()->isModified());
+  m_projectTreeView->hide();
+  m_projectNavigator->show();
+  if (m_projectSearch) m_projectSearch->setProjectRoot(m_projectPath);
+  m_codeEditor->setProjectRootPath(m_projectPath);
+  m_debugController->setProjectPath(m_projectPath);
+  if (m_settings) {
+    m_settings->setValue("MainWindow/keilProjectFile", m_keilProjectFile);
+    m_settings->setValue("MainWindow/projectPath", m_projectPath);
+    m_settings->setValue("MainWindow/lastOpenDir", configDir);
+    m_settings->setValue("lastOpenDir", configDir);
+    m_settings->setValue("projectPath", m_projectPath);
+    m_settings->setValue("STM32Toolchain/lastProject", m_projectPath);
+    m_settings->sync();
+  }
+  updateStatusInfo();
+  updateWindowTitle();
+  updateMenuState();
+  statusBar()->showMessage(tr("已导入 Keil 工程: %1").arg(project.filePath), 5000);
+  return true;
+}
+
 void MainWindow::updateProjectTree(const QString &path) {
+  m_keilProjectFile.clear();
+  if (m_settings) m_settings->remove("MainWindow/keilProjectFile");
+  if (m_projectNavigator) { m_projectNavigator->clear(); m_projectNavigator->hide(); }
+  m_projectTreeView->show();
   if (m_projectSearch) m_projectSearch->setProjectRoot(path);
   m_fileSystemModel->setRootPath(path);
   m_projectTreeView->setRootIndex(m_fileSystemModel->index(path));
@@ -2193,8 +2413,8 @@ void MainWindow::buildProject() {
   if (m_outputConsole) {
     m_outputConsole->clear();
   }
-  if (m_tabWidget && m_outputConsole) {
-    m_tabWidget->setCurrentWidget(m_outputConsole);
+  if (m_tabWidget) {
+    m_tabWidget->setCurrentWidget(m_outputTabPage ? m_outputTabPage : m_outputConsole);
   }
 
   QString projectPath = m_projectPath;
@@ -2241,8 +2461,8 @@ void MainWindow::cleanProject() {
   if (m_outputConsole) {
     m_outputConsole->clear();
   }
-  if (m_tabWidget && m_outputConsole) {
-    m_tabWidget->setCurrentWidget(m_outputConsole);
+  if (m_tabWidget) {
+    m_tabWidget->setCurrentWidget(m_outputTabPage ? m_outputTabPage : m_outputConsole);
   }
 
   QString projectPath = m_projectPath;
@@ -2273,8 +2493,8 @@ void MainWindow::rebuildProject() {
   if (m_outputConsole) {
     m_outputConsole->clear();
   }
-  if (m_tabWidget && m_outputConsole) {
-    m_tabWidget->setCurrentWidget(m_outputConsole);
+  if (m_tabWidget) {
+    m_tabWidget->setCurrentWidget(m_outputTabPage ? m_outputTabPage : m_outputConsole);
   }
 
   QString projectPath = m_projectPath;
@@ -2325,8 +2545,115 @@ void MainWindow::appendBuildOutput(const QString &output) {
   }
 }
 
+void MainWindow::renderBuildOutputLog(bool reset) {
+  if (!m_outputConsole || !m_debugController || !m_debugController->buildManager()) {
+    return;
+  }
+  const BuildLogModel &model = m_debugController->buildManager()->logModel();
+  if (m_buildLogCountsLabel) {
+    m_buildLogCountsLabel->setText(
+        QStringLiteral("错误 %1 · 警告 %2").arg(model.errorCount()).arg(model.warningCount()));
+    const QString badgeColor = model.errorCount() > 0 ? QStringLiteral("#EF4444")
+                             : model.warningCount() > 0 ? QStringLiteral("#F59E0B")
+                                                        : QStringLiteral("#10B981");
+    m_buildLogCountsLabel->setStyleSheet(QStringLiteral("color: %1; font-weight: bold;").arg(badgeColor));
+  }
+
+  const bool detailed = m_buildVerboseCheck && m_buildVerboseCheck->isChecked();
+  const BuildLogFilter filter = static_cast<BuildLogFilter>(
+      m_buildLogFilterCombo ? m_buildLogFilterCombo->currentIndex() : 0);
+  const auto &allEntries = detailed ? model.detailedEntries() : model.conciseEntries();
+
+  QScrollBar *scroll = m_outputConsole->verticalScrollBar();
+  const bool following = !scroll || (scroll->value() >= scroll->maximum() - 2);
+  const int prevScroll = scroll ? scroll->value() : 0;
+
+  const bool isLight = (m_currentTheme == "light" || m_currentTheme == "solarizedlight" ||
+                        m_currentTheme == "materiallight");
+  const auto colorForEntry = [isLight](const BuildLogEntry &entry) -> QColor {
+    if (entry.success) {
+      return isLight ? QColor("#16a34a") : QColor("#a6e3a1");
+    }
+    switch (entry.severity) {
+    case DiagnosticSeverity::Warning:
+      return isLight ? QColor("#d97706") : BuildLogModel::color(DiagnosticSeverity::Warning);
+    case DiagnosticSeverity::Error:
+    case DiagnosticSeverity::Fatal:
+      return isLight ? QColor("#dc2626") : BuildLogModel::color(DiagnosticSeverity::Error);
+    default:
+      return isLight ? QColor("#1e293b") : BuildLogModel::color(DiagnosticSeverity::Info);
+    }
+  };
+
+  if (filter != BuildLogFilter::All) {
+    m_outputConsole->clear();
+    m_renderedBuildLogEntries = allEntries.size();
+    QTextCursor cursor(m_outputConsole->document());
+    if (!m_currentBuildHeading.isEmpty()) {
+      QTextCharFormat headFmt;
+      headFmt.setForeground(isLight ? QColor("#1e293b") : QColor("#cdd6f4"));
+      cursor.insertText(m_currentBuildHeading + "\n", headFmt);
+    }
+    const QVector<BuildLogEntry> filtered = model.filteredEntries(detailed, filter);
+    for (const BuildLogEntry &entry : filtered) {
+      QTextCharFormat fmt;
+      fmt.setForeground(colorForEntry(entry));
+      if (!entry.filePath.isEmpty() && entry.line > 0) {
+        QUrl url = QUrl::fromLocalFile(entry.filePath);
+        QUrlQuery query;
+        query.addQueryItem(QStringLiteral("line"), QString::number(entry.line));
+        query.addQueryItem(QStringLiteral("column"), QString::number(entry.column));
+        url.setQuery(query);
+        fmt.setAnchor(true);
+        fmt.setAnchorHref(url.toString());
+        fmt.setFontUnderline(true);
+      }
+      cursor.insertText(entry.text + "\n", fmt);
+    }
+    m_outputConsole->setTextCursor(cursor);
+    m_outputConsole->ensureCursorVisible();
+    return;
+  }
+
+  if (reset || m_renderedBuildLogEntries > allEntries.size()) {
+    m_outputConsole->clear();
+    m_renderedBuildLogEntries = 0;
+    if (!m_currentBuildHeading.isEmpty()) {
+      QTextCursor headCursor(m_outputConsole->document());
+      QTextCharFormat headFmt;
+      headFmt.setForeground(isLight ? QColor("#1e293b") : QColor("#cdd6f4"));
+      headCursor.insertText(m_currentBuildHeading + "\n", headFmt);
+    }
+  }
+
+  QTextCursor cursor(m_outputConsole->document());
+  cursor.movePosition(QTextCursor::End);
+  for (; m_renderedBuildLogEntries < allEntries.size(); ++m_renderedBuildLogEntries) {
+    const BuildLogEntry &entry = allEntries.at(m_renderedBuildLogEntries);
+    QTextCharFormat fmt;
+    fmt.setForeground(colorForEntry(entry));
+    if (!entry.filePath.isEmpty() && entry.line > 0) {
+      QUrl url = QUrl::fromLocalFile(entry.filePath);
+      QUrlQuery query;
+      query.addQueryItem(QStringLiteral("line"), QString::number(entry.line));
+      query.addQueryItem(QStringLiteral("column"), QString::number(entry.column));
+      url.setQuery(query);
+      fmt.setAnchor(true);
+      fmt.setAnchorHref(url.toString());
+      fmt.setFontUnderline(true);
+    }
+    cursor.insertText(entry.text + "\n", fmt);
+  }
+  if (following || reset) {
+    m_outputConsole->setTextCursor(cursor);
+    m_outputConsole->ensureCursorVisible();
+  } else if (scroll) {
+    scroll->setValue(prevScroll);
+  }
+}
+
 void MainWindow::onBuildFinished(bool success) {
-  if (m_outputConsole) {
+  if (!m_buildOutputActive && m_outputConsole) {
     m_outputConsole->append(success ? "\n>>> 构建成功完成 <<<" : "\n>>> 构建失败 <<<");
   }
   statusBar()->showMessage(success ? "构建成功" : "构建失败", 3000);
@@ -2334,8 +2661,9 @@ void MainWindow::onBuildFinished(bool success) {
 
 void MainWindow::flashProject() {
   saveAllFiles();
+  m_buildOutputActive = false;
   m_outputConsole->clear();
-  m_tabWidget->setCurrentWidget(m_outputConsole);
+  m_tabWidget->setCurrentWidget(m_outputTabPage ? m_outputTabPage : m_outputConsole);
 
   QString projectPath = m_projectPath;
   if (projectPath.isEmpty() && !m_currentFilePath.isEmpty()) {
@@ -2751,6 +3079,7 @@ void MainWindow::saveSettings() {
   m_settings->setValue("geometry", saveGeometry());
   m_settings->setValue("state", saveState());
   m_settings->setValue("projectPath", m_projectPath);
+  m_settings->setValue("keilProjectFile", m_keilProjectFile);
   m_settings->setValue("currentTheme", m_currentTheme);
   m_settings->setValue("currentDownloader", m_currentDownloader);
   m_settings->endGroup();
@@ -3000,6 +3329,18 @@ void MainWindow::createActions() {
   connect(m_openProjectAction, &QAction::triggered, this,
           &MainWindow::openProject);
 
+  m_importKeilAction = new QAction(tr("导入 Keil 工程…"), this);
+  m_importKeilAction->setObjectName("importKeilProjectAction");
+  m_importKeilAction->setIcon(QIcon(":/icons/folder-open-outline.png"));
+  m_importKeilAction->setToolTip(tr("直接读取 .uvprojx 的 Target、分组和文件"));
+  connect(m_importKeilAction, &QAction::triggered, this, [this] {
+    const QString file = QFileDialog::getOpenFileName(this, tr("导入 Keil 工程"),
+        getRecentProjectDirectory(), tr("Keil uVision 工程 (*.uvprojx);;所有文件 (*.*)"));
+    if (!file.isEmpty() && !importKeilProject(file)) {
+      QMessageBox::warning(this, tr("导入失败"), tr("无法读取 Keil 工程，请检查文件路径和 XML 格式。当前工程已保留。"));
+    }
+  });
+
   m_newProjectAction = new QAction("新建项目", this);
   m_newProjectAction->setObjectName("新建项目");
   m_newProjectAction->setIcon(
@@ -3170,15 +3511,19 @@ void MainWindow::createActions() {
 
   m_configureChipAction = new QAction(tr("芯片配置"), this);
   m_configureChipAction->setObjectName("configureChip");
-  m_configureChipAction->setIcon(style()->standardIcon(QStyle::SP_ComputerIcon));
+  m_configureChipAction->setIcon(IDEWorkflowIcons::icon(IDEWorkflowIcons::Kind::ChipConfig));
+  m_configureChipAction->setStatusTip("选择并配置目标 MCU 芯片型号");
+  m_configureChipAction->setToolTip("选择并配置目标 MCU 芯片型号 (芯片配置)");
   connect(m_configureChipAction, &QAction::triggered, this, &MainWindow::configureChip);
   m_configureFlashAction = new QAction(tr("烧录配置"), this);
   m_configureFlashAction->setObjectName("configureFlash");
-  m_configureFlashAction->setIcon(IDEWorkflowIcons::icon(IDEWorkflowIcons::Kind::Flash));
+  m_configureFlashAction->setIcon(IDEWorkflowIcons::icon(IDEWorkflowIcons::Kind::FlashConfig));
+  m_configureFlashAction->setStatusTip("配置烧录下载器驱动、SWD 速率与起始基地址");
+  m_configureFlashAction->setToolTip("配置烧录下载器与参数 (烧录配置)");
   connect(m_configureFlashAction, &QAction::triggered, this, &MainWindow::configureFlash);
   m_configureToolchainAction = new QAction(tr("工具链配置"), this);
   m_configureToolchainAction->setObjectName("configureToolchain");
-  m_configureToolchainAction->setIcon(QIcon(":/icons/ToosSetting.png"));
+  m_configureToolchainAction->setIcon(IDEWorkflowIcons::icon(IDEWorkflowIcons::Kind::ToolchainConfig));
   m_configureToolchainAction->setStatusTip("配置编译和调试工具链");
   m_configureToolchainAction->setToolTip("配置编译和调试工具链");
   connect(m_configureToolchainAction, &QAction::triggered, this,
@@ -3302,6 +3647,7 @@ void MainWindow::createMenus() {
   QMenu *fileMenu = menuBar->addMenu("文件");
   fileMenu->addAction(m_newProjectAction);
   fileMenu->addAction(m_openProjectAction);
+  fileMenu->addAction(m_importKeilAction);
   fileMenu->addAction(m_saveProjectAction);
   fileMenu->addAction(m_closeProjectAction);
   fileMenu->addSeparator();
@@ -3454,8 +3800,10 @@ void MainWindow::loadSettings() {
   m_openocdConfig = m_settings->value("openocdConfig").toString();
   m_settings->endGroup();
 
-  // If we have a saved project path, update the project tree
-  if (!m_projectPath.isEmpty()) {
+  // Restore the original project file before falling back to a directory view.
+  const QString savedKeil = m_settings->value("MainWindow/keilProjectFile").toString();
+  const bool restoredKeil = !savedKeil.isEmpty() && importKeilProject(savedKeil);
+  if (!restoredKeil && !m_projectPath.isEmpty()) {
     updateProjectTree(m_projectPath);
     if (m_codeEditor) {
       m_codeEditor->setProjectRootPath(m_projectPath);
@@ -4334,19 +4682,15 @@ bool MainWindow::saveEditorContent(QsciScintilla *editor,
 
 // Modify the clearProjectTree method
 void MainWindow::clearProjectTree() {
-  // Since you're using QFileSystemModel, not QStandardItemModel,
-  // we need to handle clearing differently
-  // if (m_projectTreeView) {
-  //     // Set the root path to the home directory or some default location
-  //     m_projectTreeView->setRootIndex(m_fileSystemModel->index(QDir::homePath()));
-
-  //     // Or if you want to completely reset the model:
-  //     // m_fileSystemModel->setRootPath("");
-  //     // m_projectTreeView->setRootIndex(m_fileSystemModel->index(""));
-  // }
-
+  m_keilProjectFile.clear();
+  if (m_settings) {
+    m_settings->remove("MainWindow/keilProjectFile");
+    m_settings->setValue("MainWindow/projectPath", QString());
+    m_settings->sync();
+  }
+  if (m_projectNavigator) { m_projectNavigator->clear(); m_projectNavigator->hide(); }
   if (m_projectTreeView && m_fileSystemModel) {
-    // m_projectTreeView->setRootIndex(m_fileSystemModel->index(QDir::homePath()));
+    m_projectTreeView->show();
     m_fileSystemModel->setRootPath("");
     m_projectTreeView->setRootIndex(m_fileSystemModel->index(""));
   }

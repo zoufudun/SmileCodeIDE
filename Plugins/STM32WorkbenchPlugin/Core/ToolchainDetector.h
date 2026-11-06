@@ -45,6 +45,9 @@ public:
     // 自动扫描与智能探测工具链（探测 PATH、默认安装路径、D:\Toolchains 等）
     ToolchainPaths autoDetect(const QString &hintDir = QString());
 
+    // 专项自动查找系统中安装的 SEGGER J-Link 或 Keil 内置 J-Link 可执行文件路径
+    QString detectJLinkPath(const QString &hintDir = QString());
+
     // 从 QSettings 加载用户已保存的配置
     ToolchainPaths loadSettings(QSettings *settings);
 

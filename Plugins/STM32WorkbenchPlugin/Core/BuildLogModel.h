@@ -3,6 +3,13 @@
 #include "BuildDiagnostic.h"
 #include <QColor>
 #include <QVector>
+enum class BuildLogFilter {
+    All = 0,
+    ErrorsOnly = 1,
+    WarningsOnly = 2,
+    ErrorsAndWarnings = 3
+};
+
 struct BuildLogEntry {
     QString text;
     DiagnosticSeverity severity = DiagnosticSeverity::Info;
@@ -25,6 +32,8 @@ public:
     BuildLogResult finish(bool success, int exitCode, int durationMs);
     const QVector<BuildLogEntry> &conciseEntries() const { return m_concise; }
     const QVector<BuildLogEntry> &detailedEntries() const { return m_detailed; }
+    QVector<BuildLogEntry> filteredEntries(bool detailed, BuildLogFilter filter) const;
+    static bool matchesFilter(const BuildLogEntry &entry, BuildLogFilter filter);
     const QVector<BuildDiagnostic> &diagnostics() const { return m_diagnostics; }
     int errorCount() const { return m_errors; }
     int warningCount() const { return m_warnings; }

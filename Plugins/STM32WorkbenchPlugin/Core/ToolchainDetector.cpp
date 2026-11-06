@@ -6,6 +6,7 @@
 #include <QRegularExpression>
 #include <QDebug>
 #include <QProcessEnvironment>
+#include <algorithm>
 
 bool ToolchainPaths::isGccValid() const {
     return !gccPath.isEmpty() && QFileInfo::exists(gccPath);
@@ -59,6 +60,211 @@ QString ToolchainDetector::findExecutable(const QString &name, const QStringList
     return QString();
 }
 
+QString ToolchainDetector::detectJLinkPath(const QString &hintDir)
+{
+    QStringList jlinkDirs;
+    QStringList keilFallbackDirs;
+
+    const auto addDir = [](QStringList &list, const QString &path) {
+        if (path.isEmpty()) return;
+        QFileInfo info(path);
+        const QString dirPath = info.isFile() ? info.absolutePath() : path;
+        if (QDir(dirPath).exists()) {
+            const QString cleaned = QDir::cleanPath(dirPath);
+            if (!list.contains(cleaned)) {
+                list << cleaned;
+            }
+            const QString binSub = QDir(cleaned).absoluteFilePath("bin");
+            if (QDir(binSub).exists() && !list.contains(binSub)) {
+                list << binSub;
+            }
+        }
+    };
+
+    const auto collectSeggerRoot = [&](const QString &seggerRoot) {
+        QDir dir(seggerRoot);
+        if (!dir.exists()) return;
+        // 优先匹配版本号更高的 JLink_Vxxx 目录（按名称倒序排列）
+        const QFileInfoList children = dir.entryInfoList(
+            QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name | QDir::Reversed);
+        for (const QFileInfo &child : children) {
+            const QString lower = child.fileName().toLower();
+            if (lower.contains("jlink") || lower.contains("j-link")) {
+                addDir(jlinkDirs, child.absoluteFilePath());
+            }
+        }
+        addDir(jlinkDirs, dir.absoluteFilePath("JLink"));
+        addDir(jlinkDirs, seggerRoot);
+    };
+
+    if (!hintDir.isEmpty()) {
+        addDir(jlinkDirs, hintDir);
+        collectSeggerRoot(hintDir);
+        collectSeggerRoot(QDir(hintDir).absoluteFilePath("SEGGER"));
+        addDir(keilFallbackDirs, QDir(hintDir).absoluteFilePath("ARM/Segger"));
+    }
+
+    const QProcessEnvironment system = QProcessEnvironment::systemEnvironment();
+    for (const char *envKey : {"JLINK_HOME", "SEGGER_HOME", "JLINK_PATH"}) {
+        const QString val = system.value(QString::fromLatin1(envKey));
+        if (!val.isEmpty()) {
+            addDir(jlinkDirs, val);
+            collectSeggerRoot(val);
+        }
+    }
+
+#ifdef Q_OS_WIN
+    // 1. 查询 Windows 注册表中的 SEGGER J-Link 官方安装项
+    const QStringList seggerRegKeys = {
+        QStringLiteral("HKEY_CURRENT_USER\\Software\\SEGGER\\J-Link"),
+        QStringLiteral("HKEY_LOCAL_MACHINE\\SOFTWARE\\SEGGER\\J-Link"),
+        QStringLiteral("HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\SEGGER\\J-Link")
+    };
+    for (const QString &regPath : seggerRegKeys) {
+        QSettings reg(regPath, QSettings::NativeFormat);
+        const QString directInstall = reg.value("InstallPath").toString();
+        if (!directInstall.isEmpty()) {
+            addDir(jlinkDirs, directInstall);
+        }
+        QStringList groups = reg.childGroups();
+        std::sort(groups.begin(), groups.end(), std::greater<QString>());
+        for (const QString &grp : groups) {
+            reg.beginGroup(grp);
+            const QString subInstall = reg.value("InstallPath").toString();
+            if (!subInstall.isEmpty()) {
+                addDir(jlinkDirs, subInstall);
+            }
+            reg.endGroup();
+        }
+    }
+
+    // 2. 查询 Windows 卸载注册表项 (SEGGER J-Link)
+    const QStringList uninstallRegKeys = {
+        QStringLiteral("HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall"),
+        QStringLiteral("HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall"),
+        QStringLiteral("HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall")
+    };
+    for (const QString &uninstRoot : uninstallRegKeys) {
+        QSettings reg(uninstRoot, QSettings::NativeFormat);
+        const QStringList subKeys = reg.childGroups();
+        for (const QString &sub : subKeys) {
+            const QString lowerSub = sub.toLower();
+            if (!lowerSub.contains("jlink") && !lowerSub.contains("j-link") && !lowerSub.contains("segger")) {
+                continue;
+            }
+            reg.beginGroup(sub);
+            const QString loc = reg.value("InstallLocation").toString();
+            if (!loc.isEmpty()) {
+                addDir(jlinkDirs, loc);
+            }
+            const QString uninstStr = reg.value("UninstallString").toString().remove('"');
+            if (!uninstStr.isEmpty()) {
+                addDir(jlinkDirs, QFileInfo(uninstStr).absolutePath());
+            }
+            reg.endGroup();
+        }
+    }
+
+    // 3. 查询 Keil MDK 注册表内置 Segger 目录（作为备选）
+    const QStringList keilRegKeys = {
+        QStringLiteral("HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Keil\\Products\\MDK"),
+        QStringLiteral("HKEY_CURRENT_USER\\Software\\Keil\\Products\\MDK")
+    };
+    for (const QString &keilKey : keilRegKeys) {
+        QSettings reg(keilKey, QSettings::NativeFormat);
+        const QString mdPath = reg.value("Path").toString();
+        if (!mdPath.isEmpty()) {
+            addDir(keilFallbackDirs, QDir(mdPath).absoluteFilePath("ARM/Segger"));
+            addDir(keilFallbackDirs, QDir(mdPath).absoluteFilePath("../ARM/Segger"));
+        }
+    }
+
+    // 4. 扫描各磁盘常见软件安装目录 (SEGGER / Soft / Tools / Program Files / Keil_v5)
+    for (const QFileInfo &drive : QDir::drives()) {
+        const QString base = drive.absoluteFilePath();
+        const QStringList seggerBases = {
+            base + "SEGGER",
+            base + "Soft/SEGGER",
+            base + "soft/SEGGER",
+            base + "Software/SEGGER",
+            base + "Tools/SEGGER",
+            base + "Toolchains/SEGGER",
+            base + "Program Files/SEGGER",
+            base + "Program Files (x86)/SEGGER"
+        };
+        for (const QString &sb : seggerBases) {
+            collectSeggerRoot(sb);
+        }
+
+        const QStringList directJlinkBases = {
+            base + "JLink",
+            base + "Soft/JLink",
+            base + "Software/JLink",
+            base + "Tools/JLink",
+            base + "Toolchains/JLink"
+        };
+        for (const QString &jb : directJlinkBases) {
+            addDir(jlinkDirs, jb);
+            collectSeggerRoot(jb);
+        }
+
+        const QStringList parentFolders = {
+            base + "Soft",
+            base + "Software",
+            base + "Tools",
+            base + "Toolchains"
+        };
+        for (const QString &pf : parentFolders) {
+            QDir pDir(pf);
+            if (!pDir.exists()) continue;
+            const QFileInfoList subList = pDir.entryInfoList(
+                QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name | QDir::Reversed);
+            for (const QFileInfo &sub : subList) {
+                const QString lower = sub.fileName().toLower();
+                if (lower.contains("segger") || lower.contains("jlink") || lower.contains("j-link")) {
+                    collectSeggerRoot(sub.absoluteFilePath());
+                } else if (lower.contains("keil")) {
+                    addDir(keilFallbackDirs, QDir(sub.absoluteFilePath()).absoluteFilePath("ARM/Segger"));
+                }
+            }
+        }
+
+        const QStringList keilPaths = {
+            base + "Keil_v5/ARM/Segger",
+            base + "Soft/Keil_v5/ARM/Segger",
+            base + "Software/Keil_v5/ARM/Segger",
+            base + "Arm/Keil_v5/ARM/Segger",
+            base + "Soft/Arm/Keil_v5/ARM/Segger",
+            base + "Program Files/Keil_v5/ARM/Segger",
+            base + "Program Files (x86)/Keil_v5/ARM/Segger"
+        };
+        for (const QString &kp : keilPaths) {
+            addDir(keilFallbackDirs, kp);
+        }
+    }
+    addDir(keilFallbackDirs, QDir::homePath() + "/AppData/Local/Keil_v5/ARM/Segger");
+#else
+    collectSeggerRoot("/opt/SEGGER");
+    collectSeggerRoot("/usr/local/SEGGER");
+    collectSeggerRoot("/Applications/SEGGER");
+    addDir(jlinkDirs, "/usr/bin");
+    addDir(jlinkDirs, "/usr/local/bin");
+#endif
+
+    // 先在独立 SEGGER J-Link 目录与环境变量中查找，再回退到 Keil 内置 Segger 目录
+    QString found = findExecutable("JLink", jlinkDirs);
+    if (found.isEmpty()) {
+        found = findExecutable("JLinkExe", jlinkDirs);
+    }
+    if (found.isEmpty() && !keilFallbackDirs.isEmpty()) {
+        found = findExecutable("JLink", keilFallbackDirs);
+        if (found.isEmpty()) {
+            found = findExecutable("JLinkExe", keilFallbackDirs);
+        }
+    }
+    return found;
+}
+
 ToolchainPaths ToolchainDetector::autoDetect(const QString &hintDir)
 {
     ToolchainPaths paths;
@@ -91,6 +297,7 @@ ToolchainPaths ToolchainDetector::autoDetect(const QString &hintDir)
     addRoot(makeDirs, system.value(QStringLiteral("MINGW_HOME")));
     addRoot(openocdDirs, system.value(QStringLiteral("OPENOCD_HOME")));
     addRoot(jlinkDirs, system.value(QStringLiteral("JLINK_HOME")));
+    addRoot(jlinkDirs, system.value(QStringLiteral("SEGGER_HOME")));
     addRoot(stm32ProgDirs, system.value(QStringLiteral("STM32CUBE_PROGRAMMER_HOME")));
 
     // Search only likely installation roots and their immediate product folders.
@@ -104,7 +311,8 @@ ToolchainPaths ToolchainDetector::autoDetect(const QString &hintDir)
 #ifdef Q_OS_WIN
     for (const QFileInfo &drive : QDir::drives()) {
         const QString base = drive.absoluteFilePath();
-        roots << base + "Toolchains" << base + "Tools" << base + "Soft/Qt/Tools"
+        roots << base + "Toolchains" << base + "Tools" << base + "Soft"
+              << base + "Software" << base + "SEGGER" << base + "Soft/Qt/Tools"
               << base + "Program Files" << base + "Program Files (x86)";
     }
 #else
@@ -130,7 +338,8 @@ ToolchainPaths ToolchainDetector::autoDetect(const QString &hintDir)
                 lower.contains("segger") || lower.contains("jlink") || lower.contains("openocd") ||
                 lower.contains("mingw") || lower.contains("qt")) {
                 QDir childDir(child.absoluteFilePath());
-                for (const QFileInfo &product : childDir.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot)) {
+                for (const QFileInfo &product : childDir.entryInfoList(
+                         QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name | QDir::Reversed)) {
                     classify(product.absoluteFilePath(), product.fileName());
                     addRoot(gccDirs, product.absoluteFilePath() + "/tools");
                     addRoot(openocdDirs, product.absoluteFilePath() + "/tools/openocd");
@@ -142,6 +351,9 @@ ToolchainPaths ToolchainDetector::autoDetect(const QString &hintDir)
     // 常见嵌入式工具链安装目录（优先支持当前系统探测到的 D:\Toolchains 等）
     gccDirs << "D:/Toolchains/arm-gnu-toolchain/bin"
             << "D:/Toolchains/gcc-arm-none-eabi/bin"
+            << "D:/Toolchains/arm-none-eabi/bin"
+            << "E:/Toolchains/gcc-arm-none-eabi/bin"
+            << "E:/Toolchains/arm-gnu-toolchain/bin"
             << "C:/Toolchains/arm-gnu-toolchain/bin"
             << "C:/Program Files (x86)/Arm GNU Toolchain/bin"
             << "C:/Program Files/Arm GNU Toolchain/bin"
@@ -152,11 +364,15 @@ ToolchainPaths ToolchainDetector::autoDetect(const QString &hintDir)
              << "D:/Soft/Qt/Tools/mingw1310_64/bin"
              << "D:/Soft/Qt/Tools/mingw1120_64/bin"
              << "D:/Soft/Qt/Tools/mingw810_64/bin"
+             << "E:/Toolchains/mingw/mingw641520/bin"
+             << "E:/Toolchains/mingw/mingw641420/bin"
+             << "E:/Toolchains/mingw/mingw641310/bin"
              << "C:/ProgramData/chocolatey/bin"
              << "C:/msys64/usr/bin"
              << "C:/msys64/mingw64/bin";
 
     openocdDirs << "D:/Toolchains/OpenOCD/bin"
+                << "E:/Toolchains/OpenOCD/bin"
                 << "C:/Toolchains/OpenOCD/bin"
                 << "C:/openocd/bin"
                 << "C:/Program Files/OpenOCD/bin";
@@ -167,7 +383,8 @@ ToolchainPaths ToolchainDetector::autoDetect(const QString &hintDir)
               << "D:/Program Files/SEGGER/JLink";
 
     stm32ProgDirs << "C:/Program Files/STMicroelectronics/STM32Cube/STM32CubeProgrammer/bin"
-                  << "D:/Program Files/STMicroelectronics/STM32Cube/STM32CubeProgrammer/bin";
+                  << "D:/Program Files/STMicroelectronics/STM32Cube/STM32CubeProgrammer/bin"
+                  << "D:/Soft/STMicroelectronics/STM32Cube/STM32CubeProgrammer/bin";
 
     // 1. 查找 GCC 系列工具
     paths.gccPath = findExecutable("arm-none-eabi-gcc", gccDirs);
@@ -208,8 +425,11 @@ ToolchainPaths ToolchainDetector::autoDetect(const QString &hintDir)
         }
     }
 
-    // 4. 查找 J-Link
-    paths.jlinkPath = findExecutable("JLink", jlinkDirs);
+    // 4. 查找 J-Link（深度探测注册表、SEGGER 目录、各盘 Soft/Tools 与 Keil 内置 Segger）
+    paths.jlinkPath = detectJLinkPath(hintDir);
+    if (paths.jlinkPath.isEmpty()) {
+        paths.jlinkPath = findExecutable("JLink", jlinkDirs);
+    }
     if (paths.jlinkPath.isEmpty()) {
         paths.jlinkPath = findExecutable("JLinkExe", jlinkDirs);
     }
@@ -376,8 +596,23 @@ QString ToolchainDetector::generateDiagnosticReport(const ToolchainPaths &paths)
               .arg(getToolVersion(paths.openocdPath))
               .arg(paths.openocdScriptsDir.isEmpty() ? "[默认内置]" : paths.openocdScriptsDir);
 
-    report += QString("J-Link:          %1\n")
-              .arg(paths.jlinkPath.isEmpty() ? "[未配置]" : paths.jlinkPath);
+    QString jlinkStatus = QStringLiteral("未找到");
+    if (paths.isJlinkValid()) {
+        QFileInfo jlinkInfo(paths.jlinkPath);
+        QDir jlinkDir = jlinkInfo.absoluteDir();
+        const QString folderVer = jlinkDir.dirName();
+        const bool hasGdbServer =
+            QFileInfo::exists(jlinkDir.absoluteFilePath("JLinkGDBServerCL.exe")) ||
+            QFileInfo::exists(jlinkDir.absoluteFilePath("JLinkGDBServer.exe")) ||
+            QFileInfo::exists(jlinkDir.absoluteFilePath("JLinkGDBServerCLExe")) ||
+            QFileInfo::exists(jlinkDir.absoluteFilePath("JLinkGDBServerExe"));
+        jlinkStatus = QStringLiteral("已就绪 (%1%2)")
+                          .arg(folderVer)
+                          .arg(hasGdbServer ? QStringLiteral(" · 含 JLinkGDBServer") : QString());
+    }
+    report += QString("J-Link:          %1\n  状态: %2\n")
+              .arg(paths.jlinkPath.isEmpty() ? "[未配置]" : paths.jlinkPath)
+              .arg(jlinkStatus);
 
     report += "-----------------------------------------------------\n";
     bool canBuild = paths.isGccValid() && paths.isMakeValid();

@@ -1,4 +1,5 @@
 #include "idetheme.h"
+#include "ideworkflowicons.h"
 #include "STM32WorkbenchWidget.h"
 #include <QApplication>
 #include <QVBoxLayout>
@@ -153,7 +154,9 @@ void STM32WorkbenchWidget::setupUI()
     m_chipCombo->completer()->setFilterMode(Qt::MatchContains);
     connect(m_chipCombo, &QComboBox::currentTextChanged, this, &STM32WorkbenchWidget::onChipChanged);
 
-    m_selectChipBtn = new QPushButton(QStringLiteral("芯片选择..."), toolBar);
+    m_selectChipBtn = new QPushButton(QStringLiteral("芯片配置..."), toolBar);
+    m_selectChipBtn->setIcon(IDEWorkflowIcons::icon(IDEWorkflowIcons::Kind::ChipConfig));
+    m_selectChipBtn->setIconSize(QSize(18, 18));
     m_selectChipBtn->setToolTip(QStringLiteral("打开目标芯片分类级联选择对话框 (厂商/系列/器件)"));
     m_selectChipBtn->setObjectName("btnSelectChip");
     connect(m_selectChipBtn, &QPushButton::clicked, this, &STM32WorkbenchWidget::onOpenChipSelectDialog);
@@ -197,10 +200,14 @@ void STM32WorkbenchWidget::setupUI()
     m_debugBtn->setObjectName("btnWorkbenchDebug");
     connect(m_debugBtn, &QPushButton::clicked, this, &STM32WorkbenchWidget::onToggleDebugSession);
 
-    m_toolchainConfigBtn = new QPushButton(QStringLiteral("🛠️ 工具链配置"), toolBar);
+    m_toolchainConfigBtn = new QPushButton(QStringLiteral("工具链配置"), toolBar);
+    m_toolchainConfigBtn->setIcon(IDEWorkflowIcons::icon(IDEWorkflowIcons::Kind::ToolchainConfig));
+    m_toolchainConfigBtn->setIconSize(QSize(18, 18));
     connect(m_toolchainConfigBtn, &QPushButton::clicked, this, &STM32WorkbenchWidget::onOpenToolchainSettings);
 
-    m_flashConfigBtn = new QPushButton(QStringLiteral("🔥 烧录设置"), toolBar);
+    m_flashConfigBtn = new QPushButton(QStringLiteral("烧录配置"), toolBar);
+    m_flashConfigBtn->setIcon(IDEWorkflowIcons::icon(IDEWorkflowIcons::Kind::FlashConfig));
+    m_flashConfigBtn->setIconSize(QSize(18, 18));
     connect(m_flashConfigBtn, &QPushButton::clicked, this, &STM32WorkbenchWidget::onOpenFlashSettings);
 
     row2->addWidget(m_buildBtn);
@@ -226,15 +233,51 @@ void STM32WorkbenchWidget::setupUI()
 
     auto *logBar = new QHBoxLayout;
     logBar->setContentsMargins(4, 0, 4, 0);
-    logBar->addWidget(new QLabel(QStringLiteral("输出日志"), terminalContainer));
+    logBar->setSpacing(8);
+    logBar->addWidget(new QLabel(QStringLiteral("输出日志 (Keil 风格)"), terminalContainer));
+    m_buildLogCountsBadge = new QLabel(QStringLiteral("错误 0 · 警告 0"), terminalContainer);
+    m_buildLogCountsBadge->setObjectName(QStringLiteral("buildLogCountsBadge"));
+    logBar->addWidget(m_buildLogCountsBadge);
     logBar->addStretch();
+
+    logBar->addWidget(new QLabel(QStringLiteral("日志模式:"), terminalContainer));
+    m_buildLogModeCombo = new QComboBox(terminalContainer);
+    m_buildLogModeCombo->setObjectName(QStringLiteral("buildLogModeCombo"));
+    m_buildLogModeCombo->addItems({QStringLiteral("简约日志 (Keil 风格)"), QStringLiteral("详细日志 (完整命令)")});
+    m_buildLogModeCombo->setEnabled(false);
+    logBar->addWidget(m_buildLogModeCombo);
+
+    logBar->addWidget(new QLabel(QStringLiteral("筛选:"), terminalContainer));
+    m_buildLogFilter = new QComboBox(terminalContainer);
+    m_buildLogFilter->setObjectName(QStringLiteral("buildLogFilter"));
+    m_buildLogFilter->addItems({
+        QStringLiteral("全部编译信息"),
+        QStringLiteral("仅显示错误 (Errors)"),
+        QStringLiteral("仅显示警告 (Warnings)"),
+        QStringLiteral("错误与警告")
+    });
+    m_buildLogFilter->setEnabled(false);
+    logBar->addWidget(m_buildLogFilter);
+
     m_flashDetailedLog = new QCheckBox(QStringLiteral("详细日志"), terminalContainer);
     m_flashDetailedLog->setObjectName(QStringLiteral("flashDetailedLog"));
-    m_flashDetailedLog->setToolTip(QStringLiteral("显示下载工具的完整输出和执行命令"));
+    m_flashDetailedLog->setToolTip(QStringLiteral("在简约日志(Keil风格)与详细日志(完整命令和上下文)之间切换"));
     m_flashDetailedLog->setEnabled(false);
-    connect(m_flashDetailedLog, &QCheckBox::toggled, this, [this] {
+    connect(m_flashDetailedLog, &QCheckBox::toggled, this, [this](bool checked) {
+        if (m_buildLogModeCombo) {
+            const QSignalBlocker b(m_buildLogModeCombo);
+            m_buildLogModeCombo->setCurrentIndex(checked ? 1 : 0);
+        }
         if (m_showingFlashLog) renderFlashLog();
         else if (m_buildViewActive) renderBuildLog(true);
+    });
+    connect(m_buildLogModeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int index) {
+        if (m_flashDetailedLog) {
+            m_flashDetailedLog->setChecked(index == 1);
+        }
+    });
+    connect(m_buildLogFilter, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int) {
+        if (m_buildViewActive) renderBuildLog(true);
     });
     logBar->addWidget(m_flashDetailedLog);
     tcLayout->addLayout(logBar);
@@ -772,6 +815,7 @@ void STM32WorkbenchWidget::leaveFlashLog()
 {
     m_showingFlashLog = false;
     m_flashDetailedLog->setEnabled(false);
+    if (m_buildLogModeCombo) m_buildLogModeCombo->setEnabled(false);
 }
 
 void STM32WorkbenchWidget::beginBuildLog(const QString &action)
@@ -786,9 +830,19 @@ void STM32WorkbenchWidget::beginBuildLog(const QString &action)
     m_flashDetailedLog->setChecked(false);
     m_flashDetailedLog->setEnabled(true);
     m_flashDetailedLog->setToolTip(QStringLiteral("显示完整编译命令和诊断上下文"));
+    if (m_buildLogModeCombo) {
+        const QSignalBlocker modeBlocker(m_buildLogModeCombo);
+        m_buildLogModeCombo->setCurrentIndex(0);
+        m_buildLogModeCombo->setEnabled(true);
+    }
+    if (m_buildLogFilter) {
+        const QSignalBlocker filterBlocker(m_buildLogFilter);
+        m_buildLogFilter->setCurrentIndex(0);
+        m_buildLogFilter->setEnabled(true);
+    }
     m_outputTabs->setCurrentIndex(0);
     m_problemFilter->setCurrentIndex(0);
-    m_buildLogHeading = QStringLiteral("%1: %2  (%3)\n输出目录: %4\n")
+    m_buildLogHeading = QStringLiteral("*** Build target '%2' (%1 - %3) ***\n输出目录: %4\n")
         .arg(action, m_buildManager->chipProfile().chipName,
              m_configCombo->currentData().toInt() == int(BuildConfiguration::Debug) ? QStringLiteral("Debug") : QStringLiteral("Release"),
              m_buildManager->getElfPath(m_projectPath));
@@ -804,11 +858,52 @@ void STM32WorkbenchWidget::renderBuildLog(bool reset)
 {
     if (!m_buildViewActive) return;
     const auto &model = m_buildManager->logModel();
-    const auto &entries = m_flashDetailedLog->isChecked() ? model.detailedEntries() : model.conciseEntries();
+    if (m_buildLogCountsBadge) {
+        m_buildLogCountsBadge->setText(QStringLiteral("错误 %1 · 警告 %2")
+            .arg(model.errorCount()).arg(model.warningCount()));
+        const QString badgeColor = model.errorCount() > 0 ? QStringLiteral("#f38ba8")
+                                 : model.warningCount() > 0 ? QStringLiteral("#f9e2af")
+                                                            : QStringLiteral("#a6e3a1");
+        m_buildLogCountsBadge->setStyleSheet(QStringLiteral("color: %1; font-weight: bold;").arg(badgeColor));
+    }
+
+    const bool detailed = m_flashDetailedLog->isChecked();
+    const BuildLogFilter filter = static_cast<BuildLogFilter>(
+        m_buildLogFilter ? m_buildLogFilter->currentIndex() : 0);
+    const auto &allEntries = detailed ? model.detailedEntries() : model.conciseEntries();
     auto *scroll = m_buildTerminal->verticalScrollBar();
     const bool following = scroll->value() >= scroll->maximum() - 2;
     const int previousScroll = scroll->value();
-    if (reset || m_renderedBuildEntries > entries.size()) {
+
+    if (filter != BuildLogFilter::All) {
+        m_buildTerminal->clear();
+        m_renderedBuildEntries = allEntries.size();
+        QTextCursor cursor(m_buildTerminal->document());
+        QTextCharFormat headingFormat;
+        headingFormat.setForeground(QColor("#cdd6f4"));
+        cursor.insertText(m_buildLogHeading + '\n', headingFormat);
+        const QVector<BuildLogEntry> filtered = model.filteredEntries(detailed, filter);
+        for (const auto &entry : filtered) {
+            QTextCharFormat format;
+            format.setForeground(entry.success ? QColor("#a6e3a1") : BuildLogModel::color(entry.severity));
+            if (!entry.filePath.isEmpty() && entry.line > 0) {
+                QUrl url = QUrl::fromLocalFile(entry.filePath);
+                QUrlQuery query;
+                query.addQueryItem(QStringLiteral("line"), QString::number(entry.line));
+                query.addQueryItem(QStringLiteral("column"), QString::number(entry.column));
+                url.setQuery(query);
+                format.setAnchor(true);
+                format.setAnchorHref(url.toString());
+                format.setFontUnderline(true);
+            }
+            cursor.insertText(entry.text + '\n', format);
+        }
+        m_buildTerminal->setTextCursor(cursor);
+        m_buildTerminal->ensureCursorVisible();
+        return;
+    }
+
+    if (reset || m_renderedBuildEntries > allEntries.size()) {
         m_buildTerminal->clear();
         m_renderedBuildEntries = 0;
         QTextCursor heading(m_buildTerminal->document());
@@ -818,8 +913,8 @@ void STM32WorkbenchWidget::renderBuildLog(bool reset)
     }
     QTextCursor cursor(m_buildTerminal->document());
     cursor.movePosition(QTextCursor::End);
-    for (; m_renderedBuildEntries < entries.size(); ++m_renderedBuildEntries) {
-        const auto &entry = entries.at(m_renderedBuildEntries);
+    for (; m_renderedBuildEntries < allEntries.size(); ++m_renderedBuildEntries) {
+        const auto &entry = allEntries.at(m_renderedBuildEntries);
         QTextCharFormat format;
         format.setForeground(entry.success ? QColor("#a6e3a1") : BuildLogModel::color(entry.severity));
         if (!entry.filePath.isEmpty() && entry.line > 0) {

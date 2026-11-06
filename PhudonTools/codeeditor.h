@@ -130,6 +130,9 @@ public:
     }
   };
 
+  static QList<FunctionInfo> symbolsForCode(const QString &code, const QString &filePath);
+  bool newDocument();
+
   explicit CodeEditor(QWidget *parent = nullptr);
   ~CodeEditor();
 
@@ -151,7 +154,7 @@ public:
   QString text() const;
 
   // 打开文件
-  bool openFile(const QString &filePath);
+  bool openFile(const QString &filePath, bool reload = false);
 
   // 保存文件
   bool saveFile(const QString &filePath);

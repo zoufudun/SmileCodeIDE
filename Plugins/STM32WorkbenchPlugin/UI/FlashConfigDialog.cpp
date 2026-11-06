@@ -1,4 +1,5 @@
 #include "idetheme.h"
+#include "ideworkflowicons.h"
 #include "FlashConfigDialog.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -21,6 +22,7 @@ FlashConfigDialog::FlashConfigDialog(QWidget *parent, QSettings *settings,
         : QStringLiteral("targetAddrByChip/") + profile.chipName +
               (profile.linkerContext.isEmpty() ? QString() : "@" + profile.linkerContext);
     setWindowTitle(QStringLiteral("固件烧录与下载参数配置 (Flash Settings)"));
+    setWindowIcon(IDEWorkflowIcons::icon(IDEWorkflowIcons::Kind::FlashConfig));
     resize(650, 660);
     setupUI();
     m_targetAddrEdit->setText(profile.flashOrigin.isEmpty()

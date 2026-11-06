@@ -1,5 +1,6 @@
 #include <QApplication>
 #include "idetheme.h"
+#include "ideworkflowicons.h"
 #include "ToolchainConfigDialog.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -59,6 +60,7 @@ ToolchainConfigDialog::ToolchainConfigDialog(QWidget *parent, QSettings *setting
     : QDialog(parent), m_settings(settings), m_detector(new ToolchainDetector(this))
 {
     setWindowTitle(QStringLiteral("嵌入式工具链与硬件调试器配置 (Toolchain Settings)"));
+    setWindowIcon(IDEWorkflowIcons::icon(IDEWorkflowIcons::Kind::ToolchainConfig));
     resize(800, 760);
     setupUI();
     QString resolvedTheme = themeId;
@@ -169,8 +171,20 @@ void ToolchainConfigDialog::setupUI()
     connect(browseScripts, &QPushButton::clicked, this, &ToolchainConfigDialog::onBrowseOpenocdScripts);
 
     m_jlinkEdit = new QLineEdit(hardwareGroup);
+    m_jlinkEdit->setObjectName("toolchainJlinkPath");
+    m_jlinkEdit->setPlaceholderText(QStringLiteral("支持自动查找 SEGGER J-Link 或 Keil 内置 JLink.exe"));
+    m_autoFindJlinkBtn = new QPushButton(QStringLiteral("自动查找"), hardwareGroup);
+    m_autoFindJlinkBtn->setObjectName("autoFindJlinkBtn");
+    m_autoFindJlinkBtn->setToolTip(QStringLiteral("自动查找系统中安装的 SEGGER J-Link 或 Keil 内置 J-Link 环境"));
+    connect(m_autoFindJlinkBtn, &QPushButton::clicked, this, &ToolchainConfigDialog::onAutoFindJlink);
     QPushButton *browseJlink = new QPushButton(QStringLiteral("浏览..."), hardwareGroup);
     connect(browseJlink, &QPushButton::clicked, this, &ToolchainConfigDialog::onBrowseJlink);
+    QWidget *jlinkActionBox = new QWidget(hardwareGroup);
+    QHBoxLayout *jlinkActionLayout = new QHBoxLayout(jlinkActionBox);
+    jlinkActionLayout->setContentsMargins(0, 0, 0, 0);
+    jlinkActionLayout->setSpacing(6);
+    jlinkActionLayout->addWidget(m_autoFindJlinkBtn);
+    jlinkActionLayout->addWidget(browseJlink);
 
     m_stm32ProgEdit = new QLineEdit(hardwareGroup);
     QPushButton *browseStm32Prog = new QPushButton(QStringLiteral("浏览..."), hardwareGroup);
@@ -186,7 +200,7 @@ void ToolchainConfigDialog::setupUI()
 
     hwLayout->addWidget(new QLabel(QStringLiteral("J-Link 路径:"), hardwareGroup), 2, 0);
     hwLayout->addWidget(m_jlinkEdit, 2, 1);
-    hwLayout->addWidget(browseJlink, 2, 2);
+    hwLayout->addWidget(jlinkActionBox, 2, 2);
 
     hwLayout->addWidget(new QLabel(QStringLiteral("STM32Prog CLI:"), hardwareGroup), 3, 0);
     hwLayout->addWidget(m_stm32ProgEdit, 3, 1);
@@ -621,6 +635,19 @@ void ToolchainConfigDialog::onBrowseJlink()
     if (!file.isEmpty()) {
         m_jlinkEdit->setText(QDir::toNativeSeparators(file));
         startBackgroundCheck(false);
+    }
+}
+
+void ToolchainConfigDialog::onAutoFindJlink()
+{
+    const QString detected = m_detector->detectJLinkPath();
+    if (!detected.isEmpty()) {
+        m_paths.jlinkPath = QDir::toNativeSeparators(detected);
+        m_jlinkEdit->setText(m_paths.jlinkPath);
+        startBackgroundCheck(false);
+    } else if (isVisible()) {
+        QMessageBox::information(this, QStringLiteral("J-Link 自动查找"),
+            QStringLiteral("未在系统默认安装目录、注册表或 Keil 目录中找到 JLink.exe，请点击“浏览...”手动选择。"));
     }
 }
 

@@ -1,7 +1,7 @@
 /****************************************************************************
 ** Meta object code from reading C++ file 'ToolchainConfigDialog.h'
 **
-** Created by: The Qt Meta Object Compiler version 69 (Qt 6.11.2)
+** Created by: The Qt Meta Object Compiler version 69 (Qt 6.11.1)
 **
 ** WARNING! All changes made in this file will be lost!
 *****************************************************************************/
@@ -19,7 +19,7 @@
 #if !defined(Q_MOC_OUTPUT_REVISION)
 #error "The header file 'ToolchainConfigDialog.h' doesn't include <QObject>."
 #elif Q_MOC_OUTPUT_REVISION != 69
-#error "This file was generated using the moc from 6.11.2. It"
+#error "This file was generated using the moc from 6.11.1. It"
 #error "cannot be used with the include files from this version of Qt."
 #error "(The moc has changed too much.)"
 #endif
@@ -48,6 +48,7 @@ template <> constexpr inline auto ToolchainConfigDialog::qt_create_metaobjectdat
         "onBrowseOpenocd",
         "onBrowseOpenocdScripts",
         "onBrowseJlink",
+        "onAutoFindJlink",
         "onBrowseStm32Prog",
         "onSaveClicked",
         "onOpenChipSelectDialog",
@@ -70,15 +71,17 @@ template <> constexpr inline auto ToolchainConfigDialog::qt_create_metaobjectdat
         QtMocHelpers::SlotData<void()>(7, 2, QMC::AccessPrivate, QMetaType::Void),
         // Slot 'onBrowseJlink'
         QtMocHelpers::SlotData<void()>(8, 2, QMC::AccessPrivate, QMetaType::Void),
-        // Slot 'onBrowseStm32Prog'
+        // Slot 'onAutoFindJlink'
         QtMocHelpers::SlotData<void()>(9, 2, QMC::AccessPrivate, QMetaType::Void),
-        // Slot 'onSaveClicked'
+        // Slot 'onBrowseStm32Prog'
         QtMocHelpers::SlotData<void()>(10, 2, QMC::AccessPrivate, QMetaType::Void),
-        // Slot 'onOpenChipSelectDialog'
+        // Slot 'onSaveClicked'
         QtMocHelpers::SlotData<void()>(11, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'onOpenChipSelectDialog'
+        QtMocHelpers::SlotData<void()>(12, 2, QMC::AccessPrivate, QMetaType::Void),
         // Slot 'onOptLevelChanged'
-        QtMocHelpers::SlotData<void(int)>(12, 2, QMC::AccessPrivate, QMetaType::Void, {{
-            { QMetaType::Int, 13 },
+        QtMocHelpers::SlotData<void(int)>(13, 2, QMC::AccessPrivate, QMetaType::Void, {{
+            { QMetaType::Int, 14 },
         }}),
     };
     QtMocHelpers::UintData qt_properties {
@@ -110,10 +113,11 @@ void ToolchainConfigDialog::qt_static_metacall(QObject *_o, QMetaObject::Call _c
         case 4: _t->onBrowseOpenocd(); break;
         case 5: _t->onBrowseOpenocdScripts(); break;
         case 6: _t->onBrowseJlink(); break;
-        case 7: _t->onBrowseStm32Prog(); break;
-        case 8: _t->onSaveClicked(); break;
-        case 9: _t->onOpenChipSelectDialog(); break;
-        case 10: _t->onOptLevelChanged((*reinterpret_cast<std::add_pointer_t<int>>(_a[1]))); break;
+        case 7: _t->onAutoFindJlink(); break;
+        case 8: _t->onBrowseStm32Prog(); break;
+        case 9: _t->onSaveClicked(); break;
+        case 10: _t->onOpenChipSelectDialog(); break;
+        case 11: _t->onOptLevelChanged((*reinterpret_cast<std::add_pointer_t<int>>(_a[1]))); break;
         default: ;
         }
     }
@@ -138,14 +142,14 @@ int ToolchainConfigDialog::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 11)
+        if (_id < 12)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 11;
+        _id -= 12;
     }
     if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
-        if (_id < 11)
+        if (_id < 12)
             *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType();
-        _id -= 11;
+        _id -= 12;
     }
     return _id;
 }

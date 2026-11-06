@@ -1,4 +1,6 @@
 #include "MainWindowWorkflowTest.h"
+#include <QMessageBox>
+#include <QTimer>
 
 
 
@@ -9,7 +11,7 @@ void MainWindowWorkflowTest::initTestCase() {
     QSettings::setDefaultFormat(QSettings::IniFormat);
 
     QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, m_settings.path());
-    QSettings reg("PhudonTools", "Settings");
+    QSettings reg(QSettings::defaultFormat(), QSettings::UserScope, "PhudonTools", "Settings");
     reg.clear();
     reg.sync();
 
@@ -155,9 +157,10 @@ void MainWindowWorkflowTest::renderWorkflowIcons() {
 
             Kind::Debug, Kind::Stop, Kind::Pause, Kind::Continue, Kind::StepOver,
 
-            Kind::StepInto, Kind::StepOut, Kind::Breakpoint};
+            Kind::StepInto, Kind::StepOut, Kind::Breakpoint,
+            Kind::ChipConfig, Kind::FlashConfig, Kind::ToolchainConfig};
 
-        QImage sheet(720, 240, QImage::Format_ARGB32_Premultiplied);
+        QImage sheet(900, 240, QImage::Format_ARGB32_Premultiplied);
 
         sheet.fill(QColor("#1e293b"));
 
@@ -165,7 +168,7 @@ void MainWindowWorkflowTest::renderWorkflowIcons() {
 
         for (int row = 0; row < 3; ++row) {
 
-            if (row == 2) painter.fillRect(0, 160, 720, 80, QColor("#f8fafc"));
+            if (row == 2) painter.fillRect(0, 160, 900, 80, QColor("#f8fafc"));
 
             for (int i = 0; i < kinds.size(); ++i) {
 
@@ -210,6 +213,10 @@ void MainWindowWorkflowTest::compactWorkspaceHasExplicitConfiguration() {
         QVERIFY(window.findChild<QAction *>("configureFlash"));
 
         QVERIFY(window.findChild<QAction *>("configureToolchain"));
+
+        QVERIFY(window.findChild<QComboBox *>("mainBuildLogModeCombo"));
+        QVERIFY(window.findChild<QComboBox *>("mainBuildLogFilterCombo"));
+        QVERIFY(window.findChild<QComboBox *>("mainProblemsFilterCombo"));
 
         const auto docks = window.findChildren<QDockWidget *>();
 
@@ -511,7 +518,7 @@ void MainWindowWorkflowTest::testRecentProjectDirectoryResolution() {
     MainWindow window;
     window.closeProject();
 
-    QSettings settings("PhudonTools", "Settings");
+    QSettings settings(QSettings::defaultFormat(), QSettings::UserScope, "PhudonTools", "Settings");
     settings.beginGroup("MainWindow");
     settings.setValue("lastOpenDir", projectDir);
     settings.endGroup();
@@ -519,6 +526,126 @@ void MainWindowWorkflowTest::testRecentProjectDirectoryResolution() {
 
     QString resolved = window.getRecentProjectDirectory();
     QCOMPARE(QDir::cleanPath(resolved), QDir::cleanPath(projectDir));
+}
+
+void MainWindowWorkflowTest::keilImportNavigationAndDirectorySwitch() {
+    QTemporaryDir dir;
+    QDir().mkpath(dir.filePath("MDK"));
+    QFile source(dir.filePath("main.c"));
+    QVERIFY(source.open(QIODevice::WriteOnly));
+    source.write("\nint main(void) { return 0; }\n");
+    source.close();
+    QFile project(dir.filePath("MDK/Fire.uvprojx"));
+    QVERIFY(project.open(QIODevice::WriteOnly));
+    project.write("<Project><Targets><Target><TargetName>Fire_H7</TargetName><Groups><Group><GroupName>USER</GroupName><Files><File><FileName>main.c</FileName><FilePath>../main.c</FilePath></File></Files></Group></Groups></Target></Targets></Project>");
+    project.close();
+    {
+        MainWindow window;
+        bool imported = false;
+        QVERIFY(QMetaObject::invokeMethod(&window, "importKeilProject", Q_RETURN_ARG(bool, imported), Q_ARG(QString, project.fileName())));
+        QVERIFY(imported);
+        auto *nav = window.findChild<QWidget *>("keilProjectNavigator");
+        QVERIFY(nav && !nav->isHidden());
+        auto *tree = window.findChild<QTreeView *>("keilProjectTree");
+        QVERIFY(tree);
+        auto *model = tree->model();
+        QCOMPARE(model->index(0, 0, model->index(0, 0)).data().toString(), QString("Fire_H7"));
+        QVERIFY(window.openSourceLocation(source.fileName(), 2));
+        auto *editor = window.findChild<CodeEditor *>();
+        editor->currentEditor()->insertAt("// unsaved\n", 0, 0);
+        const auto text = editor->text();
+        // Same-file navigation must keep the unsaved buffer.
+        QVERIFY(window.openSourceLocation(source.fileName(), 3));
+        QCOMPARE(editor->text(), text);
+        QFile other(dir.filePath("other.c"));
+        QVERIFY(other.open(QIODevice::WriteOnly));
+        other.write("void other(void) {}\n");
+        other.close();
+        int prompts = 0;
+        QMessageBox::StandardButton answer = QMessageBox::Cancel;
+        QTimer dialogResponder;
+        dialogResponder.setInterval(5);
+        connect(&dialogResponder, &QTimer::timeout, &window, [&] {
+            if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                ++prompts;
+                box->button(answer)->click();
+            }
+        });
+        dialogResponder.start();
+        QVERIFY(!window.openSourceLocation(other.fileName(), 1));
+        QCOMPARE(prompts, 1);
+        QCOMPARE(editor->text(), text);
+        prompts = 0;
+        answer = QMessageBox::Discard;
+        QVERIFY(window.openSourceLocation(other.fileName(), 1));
+        QCOMPARE(prompts, 1);
+        editor->currentEditor()->insertAt("// saved\n", 0, 0);
+        const QString savedText = editor->text();
+        prompts = 0;
+        answer = QMessageBox::Save;
+        QVERIFY(window.openSourceLocation(source.fileName(), 1));
+        QCOMPARE(prompts, 1);
+        dialogResponder.stop();
+        QVERIFY(other.open(QIODevice::ReadOnly | QIODevice::Text));
+        QCOMPARE(QString::fromUtf8(other.readAll()), savedText);
+        editor->currentEditor()->setModified(false);
+        imported = true;
+        QVERIFY(QMetaObject::invokeMethod(&window, "importKeilProject", Q_RETURN_ARG(bool, imported), Q_ARG(QString, dir.filePath("missing.uvprojx"))));
+        QVERIFY(!imported);
+        QCOMPARE(model->rowCount(), 1);
+    }
+    {
+        MainWindow restored;
+        auto *nav = restored.findChild<QWidget *>("keilProjectNavigator");
+        QVERIFY(nav && !nav->isHidden());
+        QVERIFY(QMetaObject::invokeMethod(&restored, "updateProjectTree", Q_ARG(QString, dir.path())));
+        QVERIFY(nav->isHidden());
+        restored.closeProject();
+        QCOMPARE(restored.findChild<QTreeView *>("projectFunctionsTree")->model()->rowCount(), 0);
+        QSettings settings(QSettings::defaultFormat(), QSettings::UserScope, "PhudonTools", "Settings");
+        QVERIFY(settings.value("MainWindow/keilProjectFile").toString().isEmpty());
+    }
+}
+
+void MainWindowWorkflowTest::keilBufferUndoRedoTracksSavePoint() {
+    QTemporaryDir dir;
+    QFile source(dir.filePath("main.c"));
+    QVERIFY(source.open(QIODevice::WriteOnly));
+    source.write("int main(void) { return 0; }\n");
+    source.close();
+    QFile project(dir.filePath("Fire.uvprojx"));
+    QVERIFY(project.open(QIODevice::WriteOnly));
+    const QByteArray original = "<Project><Targets><Target><TargetName>Fire_H7</TargetName><Groups><Group><GroupName>USER</GroupName><Files><File><FileName>main.c</FileName><FilePath>main.c</FilePath></File></Files></Group></Groups></Target></Targets></Project>";
+    project.write(original);
+    project.close();
+    MainWindow window;
+    bool imported = false;
+    QVERIFY(QMetaObject::invokeMethod(&window, "importKeilProject", Q_RETURN_ARG(bool, imported), Q_ARG(QString, project.fileName())));
+    QVERIFY(imported);
+    QVERIFY(window.openSourceLocation(source.fileName(), 1));
+    auto *editor = window.findChild<CodeEditor *>()->currentEditor();
+    auto *tree = window.findChild<QTreeView *>("keilProjectTree");
+    auto *m = tree->model();
+    const auto file = m->index(0, 0, m->index(0, 0, m->index(0, 0, m->index(0, 0))));
+    tree->expand(file);
+    editor->insertAt("void added(void) {}\n", 1, 0);
+    QVERIFY(editor->isModified());
+    QTRY_COMPARE(m->rowCount(file), 2);
+    editor->undo();
+    QVERIFY(!editor->isModified());
+    QTRY_COMPARE(m->rowCount(file), 1);
+    QVERIFY(source.open(QIODevice::WriteOnly | QIODevice::Truncate));
+    source.write("void external(void) {}\n");
+    source.close();
+    QTRY_VERIFY(m->index(0, 0, file).data().toString().startsWith("external"));
+    editor->redo();
+    QVERIFY(editor->isModified());
+    QTRY_COMPARE(m->rowCount(file), 2);
+    QVERIFY(m->index(0, 0, file).data().toString().startsWith("main"));
+    QVERIFY(project.open(QIODevice::ReadOnly));
+    QCOMPARE(project.readAll(), original);
+    editor->setModified(false);
+    window.closeProject();
 }
 
 QTEST_MAIN(MainWindowWorkflowTest)

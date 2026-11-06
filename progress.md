@@ -28,3 +28,23 @@
 - 回路结构升级为前向线、返回线和右侧回线组成的双线回路；消防联动执行区独立成层。
 - 已完成正常通信与火警联动阶段的实际浏览器检查，静态联动态无裁切、无文字溢出。
 - 新版第 2 页布局审查评分 95/100、无 P0。
+
+## 2026-11-05 Keil 导入
+- 已确认方案，编写设计与实现计划；开始模型测试。
+
+- 首轮 Keil 7 项测试通过；新增外部变更与新建文件回归先验证失败，再修复。
+- 默认 MinGW15.2 win32 与 Qt POSIX 运行库混用使 QtTest Watchdog 死锁；调试栈确认后改用 Qt6.11.1 + 配套 MinGW13.1 POSIX。
+- 审查修复重复动作编译错误、新建缓冲污染、干净缓冲遮蔽磁盘、过期监听未清理。
+
+- 最终完成：主程序构建退出码 0，Qt 本地运行库部署完成，启动冒烟测试通过。
+- KeilProjectTest 12 passed / 0 failed；MainWindowWorkflowTest 12 passed / 0 failed；EditorCommandsTest 13 passed / 0 failed，共 37 passed。
+- 新增内容相同刷新保留重做历史回归，先验证失败再修复后通过；Save/Discard/Cancel 均只有一次确认。
+- 静态审查通过，Fire_H7 项目/函数截图已人工检查，归档 docs/Keil工程导入与项目函数导航.md。未提交或发布。
+
+## 2026-11-05 Debug 点击 IDE 崩溃修复
+- Windows 错误日志精确指向 Qt Creator Debug 目标，Qt6Core.dll 异常 0xc0000602。
+- 新增带 Qt 断言的最小 Debug 回归，修复前复现 qobject.h:268 的 UniqueConnection + lambda 断言及同一退出码。
+- 将连接移入 setupEditor 一次性初始化，主题更新不注册连接。Debug 用例 3/3（含延迟回调执行）通过。
+- Qt Creator Debug 实际目标与 Release 程序均构建退出码 0；真实桌面点击 Debug 工作台启动 IDE 成功。
+- 主窗口 12/12、Keil 功能 12/12、编辑器 13/13，加 Debug 启动 3/3，共 40 passed / 0 failed。
+- 代码审查通过；归档 docs/SmileCodeIDE点击启动后Debug崩溃修复.md。保留用户原有 Qt Creator 与插件二进制改动；未发布。

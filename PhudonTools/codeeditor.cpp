@@ -1711,10 +1711,10 @@ QString CodeEditor::text() const {
   return QString();
 }
 
-bool CodeEditor::openFile(const QString &filePath) {
+bool CodeEditor::openFile(const QString &filePath, bool reload) {
   QString canonical = QFileInfo(filePath).canonicalFilePath();
   if (canonical.isEmpty()) canonical = QFileInfo(filePath).absoluteFilePath();
-  if (canonical == m_currentFilePath) return true;
+  if (canonical == m_currentFilePath && !reload) return true;
   QFile file(filePath);
   if (file.open(QIODevice::ReadOnly)) {
     if (!confirmDiscardChanges()) return false;
@@ -1734,6 +1734,9 @@ bool CodeEditor::openFile(const QString &filePath) {
     } else {
       content = utf8Content;
     }
+
+    if (canonical == m_currentFilePath && m_currentEditor &&
+        content == m_currentEditor->text()) return true;
 
     // 更新当前规范化绝对文件路径
     m_currentFilePath = QFileInfo(filePath).canonicalFilePath();
@@ -2088,15 +2091,6 @@ void CodeEditor::setupFunctionNameHighlighting(const IdeTheme::ThemePalette &p) 
     editor->SendScintilla(QsciScintilla::SCI_INDICSETUNDER, CLASS_INDICATOR, false);
     editor->SendScintilla(QsciScintilla::SCI_INDICSETOUTLINEALPHA, CLASS_INDICATOR, 255);
 
-    QPointer<QsciScintilla> safeEditor = editor;
-    connect(editor, &QsciScintilla::textChanged, this, [this, safeEditor]() {
-      if (safeEditor) {
-        QTimer::singleShot(200, safeEditor.data(), [this, safeEditor]() {
-          if (safeEditor)
-            highlightFunctionNames(safeEditor.data(), 20);
-        });
-      }
-    }, Qt::UniqueConnection);
 
     highlightFunctionNames(editor, FUNCTION_INDICATOR);
   }
@@ -2606,6 +2600,20 @@ QsciScintilla *CodeEditor::findFirstEditor(QSplitter *splitter) {
 }
 
 void CodeEditor::setupEditor(QsciScintilla *editor) {
+  // Install the callback once per editor; theme changes only update colors.
+  QPointer<QsciScintilla> safeEditor = editor;
+  connect(editor, &QsciScintilla::textChanged, this, [this, safeEditor]() {
+    if (safeEditor) {
+      QTimer::singleShot(200, safeEditor.data(), [this, safeEditor]() {
+        if (safeEditor)
+          highlightFunctionNames(safeEditor.data(), 20);
+      });
+    }
+  });
+  connect(editor, &QsciScintilla::modificationChanged, this, [this, editor](bool) {
+    // Undo/redo can notify textChanged before the save-point state changes.
+    if (editor == m_currentEditor) emit currentBufferChanged(m_currentFilePath, editor->text());
+  });
   connect(editor, &QsciScintilla::textChanged, this, [this, editor] {
     if (editor == m_currentEditor) emit currentBufferChanged(m_currentFilePath, editor->text());
   });
@@ -3880,12 +3888,18 @@ static int findExactSymbolOffsetInClean(const QString &cleanText, int startLimit
 }
 
 void CodeEditor::parseFunctions(const QString &code) {
-  m_functions.clear();
-  if (code.isEmpty()) return;
+  m_functions = symbolsForCode(code, m_currentFilePath);
+}
+
+QList<CodeEditor::FunctionInfo> CodeEditor::symbolsForCode(const QString &code, const QString &filePath) {
+  QList<FunctionInfo> functions;
+  if (code.isEmpty()) return functions;
 
   const int codeLen = code.length();
-  bool isHeader = m_currentFilePath.endsWith(".h", Qt::CaseInsensitive) ||
-                  m_currentFilePath.endsWith(".hpp", Qt::CaseInsensitive);
+  bool isHeader = filePath.endsWith(".h", Qt::CaseInsensitive) ||
+                  filePath.endsWith(".hpp", Qt::CaseInsensitive) ||
+                  filePath.endsWith(".hh", Qt::CaseInsensitive) ||
+                  filePath.endsWith(".hxx", Qt::CaseInsensitive);
 
   // 步骤 1：精确屏蔽注释与字符串字面量，并严格隔离预处理指令 (#include, #define 等)
   QString clean = code;
@@ -4028,7 +4042,7 @@ void CodeEditor::parseFunctions(const QString &code) {
           mInfo.startLine = line;
           mInfo.startCol = col;
           mInfo.endLine = line;
-          m_functions.append(mInfo);
+          functions.append(mInfo);
 
           int keepEnd = i + defMatch.capturedEnd();
           for (int k = keepEnd; k < lineEnd; ++k) {
@@ -4117,7 +4131,7 @@ void CodeEditor::parseFunctions(const QString &code) {
     containerInfo.startLine = line;
     containerInfo.startCol = col;
     containerInfo.endLine = code.left(endStmtPos < codeLen ? endStmtPos : codeLen).count('\n');
-    m_functions.append(containerInfo);
+    functions.append(containerInfo);
 
     // 扫描类/结构体内部成员 (方法、字段/成员变量、内嵌结构体)
     QList<FunctionInfo> containerMembers;
@@ -4397,7 +4411,7 @@ void CodeEditor::parseFunctions(const QString &code) {
     });
 
     for (const FunctionInfo &mem : containerMembers) {
-      m_functions.append(mem);
+      functions.append(mem);
     }
   }
 
@@ -4730,23 +4744,23 @@ void CodeEditor::parseFunctions(const QString &code) {
   // 将 .cpp 中发现的类加入顶层
   for (const FunctionInfo &cls : outOfClassClasses.values()) {
     bool alreadyExists = false;
-    for (const FunctionInfo &f : m_functions) {
+    for (const FunctionInfo &f : functions) {
       if (f.scopedName == cls.scopedName && (f.type == SymbolClass || f.type == SymbolStruct)) {
         alreadyExists = true;
         break;
       }
     }
     if (!alreadyExists) {
-      m_functions.append(cls);
+      functions.append(cls);
     }
   }
 
   // 追加全局符号
-  m_functions.append(globalSymbols);
+  functions.append(globalSymbols);
 
   // 计算每个符号在当前文件内的引用/调用计数 (对齐图 3 右侧 +9, 1, 2 显示)
-  for (int i = 0; i < m_functions.size(); ++i) {
-    QString name = m_functions[i].scopedName;
+  for (int i = 0; i < functions.size(); ++i) {
+    QString name = functions[i].scopedName;
     if (!name.isEmpty() && name != "main") {
       QRegularExpression refRegex(QString(R"(\b%1\b)").arg(QRegularExpression::escape(name)));
       int count = 0;
@@ -4755,15 +4769,15 @@ void CodeEditor::parseFunctions(const QString &code) {
         matchIter.next();
         ++count;
       }
-      m_functions[i].refCount = count;
+      functions[i].refCount = count;
     } else {
-      m_functions[i].refCount = 0;
+      functions[i].refCount = 0;
     }
   }
 
   // 去重 (相同名称且相同行号与父类只保留一条)
   QList<FunctionInfo> uniqueList;
-  for (const FunctionInfo &info : m_functions) {
+  for (const FunctionInfo &info : functions) {
     bool dup = false;
     for (const FunctionInfo &u : uniqueList) {
       if (u.scopedName == info.scopedName && u.startLine == info.startLine && u.parentClass == info.parentClass) {
@@ -4775,7 +4789,8 @@ void CodeEditor::parseFunctions(const QString &code) {
       uniqueList.append(info);
     }
   }
-  m_functions = uniqueList;
+  functions = uniqueList;
+  return functions;
 }
 
 void CodeEditor::updateFunctionList() {
@@ -5461,18 +5476,20 @@ void CodeEditor::onEditorChanged(QsciScintilla *editor) {
   }
 }
 
-void CodeEditor::createNewFile() {
-  if (!confirmDiscardChanges()) return;
-  // 清空当前编辑器内容
+bool CodeEditor::newDocument() {
+  if (!confirmDiscardChanges()) return false;
+  m_currentFilePath.clear();
   if (m_currentEditor) {
     m_currentEditor->clear();
+    m_currentEditor->setModified(false);
   }
+  emit currentBufferChanged(QString(), QString());
+  updateFunctionList();
+  return true;
+}
 
-  // 重置当前文件路径
-  m_currentFilePath = "";
-
-  // 发出信号通知主窗口
-  emit newFileRequested();
+void CodeEditor::createNewFile() {
+  if (newDocument()) emit newFileRequested();
 }
 
 // 添加辅助函数来判断是否为构造函数
