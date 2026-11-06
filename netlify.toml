@@ -1,0 +1,26 @@
+# SmileCode Studio (微笑代码工作站) Official Website — Netlify Configuration
+[build]
+  publish = "website"
+  command = "echo 'SmileCode Studio static website ready in website/'"
+
+[context.production]
+  publish = "website"
+
+[context.deploy-preview]
+  publish = "website"
+
+[context.branch-deploy]
+  publish = "website"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "SAMEORIGIN"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+

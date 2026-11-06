@@ -21,3 +21,6 @@ Plugins/STM32WorkbenchPlugin/tests/moc/
 Plugins/STM32WorkbenchPlugin/tests/debug/
 Plugins/STM32WorkbenchPlugin/tests/release/*.exe
 
+
+# Netlify local state (do not commit .netlify/state.json)
+.netlify
